@@ -60,33 +60,33 @@ export default function DashboardPage() {
     
     const congregationId = user.congregationId;
 
-    // Fetch one-time stats like user count
-    const fetchInitialStats = async () => {
+    // Fetch stats securely
+    const fetchStats = async () => {
         try {
-            // Fetch User Count using the secure query
-            const usersCollectionRef = collection(db, "users");
-            const q = query(usersCollectionRef, where("congregationId", "==", congregationId));
-            const querySnapshot = await getDocs(q);
-            const totalUsers = querySnapshot.size;
-
-            // TODO: Implement more complex stats fetching (territories, blocks, houses)
-            // For now, we update the user count and keep others as placeholders.
-            setStats(prevStats => ({
-                ...prevStats,
-                totalUsers,
-                totalTerritories: 10, // Placeholder
-                registeredBlocks: 5, // Placeholder
-                mappedHouses: 0, // Placeholder
-                visitedHouses: 0, // Placeholder
-            }));
+            // Count users securely
+            const usersQuery = query(collection(db, "users"), where("congregationId", "==", congregationId));
+            const usersSnap = await getDocs(usersQuery);
+            
+            // Count territories securely
+            const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
+            const territoriesSnap = await getDocs(territoriesRef);
+            
+            // Per instructions, more complex stats are set to 0 for now.
+            setStats({
+                totalUsers: usersSnap.size,
+                totalTerritories: territoriesSnap.size,
+                registeredBlocks: 0,
+                mappedHouses: 0,
+                visitedHouses: 0,
+            });
         } catch (error) {
-            console.error("Erro ao buscar contagem de usuários: ", error);
+            console.error("Erro ao buscar estatísticas: ", error);
         }
     };
 
-    fetchInitialStats();
+    fetchStats();
 
-
+    // Listener for recent territories
     const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
     const q = query(territoriesRef, orderBy('lastUpdate', 'desc'), limit(3));
     
@@ -97,7 +97,8 @@ export default function DashboardPage() {
               id: doc.id,
               name: data.name,
               number: data.number,
-              lastUpdate: new Date(data.lastUpdate.seconds * 1000).toLocaleDateString('pt-BR'),
+              // Check for lastUpdate existence and that it's a Firestore Timestamp
+              lastUpdate: data.lastUpdate?.seconds ? new Date(data.lastUpdate.seconds * 1000).toLocaleDateString('pt-BR') : 'N/A',
               progress: data.progress || 0,
           }
       }) as Territory[];
