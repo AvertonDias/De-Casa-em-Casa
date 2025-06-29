@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
@@ -218,7 +219,9 @@ export default function QuadraDetailPage() {
                             </button>
                         </div>
                         ) : (
-                          <EditCasaModal casa={casa} territoryId={territoryId} quadraId={quadraId} onCasaUpdated={() => {}} congregationId={user.congregationId} />
+                          user?.congregationId && (
+                            <EditCasaModal casa={casa} territoryId={territoryId} quadraId={quadraId} onCasaUpdated={() => {}} congregationId={user.congregationId} />
+                          )
                         )}
                     </div>
                 </div>
