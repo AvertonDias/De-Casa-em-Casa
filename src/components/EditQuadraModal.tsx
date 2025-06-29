@@ -26,6 +26,13 @@ export function EditQuadraModal({ quadra, territoryId, onQuadraUpdated, congrega
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    if (!congregationId) {
+      setError("ID da congregação não encontrado. Ação bloqueada.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadra.id);
       await updateDoc(quadraRef, { name, description });
@@ -37,6 +44,12 @@ export function EditQuadraModal({ quadra, territoryId, onQuadraUpdated, congrega
 
   const handleDelete = async () => {
     if (!window.confirm(`Tem certeza que deseja EXCLUIR a quadra "${quadra.name}"? Todas as casas dentro dela serão perdidas.`)) return;
+    
+    if (!congregationId) {
+      setError("ID da congregação não encontrado. Ação bloqueada.");
+      return;
+    }
+    
     setIsLoading(true);
     try {
       const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadra.id);

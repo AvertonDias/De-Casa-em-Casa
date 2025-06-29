@@ -33,6 +33,12 @@ export function AddTerritoryModal({ onTerritoryAdded, congregationId }: AddTerri
       return;
     }
 
+    if (!congregationId) {
+      setError("ID da congregação não encontrado. Ação bloqueada.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
       

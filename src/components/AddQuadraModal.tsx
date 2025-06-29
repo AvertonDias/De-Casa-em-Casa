@@ -40,6 +40,12 @@ export function AddQuadraModal({ territoryId, onQuadraAdded, existingQuadrasCoun
       setIsLoading(false);
       return;
     }
+    
+    if (!congregationId) {
+      setError("ID da congregação não encontrado. Ação bloqueada.");
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const quadrasRef = collection(db, 'congregations', congregationId, 'territories', territoryId, 'quadras');

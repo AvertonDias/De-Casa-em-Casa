@@ -37,6 +37,12 @@ export function EditCasaModal({ casa, territoryId, quadraId, onCasaUpdated, cong
     setIsLoading(true);
     setError('');
 
+    if (!congregationId) {
+      setError("ID da congregação não encontrado. Ação bloqueada.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const casaRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
       await updateDoc(casaRef, {
@@ -55,6 +61,12 @@ export function EditCasaModal({ casa, territoryId, quadraId, onCasaUpdated, cong
   
   const handleDelete = async () => {
     if (!window.confirm(`Tem certeza que deseja EXCLUIR o número "${casa.number}"?`)) return;
+    
+    if (!congregationId) {
+      setError("ID da congregação não encontrado. Ação bloqueada.");
+      return;
+    }
+    
     setIsLoading(true);
     try {
       const casaRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);

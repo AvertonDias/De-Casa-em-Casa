@@ -44,6 +44,12 @@ export function EditTerritoryModal({ territory, onTerritoryUpdated, congregation
     setIsLoading(true);
     setError('');
 
+    if (!congregationId) {
+      setError("ID da congregação não encontrado. Ação bloqueada.");
+      setIsLoading(false);
+      return;
+    }
+
     const dataToUpdate = {
       number: formData.number,
       name: formData.name,
@@ -70,6 +76,11 @@ export function EditTerritoryModal({ territory, onTerritoryUpdated, congregation
       return; 
     }
     
+    if (!congregationId) {
+      setError("ID da congregação não encontrado. Ação bloqueada.");
+      return;
+    }
+
     setIsLoading(true);
     setError('');
     try {
@@ -105,6 +116,11 @@ export function EditTerritoryModal({ territory, onTerritoryUpdated, congregation
 
   const handleDelete = async () => {
     if (!window.confirm(`Tem certeza que deseja EXCLUIR o território "${territory.name}"? Esta ação é permanente e não pode ser desfeita.`)) {
+      return;
+    }
+
+    if (!congregationId) {
+      setError("ID da congregação não encontrado. Ação bloqueada.");
       return;
     }
 

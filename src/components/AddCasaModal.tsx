@@ -26,6 +26,12 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
     setIsLoading(true);
     setError('');
     
+    if (!congregationId) {
+      setError("ID da congregação não encontrado. Ação bloqueada.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const casasRef = collection(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas');
       
