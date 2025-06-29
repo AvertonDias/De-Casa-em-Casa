@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Settings, X } from 'lucide-react';
+import { User as UserIcon, X } from 'lucide-react';
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
@@ -94,28 +94,15 @@ export function EditProfileModal() {
 
   if (loading) {
     return (
-        <div className="flex items-center space-x-2 text-left p-2 rounded-md w-full animate-pulse">
-            <div className="w-10 h-10 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-            <div className="flex-1 space-y-2">
-                <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4"></div>
-                <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-1/2"></div>
-            </div>
-        </div>
+      <button className="w-full bg-gray-300 dark:bg-gray-700 h-10 rounded-lg animate-pulse" disabled></button>
     )
   }
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
       <Dialog.Trigger asChild>
-        <button className="flex items-center space-x-2 text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-purple-900/50 w-full">
-          <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center font-bold text-white">
-            {user?.name?.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-gray-800 dark:text-white truncate">{user?.name}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
-          </div>
-          <Settings className="text-gray-500" size={20} />
+        <button className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center">
+            <UserIcon className="h-4 w-4 mr-2" /> Editar Perfil
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>

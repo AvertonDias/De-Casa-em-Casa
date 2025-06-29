@@ -8,7 +8,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 
-export function SettingsModal() {
+export function EditCongregationModal() {
   const { user } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   

@@ -8,7 +8,6 @@ import { auth } from "@/lib/firebase";
 import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Settings } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { FeedbackModal } from "@/components/FeedbackModal";
-import { EditProfileModal } from "@/components/EditProfileModal";
 import { useUser } from '@/contexts/UserContext';
 
 // --- Componente de Troca de Tema ---
@@ -35,6 +34,7 @@ function ThemeSwitcher() {
 function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useUser();
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -105,7 +105,18 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
           </nav>
         </div>
         <div className="space-y-2 border-t border-gray-200 dark:border-gray-700 pt-4">
-          <EditProfileModal />
+          
+          {/* Card de Usuário Apenas Informativo */}
+          <div className="flex items-center space-x-2 text-left p-2 rounded-md w-full">
+            <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center font-bold text-white">
+              {user?.name?.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-800 dark:text-white truncate">{user?.name}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
+            </div>
+          </div>
+          
           <FeedbackModal />
           <button
             onClick={handleLogout}
