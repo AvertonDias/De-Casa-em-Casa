@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Landmark, X } from 'lucide-react';
+import { House, X } from 'lucide-react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
@@ -70,7 +70,7 @@ export function EditCongregationModal() {
     <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
       <Dialog.Trigger asChild>
         <button className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center">
-          <Landmark className="h-4 w-4 mr-2" /> Editar Congregação
+          <House className="h-4 w-4 mr-2" /> Editar Congregação
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
@@ -83,7 +83,7 @@ export function EditCongregationModal() {
           <form onSubmit={handleUpdate} className="mt-4 space-y-6">
             
             <fieldset className="border border-gray-200 dark:border-gray-700 p-4 rounded-lg">
-              <legend className="text-md font-semibold text-gray-700 dark:text-gray-300 mb-2 px-2 flex items-center"><Landmark className="mr-2 h-5 w-5 text-purple-500"/>Dados da Congregação</legend>
+              <legend className="text-md font-semibold text-gray-700 dark:text-gray-300 mb-2 px-2 flex items-center"><House className="mr-2 h-5 w-5 text-purple-500"/>Dados da Congregação</legend>
               <div className="space-y-4">
                 <input value={congregationName} onChange={e => setCongregationName(e.target.value)} placeholder="Nome da Congregação" className={inputClasses} />
                 <input type="tel" inputMode="numeric" pattern="[0-9]*" value={congregationNumber} onChange={e => setCongregationNumber(e.target.value.replace(/\D/g, ''))} placeholder="Número" className={inputClasses} />
