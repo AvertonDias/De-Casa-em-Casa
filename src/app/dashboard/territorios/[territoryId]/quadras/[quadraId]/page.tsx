@@ -137,7 +137,7 @@ export default function QuadraDetailPage() {
           Voltar para {territory?.name || 'Território'}
         </Link>
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-          Quadra: {quadraName || 'Detalhes'}
+          {quadraName || 'Detalhes da Quadra'}
         </h1>
       </div>
       
