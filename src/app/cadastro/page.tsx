@@ -12,11 +12,9 @@ function SignupForm() {
     const searchParams = useSearchParams();
     const router = useRouter();
 
-    // Estados inicializados a partir de parâmetros da URL ou vazios
     const [name, setName] = useState(searchParams.get('name') || '');
     const [congregationNumber, setCongregationNumber] = useState(searchParams.get('number') || '');
     
-    // Outros estados do formulário
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -35,21 +33,23 @@ function SignupForm() {
         setError(null);
 
         try {
-            // Passo 1: Criar o documento da nova congregação
+            // Gera um código de convite aleatório de 6 dígitos
+            const congregationCode = Math.random().toString().substring(2, 8);
+
             const newCongregationRef = await addDoc(collection(db, "congregations"), {
                 name: congregationName,
                 number: congregationNumber,
+                code: congregationCode,
             });
 
-            // Passo 2: Criar o usuário na autenticação
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             
-            // Passo 3: Criar o documento do usuário, associando-o à nova congregação
             await setDoc(doc(db, "users", userCredential.user.uid), {
                 name: name,
                 email: email,
-                role: 'Administrador', // O primeiro a se cadastrar é o Admin
-                congregationId: newCongregationRef.id // <-- Associa com o ID da congregação recém-criada
+                role: 'Administrador',
+                congregationId: newCongregationRef.id,
+                status: 'ativo' // Administrador é ativo por padrão
             });
 
             router.push('/dashboard');
@@ -75,16 +75,14 @@ function SignupForm() {
                 </div>
                 
                 <form onSubmit={handleSignup} className="space-y-4">
-                    {/* Seção da Congregação */}
                     <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
                         <h2 className="font-semibold text-gray-700 dark:text-gray-300">Dados da Congregação</h2>
                         <div className="mt-2 space-y-4">
-                            <input type="tel" placeholder="Número da Congregação" value={congregationNumber} onChange={() => {}} readOnly className={readOnlyInputClasses} />
+                            <input type="tel" placeholder="Número da Congregação" value={congregationNumber} onChange={e => setCongregationNumber(e.target.value.replace(/\D/g, ''))} readOnly className={readOnlyInputClasses} />
                             <input type="text" placeholder="Nome da Congregação" value={congregationName} onChange={e => setCongregationName(e.target.value)} required className={regularInputClasses} />
                         </div>
                     </div>
                     
-                    {/* Seção do Administrador */}
                     <div className="pt-4">
                         <h2 className="font-semibold text-gray-700 dark:text-gray-300">Seus Dados de Administrador</h2>
                         <div className="mt-2 space-y-4">

@@ -101,6 +101,12 @@ export default function LoginPage() {
         <p className="text-center text-sm text-gray-400">
           Não é administrador? <Link href="/" className="font-medium text-purple-400 hover:text-purple-300">Voltar</Link>
         </p>
+         <p className="text-center text-sm text-gray-400 mt-4">
+          Novo publicador?{' '}
+          <Link href="/solicitar-acesso" className="font-medium text-purple-400 hover:text-purple-300">
+            Solicite seu acesso aqui
+          </Link>
+        </p>
       </div>
     </div>
   );

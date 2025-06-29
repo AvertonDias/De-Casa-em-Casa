@@ -10,19 +10,20 @@ interface AppUser {
   name: string;
   email: string | null;
   role: string;
-  congregationId: string | null; // O ID que queremos!
+  congregationId: string | null;
+  status: string; // 'ativo', 'pendente', 'rejeitado'
 }
 
 interface UserContextType {
   user: AppUser | null;
   loading: boolean;
-  updateUser: (data: Partial<AppUser>) => void; // Nova função
+  updateUser: (data: Partial<AppUser>) => void;
 }
 
 const UserContext = createContext<UserContextType>({ 
   user: null, 
   loading: true,
-  updateUser: () => {} // Função vazia como padrão
+  updateUser: () => {}
 });
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
@@ -32,7 +33,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        // Usuário está logado. Agora buscamos nossos dados extras no Firestore.
         const userRef = doc(db, 'users', firebaseUser.uid);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
@@ -42,10 +42,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             name: userData.name,
             email: firebaseUser.email,
             role: userData.role,
-            congregationId: userData.congregationId || null, // Garante que seja null se não existir
+            congregationId: userData.congregationId || null,
+            status: userData.status || 'ativo', // Adiciona status, padrão 'ativo' para compatibilidade
           });
         } else {
-           // Caso raro: usuário no Auth mas não no Firestore.
            setUser(null);
         }
       } else {
@@ -68,7 +68,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Hook customizado para facilitar o acesso ao contexto
 export const useUser = () => {
   return useContext(UserContext);
 };
