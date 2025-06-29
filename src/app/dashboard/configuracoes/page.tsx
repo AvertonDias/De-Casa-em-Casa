@@ -3,7 +3,7 @@
 import { useUser } from '@/contexts/UserContext';
 import { EditCongregationModal } from '@/components/EditCongregationModal';
 import { EditProfileModal } from '@/components/EditProfileModal';
-import { User as UserIcon, Landmark } from 'lucide-react';
+import { User as UserIcon, House } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user } = useUser();
@@ -30,7 +30,7 @@ export default function SettingsPage() {
         {user?.role === 'Administrador' && (
           <div className="bg-white dark:bg-[#2f2b3a] p-6 rounded-lg shadow-md flex flex-col">
             <div className="flex items-center mb-4">
-              <Landmark className="h-6 w-6 mr-3 text-purple-600 dark:text-purple-400" />
+              <House className="h-6 w-6 mr-3 text-purple-600 dark:text-purple-400" />
               <h2 className="text-2xl font-bold">Minha Congregação</h2>
             </div>
             <p className="text-gray-600 dark:text-gray-400 mb-6 flex-grow">
