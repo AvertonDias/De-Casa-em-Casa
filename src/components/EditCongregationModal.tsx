@@ -7,7 +7,11 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 
-export function EditCongregationModal() {
+interface EditCongregationModalProps {
+  disabled?: boolean;
+}
+
+export function EditCongregationModal({ disabled = false }: EditCongregationModalProps) {
   const { user } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   
@@ -69,7 +73,10 @@ export function EditCongregationModal() {
   return (
     <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
       <Dialog.Trigger asChild>
-        <button className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center">
+        <button 
+          disabled={disabled}
+          className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center disabled:bg-purple-400/50 disabled:cursor-not-allowed"
+        >
           <House className="h-4 w-4 mr-2" /> Editar Congregação
         </button>
       </Dialog.Trigger>

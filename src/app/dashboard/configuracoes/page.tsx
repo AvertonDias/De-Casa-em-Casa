@@ -27,16 +27,16 @@ export default function SettingsPage() {
         </div>
 
         {/* Card 2: Editar Congregação */}
-        {user?.role === 'Administrador' && (
+        {['Administrador', 'Dirigente'].includes(user?.role || '') && (
           <div className="bg-white dark:bg-[#2f2b3a] p-6 rounded-lg shadow-md flex flex-col">
             <div className="flex items-center mb-4">
               <House className="h-6 w-6 mr-3 text-purple-600 dark:text-purple-400" />
               <h2 className="text-2xl font-bold">Minha Congregação</h2>
             </div>
             <p className="text-gray-600 dark:text-gray-400 mb-6 flex-grow">
-              Altere os dados da sua congregação.
+              Altere os dados da sua congregação. Somente administradores podem editar.
             </p>
-            <EditCongregationModal />
+            <EditCongregationModal disabled={user?.role !== 'Administrador'} />
           </div>
         )}
 

@@ -191,7 +191,7 @@ export default function TerritorioDetailPage() {
           <h1 className="text-4xl font-bold">{territory.number}: {territory.name}</h1>
           <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">{territory.description || 'Território do salão do reino'}</p>
         </div>
-        {user?.congregationId && <EditTerritoryModal territory={territory} onTerritoryUpdated={fetchTerritoryInfoForModal} congregationId={user.congregationId} />}
+        {['Administrador', 'Dirigente'].includes(user?.role || '') && user?.congregationId && <EditTerritoryModal territory={territory} onTerritoryUpdated={fetchTerritoryInfoForModal} congregationId={user.congregationId} />}
       </div>
 
        <div className="bg-white dark:bg-[#2f2b3a] p-4 rounded-lg shadow-lg">
@@ -273,7 +273,7 @@ export default function TerritorioDetailPage() {
       <div className="bg-white dark:bg-[#2f2b3a] rounded-lg shadow-lg p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold flex items-center text-gray-800 dark:text-white"><LayoutGrid className="h-6 w-6 mr-3 text-purple-600 dark:text-purple-400" />Quadras</h2>
-          {user?.congregationId && <AddQuadraModal territoryId={territoryId} onQuadraAdded={() => {}} existingQuadrasCount={quadras.length} congregationId={user.congregationId} />}
+          {user?.role === 'Administrador' && user?.congregationId && <AddQuadraModal territoryId={territoryId} onQuadraAdded={() => {}} existingQuadrasCount={quadras.length} congregationId={user.congregationId} />}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {quadras.length > 0 ? quadras.map(quadra => (
@@ -313,7 +313,7 @@ export default function TerritorioDetailPage() {
                 </Link>
 
                 <div className="flex justify-end items-center">
-                  {user?.congregationId && <EditQuadraModal quadra={quadra} territoryId={territoryId} onQuadraUpdated={() => {}} congregationId={user.congregationId} />}
+                  {['Administrador', 'Dirigente'].includes(user?.role || '') && user?.congregationId && <EditQuadraModal quadra={quadra} territoryId={territoryId} onQuadraUpdated={() => {}} congregationId={user.congregationId} />}
                 </div>
               </div>
           )) : <p className="text-gray-500 dark:text-gray-400 col-span-full text-center py-5">Nenhuma quadra adicionada.</p>}

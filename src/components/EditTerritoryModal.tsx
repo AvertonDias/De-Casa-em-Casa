@@ -5,6 +5,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Pencil, X, Trash2, ShieldAlert } from 'lucide-react';
 import { doc, updateDoc, deleteDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useUser } from '@/contexts/UserContext';
 
 interface Territory {
   id: string;
@@ -22,6 +23,7 @@ interface EditTerritoryModalProps {
 }
 
 export function EditTerritoryModal({ territory, onTerritoryUpdated, congregationId }: EditTerritoryModalProps) {
+  const { user } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState(territory);
   const [error, setError] = useState('');
@@ -190,13 +192,15 @@ export function EditTerritoryModal({ territory, onTerritoryUpdated, congregation
               </button>
             </div>
           </form>
-          <div className="mt-6 border-t border-gray-200 dark:border-red-500/30 pt-4">
-             <h3 className="text-md font-semibold text-red-600 dark:text-red-300 flex items-center"><ShieldAlert className="mr-2" />Ações de Risco</h3>
-             <div className="flex gap-4 mt-2">
-               <button onClick={handleClearTerritory} disabled={isLoading} className="flex-1 text-sm bg-yellow-100 text-yellow-800 dark:bg-yellow-800/50 dark:text-yellow-200 hover:bg-yellow-200 dark:hover:bg-yellow-700/50 p-2 rounded disabled:opacity-50">Limpar Território</button>
-               <button onClick={handleDelete} disabled={isLoading} className="flex-1 text-sm bg-red-100 text-red-800 dark:bg-red-800/50 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-700/50 p-2 rounded disabled:opacity-50">Excluir Território</button>
-             </div>
-          </div>
+          {user?.role === 'Administrador' && (
+            <div className="mt-6 border-t border-gray-200 dark:border-red-500/30 pt-4">
+               <h3 className="text-md font-semibold text-red-600 dark:text-red-300 flex items-center"><ShieldAlert className="mr-2" />Ações de Risco</h3>
+               <div className="flex gap-4 mt-2">
+                 <button onClick={handleClearTerritory} disabled={isLoading} className="flex-1 text-sm bg-yellow-100 text-yellow-800 dark:bg-yellow-800/50 dark:text-yellow-200 hover:bg-yellow-200 dark:hover:bg-yellow-700/50 p-2 rounded disabled:opacity-50">Limpar Território</button>
+                 <button onClick={handleDelete} disabled={isLoading} className="flex-1 text-sm bg-red-100 text-red-800 dark:bg-red-800/50 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-700/50 p-2 rounded disabled:opacity-50">Excluir Território</button>
+               </div>
+            </div>
+          )}
           <Dialog.Close asChild><button className="absolute top-3 right-3 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white"><X /></button></Dialog.Close>
         </Dialog.Content>
       </Dialog.Portal>

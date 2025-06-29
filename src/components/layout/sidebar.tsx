@@ -28,10 +28,10 @@ import { auth } from "@/lib/firebase";
 import { FeedbackModal } from "@/components/FeedbackModal";
 
 const navItems = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Territórios", href: "/dashboard/territorios", icon: Map },
-  { name: "Usuários", href: "/dashboard/usuarios", icon: Users },
-  { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ['Administrador', 'Dirigente', 'Publicador'] },
+  { name: "Territórios", href: "/dashboard/territorios", icon: Map, roles: ['Administrador', 'Dirigente', 'Publicador'] },
+  { name: "Usuários", href: "/dashboard/usuarios", icon: Users, roles: ['Administrador', 'Dirigente'] },
+  { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings, roles: ['Administrador', 'Dirigente', 'Publicador'] },
 ];
 
 interface SidebarProps {
@@ -82,6 +82,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       console.error("Erro ao fazer logout:", error);
     }
   };
+  
+  const filteredNavItems = navItems.filter(item => item.roles.includes(user?.role || ''));
 
   return (
     <>
@@ -117,7 +119,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         <nav className="flex-1">
           <ul className="space-y-1">
-            {navItems.map((item) => {
+            {filteredNavItems.map((item) => {
               const isActive =
                 pathname === item.href ||
                 (item.href !== "/dashboard" && pathname.startsWith(item.href));
