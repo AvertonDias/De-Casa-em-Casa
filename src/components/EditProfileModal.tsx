@@ -52,7 +52,7 @@ export function EditProfileModal() {
     const passwordChanged = newPassword !== '';
 
     if (!nameChanged && !passwordChanged) {
-      setSuccess("Nenhuma alteração para salvar.");
+      setError("Nenhuma alteração para salvar.");
       setIsLoading(false);
       return;
     }
@@ -108,7 +108,14 @@ export function EditProfileModal() {
         <Dialog.Content className="fixed top-1/2 left-1/2 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white dark:bg-[#2f2b3a] p-6 shadow-lg focus:outline-none">
           <Dialog.Title className="text-gray-800 dark:text-white text-lg font-medium">Editar Perfil</Dialog.Title>
             
-            {!success ? (
+            {success ? (
+              <div className="text-center py-8">
+                <p className="text-lg font-semibold text-green-500">{success}</p>
+                <Dialog.Close asChild>
+                  <button className="mt-6 px-6 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-500">Fechar</button>
+                </Dialog.Close>
+              </div>
+            ) : (
               <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                 <div>
                   <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Nome Completo</label>
@@ -150,13 +157,6 @@ export function EditProfileModal() {
                    </button>
                 </div>
               </form>
-            ) : (
-              <div className="text-center py-8">
-                <p className={`text-lg font-semibold ${success === 'Nenhuma alteração para salvar.' ? 'text-yellow-400' : 'text-green-500'}`}>{success}</p>
-                <Dialog.Close asChild>
-                  <button className="mt-6 px-6 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-500">Fechar</button>
-                </Dialog.Close>
-              </div>
             )}
 
           <Dialog.Close asChild>
