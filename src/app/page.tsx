@@ -1,5 +1,3 @@
-// Cole este código completo e atualizado em src/app/page.tsx
-
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -20,9 +18,22 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       router.push('/dashboard');
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro detalhado no login:", err);
-      setError('E-mail ou senha inválidos.');
+      switch (err.code) {
+        case 'auth/invalid-email':
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          setError('E-mail ou senha inválidos.');
+          break;
+        case 'auth/user-disabled':
+          setError('Este usuário foi desativado.');
+          break;
+        default:
+          setError('Ocorreu um erro ao fazer login. Tente novamente.');
+          break;
+      }
     }
   };
 
