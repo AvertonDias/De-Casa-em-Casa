@@ -9,7 +9,7 @@ import { db, auth } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 
 export function EditProfileModal() {
-  const { user } = useUser();
+  const { user, updateUser } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   
   const [name, setName] = useState('');
@@ -49,14 +49,20 @@ export function EditProfileModal() {
     }
 
     try {
+      // 1. Atualiza o nome no Firestore
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, { name: name });
 
+      // Atualiza o nome no nosso contexto local imediatamente
+      updateUser({ name: name });
+      
+      // 2. Se o usuário digitou uma nova senha, tenta atualizá-la
       if (newPassword) {
         if (newPassword !== confirmNewPassword) throw new Error("As novas senhas não coincidem.");
         if (newPassword.length < 6) throw new Error("A nova senha deve ter no mínimo 6 caracteres.");
         if (!currentPassword) throw new Error("Forneça sua senha atual para definir uma nova.");
 
+        // Reautentica para segurança
         const credential = EmailAuthProvider.credential(user.email, currentPassword);
         const firebaseUser = auth.currentUser;
         if (firebaseUser) {
@@ -70,7 +76,7 @@ export function EditProfileModal() {
       setSuccess("Perfil atualizado com sucesso!");
       setTimeout(() => {
         setIsOpen(false);
-      }, 2000);
+      }, 2000); // Fecha o modal após 2 segundos
 
     } catch (err: any) {
       if (err.code === 'auth/wrong-password') {

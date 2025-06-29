@@ -16,9 +16,14 @@ interface AppUser {
 interface UserContextType {
   user: AppUser | null;
   loading: boolean;
+  updateUser: (data: Partial<AppUser>) => void; // Nova função
 }
 
-const UserContext = createContext<UserContextType>({ user: null, loading: true });
+const UserContext = createContext<UserContextType>({ 
+  user: null, 
+  loading: true,
+  updateUser: () => {} // Função vazia como padrão
+});
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AppUser | null>(null);
@@ -52,8 +57,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
+  const updateUser = (data: Partial<AppUser>) => {
+    setUser(currentUser => currentUser ? { ...currentUser, ...data } : null);
+  };
+
   return (
-    <UserContext.Provider value={{ user, loading }}>
+    <UserContext.Provider value={{ user, loading, updateUser }}>
       {children}
     </UserContext.Provider>
   );
