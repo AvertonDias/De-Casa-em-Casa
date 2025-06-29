@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -79,7 +80,10 @@ export default function QuadraDetailPage() {
   }, [casas]);
 
   const handleReorder = async (casaId: string, direction: 'up' | 'down') => {
-    if (!user?.congregationId) return;
+    if (!user?.congregationId) {
+      console.error("Não é possível reordenar: usuário ou congregação não identificados.");
+      return;
+    }
     const originalCasas = [...casas];
     const currentIndex = originalCasas.findIndex(c => c.id === casaId);
     if (currentIndex === -1) return;
@@ -108,7 +112,10 @@ export default function QuadraDetailPage() {
   };
 
   const handleStatusChange = async (casaId: string, currentStatus: boolean) => {
-    if (!user?.congregationId) return;
+    if (!user?.congregationId) {
+      console.error("Não é possível atualizar status: usuário ou congregação não identificados.");
+      return;
+    }
     const originalStatus = casas.find(c => c.id === casaId)?.status;
     const newStatus = !currentStatus;
     setCasas(casas.map(c => c.id === casaId ? { ...c, status: newStatus } : c));
