@@ -1,13 +1,22 @@
 {
-  "name": "De Casa em Casa - Painel",
-  "short_name": "De Casa",
-  "description": "Painel de gerenciamento de territórios.",
-  "start_url": "/dashboard",
-  "display": "standalone",
-  "background_color": "#1e1b29",
   "theme_color": "#8E44AD",
+  "background_color": "#1e1b29",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/dashboard",
+  "name": "De Casa em Casa",
+  "short_name": "De Casa",
+  "description": "Painel de Gerenciamento de Territórios",
   "icons": [
-    { "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512x512.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
   ]
 }

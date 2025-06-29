@@ -5,8 +5,21 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { UserProvider } from '@/contexts/UserContext';
 
 export const metadata: Metadata = {
-  title: 'De Casa em Casa',
-  description: 'Painel de Controle',
+  title: "De Casa em Casa",
+  description: "Painel de Gerenciamento de Territórios",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "De Casa em Casa",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    shortcut: "/favicon.ico",
+    apple: [{ url: "/icon-192x192.png", sizes: "192x192" }],
+  },
 };
 
 export default function RootLayout({

@@ -1,8 +1,15 @@
-// Cole este código super simples em next.config.ts
+import withPWA from '@ducanh2912/next-pwa';
+
+const pwaPlugin = withPWA({
+  dest: 'public',
+  register: true,
+  skipWaiting: true,
+  disable: process.env.NODE_ENV === 'development',
+});
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // O arquivo está intencionalmente limpo.
+  // Coloque qualquer configuração específica do Next.js aqui.
 };
 
-export default nextConfig;
+export default pwaPlugin(nextConfig);
