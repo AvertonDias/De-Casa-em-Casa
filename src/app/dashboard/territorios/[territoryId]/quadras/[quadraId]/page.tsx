@@ -38,33 +38,30 @@ export default function QuadraDetailPage() {
     if (userLoading) {
       return;
     }
-    if (!user?.congregationId || !territoryId || !quadraId) {
-      console.error("Dados de usuário ou IDs de rota ausentes.");
-      setLoading(false);
-      return;
+    if (!user?.congregationId) {
+        if(!userLoading) setLoading(false);
+        return;
     }
 
     const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
     const quadraRef = doc(territoryRef, 'quadras', quadraId);
 
-    // Busca dados que não precisam ser em tempo real
     getDoc(territoryRef).then(snap => snap.exists() && setTerritory(snap.data() as Territory));
     getDoc(quadraRef).then(snap => snap.exists() && setQuadraName(snap.data().name));
     
-    // Configura o listener em tempo real para as casas
     const casasRef = collection(quadraRef, 'casas');
     const q = query(casasRef, orderBy('order'));
     
     const unsubscribe = onSnapshot(q, (casasSnap) => {
       const fetchedCasas = casasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Casa);
       setCasas(fetchedCasas);
-      setLoading(false); // Para de carregar após a primeira busca
+      setLoading(false);
     }, (error) => {
       console.error("Erro ao ouvir as atualizações das casas:", error);
       setLoading(false);
     });
 
-    return () => unsubscribe(); // Limpa o listener ao desmontar o componente
+    return () => unsubscribe();
     
   }, [user, userLoading, territoryId, quadraId]);
 
@@ -79,11 +76,7 @@ export default function QuadraDetailPage() {
   }, [casas]);
 
   const handleReorder = async (casaId: string, direction: 'up' | 'down') => {
-    if (!user?.congregationId) {
-      console.error("Não é possível reordenar: usuário ou congregação não identificados.");
-      return;
-    }
-    
+    const congregationId = user!.congregationId!;
     const originalCasas = [...casas];
     const currentIndex = originalCasas.findIndex(c => c.id === casaId);
     if (currentIndex === -1) return;
@@ -95,12 +88,11 @@ export default function QuadraDetailPage() {
     const [movedItem] = reorderedCasas.splice(currentIndex, 1);
     reorderedCasas.splice(newIndex, 0, movedItem);
 
-    // Otimisticamente atualiza a UI
     setCasas(reorderedCasas);
 
     const batch = writeBatch(db);
     reorderedCasas.forEach((casa, index) => {
-      const casaRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
+      const casaRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
       batch.update(casaRef, { order: index }); 
     });
 
@@ -108,24 +100,18 @@ export default function QuadraDetailPage() {
       await batch.commit();
     } catch (error)      {
       console.error("Falha ao reordenar:", error);
-      setCasas(originalCasas); // Reverte a UI em caso de erro
+      setCasas(originalCasas);
     }
   };
 
   const handleStatusChange = async (casaId: string, currentStatus: boolean) => {
-    if (!user?.congregationId) {
-      console.error("Não é possível atualizar status: usuário ou congregação não identificados.");
-      return;
-    }
-    
+    const congregationId = user!.congregationId!;
     const newStatus = !currentStatus;
     try {
-        const casaRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casaId);
+        const casaRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casaId);
         await updateDoc(casaRef, { status: newStatus });
-        // A atualização da UI será feita pelo listener onSnapshot
     } catch (error) {
         console.error("Erro ao atualizar status:", error);
-        // O listener onSnapshot garantirá que o estado volte ao original se a escrita falhar
     }
   };
 
@@ -134,7 +120,13 @@ export default function QuadraDetailPage() {
     c.observations.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading) return <div className="text-center text-gray-500 dark:text-gray-400">Carregando...</div>;
+  if (userLoading || loading) {
+    return <div className="text-center text-gray-500 dark:text-gray-400">Carregando...</div>;
+  }
+
+  if (!user || !user.congregationId) {
+    return <div className="text-center p-10 text-red-500">Erro: Usuário não associado a uma congregação. Contate o administrador.</div>;
+  }
 
   return (
     <div className="min-h-full">
@@ -174,7 +166,7 @@ export default function QuadraDetailPage() {
       
       <div className="bg-white dark:bg-[#2f2b3a] rounded-lg shadow-md overflow-hidden">
         <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
-            {user?.congregationId && <AddCasaModal territoryId={territoryId} quadraId={quadraId} onCasaAdded={() => {}} congregationId={user.congregationId} />}
+            <AddCasaModal territoryId={territoryId} quadraId={quadraId} onCasaAdded={() => {}} congregationId={user.congregationId} />
             <button 
                 onClick={() => setIsReordering(!isReordering)}
                 disabled={searchTerm !== '' || casas.length < 2}
@@ -226,7 +218,7 @@ export default function QuadraDetailPage() {
                             </button>
                         </div>
                         ) : (
-                          user?.congregationId && <EditCasaModal casa={casa} territoryId={territoryId} quadraId={quadraId} onCasaUpdated={() => {}} congregationId={user.congregationId} />
+                          <EditCasaModal casa={casa} territoryId={territoryId} quadraId={quadraId} onCasaUpdated={() => {}} congregationId={user.congregationId} />
                         )}
                     </div>
                 </div>
