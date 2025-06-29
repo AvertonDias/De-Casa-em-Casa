@@ -47,13 +47,12 @@ export function EditProfileModal() {
       setIsLoading(false);
       return;
     }
-    
+
     const nameChanged = name !== user.name;
     const passwordChanged = newPassword !== '';
 
     if (!nameChanged && !passwordChanged) {
       setSuccess("Nenhuma alteração para salvar.");
-      setTimeout(() => setIsOpen(false), 3000);
       setIsLoading(false);
       return;
     }
@@ -81,7 +80,6 @@ export function EditProfileModal() {
       }
 
       setSuccess("Perfil atualizado com sucesso!");
-      setTimeout(() => setIsOpen(false), 3000);
 
     } catch (err: any) {
       if (err.code === 'auth/wrong-password') {
@@ -109,48 +107,57 @@ export function EditProfileModal() {
         <Dialog.Overlay className="bg-black/60 fixed inset-0" />
         <Dialog.Content className="fixed top-1/2 left-1/2 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white dark:bg-[#2f2b3a] p-6 shadow-lg focus:outline-none">
           <Dialog.Title className="text-gray-800 dark:text-white text-lg font-medium">Editar Perfil</Dialog.Title>
-            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Nome Completo</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading || !!success} required className={inputClasses} />
-              </div>
-              
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-                <h3 className="text-md font-semibold text-gray-700 dark:text-gray-300">Alterar Senha (Opcional)</h3>
-                <div className="space-y-4 mt-2">
-                  <div className="relative">
-                    <input type={showCurrentPassword ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Senha Atual" disabled={isLoading || !!success} className={inputWithIconClasses}/>
-                    <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400">
-                      {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <input type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nova Senha" disabled={isLoading || !!success} className={inputWithIconClasses}/>
-                    <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400">
-                      {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <input type={showConfirmNewPassword ? "text" : "password"} value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Confirmar Nova Senha" disabled={isLoading || !!success} className={inputWithIconClasses}/>
-                    <button type="button" onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400">
-                      {showConfirmNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </button>
+            
+            {!success ? (
+              <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Nome Completo</label>
+                  <input value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} required className={inputClasses} />
+                </div>
+                
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                  <h3 className="text-md font-semibold text-gray-700 dark:text-gray-300">Alterar Senha (Opcional)</h3>
+                  <div className="space-y-4 mt-2">
+                    <div className="relative">
+                      <input type={showCurrentPassword ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Senha Atual" disabled={isLoading} className={inputWithIconClasses}/>
+                      <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400">
+                        {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nova Senha" disabled={isLoading} className={inputWithIconClasses}/>
+                      <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400">
+                        {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input type={showConfirmNewPassword ? "text" : "password"} value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Confirmar Nova Senha" disabled={isLoading} className={inputWithIconClasses}/>
+                      <button type="button" onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400">
+                        {showConfirmNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {error && <p className="text-sm text-center text-red-500">{error}</p>}
-              {success && <p className="text-sm text-center text-green-500">{success}</p>}
+                {error && <p className="text-sm text-center text-red-500">{error}</p>}
 
-              <div className="flex justify-end gap-4 mt-6">
-                 <Dialog.Close asChild>
-                   <button type="button" disabled={isLoading || !!success} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50">Cancelar</button>
-                 </Dialog.Close>
-                 <button type="submit" disabled={isLoading || !!success} className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-purple-800 disabled:opacity-50">
-                   {isLoading ? "Salvando..." : "Salvar Alterações"}
-                 </button>
+                <div className="flex justify-end gap-4 mt-6">
+                   <Dialog.Close asChild>
+                     <button type="button" disabled={isLoading} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50">Cancelar</button>
+                   </Dialog.Close>
+                   <button type="submit" disabled={isLoading} className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-purple-800 disabled:opacity-50">
+                     {isLoading ? "Salvando..." : "Salvar Alterações"}
+                   </button>
+                </div>
+              </form>
+            ) : (
+              <div className="text-center py-8">
+                <p className={`text-lg font-semibold ${success === 'Nenhuma alteração para salvar.' ? 'text-yellow-400' : 'text-green-500'}`}>{success}</p>
+                <Dialog.Close asChild>
+                  <button className="mt-6 px-6 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-500">Fechar</button>
+                </Dialog.Close>
               </div>
-            </form>
+            )}
 
           <Dialog.Close asChild>
             <button className="absolute top-3 right-3 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white"><X /></button>
