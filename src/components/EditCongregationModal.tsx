@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Landmark, X, User as UserIcon } from 'lucide-react';
+import { Landmark, X, User as UserIcon, Eye, EyeOff } from 'lucide-react';
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
@@ -19,6 +19,9 @@ export function EditCongregationModal() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -91,6 +94,7 @@ export function EditCongregationModal() {
   };
 
   const inputClasses = "w-full mt-1 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white rounded px-3 py-2 border border-gray-300 dark:border-gray-700";
+  const inputWithIconClasses = `${inputClasses} pr-10`;
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
@@ -120,8 +124,18 @@ export function EditCongregationModal() {
               <legend className="text-md font-semibold text-gray-700 dark:text-gray-300 mb-2 px-2 flex items-center"><UserIcon className="mr-2 h-5 w-5 text-purple-500"/>Meu Perfil</legend>
                <div className="space-y-4">
                  <input value={profileName} onChange={e => setProfileName(e.target.value)} placeholder="Seu Nome Completo" className={inputClasses}/>
-                 <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Senha Atual (só para alterar senha)" className={inputClasses}/>
-                 <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Nova Senha (deixe em branco para não alterar)" className={inputClasses}/>
+                 <div className="relative">
+                   <input type={showCurrentPassword ? "text" : "password"} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Senha Atual (só para alterar senha)" className={inputWithIconClasses}/>
+                    <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400">
+                      {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                 </div>
+                 <div className="relative">
+                   <input type={showNewPassword ? "text" : "password"} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Nova Senha (deixe em branco para não alterar)" className={inputWithIconClasses}/>
+                    <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400">
+                      {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                 </div>
               </div>
             </fieldset>
 
