@@ -7,14 +7,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useUser } from '@/contexts/UserContext';
 
 interface AddTerritoryModalProps {
   onTerritoryAdded: () => void;
+  congregationId: string;
 }
 
-export function AddTerritoryModal({ onTerritoryAdded }: AddTerritoryModalProps) {
-  const { user } = useUser();
+export function AddTerritoryModal({ onTerritoryAdded, congregationId }: AddTerritoryModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
@@ -25,11 +24,6 @@ export function AddTerritoryModal({ onTerritoryAdded }: AddTerritoryModalProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.congregationId) {
-        setError("Não foi possível identificar a congregação do usuário.");
-        return;
-    }
-
     setIsLoading(true);
     setError('');
 
@@ -40,7 +34,7 @@ export function AddTerritoryModal({ onTerritoryAdded }: AddTerritoryModalProps) 
     }
 
     try {
-      const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
+      const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
       
       await addDoc(territoriesRef, {
         number,

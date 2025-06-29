@@ -5,7 +5,6 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Pencil, X, Trash2, ShieldAlert } from 'lucide-react';
 import { doc, updateDoc, deleteDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useUser } from '@/contexts/UserContext';
 
 interface Territory {
   id: string;
@@ -19,10 +18,10 @@ interface Territory {
 interface EditTerritoryModalProps {
   territory: Territory;
   onTerritoryUpdated: () => void;
+  congregationId: string;
 }
 
-export function EditTerritoryModal({ territory, onTerritoryUpdated }: EditTerritoryModalProps) {
-  const { user } = useUser();
+export function EditTerritoryModal({ territory, onTerritoryUpdated, congregationId }: EditTerritoryModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState(territory);
   const [error, setError] = useState('');
@@ -42,11 +41,6 @@ export function EditTerritoryModal({ territory, onTerritoryUpdated }: EditTerrit
     e.preventDefault();
     e.stopPropagation();
     
-    if (!user?.congregationId) {
-      setError("ID da congregação não encontrado. Não é possível salvar.");
-      return;
-    }
-
     setIsLoading(true);
     setError('');
 
@@ -59,7 +53,7 @@ export function EditTerritoryModal({ territory, onTerritoryUpdated }: EditTerrit
     };
 
     try {
-      const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
+      const territoryRef = doc(db, 'congregations', congregationId, 'territories', territory.id);
       await updateDoc(territoryRef, dataToUpdate);
       setIsOpen(false);
       onTerritoryUpdated();
@@ -72,11 +66,6 @@ export function EditTerritoryModal({ territory, onTerritoryUpdated }: EditTerrit
   };
 
   const handleClearTerritory = async () => {
-    if (!user?.congregationId) {
-        setError("ID da congregação não encontrado. Ação cancelada.");
-        alert("ID da congregação não encontrado. Ação cancelada.");
-        return;
-    }
     if (!window.confirm(`Tem certeza que deseja LIMPAR o território "${territory.name}"? Todas as casas serão marcadas como "não feitas".`)) {
       return; 
     }
@@ -84,7 +73,7 @@ export function EditTerritoryModal({ territory, onTerritoryUpdated }: EditTerrit
     setIsLoading(true);
     setError('');
     try {
-      const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
+      const territoryRef = doc(db, 'congregations', congregationId, 'territories', territory.id);
       const quadrasSnapshot = await getDocs(collection(territoryRef, 'quadras'));
       const batch = writeBatch(db);
       let updatesFound = false;
@@ -115,11 +104,6 @@ export function EditTerritoryModal({ territory, onTerritoryUpdated }: EditTerrit
   };
 
   const handleDelete = async () => {
-    if (!user?.congregationId) {
-        setError("ID da congregação não encontrado. Ação cancelada.");
-        alert("ID da congregação não encontrado. Ação cancelada.");
-        return;
-    }
     if (!window.confirm(`Tem certeza que deseja EXCLUIR o território "${territory.name}"? Esta ação é permanente e não pode ser desfeita.`)) {
       return;
     }
@@ -127,7 +111,7 @@ export function EditTerritoryModal({ territory, onTerritoryUpdated }: EditTerrit
     setIsLoading(true);
     setError('');
     try {
-      const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
+      const territoryRef = doc(db, 'congregations', congregationId, 'territories', territory.id);
       await deleteDoc(territoryRef);
       setIsOpen(false);
       onTerritoryUpdated();

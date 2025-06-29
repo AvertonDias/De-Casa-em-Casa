@@ -111,7 +111,7 @@ export default function TerritoriosPage() {
             {congregationName || 'Carregando...'}
           </h2>
         </div>
-        <AddTerritoryModal onTerritoryAdded={() => {}} />
+        {user?.congregationId && <AddTerritoryModal onTerritoryAdded={() => {}} congregationId={user.congregationId} />}
       </div>
 
       <div className="space-y-6">
@@ -122,7 +122,7 @@ export default function TerritoriosPage() {
                 <span className="font-bold text-xl text-purple-600 dark:text-purple-300 mr-4">{territory.number}</span>
                 <span className="font-semibold text-lg group-hover:underline">{territory.name}</span>
               </Link>
-              <EditTerritoryModal territory={territory} onTerritoryUpdated={() => {}} />
+              {user?.congregationId && <EditTerritoryModal territory={territory} onTerritoryUpdated={() => {}} congregationId={user.congregationId} />}
             </div>
 
             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">

@@ -8,16 +8,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useUser } from '@/contexts/UserContext';
 
 interface AddQuadraModalProps {
   territoryId: string;
   onQuadraAdded: () => void;
   existingQuadrasCount: number;
+  congregationId: string;
 }
 
-export function AddQuadraModal({ territoryId, onQuadraAdded, existingQuadrasCount }: AddQuadraModalProps) {
-  const { user } = useUser();
+export function AddQuadraModal({ territoryId, onQuadraAdded, existingQuadrasCount, congregationId }: AddQuadraModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState('');
   const [error, setError] = useState('');
@@ -32,11 +31,7 @@ export function AddQuadraModal({ territoryId, onQuadraAdded, existingQuadrasCoun
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.congregationId) {
-        setError("Não foi possível identificar a congregação do usuário.");
-        return;
-    }
-
+    
     setIsLoading(true);
     setError('');
 
@@ -47,7 +42,7 @@ export function AddQuadraModal({ territoryId, onQuadraAdded, existingQuadrasCoun
     }
 
     try {
-      const quadrasRef = collection(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras');
+      const quadrasRef = collection(db, 'congregations', congregationId, 'territories', territoryId, 'quadras');
       
       await addDoc(quadrasRef, {
         name,

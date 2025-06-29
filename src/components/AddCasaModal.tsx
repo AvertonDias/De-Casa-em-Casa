@@ -5,16 +5,15 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Plus, X } from 'lucide-react';
 import { addDoc, collection, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useUser } from '@/contexts/UserContext';
 
 interface AddCasaModalProps {
   territoryId: string;
   quadraId: string;
   onCasaAdded: () => void;
+  congregationId: string;
 }
 
-export function AddCasaModal({ territoryId, quadraId, onCasaAdded }: AddCasaModalProps) {
-  const { user } = useUser();
+export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationId }: AddCasaModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [number, setNumber] = useState('');
   const [observations, setObservations] = useState('');
@@ -24,16 +23,11 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded }: AddCasaModa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.congregationId) {
-        setError("Não foi possível identificar a congregação do usuário.");
-        return;
-    }
-    
     setIsLoading(true);
     setError('');
     
     try {
-      const casasRef = collection(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas');
+      const casasRef = collection(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas');
       
       const snapshot = await getDocs(casasRef);
       const order = snapshot.size;

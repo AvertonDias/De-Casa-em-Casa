@@ -5,7 +5,6 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Pencil, X, Trash2 } from 'lucide-react';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useUser } from '@/contexts/UserContext';
 
 interface Casa {
   id: string;
@@ -19,10 +18,10 @@ interface EditCasaModalProps {
   territoryId: string;
   quadraId: string;
   onCasaUpdated: () => void;
+  congregationId: string;
 }
 
-export function EditCasaModal({ casa, territoryId, quadraId, onCasaUpdated }: EditCasaModalProps) {
-  const { user } = useUser();
+export function EditCasaModal({ casa, territoryId, quadraId, onCasaUpdated, congregationId }: EditCasaModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState(casa);
   const [error, setError] = useState('');
@@ -35,15 +34,11 @@ export function EditCasaModal({ casa, territoryId, quadraId, onCasaUpdated }: Ed
   
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.congregationId) {
-        setError("ID da congregação não encontrado.");
-        return;
-    }
     setIsLoading(true);
     setError('');
 
     try {
-      const casaRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
+      const casaRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
       await updateDoc(casaRef, {
         number: formData.number,
         observations: formData.observations,
@@ -59,14 +54,10 @@ export function EditCasaModal({ casa, territoryId, quadraId, onCasaUpdated }: Ed
   };
   
   const handleDelete = async () => {
-    if (!user?.congregationId) {
-        setError("ID da congregação não encontrado.");
-        return;
-    }
     if (!window.confirm(`Tem certeza que deseja EXCLUIR o número "${casa.number}"?`)) return;
     setIsLoading(true);
     try {
-      const casaRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
+      const casaRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
       await deleteDoc(casaRef);
       setIsOpen(false);
       onCasaUpdated();
