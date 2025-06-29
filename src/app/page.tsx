@@ -73,7 +73,7 @@ export default function EntryPage() {
         
         <form onSubmit={handleEntry} className="space-y-4">
           <input type="text" placeholder="Seu Nome" value={userName} onChange={e => setUserName(e.target.value)} required className={inputClasses}/>
-          <input type="text" placeholder="Número da Congregação" value={congregationNumber} onChange={e => setCongregationNumber(e.target.value)} required className={inputClasses}/>
+          <input type="tel" inputMode="numeric" pattern="[0-9]*" placeholder="Número da Congregação" value={congregationNumber} onChange={e => setCongregationNumber(e.target.value.replace(/\D/g, ''))} required className={inputClasses}/>
           
           {error && <p className="text-sm text-center text-red-500">{error}</p>}
           

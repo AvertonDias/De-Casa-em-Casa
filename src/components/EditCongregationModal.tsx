@@ -86,7 +86,7 @@ export function EditCongregationModal() {
               <legend className="text-md font-semibold text-gray-700 dark:text-gray-300 mb-2 px-2 flex items-center"><Landmark className="mr-2 h-5 w-5 text-purple-500"/>Dados da Congregação</legend>
               <div className="space-y-4">
                 <input value={congregationName} onChange={e => setCongregationName(e.target.value)} placeholder="Nome da Congregação" className={inputClasses} />
-                <input value={congregationNumber} onChange={e => setCongregationNumber(e.target.value)} placeholder="Número" className={inputClasses} />
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" value={congregationNumber} onChange={e => setCongregationNumber(e.target.value.replace(/\D/g, ''))} placeholder="Número" className={inputClasses} />
               </div>
             </fieldset>
 

@@ -79,7 +79,7 @@ function SignupForm() {
                     <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
                         <h2 className="font-semibold text-gray-700 dark:text-gray-300">Dados da Congregação</h2>
                         <div className="mt-2 space-y-4">
-                            <input type="text" placeholder="Número da Congregação" value={congregationNumber} onChange={() => {}} readOnly className={readOnlyInputClasses} />
+                            <input type="tel" placeholder="Número da Congregação" value={congregationNumber} onChange={() => {}} readOnly className={readOnlyInputClasses} />
                             <input type="text" placeholder="Nome da Congregação" value={congregationName} onChange={e => setCongregationName(e.target.value)} required className={regularInputClasses} />
                         </div>
                     </div>
