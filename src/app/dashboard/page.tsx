@@ -2,10 +2,10 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, getDocs, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
-import { Map, Grid, Home, CheckCircle, type LucideProps } from 'lucide-react';
+import { Map, Grid, Home, CheckCircle, Users, type LucideProps } from 'lucide-react';
 import type { ForwardRefExoticComponent, RefAttributes } from 'react';
 import Link from 'next/link';
 
@@ -16,6 +16,7 @@ interface Stats {
   registeredBlocks: number;
   mappedHouses: number;
   visitedHouses: number;
+  totalUsers: number;
 }
 interface Territory {
   id: string;
@@ -45,7 +46,7 @@ function StatCard({ title, value, icon: Icon }: { title: string; value: number |
 // --- Página Principal ---
 export default function DashboardPage() {
   const { user, loading: userLoading } = useUser();
-  const [stats, setStats] = useState<Stats>({ totalTerritories: 0, registeredBlocks: 0, mappedHouses: 0, visitedHouses: 0 });
+  const [stats, setStats] = useState<Stats>({ totalTerritories: 0, registeredBlocks: 0, mappedHouses: 0, visitedHouses: 0, totalUsers: 0 });
   const [recentTerritories, setRecentTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -56,9 +57,35 @@ export default function DashboardPage() {
       setLoading(false);
       return;
     }
+    
+    const congregationId = user.congregationId;
 
-    // TODO: A lógica de estatísticas precisa ser implementada a partir dos dados reais
-    setStats({ totalTerritories: 10, registeredBlocks: 5, mappedHouses: 0, visitedHouses: 0 });
+    // Fetch one-time stats like user count
+    const fetchInitialStats = async () => {
+        try {
+            // Fetch User Count using the secure query
+            const usersCollectionRef = collection(db, "users");
+            const q = query(usersCollectionRef, where("congregationId", "==", congregationId));
+            const querySnapshot = await getDocs(q);
+            const totalUsers = querySnapshot.size;
+
+            // TODO: Implement more complex stats fetching (territories, blocks, houses)
+            // For now, we update the user count and keep others as placeholders.
+            setStats(prevStats => ({
+                ...prevStats,
+                totalUsers,
+                totalTerritories: 10, // Placeholder
+                registeredBlocks: 5, // Placeholder
+                mappedHouses: 0, // Placeholder
+                visitedHouses: 0, // Placeholder
+            }));
+        } catch (error) {
+            console.error("Erro ao buscar contagem de usuários: ", error);
+        }
+    };
+
+    fetchInitialStats();
+
 
     const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
     const q = query(territoriesRef, orderBy('lastUpdate', 'desc'), limit(3));
@@ -90,7 +117,8 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Painel</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">Visão geral da gestão de territórios</p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        <StatCard title="Total de Usuários" value={stats.totalUsers} icon={Users} />
         <StatCard title="Total de Territórios" value={stats.totalTerritories} icon={Map} />
         <StatCard title="Quadras Registradas" value={stats.registeredBlocks} icon={Grid} />
         <StatCard title="Casas Mapeadas" value={stats.mappedHouses} icon={Home} />
