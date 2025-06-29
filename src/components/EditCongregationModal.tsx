@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Landmark, X, User as UserIcon, Eye, EyeOff } from 'lucide-react';
-import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { Landmark, X } from 'lucide-react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 
 export function EditCongregationModal() {
@@ -15,13 +14,6 @@ export function EditCongregationModal() {
   const [congregationName, setCongregationName] = useState('');
   const [congregationNumber, setCongregationNumber] = useState('');
   
-  const [profileName, setProfileName] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -30,20 +22,15 @@ export function EditCongregationModal() {
     if (isOpen) {
         setError(''); 
         setSuccess('');
-        setCurrentPassword('');
-        setNewPassword('');
-
-        if(user) {
-            setProfileName(user.name);
-            if (user.congregationId) {
-                const congRef = doc(db, 'congregations', user.congregationId);
-                getDoc(congRef).then(snap => {
-                    if(snap.exists()){
-                      setCongregationName(snap.data().name || '');
-                      setCongregationNumber(snap.data().number || '');
-                    }
-                });
-            }
+        
+        if (user?.congregationId) {
+            const congRef = doc(db, 'congregations', user.congregationId);
+            getDoc(congRef).then(snap => {
+                if(snap.exists()){
+                  setCongregationName(snap.data().name || '');
+                  setCongregationNumber(snap.data().number || '');
+                }
+            });
         }
     }
   }, [user, isOpen]);
@@ -53,48 +40,31 @@ export function EditCongregationModal() {
     setIsLoading(true);
     setError(''); setSuccess('');
 
-    if (!user || !user.congregationId || !user.email) {
-        setError("Usuário ou congregação não encontrados.");
+    if (!user || !user.congregationId) {
+        setError("Congregação não encontrada.");
         setIsLoading(false);
         return;
     }
 
     try {
-      const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, { name: profileName });
-      
       if(user.role === 'Administrador') {
         const congRef = doc(db, "congregations", user.congregationId);
         await updateDoc(congRef, { name: congregationName, number: congregationNumber });
-      }
-
-      if (newPassword) {
-        if (newPassword.length < 6) throw new Error("A nova senha precisa ter no mínimo 6 caracteres.");
-        const credential = EmailAuthProvider.credential(user.email, currentPassword);
-        if(auth.currentUser) {
-            await reauthenticateWithCredential(auth.currentUser, credential);
-            await updatePassword(auth.currentUser, newPassword);
-        } else {
-            throw new Error("Usuário não autenticado no Firebase Auth.");
-        }
+      } else {
+        throw new Error("Você não tem permissão para editar a congregação.");
       }
       
-      setSuccess("Configurações salvas com sucesso!");
+      setSuccess("Congregação atualizada com sucesso!");
       setTimeout(() => setIsOpen(false), 2000);
 
     } catch (err: any) {
-      if (err.code === 'auth/wrong-password') {
-        setError("Senha atual incorreta.");
-      } else {
-        setError(err.message || "Falha ao salvar as configurações.");
-      }
+      setError(err.message || "Falha ao salvar as configurações.");
     } finally { 
         setIsLoading(false); 
     }
   };
 
   const inputClasses = "w-full mt-1 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white rounded px-3 py-2 border border-gray-300 dark:border-gray-700";
-  const inputWithIconClasses = `${inputClasses} pr-10`;
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
@@ -106,36 +76,17 @@ export function EditCongregationModal() {
       <Dialog.Portal>
         <Dialog.Overlay className="bg-black/60 fixed inset-0" />
         <Dialog.Content className="fixed top-1/2 left-1/2 w-[90vw] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white dark:bg-[#2f2b3a] p-6 shadow-lg focus:outline-none max-h-[90vh] overflow-y-auto">
-          <Dialog.Title className="text-lg font-medium text-gray-800 dark:text-white">Configurações Gerais</Dialog.Title>
+          <Dialog.Title className="text-lg font-medium text-gray-800 dark:text-white">Editar Congregação</Dialog.Title>
           <Dialog.Description className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Edite os dados da congregação e do seu perfil de administrador.
+            Edite o nome e o número da sua congregação.
           </Dialog.Description>
           <form onSubmit={handleUpdate} className="mt-4 space-y-6">
             
             <fieldset className="border border-gray-200 dark:border-gray-700 p-4 rounded-lg">
-              <legend className="text-md font-semibold text-gray-700 dark:text-gray-300 mb-2 px-2 flex items-center"><Landmark className="mr-2 h-5 w-5 text-purple-500"/>Minha Congregação</legend>
+              <legend className="text-md font-semibold text-gray-700 dark:text-gray-300 mb-2 px-2 flex items-center"><Landmark className="mr-2 h-5 w-5 text-purple-500"/>Dados da Congregação</legend>
               <div className="space-y-4">
                 <input value={congregationName} onChange={e => setCongregationName(e.target.value)} placeholder="Nome da Congregação" className={inputClasses} />
                 <input value={congregationNumber} onChange={e => setCongregationNumber(e.target.value)} placeholder="Número" className={inputClasses} />
-              </div>
-            </fieldset>
-
-            <fieldset className="border border-gray-200 dark:border-gray-700 p-4 rounded-lg">
-              <legend className="text-md font-semibold text-gray-700 dark:text-gray-300 mb-2 px-2 flex items-center"><UserIcon className="mr-2 h-5 w-5 text-purple-500"/>Meu Perfil</legend>
-               <div className="space-y-4">
-                 <input value={profileName} onChange={e => setProfileName(e.target.value)} placeholder="Seu Nome Completo" className={inputClasses}/>
-                 <div className="relative">
-                   <input type={showCurrentPassword ? "text" : "password"} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Senha Atual (só para alterar senha)" className={inputWithIconClasses}/>
-                    <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400">
-                      {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </button>
-                 </div>
-                 <div className="relative">
-                   <input type={showNewPassword ? "text" : "password"} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Nova Senha (deixe em branco para não alterar)" className={inputWithIconClasses}/>
-                    <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400">
-                      {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </button>
-                 </div>
               </div>
             </fieldset>
 
@@ -147,7 +98,7 @@ export function EditCongregationModal() {
                     <button type="button" className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-500">Cancelar</button>
                 </Dialog.Close>
                 <button type="submit" disabled={isLoading} className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-purple-800">
-                    {isLoading ? "Salvando..." : "Salvar Tudo"}
+                    {isLoading ? "Salvando..." : "Salvar Alterações"}
                 </button>
             </div>
           </form>
