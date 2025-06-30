@@ -4,10 +4,20 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 
+// Validação explícita das credenciais
+const firebaseApiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+
+// Ação necessária do usuário:
+// Este erro é intencional para impedir a execução sem as credenciais corretas.
+// Se você está vendo este erro, significa que o arquivo .env.local na raiz do projeto
+// precisa ser preenchido com as chaves reais do seu projeto Firebase.
+if (!firebaseApiKey || firebaseApiKey.startsWith("SUA_")) {
+  throw new Error("AÇÃO NECESSÁRIA: Suas credenciais do Firebase estão faltando. Abra o arquivo .env.local na raiz do projeto e preencha com as chaves reais do seu projeto Firebase para continuar.");
+}
+
 // As credenciais do Firebase agora são carregadas das variáveis de ambiente.
-// Isso é mais seguro e flexível do que colocá-las diretamente no código.
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  apiKey: firebaseApiKey,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
