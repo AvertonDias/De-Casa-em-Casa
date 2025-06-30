@@ -2,13 +2,13 @@ import withPWA from '@ducanh2912/next-pwa';
 
 const pwaPlugin = withPWA({
   dest: 'public',
-  register: true,
   disable: process.env.NODE_ENV === 'development',
 });
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // O bloco 'experimental' foi removido.
+  // A chave 'experimental' foi completamente removida
+  // para resolver o erro de tipo durante o build.
 };
 
 export default pwaPlugin(nextConfig);
