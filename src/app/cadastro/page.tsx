@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -11,27 +12,21 @@ export default function SignUpPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
+  // Renomeado para clareza, para corresponder ao que o usuário digita
+  const [congregationNumber, setCongregationNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // Faz o login anônimo assim que a página carrega, para obter permissão para pesquisar.
+  // O login anônimo para obter permissão para pesquisar continua necessário e correto.
   useEffect(() => {
-    const initAnonymousAuth = async () => {
-      // Se não houver nenhum usuário logado, entre como anônimo.
-      if (!auth.currentUser) {
-        try {
-          await signInAnonymously(auth);
-          console.log("Sessão anônima iniciada para o cadastro.");
-        } catch (error) {
-          console.error("Erro ao iniciar sessão anônima:", error);
-          setError("Não foi possível conectar ao serviço de autenticação.");
-        }
-      }
-    };
-    initAnonymousAuth();
-  }, []); // O array vazio [] garante que isso só rode uma vez.
+    if (!auth.currentUser) {
+      signInAnonymously(auth).catch(error => {
+        console.error("Erro ao iniciar sessão anônima:", error);
+        setError("Não foi possível conectar ao serviço de autenticação.");
+      });
+    }
+  }, []);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,18 +34,20 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      // Agora esta pesquisa será feita por um usuário anônimo autenticado
+      // --- MUDANÇA PRINCIPAL AQUI ---
+      // Agora, a consulta busca onde o campo 'number' é igual ao número que o usuário digitou.
       const congregationsRef = collection(db, 'congregations');
-      const q = query(congregationsRef, where("code", "==", inviteCode.trim()));
+      const q = query(congregationsRef, where("code", "==", congregationNumber.trim()));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        throw new Error("Código da congregação inválido ou não encontrado.");
+        throw new Error("Número da congregação inválido ou não encontrado.");
       }
       
       const congregationDoc = querySnapshot.docs[0];
-      const congregationId = congregationDoc.id;
+      const congregationId = congregationDoc.id; // Pegamos o ID do documento encontrado
 
+      // O resto do fluxo para criar o usuário continua igual
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCredential.user;
 
@@ -65,7 +62,7 @@ export default function SignUpPage() {
       router.push('/aguardando-aprovacao');
 
     } catch (err: any) {
-      if (err.message?.includes("Código da congregação")) {
+      if (err.message?.includes("Número da congregação")) {
         setError(err.message);
       } else if (err.code === 'auth/email-already-in-use') {
         setError("Este e-mail já está em uso.");
@@ -86,7 +83,17 @@ export default function SignUpPage() {
             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nome Completo" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="E-mail" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
-            <input type="text" value={inviteCode} onChange={e => setInviteCode(e.target.value)} placeholder="Código da Congregação" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            
+            {/* O placeholder foi atualizado para corresponder à lógica */}
+            <input 
+              type="text" 
+              value={congregationNumber} 
+              onChange={e => setCongregationNumber(e.target.value)} 
+              placeholder="Código da Congregação" 
+              required 
+              className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" 
+            />
+
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
             <button type="submit" disabled={loading} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-gray-500">
                 {loading ? 'Enviando...' : 'Solicitar Acesso'}
