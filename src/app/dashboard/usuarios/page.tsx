@@ -7,6 +7,7 @@ import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/f
 import { httpsCallable } from 'firebase/functions';
 import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
+import { ConfirmationModal } from '@/components/ConfirmationModal';
 
 // Interface do usuário
 interface AppUser {
@@ -22,6 +23,8 @@ export default function UsersPage() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
 
   useEffect(() => {
     // Busca a lista de usuários em tempo real
@@ -54,19 +57,23 @@ export default function UsersPage() {
     }
   };
   
-  const handleDeleteUser = async (userId: string) => {
-    if (currentUser?.role !== 'Administrador' || currentUser.uid === userId) return;
+  const openDeleteConfirm = (user: AppUser) => {
+    setUserToDelete(user);
+    setIsConfirmModalOpen(true);
+  };
 
-    if (confirm("ATENÇÃO: Você está prestes a excluir PERMANENTEMENTE este usuário e todos os seus dados. Esta ação não pode ser desfeita. Deseja continuar?")) {
-        setUpdatingUserId(userId);
-        try {
-            const deleteUser = httpsCallable(functions, 'deleteUserAccount');
-            await deleteUser({ uid: userId });
-        } catch (error: any) {
-            console.error("Erro ao chamar a função para excluir usuário:", error);
-        } finally {
-            setUpdatingUserId(null);
-        }
+  const confirmDeleteUser = async () => {
+    if (!userToDelete || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
+
+    setUpdatingUserId(userToDelete.uid);
+    try {
+        const deleteUser = httpsCallable(functions, 'deleteUserAccount');
+        await deleteUser({ uid: userToDelete.uid });
+    } catch (error: any) {
+        console.error("Erro ao chamar a função para excluir usuário:", error);
+    } finally {
+        setUpdatingUserId(null);
+        setUserToDelete(null);
     }
   };
 
@@ -170,7 +177,7 @@ export default function UsersPage() {
                                          <div className="p-1">
                                             <Menu.Item>
                                               {({ active }) => (
-                                                <button onClick={() => handleDeleteUser(user.uid)} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                                <button onClick={() => openDeleteConfirm(user)} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
                                                   <Trash2 className="mr-2 h-4 w-4"/>Excluir Usuário
                                                 </button>
                                               )}
@@ -186,6 +193,13 @@ export default function UsersPage() {
             ))}
         </ul>
       </div>
+      <ConfirmationModal
+          isOpen={isConfirmModalOpen}
+          onClose={() => setIsConfirmModalOpen(false)}
+          onConfirm={confirmDeleteUser}
+          title="Excluir Usuário"
+          message={`Você tem certeza que deseja excluir permanentemente o usuário ${userToDelete?.name}? Todos os seus dados serão perdidos e esta ação não pode ser desfeita.`}
+      />
     </div>
   );
 }

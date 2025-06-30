@@ -8,6 +8,7 @@ import { reauthenticateWithCredential, EmailAuthProvider, updatePassword, update
 import { httpsCallable } from 'firebase/functions';
 import { Dialog, Transition } from '@headlessui/react';
 import { X, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { ConfirmationModal } from '@/components/ConfirmationModal';
 
 export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { user, updateUser } = useUser();
@@ -23,6 +24,7 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [passwordForDelete, setPasswordForDelete] = useState('');
   const [showPasswordForDelete, setShowPasswordForDelete] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   
   useEffect(() => {
     if (user && isOpen) {
@@ -93,38 +95,41 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
     }
   };
 
-  const handleSelfDelete = async () => {
+  const handleSelfDelete = () => {
     if (!user || !auth.currentUser) return;
 
     if(!passwordForDelete) {
         setError("Para excluir sua conta, por favor, insira sua senha atual.");
         return;
     }
+    setIsConfirmModalOpen(true);
+  }
 
-    if (confirm("ATENÇÃO: Você está prestes a excluir PERMANENTEMENTE sua conta. Todos os seus dados serão perdidos e esta ação não pode ser desfeita. Você tem certeza?")) {
-        setLoading(true);
-        setError(null);
-        try {
-            const credential = EmailAuthProvider.credential(auth.currentUser.email!, passwordForDelete);
-            await reauthenticateWithCredential(auth.currentUser, credential);
-            
-            const deleteUser = httpsCallable(functions, 'deleteUserAccount');
-            await deleteUser({ uid: user.uid });
-            
-            onClose();
+  const confirmSelfDelete = async () => {
+    if (!user || !auth.currentUser) return;
+    
+    setLoading(true);
+    setError(null);
+    try {
+        const credential = EmailAuthProvider.credential(auth.currentUser.email!, passwordForDelete);
+        await reauthenticateWithCredential(auth.currentUser, credential);
+        
+        const deleteUser = httpsCallable(functions, 'deleteUserAccount');
+        await deleteUser({ uid: user.uid });
+        
+        onClose();
 
-        } catch (error: any) {
-             console.error("Erro na autoexclusão:", error);
-             if (error.code === 'auth/wrong-password') {
-                setError("Senha incorreta. A exclusão não foi realizada.");
-             } else if (error.code === 'functions/permission-denied') {
-                setError("Um administrador não pode se autoexcluir.");
-             } else {
-                setError("Ocorreu um erro ao tentar excluir a conta.");
-             }
-        } finally {
-            setLoading(false);
-        }
+    } catch (error: any) {
+         console.error("Erro na autoexclusão:", error);
+         if (error.code === 'auth/wrong-password') {
+            setError("Senha incorreta. A exclusão não foi realizada.");
+         } else if (error.code === 'functions/permission-denied' || error.details?.message.includes("administrador não pode se autoexcluir")) {
+            setError("Um administrador não pode se autoexcluir.");
+         } else {
+            setError("Ocorreu um erro ao tentar excluir a conta.");
+         }
+    } finally {
+        setLoading(false);
     }
   }
 
@@ -204,6 +209,15 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
                   </div>
                 
                 {error && <p className="text-red-400 text-sm mt-4 text-center">{error}</p>}
+                
+                <ConfirmationModal
+                  isOpen={isConfirmModalOpen}
+                  onClose={() => setIsConfirmModalOpen(false)}
+                  onConfirm={confirmSelfDelete}
+                  title="Excluir Minha Conta"
+                  message="Esta é uma ação definitiva e irreversível. Todos os seus dados serão permanentemente apagados. Você tem certeza absoluta que deseja continuar?"
+                  confirmButtonText="Sim, excluir minha conta"
+              />
 
               </Dialog.Panel>
             </Transition.Child>
