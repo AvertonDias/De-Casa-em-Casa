@@ -5,15 +5,15 @@ import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
-// Interface expandida para incluir todos os dados necessários
+// A interface precisa incluir o 'status' para que possamos usá-lo na lógica
 interface AppUser {
   uid: string;
   name: string;
   email: string | null;
   role: string;
-  status: string;
+  status: string; // 'ativo', 'pendente', 'inativo'
   congregationId: string | null;
-  congregationName: string | null; // <-- NOVO: Para guardar o nome da congregação
+  congregationName: string | null;
 }
 
 interface UserContextType {
@@ -31,7 +31,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Passo 1: Buscar os dados do usuário
         const userRef = doc(db, 'users', firebaseUser.uid);
         const userSnap = await getDoc(userRef);
 
@@ -39,14 +38,19 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           const userData = userSnap.data();
           let congregationName: string | null = null;
           
-          // --- MUDANÇA CRUCIAL AQUI ---
-          // Passo 2: Se o usuário tem um congregationId, buscar APENAS esse documento
-          if (userData.congregationId) {
-            // Esta é uma consulta específica e segura a um único documento
-            const congregationRef = doc(db, 'congregations', userData.congregationId);
-            const congregationSnap = await getDoc(congregationRef);
-            if (congregationSnap.exists()) {
-              congregationName = congregationSnap.data().name;
+          // --- MUDANÇA CRÍTICA FINAL AQUI ---
+          // Apenas tentamos buscar os dados da congregação se o usuário estiver ATIVO.
+          // Se o status for 'pendente', pulamos este passo para evitar erros de permissão.
+          if (userData.status === 'ativo' && userData.congregationId) {
+            try {
+              const congregationRef = doc(db, 'congregations', userData.congregationId);
+              const congregationSnap = await getDoc(congregationRef);
+              if (congregationSnap.exists()) {
+                congregationName = congregationSnap.data().name;
+              }
+            } catch(error) {
+              console.error("Não foi possível buscar os dados da congregação, mas o usuário está logado.", error);
+              // Mesmo se falhar, o login continua.
             }
           }
 
@@ -55,16 +59,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             name: userData.name,
             email: firebaseUser.email,
             role: userData.role,
-            status: userData.status,
+            status: userData.status, // Guardamos o status no contexto
             congregationId: userData.congregationId,
-            congregationName: congregationName, // <-- Salva o nome no contexto
+            congregationName: congregationName,
           });
 
         } else {
-          setUser(null); // Usuário autenticado mas sem perfil no Firestore
+          setUser(null);
         }
       } else {
-        setUser(null); // Usuário não está logado
+        setUser(null);
       }
       setLoading(false);
     });
