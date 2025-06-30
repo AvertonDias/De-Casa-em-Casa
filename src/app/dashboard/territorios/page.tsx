@@ -116,27 +116,29 @@ export default function TerritoriosPage() {
 
       <div className="space-y-6">
         {territories.length > 0 ? territories.map(territory => (
-          <div key={territory.id} className="bg-white dark:bg-[#2f2b3a] rounded-lg shadow-lg p-6">
-            <div className="flex items-center justify-between">
-              <Link href={`/dashboard/territorios/${territory.id}`} className="flex-1 cursor-pointer group">
-                <span className="font-bold text-xl text-purple-600 dark:text-purple-300 mr-4">{territory.number}</span>
-                <span className="font-semibold text-lg group-hover:underline">{territory.name}</span>
-              </Link>
-              {['Administrador', 'Dirigente'].includes(user?.role || '') && user?.congregationId && <EditTerritoryModal territory={territory} onTerritoryUpdated={() => {}} congregationId={user.congregationId} />}
-            </div>
+          <Link key={territory.id} href={`/dashboard/territorios/${territory.id}`} className="block group cursor-pointer">
+            <div className="bg-white dark:bg-[#2f2b3a] rounded-lg shadow-lg p-6 transition-all duration-200 group-hover:shadow-xl group-hover:ring-2 group-hover:ring-primary">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <span className="font-bold text-xl text-purple-600 dark:text-purple-300 mr-4">{territory.number}</span>
+                  <span className="font-semibold text-lg group-hover:underline">{territory.name}</span>
+                </div>
+                {['Administrador', 'Dirigente'].includes(user?.role || '') && user?.congregationId && <EditTerritoryModal territory={territory} onTerritoryUpdated={() => {}} congregationId={user.congregationId} />}
+              </div>
 
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-xs">
-                  <div><p className="text-gray-500 dark:text-gray-400">Total Casas</p><p className="font-bold text-lg">{territory.stats.total}</p></div>
-                  <div><p className="text-gray-500 dark:text-gray-400">Feitas</p><p className="font-bold text-lg text-green-500">{territory.stats.feitos}</p></div>
-                  <div><p className="text-gray-500 dark:text-gray-400">Pendentes</p><p className="font-bold text-lg text-yellow-500">{territory.stats.pendentes}</p></div>
-                  <div><p className="text-gray-500 dark:text-gray-400">Progresso</p><p className="font-bold text-lg text-blue-500">{territory.stats.progresso}%</p></div>
-                </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-3">
-                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${territory.stats.progresso}%` }}></div>
-                </div>
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-xs">
+                    <div><p className="text-gray-500 dark:text-gray-400">Total Casas</p><p className="font-bold text-lg">{territory.stats.total}</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Feitas</p><p className="font-bold text-lg text-green-500">{territory.stats.feitos}</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Pendentes</p><p className="font-bold text-lg text-yellow-500">{territory.stats.pendentes}</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Progresso</p><p className="font-bold text-lg text-blue-500">{territory.stats.progresso}%</p></div>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-3">
+                      <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${territory.stats.progresso}%` }}></div>
+                  </div>
+              </div>
             </div>
-          </div>
+          </Link>
         )) : (
           <div className="text-center py-10 bg-white dark:bg-[#2f2b3a] rounded-lg">
             <p className="text-gray-400">Nenhum território cadastrado ainda.</p>
