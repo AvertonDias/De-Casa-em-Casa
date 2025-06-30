@@ -4,7 +4,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { Shield, User, MoreVertical, Loader, Check, Trash2 } from 'lucide-react';
+import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 
 // Interface do usuário
@@ -119,8 +119,18 @@ export default function UsersPage() {
                                           
                                           {currentUser.role === 'Administrador' && user.status === 'ativo' && (
                                             <>
-                                              {user.role === 'Publicador' && ( <Menu.Item>{({ active }) => <button onClick={() => handleUserUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}><Shield className="mr-2 h-4 w-4"/>Tornar Dirigente</button>}</Menu.Item>)}
-                                              {user.role === 'Dirigente' && ( <Menu.Item>{({ active }) => <button onClick={() => handleUserUpdate(user.uid, { role: 'Publicador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}><User className="mr-2 h-4 w-4"/>Tornar Publicador</button>}</Menu.Item>)}
+                                              {user.role === 'Publicador' && (
+                                                <Menu.Item>{({ active }) => <button onClick={() => handleUserUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}><Shield className="mr-2 h-4 w-4"/>Tornar Dirigente</button>}</Menu.Item>
+                                              )}
+                                              {user.role === 'Dirigente' && (
+                                                <>
+                                                  <Menu.Item>{({ active }) => <button onClick={() => handleUserUpdate(user.uid, { role: 'Administrador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}><ShieldAlert className="mr-2 h-4 w-4"/>Tornar Administrador</button>}</Menu.Item>}
+                                                  <Menu.Item>{({ active }) => <button onClick={() => handleUserUpdate(user.uid, { role: 'Publicador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}><User className="mr-2 h-4 w-4"/>Tornar Publicador</button>}</Menu.Item>}
+                                                </>
+                                              )}
+                                              {user.role === 'Administrador' && (
+                                                <Menu.Item>{({ active }) => <button onClick={() => handleUserUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}><Shield className="mr-2 h-4 w-4"/>Rebaixar para Dirigente</button>}</Menu.Item>
+                                              )}
                                             </>
                                           )}
                                        </div>
