@@ -101,13 +101,8 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
-        {currentUser.role === 'Administrador' && (
-          <button className="flex items-center px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors">
-            <User className="mr-2" size={20} /> Adicionar Usuário
-          </button>
-        )}
       </div>
       
       <div className="bg-white dark:bg-[#2a2736] rounded-lg shadow-md">
