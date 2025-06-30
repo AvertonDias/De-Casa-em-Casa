@@ -14,7 +14,7 @@ export default function SignUpPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [phone, setPhone] = useState('');
-  const [congregationCode, setCongregationCode] = useState('');
+  const [congregationNumber, setCongregationNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -50,14 +50,14 @@ export default function SignUpPage() {
 
     setLoading(true);
     setError(null);
-    const trimmedCode = congregationCode.trim();
+    const trimmedNumber = congregationNumber.trim();
 
     try {
-      const q = query(collection(db, 'congregations'), where("code", "==", trimmedCode));
+      const q = query(collection(db, 'congregations'), where("number", "==", trimmedNumber));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        throw new Error("Código da congregação inválido ou não encontrado.");
+        throw new Error("Número da congregação inválido ou não encontrado.");
       }
       
       const congregationId = querySnapshot.docs[0].id;
@@ -75,7 +75,7 @@ export default function SignUpPage() {
       router.push('/dashboard'); 
 
     } catch (err: any) {
-      if (err.message?.includes("Código da congregação")) {
+      if (err.message?.includes("Número da congregação")) {
         setError(err.message);
       } else if (err.code === 'auth/email-already-in-use') {
         setError("Este e-mail já está em uso.");
@@ -111,7 +111,7 @@ export default function SignUpPage() {
               </button>
             </div>
 
-            <input type="text" value={congregationCode} onChange={e => setCongregationCode(e.target.value)} placeholder="Código da Congregação" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            <input type="text" value={congregationNumber} onChange={e => setCongregationNumber(e.target.value)} placeholder="Número da Congregação" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
             <button type="submit" disabled={loading || !isReady} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-wait">

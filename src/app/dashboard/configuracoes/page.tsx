@@ -13,26 +13,26 @@ import { useToast } from '@/components/ui/use-toast';
 export default function SettingsPage() {
   const { user } = useUser();
   const { toast } = useToast();
-  const [congregationCode, setCongregationCode] = useState('');
+  const [congregationNumber, setCongregationNumber] = useState('');
 
   useEffect(() => {
     if (user?.congregationId && ['Administrador', 'Dirigente'].includes(user.role)) {
-      const fetchCongregationCode = async () => {
+      const fetchCongregationNumber = async () => {
         const congRef = doc(db, 'congregations', user.congregationId!);
         const congSnap = await getDoc(congRef);
         if (congSnap.exists()) {
-          setCongregationCode(congSnap.data().code);
+          setCongregationNumber(congSnap.data().number);
         }
       };
-      fetchCongregationCode();
+      fetchCongregationNumber();
     }
   }, [user]);
 
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(congregationCode);
+  const handleCopyNumber = () => {
+    navigator.clipboard.writeText(congregationNumber);
     toast({
-      title: "Código Copiado!",
-      description: "O código de convite foi copiado para sua área de transferência.",
+      title: "Número Copiado!",
+      description: "O número da congregação foi copiado para sua área de transferência.",
     });
   };
 
@@ -67,21 +67,21 @@ export default function SettingsPage() {
           </div>
         )}
         
-        {/* Card 3: Código de Convite */}
+        {/* Card 3: Número da Congregação */}
         {['Administrador', 'Dirigente'].includes(user?.role || '') && (
           <div className="bg-white dark:bg-[#2f2b3a] p-6 rounded-lg shadow-md md:col-span-2">
             <div className="flex items-center mb-4">
               <Share2 className="h-6 w-6 mr-3 text-purple-600 dark:text-purple-400" />
-              <h2 className="text-2xl font-bold">Código de Convite</h2>
+              <h2 className="text-2xl font-bold">Número da Congregação</h2>
             </div>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Compartilhe este código com os publicadores para que eles possam se juntar à sua congregação.
+              Compartilhe este número com os publicadores para que eles possam se juntar à sua congregação.
             </p>
             <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg flex items-center justify-between">
               <p className="text-3xl font-mono tracking-widest text-gray-800 dark:text-white">
-                {congregationCode || '...'}
+                {congregationNumber || '...'}
               </p>
-              <Button onClick={handleCopyCode} variant="ghost" size="icon">
+              <Button onClick={handleCopyNumber} variant="ghost" size="icon">
                 <Copy className="h-6 w-6" />
               </Button>
             </div>

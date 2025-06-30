@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { collection, addDoc, setDoc, doc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function NewCongregationPage() {
   // Dados do Administrador
@@ -45,7 +45,6 @@ export default function NewCongregationPage() {
       const congregationRef = await addDoc(collection(db, 'congregations'), {
         name: congregationName,
         number: congregationNumber,
-        code: `${congregationName.substring(0,3).toUpperCase()}${congregationNumber}`
       });
       const newCongregationId = congregationRef.id;
 
