@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { Shield, User, MoreVertical, Loader, Check, X, Edit, Trash2 } from 'lucide-react';
+import { Shield, User, MoreVertical, Loader, Check, X, Edit, Trash2, ShieldAlert } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 
@@ -21,7 +21,6 @@ export default function UsersPage() {
   const { user: currentUser, loading: userLoading } = useUser();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
-  // NOVO: Estado para saber qual usuário está sendo atualizado, para mostrar um spinner
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
   // Busca a lista de usuários em tempo real
@@ -44,8 +43,6 @@ export default function UsersPage() {
     }
   }, [currentUser, userLoading]);
 
-  // --- MUDANÇA: FUNÇÕES DE AÇÃO DO ADMINISTRADOR ---
-
   const handleUpdateUserStatus = async (userId: string, newStatus: 'ativo' | 'inativo') => {
     if (currentUser?.role !== 'Administrador') return;
     setUpdatingUserId(userId);
@@ -59,7 +56,7 @@ export default function UsersPage() {
     }
   };
   
-  const handleChangeUserRole = async (userId: string, newRole: 'Dirigente' | 'Publicador') => {
+  const handleChangeUserRole = async (userId: string, newRole: 'Administrador' | 'Dirigente' | 'Publicador') => {
     if (currentUser?.role !== 'Administrador') return;
      setUpdatingUserId(userId);
     try {
@@ -97,8 +94,6 @@ export default function UsersPage() {
     return ( <div className="text-center"><h1 className="text-2xl font-bold">Acesso Negado</h1> <p>Você não tem permissão para visualizar esta página.</p></div> );
   }
 
-  // --- MUDANÇA: LAYOUT DA LISTA E BOTÃO DE MENU ---
-
   return (
     <div>
       <div className="mb-6">
@@ -126,7 +121,6 @@ export default function UsersPage() {
                         <span className={`px-3 py-1 text-xs font-medium rounded-full ${user.role === 'Administrador' ? 'bg-purple-500 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200'}`}>{user.role}</span>
                         <span className={`px-3 py-1 text-xs font-medium rounded-full ${user.status === 'ativo' ? 'bg-green-500 text-white' : 'bg-yellow-500 text-white'}`}>{user.status}</span>
                         
-                        {/* Apenas Admins podem ver o menu e eles não podem editar a si mesmos */}
                         {currentUser.role === 'Administrador' && currentUser.uid !== user.uid && (
                             <Menu as="div" className="relative">
                                 <Menu.Button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
@@ -140,7 +134,12 @@ export default function UsersPage() {
                                                     {({ active }) => (<button onClick={() => handleUpdateUserStatus(user.uid, 'ativo')} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex rounded-md items-center w-full px-2 py-2 text-sm`}><Check className="mr-2" size={16}/>Aprovar Usuário</button>)}
                                                 </Menu.Item>
                                             )}
-                                            {user.role !== 'Dirigente' && user.role !== 'Administrador' && (
+                                            {user.role !== 'Administrador' && (
+                                                <Menu.Item>
+                                                    {({ active }) => (<button onClick={() => handleChangeUserRole(user.uid, 'Administrador')} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex rounded-md items-center w-full px-2 py-2 text-sm`}><ShieldAlert className="mr-2" size={16}/>Tornar Administrador</button>)}
+                                                </Menu.Item>
+                                            )}
+                                            {user.role === 'Publicador' && (
                                                 <Menu.Item>
                                                     {({ active }) => (<button onClick={() => handleChangeUserRole(user.uid, 'Dirigente')} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex rounded-md items-center w-full px-2 py-2 text-sm`}><Shield className="mr-2" size={16}/>Tornar Dirigente</button>)}
                                                 </Menu.Item>
