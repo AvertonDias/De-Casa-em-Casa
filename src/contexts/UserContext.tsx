@@ -5,17 +5,14 @@ import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
-// --- MUDANÇA AQUI ---
-// Adicionamos o campo 'phone' à interface do nosso usuário.
 interface AppUser {
   uid: string;
   name: string;
   email: string | null;
   role: string;
   status: string;
-  phone: string | null; // <-- NOVO: Agora o app conhece este campo
   congregationId: string | null;
-  congregationName?: string | null; // congregationName pode não existir no seu, mas é seguro ter
+  congregationName?: string | null;
 }
 
 interface UserContextType {
@@ -52,15 +49,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             }
           }
 
-          // --- MUDANÇA AQUI ---
-          // Agora, estamos pegando o 'phone' do Firestore e colocando no nosso objeto de usuário.
           setUser({
             uid: firebaseUser.uid,
             name: userData.name,
             email: firebaseUser.email,
             role: userData.role,
             status: userData.status,
-            phone: userData.phone || null, // <-- NOVO: Pega o telefone do banco de dados
             congregationId: userData.congregationId,
             congregationName: congregationName,
           });

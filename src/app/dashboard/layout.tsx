@@ -7,7 +7,7 @@ import { auth } from "@/lib/firebase";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import PendingAccessBanner from "@/components/PendingAccessBanner";
+import ApprovalBanner from '@/components/ApprovalBanner';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
@@ -59,7 +59,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </header>
         <main className="flex-1 overflow-y-auto">
            <div className="p-4 md:p-8">
-            <PendingAccessBanner />
+            <ApprovalBanner />
             {children}
           </div>
         </main>

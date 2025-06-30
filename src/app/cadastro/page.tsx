@@ -7,14 +7,12 @@ import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firesto
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
-import { maskPhone } from '@/lib/utils';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [phone, setPhone] = useState('');
   const [congregationNumber, setCongregationNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -52,8 +50,6 @@ export default function SignUpPage() {
     setLoading(true);
     setError(null);
     const trimmedNumber = congregationNumber.trim();
-    const unmaskedPhone = phone.replace(/\D/g, '');
-
 
     try {
       const q = query(collection(db, 'congregations'), where("number", "==", trimmedNumber));
@@ -69,7 +65,6 @@ export default function SignUpPage() {
       await setDoc(doc(db, "users", userCredential.user.uid), {
         name,
         email,
-        phone: unmaskedPhone,
         congregationId,
         role: "Publicador",
         status: "pendente",
@@ -98,7 +93,6 @@ export default function SignUpPage() {
          <form onSubmit={handleSignUp} className="space-y-4">
             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nome Completo" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="E-mail" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
-            <input type="text" value={phone} onChange={e => setPhone(maskPhone(e.target.value))} placeholder="Seu WhatsApp (XX) XXXXX-XXXX" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" maxLength={15} />
             
             <div className="relative">
               <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 pr-10" />

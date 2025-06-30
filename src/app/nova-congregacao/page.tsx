@@ -7,14 +7,12 @@ import { collection, addDoc, setDoc, doc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
-import { maskPhone } from '@/lib/utils';
 
 export default function NewCongregationPage() {
   // Dados do Administrador
   const [adminName, setAdminName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
-  const [adminPhone, setAdminPhone] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
   // Dados da Congregação
@@ -39,8 +37,6 @@ export default function NewCongregationPage() {
       return;
     }
 
-    const unmaskedPhone = adminPhone.replace(/\D/g, '');
-
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
       const adminUser = userCredential.user;
@@ -54,7 +50,6 @@ export default function NewCongregationPage() {
       await setDoc(doc(db, "users", adminUser.uid), {
         name: adminName,
         email: adminEmail,
-        phone: unmaskedPhone,
         congregationId: newCongregationId,
         role: "Administrador",
         status: "ativo"
@@ -94,7 +89,6 @@ export default function NewCongregationPage() {
                 <div className="space-y-4">
                     <input type="text" value={adminName} onChange={e => setAdminName(e.target.value)} placeholder="Seu Nome Completo" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" />
                     <input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="Seu E-mail" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" />
-                    <input type="text" value={adminPhone} onChange={e => setAdminPhone(maskPhone(e.target.value))} placeholder="Seu WhatsApp (XX) XXXXX-XXXX" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" maxLength={15}/>
 
                     <div className="relative">
                         <input type={showPassword ? 'text' : 'password'} value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="Sua Senha" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md pr-10"/>

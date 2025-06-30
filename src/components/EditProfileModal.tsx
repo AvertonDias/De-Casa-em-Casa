@@ -7,13 +7,11 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { reauthenticateWithCredential, EmailAuthProvider, updatePassword, updateProfile } from 'firebase/auth';
 import { Dialog, Transition } from '@headlessui/react';
 import { X, Eye, EyeOff } from 'lucide-react';
-import { maskPhone } from '@/lib/utils';
 
 export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { user, updateUser } = useUser();
   
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -26,7 +24,6 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
   useEffect(() => {
     if (user && isOpen) {
       setName(user.name);
-      setPhone(maskPhone(user.phone || ''));
       setError(null);
       setSuccess(null);
       setCurrentPassword('');
@@ -60,12 +57,9 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
     }
     
     try {
-      const dataToUpdate: { name?: string; phone?: string; } = {};
+      const dataToUpdate: { name?: string; } = {};
       if (name.trim() !== user.name) dataToUpdate.name = name.trim();
       
-      const unmaskedPhone = phone.replace(/\D/g, "");
-      if (unmaskedPhone !== (user.phone || '')) dataToUpdate.phone = unmaskedPhone;
-
       if (Object.keys(dataToUpdate).length > 0) {
         const userDocRef = doc(db, 'users', user.uid);
         await updateDoc(userDocRef, dataToUpdate);
@@ -117,10 +111,6 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
                    <div>
                       <label htmlFor="name" className="text-sm font-medium text-gray-300">Nome Completo</label>
                       <input id="name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1 w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md"/>
-                    </div>
-                    <div>
-                        <label htmlFor="phone" className="text-sm font-medium text-gray-300">Telefone (WhatsApp)</label>
-                        <input id="phone" type="text" value={phone} onChange={e => setPhone(maskPhone(e.target.value))} required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" placeholder="(XX) XXXXX-XXXX" maxLength={15} />
                     </div>
 
                     <div className="border-t border-gray-600 pt-4">
