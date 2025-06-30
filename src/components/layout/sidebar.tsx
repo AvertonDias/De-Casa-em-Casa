@@ -24,8 +24,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useUser } from "@/contexts/UserContext";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { FeedbackModal } from "@/components/FeedbackModal";
+import { useEffect, useState } from "react";
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ['Administrador', 'Dirigente', 'Publicador'] },
@@ -73,6 +75,23 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useUser();
   const router = useRouter();
+  const [pendingUsersCount, setPendingUsersCount] = useState(0);
+
+  useEffect(() => {
+    if (user && ['Administrador', 'Dirigente'].includes(user.role) && user.congregationId) {
+      const q = query(
+        collection(db, 'users'),
+        where('congregationId', '==', user.congregationId),
+        where('status', '==', 'pendente')
+      );
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        setPendingUsersCount(snapshot.size);
+      });
+      
+      return () => unsubscribe();
+    }
+  }, [user]);
 
   const handleLogout = async () => {
     try {
@@ -129,14 +148,19 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     href={item.href}
                     onClick={onClose}
                     className={cn(
-                      "flex items-center gap-3 p-3 rounded-lg transition-colors",
+                      "flex items-center justify-between gap-3 p-3 rounded-lg transition-colors",
                       isActive
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:bg-secondary"
                     )}
                   >
-                    <item.icon className="h-5 w-5" />
-                    <span>{item.name}</span>
+                    <div className="flex items-center gap-3">
+                      <item.icon className="h-5 w-5" />
+                      <span>{item.name}</span>
+                    </div>
+                    {item.name === "Usuários" && pendingUsersCount > 0 && (
+                      <span className="w-2.5 h-2.5 bg-yellow-400 rounded-full animate-pulse"></span>
+                    )}
                   </Link>
                 </li>
               );
