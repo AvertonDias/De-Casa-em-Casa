@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
@@ -16,18 +16,36 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  // Faz o login anônimo assim que a página carrega, para obter permissão para pesquisar.
+  useEffect(() => {
+    const initAnonymousAuth = async () => {
+      // Se não houver nenhum usuário logado, entre como anônimo.
+      if (!auth.currentUser) {
+        try {
+          await signInAnonymously(auth);
+          console.log("Sessão anônima iniciada para o cadastro.");
+        } catch (error) {
+          console.error("Erro ao iniciar sessão anônima:", error);
+          setError("Não foi possível conectar ao serviço de autenticação.");
+        }
+      }
+    };
+    initAnonymousAuth();
+  }, []); // O array vazio [] garante que isso só rode uma vez.
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
+      // Agora esta pesquisa será feita por um usuário anônimo autenticado
       const congregationsRef = collection(db, 'congregations');
       const q = query(congregationsRef, where("code", "==", inviteCode.trim()));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        throw new Error("Código da congregação inválido.");
+        throw new Error("Código da congregação inválido ou não encontrado.");
       }
       
       const congregationDoc = querySnapshot.docs[0];
@@ -43,17 +61,17 @@ export default function SignUpPage() {
         role: "Publicador",
         status: "pendente"
       });
-
+      
       router.push('/aguardando-aprovacao');
 
     } catch (err: any) {
-      if (err.message === "Código da congregação inválido.") {
+      if (err.message?.includes("Código da congregação")) {
         setError(err.message);
       } else if (err.code === 'auth/email-already-in-use') {
-        setError("Este e-mail já está cadastrado.");
+        setError("Este e-mail já está em uso.");
       } else {
         setError("Ocorreu um erro ao criar a conta.");
-        console.error("Erro de cadastro:", err);
+        console.error("Erro no formulário de cadastro:", err);
       }
     } finally {
       setLoading(false);
@@ -69,7 +87,6 @@ export default function SignUpPage() {
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="E-mail" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             <input type="text" value={inviteCode} onChange={e => setInviteCode(e.target.value)} placeholder="Código da Congregação" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
-
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
             <button type="submit" disabled={loading} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-gray-500">
                 {loading ? 'Enviando...' : 'Solicitar Acesso'}
