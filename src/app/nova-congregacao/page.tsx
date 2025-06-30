@@ -85,7 +85,7 @@ export default function NewCongregationPage() {
                 <legend className="px-2 text-lg font-semibold text-purple-400">Dados da Congregação</legend>
                 <div className="space-y-4">
                     <input type="text" value={congregationName} onChange={e => setCongregationName(e.target.value)} placeholder="Nome da Congregação (Ex: Central)" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" />
-                    <input type="text" value={congregationNumber} onChange={e => setCongregationNumber(e.target.value)} placeholder="Número da Congregação (Ex: 13607)" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" />
+                    <input type="tel" inputMode="numeric" value={congregationNumber} onChange={e => setCongregationNumber(e.target.value.replace(/\D/g, ''))} placeholder="Número da Congregação (Ex: 13607)" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" />
                 </div>
             </fieldset>
 
