@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore'; 
 import { auth, db } from '@/lib/firebase';
 
 interface AppUser {
@@ -32,23 +32,34 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-      if (firebaseUser) {
-        const userRef = doc(db, 'users', firebaseUser.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          setUser({
-            uid: firebaseUser.uid,
-            name: userData.name,
-            email: firebaseUser.email,
-            role: userData.role,
-            congregationId: userData.congregationId || null,
-            status: userData.status || 'ativo', // Adiciona status, padrão 'ativo' para compatibilidade
-          });
-        } else {
-           setUser(null);
+      if (firebaseUser && firebaseUser.email) { // Garante que o usuário tem um e-mail
+        try {
+          // Em vez de um 'get' direto, fazemos uma consulta pelo e-mail
+          const usersRef = collection(db, 'users');
+          const q = query(usersRef, where("email", "==", firebaseUser.email));
+          const userQuerySnapshot = await getDocs(q);
+
+          if (!userQuerySnapshot.empty) {
+            const userSnap = userQuerySnapshot.docs[0];
+            const userData = userSnap.data();
+            setUser({
+              uid: firebaseUser.uid,
+              name: userData.name,
+              email: firebaseUser.email,
+              role: userData.role,
+              congregationId: userData.congregationId || null,
+              status: userData.status || 'ativo',
+            });
+          } else {
+             console.warn(`Nenhum documento de usuário encontrado para o e-mail: ${firebaseUser.email}`);
+             setUser(null);
+          }
+        } catch (error) {
+          console.error("Erro ao buscar dados do usuário:", error);
+          setUser(null);
         }
       } else {
+        // Trata o logout ou usuários sem e-mail (anônimos, etc.)
         setUser(null);
       }
       setLoading(false);
