@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { EditCongregationModal } from '@/components/EditCongregationModal';
 import { EditProfileModal } from '@/components/EditProfileModal';
-import { User as UserIcon, House } from 'lucide-react';
+import { User as UserIcon, House, Edit } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function SettingsPage() {
   const { user } = useUser();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   return (
     <div className="text-gray-800 dark:text-white">
@@ -20,9 +23,11 @@ export default function SettingsPage() {
             <h2 className="text-2xl font-bold">Meu Perfil</h2>
           </div>
           <p className="text-gray-600 dark:text-gray-400 mb-6 flex-grow">
-            Altere seu nome de exibição e sua senha de acesso.
+            Altere seu nome de exibição, telefone e sua senha de acesso.
           </p>
-          <EditProfileModal />
+          <Button onClick={() => setIsProfileModalOpen(true)} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center">
+            <Edit className="h-4 w-4 mr-2" /> Editar Perfil
+          </Button>
         </div>
 
         {/* Card 2: Editar Congregação */}
@@ -39,6 +44,12 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+
+      {/* O Modal de Edição de Perfil é renderizado aqui e controlado pelo estado */}
+      <EditProfileModal 
+        isOpen={isProfileModalOpen} 
+        onClose={() => setIsProfileModalOpen(false)} 
+      />
     </div>
   );
 }

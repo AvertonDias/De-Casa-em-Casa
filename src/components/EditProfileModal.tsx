@@ -1,149 +1,156 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
-import { User as UserIcon, X, Eye, EyeOff } from 'lucide-react';
-import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { useState, useEffect, Fragment } from 'react';
 import { useUser } from '@/contexts/UserContext';
+import { db, auth } from '@/lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { reauthenticateWithCredential, EmailAuthProvider, updatePassword, updateProfile } from 'firebase/auth';
+import { Dialog, Transition } from '@headlessui/react';
+import { X, Eye, EyeOff } from 'lucide-react';
 
-export function EditProfileModal() {
+export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { user, updateUser } = useUser();
-  const [isOpen, setIsOpen] = useState(false);
+  
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
-
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   
-  const [isLoading, setIsLoading] = useState(false);
-
-  // Limpa tudo quando o modal é aberto
   useEffect(() => {
-    if (isOpen) {
-      setName(user?.name || '');
+    if (user && isOpen) {
+      setName(user.name);
+      setPhone(user.phone || '');
+      setError(null);
+      setSuccess(null);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmNewPassword('');
     }
-  }, [isOpen, user]);
+  }, [user, isOpen]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSaveChanges = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
 
-    const nameChanged = name !== user?.name;
-    const passwordChanged = newPassword !== '';
-
-    if (!nameChanged && !passwordChanged) {
-      alert("Nenhuma alteração foi feita.");
-      setIsLoading(false);
+    if (!user || !auth.currentUser) {
+      setError("Usuário não encontrado. Por favor, faça login novamente.");
+      setLoading(false);
       return;
     }
 
+    if (newPassword && newPassword !== confirmNewPassword) {
+      setError("A nova senha e a confirmação não coincidem.");
+      setLoading(false);
+      return;
+    }
+    
+    if (newPassword && !currentPassword) {
+        setError("Você precisa fornecer sua senha atual para alterar a senha.");
+        setLoading(false);
+        return;
+    }
+    
     try {
-      if (nameChanged) {
-        const userRef = doc(db, "users", user!.uid);
-        await updateDoc(userRef, { name });
-        updateUser({ name });
-      }
-      
-      if (passwordChanged) {
-        if (newPassword !== confirmNewPassword) throw new Error("As novas senhas não coincidem.");
-        if (newPassword.length < 6) throw new Error("A nova senha deve ter no mínimo 6 caracteres.");
-        if (!currentPassword) throw new Error("Forneça sua senha atual para definir uma nova.");
+      const dataToUpdate: { name?: string; phone?: string; } = {};
+      if (name.trim() !== user.name) dataToUpdate.name = name.trim();
+      if (phone.trim() !== (user.phone || '')) dataToUpdate.phone = phone.trim();
 
-        const credential = EmailAuthProvider.credential(user!.email!, currentPassword);
-        const firebaseUser = auth.currentUser;
-
-        if (firebaseUser) {
-          await reauthenticateWithCredential(firebaseUser, credential);
-          await updatePassword(firebaseUser, newPassword);
-        } else {
-          throw new Error("Sessão do usuário expirada. Faça login novamente.");
+      if (Object.keys(dataToUpdate).length > 0) {
+        const userDocRef = doc(db, 'users', user.uid);
+        await updateDoc(userDocRef, dataToUpdate);
+        if (dataToUpdate.name) {
+          await updateProfile(auth.currentUser, { displayName: dataToUpdate.name });
         }
+        updateUser(dataToUpdate);
+        setSuccess("Perfil atualizado com sucesso!");
+      }
+
+      if (newPassword && currentPassword && auth.currentUser.email) {
+        const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
+        await reauthenticateWithCredential(auth.currentUser, credential);
+        await updatePassword(auth.currentUser, newPassword);
+        setSuccess(Object.keys(dataToUpdate).length > 0 ? "Perfil e senha atualizados com sucesso!" : "Senha atualizada com sucesso!");
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmNewPassword('');
       }
       
-      alert("Perfil atualizado com sucesso!");
-      setIsOpen(false);
-
-    } catch (err: any) {
-      console.error("Erro ao atualizar:", err);
-      let errorMessage = err.message || 'Erro desconhecido';
-      if (err.code === 'auth/wrong-password') {
-        errorMessage = "Senha atual incorreta.";
-      }
-      alert(`Falha ao atualizar: ${errorMessage}`);
+    } catch (error: any) {
+      console.error("Erro ao salvar perfil:", error);
+      setError(error.code === 'auth/wrong-password' ? "Senha atual incorreta." : "Ocorreu um erro ao salvar as alterações.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
+      setTimeout(() => setSuccess(null), 4000);
     }
   };
 
-  const inputClasses = "w-full mt-1 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white rounded px-3 py-2 border border-gray-300 dark:border-gray-700";
-  const inputWithIconClasses = `${inputClasses} pr-10`;
-
   return (
-    <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
-      <Dialog.Trigger asChild>
-        <button className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center">
-          <UserIcon className="h-4 w-4 mr-2" />
-          Editar Perfil
-        </button>
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Overlay className="bg-black/60 fixed inset-0" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white dark:bg-[#2f2b3a] p-6 shadow-lg focus:outline-none">
-          <Dialog.Title className="text-gray-800 dark:text-white text-lg font-medium">Editar Perfil</Dialog.Title>
-            
-          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Nome Completo</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} required className={inputClasses} />
-            </div>
-            
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-              <h3 className="text-md font-semibold text-gray-700 dark:text-gray-300">Alterar Senha (Opcional)</h3>
-              <div className="space-y-4 mt-2">
-                <div className="relative">
-                  <input type={showCurrentPassword ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Senha Atual" disabled={isLoading} className={inputWithIconClasses}/>
-                  <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400">
-                    {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-                <div className="relative">
-                  <input type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nova Senha" disabled={isLoading} className={inputWithIconClasses}/>
-                  <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400">
-                    {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-                <div className="relative">
-                  <input type={showConfirmNewPassword ? "text" : "password"} value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Confirmar Nova Senha" disabled={isLoading} className={inputWithIconClasses}/>
-                  <button type="button" onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400">
-                    {showConfirmNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-              </div>
-            </div>
+    <Transition.Root show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        
+        <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
+          <div className="fixed inset-0 bg-black/50" />
+        </Transition.Child>
 
-            <div className="flex justify-end gap-4 mt-6">
-               <Dialog.Close asChild>
-                 <button type="button" disabled={isLoading} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50">Cancelar</button>
-               </Dialog.Close>
-               <button type="submit" disabled={isLoading} className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-purple-800 disabled:opacity-50">
-                 {isLoading ? "Salvando..." : "Salvar Alterações"}
-               </button>
-            </div>
-          </form>
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            
+            <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-[#2f2b3a] p-6 text-left align-middle shadow-xl transition-all">
+                <Dialog.Title as="h3" className="text-lg font-bold leading-6 text-white flex justify-between items-center">
+                  Editar Perfil
+                  <button onClick={onClose} className="p-1 rounded-full hover:bg-white/10"><X size={20} /></button>
+                </Dialog.Title>
+                
+                <form onSubmit={handleSaveChanges} className="mt-4 space-y-4">
+                   <div>
+                      <label htmlFor="name" className="text-sm font-medium text-gray-300">Nome Completo</label>
+                      <input id="name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1 w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md"/>
+                    </div>
+                    <div>
+                        <label htmlFor="phone" className="text-sm font-medium text-gray-300">Telefone (WhatsApp)</label>
+                        <input id="phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" placeholder="Ex: 5535991234567" />
+                    </div>
 
-          <Dialog.Close asChild>
-            <button className="absolute top-3 right-3 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white"><X /></button>
-          </Dialog.Close>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+                    <div className="border-t border-gray-600 pt-4">
+                        <p className="text-sm font-medium text-gray-300 mb-2">Alterar Senha (Opcional)</p>
+                         <div className="relative">
+                            <input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Senha Atual" className="mt-1 w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md pr-10"/>
+                            <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute inset-y-0 right-0 px-3 text-gray-400 mt-1 flex items-center">
+                                {showCurrentPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                            </button>
+                        </div>
+                         <div className="relative mt-2">
+                            <input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Nova Senha" className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md pr-10"/>
+                            <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute inset-y-0 right-0 px-3 text-gray-400 flex items-center">
+                                {showNewPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                            </button>
+                        </div>
+                        <input type="password" value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} placeholder="Confirmar Nova Senha" className="mt-2 w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md"/>
+                    </div>
+                    
+                  <div className="mt-6">
+                    {error && <p className="text-red-400 text-sm mb-2 text-center">{error}</p>}
+                    {success && <p className="text-green-400 text-sm mb-2 text-center">{success}</p>}
+                    <button type="submit" disabled={loading} className="w-full inline-flex justify-center rounded-md border border-transparent bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 disabled:bg-gray-500">
+                      {loading ? 'Salvando...' : 'Salvar Alterações'}
+                    </button>
+                  </div>
+                </form>
+
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </div>
+      </Dialog>
+    </Transition.Root>
   );
 }
