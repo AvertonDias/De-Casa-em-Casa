@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
@@ -12,32 +11,41 @@ export default function SignUpPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  // Renomeado para clareza, para corresponder ao que o usuário digita
   const [congregationNumber, setCongregationNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const [isReady, setIsReady] = useState(false); 
 
-  // O login anônimo para obter permissão para pesquisar continua necessário e correto.
   useEffect(() => {
-    if (!auth.currentUser) {
-      signInAnonymously(auth).catch(error => {
-        console.error("Erro ao iniciar sessão anônima:", error);
-        setError("Não foi possível conectar ao serviço de autenticação.");
-      });
-    }
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setIsReady(true);
+      } else {
+        signInAnonymously(auth).catch(err => {
+          console.error("Erro no login anônimo:", err);
+          setError("Falha na conexão. Verifique a internet e recarregue a página.");
+          setIsReady(false);
+        });
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    if (!isReady) {
+      setError("Aguarde a conexão ser estabelecida.");
+      return;
+    }
+
     setLoading(true);
+    setError(null);
+    const trimmedNumber = congregationNumber.trim();
 
     try {
-      // --- MUDANÇA PRINCIPAL AQUI ---
-      // Agora, a consulta busca onde o campo 'number' é igual ao número que o usuário digitou.
       const congregationsRef = collection(db, 'congregations');
-      const q = query(congregationsRef, where("code", "==", congregationNumber.trim()));
+      const q = query(congregationsRef, where("code", "==", trimmedNumber));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
@@ -45,18 +53,13 @@ export default function SignUpPage() {
       }
       
       const congregationDoc = querySnapshot.docs[0];
-      const congregationId = congregationDoc.id; // Pegamos o ID do documento encontrado
+      const congregationId = congregationDoc.id;
 
-      // O resto do fluxo para criar o usuário continua igual
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCredential.user;
 
       await setDoc(doc(db, "users", newUser.uid), {
-        name: name,
-        email: email,
-        congregationId: congregationId,
-        role: "Publicador",
-        status: "pendente"
+        name: name, email: email, congregationId: congregationId, role: "Publicador", status: "pendente"
       });
       
       router.push('/aguardando-aprovacao');
@@ -67,8 +70,8 @@ export default function SignUpPage() {
       } else if (err.code === 'auth/email-already-in-use') {
         setError("Este e-mail já está em uso.");
       } else {
+        console.error("Erro detalhado no cadastro:", err);
         setError("Ocorreu um erro ao criar a conta.");
-        console.error("Erro no formulário de cadastro:", err);
       }
     } finally {
       setLoading(false);
@@ -83,8 +86,6 @@ export default function SignUpPage() {
             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nome Completo" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="E-mail" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
-            
-            {/* O placeholder foi atualizado para corresponder à lógica */}
             <input 
               type="text" 
               value={congregationNumber} 
@@ -93,14 +94,15 @@ export default function SignUpPage() {
               required 
               className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" 
             />
-
+            
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <button type="submit" disabled={loading} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-gray-500">
-                {loading ? 'Enviando...' : 'Solicitar Acesso'}
+
+            <button type="submit" disabled={loading || !isReady} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-purple-900 disabled:text-gray-400 disabled:cursor-wait">
+                {!isReady ? 'Conectando...' : (loading ? 'Enviando...' : 'Solicitar Acesso')}
             </button>
         </form>
          <div className="text-center text-sm">
-             <Link href="/" className="text-gray-400 hover:text-purple-400">Já tem uma conta? Faça login</Link>
+            <Link href="/" className="text-gray-400 hover:text-purple-400">Já tem uma conta? Faça login</Link>
          </div>
       </div>
     </div>
