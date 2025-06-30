@@ -1,40 +1,12 @@
 "use client";
 
-import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { EditCongregationModal } from '@/components/EditCongregationModal';
 import { EditProfileModal } from '@/components/EditProfileModal';
-import { User as UserIcon, House, Share2, Copy } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
+import { User as UserIcon, House } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user } = useUser();
-  const { toast } = useToast();
-  const [congregationNumber, setCongregationNumber] = useState('');
-
-  useEffect(() => {
-    if (user?.congregationId && ['Administrador', 'Dirigente'].includes(user.role)) {
-      const fetchCongregationNumber = async () => {
-        const congRef = doc(db, 'congregations', user.congregationId!);
-        const congSnap = await getDoc(congRef);
-        if (congSnap.exists()) {
-          setCongregationNumber(congSnap.data().number);
-        }
-      };
-      fetchCongregationNumber();
-    }
-  }, [user]);
-
-  const handleCopyNumber = () => {
-    navigator.clipboard.writeText(congregationNumber);
-    toast({
-      title: "Número Copiado!",
-      description: "O número da congregação foi copiado para sua área de transferência.",
-    });
-  };
 
   return (
     <div className="text-gray-800 dark:text-white">
@@ -64,27 +36,6 @@ export default function SettingsPage() {
               Altere os dados da sua congregação. Somente administradores podem editar.
             </p>
             <EditCongregationModal disabled={user?.role !== 'Administrador'} />
-          </div>
-        )}
-        
-        {/* Card 3: Número da Congregação */}
-        {['Administrador', 'Dirigente'].includes(user?.role || '') && (
-          <div className="bg-white dark:bg-[#2f2b3a] p-6 rounded-lg shadow-md md:col-span-2">
-            <div className="flex items-center mb-4">
-              <Share2 className="h-6 w-6 mr-3 text-purple-600 dark:text-purple-400" />
-              <h2 className="text-2xl font-bold">Número da Congregação</h2>
-            </div>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Compartilhe este número com os publicadores para que eles possam se juntar à sua congregação.
-            </p>
-            <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg flex items-center justify-between">
-              <p className="text-3xl font-mono tracking-widest text-gray-800 dark:text-white">
-                {congregationNumber || '...'}
-              </p>
-              <Button onClick={handleCopyNumber} variant="ghost" size="icon">
-                <Copy className="h-6 w-6" />
-              </Button>
-            </div>
           </div>
         )}
       </div>
