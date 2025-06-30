@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { collection, addDoc, setDoc, doc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 
 export default function NewCongregationPage() {
@@ -12,58 +13,55 @@ export default function NewCongregationPage() {
   const [adminName, setAdminName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
+  const [adminPhone, setAdminPhone] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   
   // Dados da Congregação
   const [congregationName, setCongregationName] = useState('');
   const [congregationNumber, setCongregationNumber] = useState('');
 
+  // Estados de controle da UI
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-
-  // Para permitir a criação inicial, usamos o login anônimo
-  useEffect(() => {
-    if (!auth.currentUser) {
-      signInAnonymously(auth).catch(error => {
-        console.error("Erro ao iniciar sessão anônima:", error);
-        setError("Não foi possível conectar ao serviço de autenticação.");
-      });
-    }
-  }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
+    if (adminPassword !== confirmPassword) {
+      setError("As senhas não coincidem.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Passo 1: Criar a conta de autenticação para o Administrador
       const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
       const adminUser = userCredential.user;
 
-      // Passo 2: Criar o documento da Congregação no Firestore
       const congregationRef = await addDoc(collection(db, 'congregations'), {
         name: congregationName,
         number: congregationNumber,
-        code: congregationNumber // Usando o número como código para consistência com a página de cadastro
+        code: `${congregationName.substring(0,3).toUpperCase()}${congregationNumber}`
       });
       const newCongregationId = congregationRef.id;
 
-      // Passo 3: Criar o documento do usuário Administrador, vinculando-o à nova congregação
       await setDoc(doc(db, "users", adminUser.uid), {
         name: adminName,
         email: adminEmail,
+        phone: adminPhone,
         congregationId: newCongregationId,
-        role: "Administrador", // Papel principal
-        status: "ativo"        // Já entra como ativo
+        role: "Administrador",
+        status: "ativo"
       });
       
-      // Passo 4: Levar o novo admin direto para o painel
       router.push('/dashboard');
-
     } catch (err: any) {
        if (err.code === 'auth/email-already-in-use') {
-        setError("Este e-mail já está cadastrado em outra conta.");
+        setError("Este e-mail já está cadastrado.");
       } else {
         setError("Ocorreu um erro ao criar a congregação.");
         console.error("Erro de criação:", err);
@@ -81,7 +79,6 @@ export default function NewCongregationPage() {
             <p className="text-gray-400 mt-2">Você será o administrador principal.</p>
         </div>
         <form onSubmit={handleCreate} className="space-y-6">
-            {/* Seção de Dados da Congregação */}
             <fieldset className="border border-gray-600 p-4 rounded-md">
                 <legend className="px-2 text-lg font-semibold text-purple-400">Dados da Congregação</legend>
                 <div className="space-y-4">
@@ -90,13 +87,26 @@ export default function NewCongregationPage() {
                 </div>
             </fieldset>
 
-            {/* Seção de Dados do Administrador */}
             <fieldset className="border border-gray-600 p-4 rounded-md">
                 <legend className="px-2 text-lg font-semibold text-purple-400">Seus Dados de Administrador</legend>
                 <div className="space-y-4">
                     <input type="text" value={adminName} onChange={e => setAdminName(e.target.value)} placeholder="Seu Nome Completo" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" />
                     <input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="Seu E-mail" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" />
-                    <input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="Sua Senha" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" />
+                    <input type="tel" value={adminPhone} onChange={e => setAdminPhone(e.target.value)} placeholder="Seu WhatsApp (Ex: 5535991234567)" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" />
+
+                    <div className="relative">
+                        <input type={showPassword ? 'text' : 'password'} value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="Sua Senha" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md pr-10"/>
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 text-gray-400">
+                           {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                        </button>
+                    </div>
+
+                    <div className="relative">
+                        <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirme sua Senha" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md pr-10"/>
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-0 px-3 text-gray-400">
+                           {showConfirmPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                        </button>
+                    </div>
                 </div>
             </fieldset>
 

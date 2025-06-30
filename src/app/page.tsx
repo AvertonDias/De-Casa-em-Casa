@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function UniversalLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -20,8 +22,6 @@ export default function UniversalLoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // Após o login, o UserContext e os layouts cuidarão do redirecionamento
-      // e da verificação de status (ex: 'pendente')
       router.push('/dashboard'); 
     } catch (err: any) {
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
@@ -51,15 +51,18 @@ export default function UniversalLoginPage() {
               className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
-          <div>
+          <div className="relative">
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Sua senha"
               required
-              className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 pr-10"
             />
+             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400">
+                {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+              </button>
           </div>
           {error && <p className="text-red-500 text-sm text-center">{error}</p>}
           <button

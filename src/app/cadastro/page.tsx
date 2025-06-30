@@ -6,16 +6,20 @@ import { createUserWithEmailAndPassword, onAuthStateChanged, signInAnonymously }
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore'; 
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [phone, setPhone] = useState('');
-  const [congregationNumber, setCongregationNumber] = useState('');
+  const [congregationCode, setCongregationCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -38,12 +42,18 @@ export default function SignUpPage() {
       setError("Aguarde a conexão ser estabelecida.");
       return;
     }
+    
+    if (password !== confirmPassword) {
+      setError("As senhas não coincidem.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
-    const trimmedNumber = congregationNumber.trim();
+    const trimmedCode = congregationCode.trim();
 
     try {
-      const q = query(collection(db, 'congregations'), where("code", "==", trimmedNumber));
+      const q = query(collection(db, 'congregations'), where("code", "==", trimmedCode));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
@@ -86,8 +96,23 @@ export default function SignUpPage() {
             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nome Completo" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="E-mail" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Seu WhatsApp (Ex: 5535991234567)" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
-            <input type="text" value={congregationNumber} onChange={e => setCongregationNumber(e.target.value)} placeholder="Código da Congregação" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            
+            <div className="relative">
+              <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 pr-10" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400">
+                {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+              </button>
+            </div>
+            
+            <div className="relative">
+              <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirme sua Senha" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 pr-10" />
+              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400">
+                {showConfirmPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+              </button>
+            </div>
+
+            <input type="text" value={congregationCode} onChange={e => setCongregationCode(e.target.value)} placeholder="Código da Congregação" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
             <button type="submit" disabled={loading || !isReady} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-wait">
               {loading ? 'Enviando...' : 'Solicitar Acesso'}
