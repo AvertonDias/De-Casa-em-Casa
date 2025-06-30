@@ -7,6 +7,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { reauthenticateWithCredential, EmailAuthProvider, updatePassword, updateProfile } from 'firebase/auth';
 import { Dialog, Transition } from '@headlessui/react';
 import { X, Eye, EyeOff } from 'lucide-react';
+import { maskPhone } from '@/lib/utils';
 
 export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { user, updateUser } = useUser();
@@ -25,7 +26,7 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
   useEffect(() => {
     if (user && isOpen) {
       setName(user.name);
-      setPhone(user.phone || '');
+      setPhone(maskPhone(user.phone || ''));
       setError(null);
       setSuccess(null);
       setCurrentPassword('');
@@ -61,7 +62,9 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
     try {
       const dataToUpdate: { name?: string; phone?: string; } = {};
       if (name.trim() !== user.name) dataToUpdate.name = name.trim();
-      if (phone.trim() !== (user.phone || '')) dataToUpdate.phone = phone.trim();
+      
+      const unmaskedPhone = phone.replace(/\D/g, "");
+      if (unmaskedPhone !== (user.phone || '')) dataToUpdate.phone = unmaskedPhone;
 
       if (Object.keys(dataToUpdate).length > 0) {
         const userDocRef = doc(db, 'users', user.uid);
@@ -117,7 +120,7 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
                     </div>
                     <div>
                         <label htmlFor="phone" className="text-sm font-medium text-gray-300">Telefone (WhatsApp)</label>
-                        <input id="phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" placeholder="Ex: 5535991234567" />
+                        <input id="phone" type="text" value={phone} onChange={e => setPhone(maskPhone(e.target.value))} required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" placeholder="(XX) XXXXX-XXXX" maxLength={15} />
                     </div>
 
                     <div className="border-t border-gray-600 pt-4">
