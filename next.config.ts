@@ -1,17 +1,13 @@
-import withPWAInit from '@ducanh2912/next-pwa';
-
-// Primeiro, chame a função importada com as suas opções de PWA.
-// Isso retorna a função que irá "embrulhar" sua configuração do Next.js.
-const withPWA = withPWAInit({
-  dest: 'public',
-  disable: process.env.NODE_ENV === 'development',
-});
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Qualquer configuração específica do Next.js entra aqui.
-  // Por enquanto, pode ficar vazio.
+  // Ele autoriza o seu ambiente de desenvolvimento na nuvem.
+  experimental: {
+    allowedDevOrigins: [
+        // URL exata extraída do seu terminal para permitir o acesso
+        "https://3000-firebase-studio-1750624095908.cluster-m7tpz3bmgjgoqrktlvd4ykrc2m.cloudworkstations.dev"
+    ],
+  },
 };
 
-// Por fim, exporte o resultado da função PWA chamada com a sua configuração do Next.js.
-export default withPWA(nextConfig);
+export default nextConfig;
