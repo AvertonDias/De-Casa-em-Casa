@@ -1,11 +1,10 @@
-
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db } from '@/lib/firebase';
+import { db, functions } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
 import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 
@@ -26,7 +25,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     // Busca a lista de usuários em tempo real
-    if (currentUser && ['Administrador', 'Dirigente'].includes(currentUser.role)) {
+    if (currentUser && ['Administrador', 'Dirigente'].includes(currentUser.role) && currentUser.congregationId) {
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where("congregationId", "==", currentUser.congregationId));
       
@@ -61,7 +60,6 @@ export default function UsersPage() {
     if (confirm("ATENÇÃO: Você está prestes a excluir PERMANENTEMENTE este usuário e todos os seus dados. Esta ação não pode ser desfeita. Deseja continuar?")) {
         setUpdatingUserId(userId);
         try {
-            const functions = getFunctions();
             const deleteUser = httpsCallable(functions, 'deleteUserAccount');
             await deleteUser({ uid: userId });
         } catch (error: any) {

@@ -2,10 +2,10 @@
 
 import { useState, useEffect, Fragment } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, auth } from '@/lib/firebase';
+import { db, auth, functions } from '@/lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { reauthenticateWithCredential, EmailAuthProvider, updatePassword, updateProfile } from 'firebase/auth';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
 import { Dialog, Transition } from '@headlessui/react';
 import { X, Eye, EyeOff, Trash2 } from 'lucide-react';
 
@@ -108,8 +108,7 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
             const credential = EmailAuthProvider.credential(auth.currentUser.email!, passwordForDelete);
             await reauthenticateWithCredential(auth.currentUser, credential);
             
-            const functionsInstance = getFunctions();
-            const deleteUser = httpsCallable(functionsInstance, 'deleteUserAccount');
+            const deleteUser = httpsCallable(functions, 'deleteUserAccount');
             await deleteUser({ uid: user.uid });
             
             onClose();
