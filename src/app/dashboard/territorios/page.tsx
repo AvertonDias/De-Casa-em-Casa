@@ -6,7 +6,6 @@ import { collection, getDocs, query, orderBy, onSnapshot, doc, getDoc } from 'fi
 import { db } from '@/lib/firebase';
 import { AddTerritoryModal } from '@/components/AddTerritoryModal';
 import { EditTerritoryModal } from '@/components/EditTerritoryModal';
-import Link from 'next/link';
 import { useUser } from '@/contexts/UserContext';
 
 // Interface atualizada para incluir as estatísticas e os campos opcionais
@@ -96,7 +95,7 @@ export default function TerritoriosPage() {
     });
 
     return () => unsubscribe();
-  }, [user, userLoading]);
+  }, [user, userLoading, router]);
 
   if (loading || userLoading) {
     return <p className="text-center text-gray-400 py-10">Carregando...</p>;
@@ -116,14 +115,16 @@ export default function TerritoriosPage() {
 
       <div className="space-y-6">
         {territories.length > 0 ? territories.map(territory => (
-          <Link key={territory.id} href={`/dashboard/territorios/${territory.id}`} className="block group cursor-pointer">
+          <div key={territory.id} onClick={() => router.push(`/dashboard/territorios/${territory.id}`)} className="block group cursor-pointer">
             <div className="bg-white dark:bg-[#2f2b3a] rounded-lg shadow-lg p-6 transition-all duration-200 group-hover:shadow-xl group-hover:ring-2 group-hover:ring-primary">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <span className="font-bold text-xl text-purple-600 dark:text-purple-300 mr-4">{territory.number}</span>
                   <span className="font-semibold text-lg group-hover:underline">{territory.name}</span>
                 </div>
-                {['Administrador', 'Dirigente'].includes(user?.role || '') && user?.congregationId && <EditTerritoryModal territory={territory} onTerritoryUpdated={() => {}} congregationId={user.congregationId} />}
+                <div onClick={(e) => e.stopPropagation()}>
+                    {['Administrador', 'Dirigente'].includes(user?.role || '') && user?.congregationId && <EditTerritoryModal territory={territory} onTerritoryUpdated={() => {}} congregationId={user.congregationId} />}
+                </div>
               </div>
 
               <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -138,7 +139,7 @@ export default function TerritoriosPage() {
                   </div>
               </div>
             </div>
-          </Link>
+          </div>
         )) : (
           <div className="text-center py-10 bg-white dark:bg-[#2f2b3a] rounded-lg">
             <p className="text-gray-400">Nenhum território cadastrado ainda.</p>
