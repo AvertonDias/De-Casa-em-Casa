@@ -117,6 +117,8 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
              console.error("Erro na autoexclusão:", error);
              if (error.code === 'auth/wrong-password') {
                 setError("Senha incorreta. A exclusão não foi realizada.");
+             } else if (error.code === 'functions/permission-denied') {
+                setError("Um administrador não pode se autoexcluir.");
              } else {
                 setError("Ocorreu um erro ao tentar excluir a conta.");
              }
@@ -175,7 +177,6 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
                   </div>
                 </form>
 
-                {user?.role !== 'Administrador' && (
                   <div className="mt-6 pt-4 border-t border-red-500/30">
                     <h4 className="text-md font-semibold text-red-400">Zona de Perigo</h4>
                     <p className="text-sm text-gray-400 mt-1">A ação abaixo é permanente e não pode ser desfeita.</p>
@@ -201,7 +202,6 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
                       Excluir Minha Conta
                     </button>
                   </div>
-                )}
                 
                 {error && <p className="text-red-400 text-sm mt-4 text-center">{error}</p>}
 
