@@ -76,6 +76,10 @@ export default function UniversalLoginPage() {
             É novo por aqui?{' '}
             <Link href="/cadastro" className="font-semibold hover:text-purple-400">Solicite seu acesso</Link>
           </p>
+          <p className="pt-2 border-t border-gray-700/50">
+            É o primeiro na sua congregação?{' '}
+            <Link href="/nova-congregacao" className="font-semibold hover:text-purple-400">Comece aqui</Link>
+          </p>
         </div>
       </div>
     </div>
