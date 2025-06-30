@@ -8,7 +8,14 @@ const pwaPlugin = withPWA({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Coloque qualquer configuração específica do Next.js aqui.
+  // Ele autoriza o seu ambiente de desenvolvimento na nuvem.
+  experimental: {
+    allowedDevOrigins: [
+        // Substitua pela URL exata que aparece no seu terminal, começando com "https://".
+        // Por exemplo: "https://3000-firebase-studio-1750624095908.cluster-m7tpz3bmgjgoqrktlvd4ykrc2m.cloudworkstations.dev"
+        "COLE_A_SUA_URL_DO_CLOUDWORKSTATIONS_AQUI"
+    ],
+  },
 };
 
 export default pwaPlugin(nextConfig);
