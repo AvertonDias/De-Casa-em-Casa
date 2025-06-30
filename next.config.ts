@@ -11,4 +11,5 @@ const nextConfig = {
   // para resolver o erro de tipo durante o build.
 };
 
+
 export default pwaPlugin(nextConfig);
