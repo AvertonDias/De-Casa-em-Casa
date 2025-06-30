@@ -5,8 +5,9 @@ import { useUser } from '@/contexts/UserContext';
 import { db, auth } from '@/lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { reauthenticateWithCredential, EmailAuthProvider, updatePassword, updateProfile } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Dialog, Transition } from '@headlessui/react';
-import { X, Eye, EyeOff } from 'lucide-react';
+import { X, Eye, EyeOff, Trash2 } from 'lucide-react';
 
 export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { user, updateUser } = useUser();
@@ -20,6 +21,8 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
   const [loading, setLoading] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [passwordForDelete, setPasswordForDelete] = useState('');
+  const [showPasswordForDelete, setShowPasswordForDelete] = useState(false);
   
   useEffect(() => {
     if (user && isOpen) {
@@ -29,6 +32,7 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
       setCurrentPassword('');
       setNewPassword('');
       setConfirmNewPassword('');
+      setPasswordForDelete('');
     }
   }, [user, isOpen]);
 
@@ -89,6 +93,40 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
     }
   };
 
+  const handleSelfDelete = async () => {
+    if (!user || !auth.currentUser) return;
+
+    if(!passwordForDelete) {
+        setError("Para excluir sua conta, por favor, insira sua senha atual.");
+        return;
+    }
+
+    if (confirm("ATENÇÃO: Você está prestes a excluir PERMANENTEMENTE sua conta. Todos os seus dados serão perdidos e esta ação não pode ser desfeita. Você tem certeza?")) {
+        setLoading(true);
+        setError(null);
+        try {
+            const credential = EmailAuthProvider.credential(auth.currentUser.email!, passwordForDelete);
+            await reauthenticateWithCredential(auth.currentUser, credential);
+            
+            const functionsInstance = getFunctions();
+            const deleteUser = httpsCallable(functionsInstance, 'deleteUserAccount');
+            await deleteUser({ uid: user.uid });
+            
+            onClose();
+
+        } catch (error: any) {
+             console.error("Erro na autoexclusão:", error);
+             if (error.code === 'auth/wrong-password') {
+                setError("Senha incorreta. A exclusão não foi realizada.");
+             } else {
+                setError("Ocorreu um erro ao tentar excluir a conta.");
+             }
+        } finally {
+            setLoading(false);
+        }
+    }
+  }
+
   return (
     <Transition.Root show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -131,13 +169,42 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
                     </div>
                     
                   <div className="mt-6">
-                    {error && <p className="text-red-400 text-sm mb-2 text-center">{error}</p>}
                     {success && <p className="text-green-400 text-sm mb-2 text-center">{success}</p>}
                     <button type="submit" disabled={loading} className="w-full inline-flex justify-center rounded-md border border-transparent bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 disabled:bg-gray-500">
                       {loading ? 'Salvando...' : 'Salvar Alterações'}
                     </button>
                   </div>
                 </form>
+
+                {user?.role !== 'Administrador' && (
+                  <div className="mt-6 pt-4 border-t border-red-500/30">
+                    <h4 className="text-md font-semibold text-red-400">Zona de Perigo</h4>
+                    <p className="text-sm text-gray-400 mt-1">A ação abaixo é permanente e não pode ser desfeita.</p>
+                    <div className="relative mt-4">
+                        <input
+                          type={showPasswordForDelete ? "text" : "password"}
+                          value={passwordForDelete}
+                          onChange={(e) => setPasswordForDelete(e.target.value)}
+                          placeholder="Digite sua senha para confirmar"
+                          className="w-full pl-4 pr-10 py-2 text-white bg-[#1e1b29] border border-red-500/50 rounded-md focus:ring-2 focus:ring-red-500"
+                        />
+                        <button type="button" onClick={() => setShowPasswordForDelete(!showPasswordForDelete)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400">
+                          {showPasswordForDelete ? <EyeOff size={20}/> : <Eye size={20}/>}
+                        </button>
+                    </div>
+
+                    <button
+                      onClick={handleSelfDelete}
+                      disabled={loading || !passwordForDelete}
+                      className="w-full mt-2 flex items-center justify-center px-4 py-2 font-bold text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-red-900 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    >
+                      <Trash2 size={16} className="mr-2"/>
+                      Excluir Minha Conta
+                    </button>
+                  </div>
+                )}
+                
+                {error && <p className="text-red-400 text-sm mt-4 text-center">{error}</p>}
 
               </Dialog.Panel>
             </Transition.Child>

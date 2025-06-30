@@ -4,7 +4,8 @@
 import { useState, useEffect, Fragment } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 
@@ -55,17 +56,19 @@ export default function UsersPage() {
   };
   
   const handleDeleteUser = async (userId: string) => {
-    if (currentUser?.role !== 'Administrador') return;
-    if (confirm("Tem certeza que deseja excluir este usuário permanentemente? Esta ação não pode ser desfeita.")) {
-      setUpdatingUserId(userId);
-      try {
-        await deleteDoc(doc(db, 'users', userId));
-        // NOTA: Em produção, seria ideal chamar uma Cloud Function para deletar o usuário da Authentication também.
-      } catch (error) {
-        console.error("Erro ao excluir usuário:", error);
-      } finally {
-        setUpdatingUserId(null);
-      }
+    if (currentUser?.role !== 'Administrador' || currentUser.uid === userId) return;
+
+    if (confirm("ATENÇÃO: Você está prestes a excluir PERMANENTEMENTE este usuário e todos os seus dados. Esta ação não pode ser desfeita. Deseja continuar?")) {
+        setUpdatingUserId(userId);
+        try {
+            const functions = getFunctions();
+            const deleteUser = httpsCallable(functions, 'deleteUserAccount');
+            await deleteUser({ uid: userId });
+        } catch (error: any) {
+            console.error("Erro ao chamar a função para excluir usuário:", error);
+        } finally {
+            setUpdatingUserId(null);
+        }
     }
   };
 
