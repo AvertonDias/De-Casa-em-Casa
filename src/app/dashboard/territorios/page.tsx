@@ -36,8 +36,7 @@ export default function TerritoriosPage() {
       return;
     }
 
-    if (!user || !user.congregationId) {
-      console.error("Usuário não autenticado ou sem ID de congregação.");
+    if (!user || !user.congregationId || user.status !== 'ativo') {
       setLoading(false);
       return;
     }
@@ -99,6 +98,15 @@ export default function TerritoriosPage() {
 
   if (loading || userLoading) {
     return <p className="text-center text-gray-400 py-10">Carregando...</p>;
+  }
+
+  if (user?.status === 'pendente') {
+    return (
+        <div className="text-center mt-10">
+            <h1 className="text-2xl font-bold">Acesso aos Territórios Restrito</h1>
+            <p className="text-muted-foreground mt-2">Seu acesso precisa ser aprovado por um administrador para que você possa ver esta página.</p>
+        </div>
+    )
   }
 
   return (
