@@ -12,7 +12,7 @@ import {
   Laptop,
   Sun,
   Moon,
-  Mountain,
+  Trees,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 const navItems = [
   { name: "Início", href: "/dashboard", icon: Home, roles: ['Administrador', 'Dirigente', 'Publicador'] },
   { name: "Territórios", href: "/dashboard/territorios", icon: Map, roles: ['Administrador', 'Dirigente', 'Publicador'] },
-  { name: "Rural", href: "/dashboard/rural", icon: Mountain, roles: ['Administrador', 'Dirigente', 'Publicador'] },
+  { name: "Rural", href: "/dashboard/rural", icon: Trees, roles: ['Administrador', 'Dirigente', 'Publicador'] },
   { name: "Usuários", href: "/dashboard/usuarios", icon: Users, roles: ['Administrador', 'Dirigente'] },
   { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings, roles: ['Administrador', 'Dirigente', 'Publicador'] },
 ];
