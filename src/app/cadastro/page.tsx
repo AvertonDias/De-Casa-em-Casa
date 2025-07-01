@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore'; 
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
@@ -26,9 +26,10 @@ export default function SignUpPage() {
       if (user) {
         setIsReady(true);
       } else {
-        signInAnonymously(auth).catch((err) => {
+        signInAnonymously(auth).catch(err => {
           console.error("Erro no login anônimo:", err);
           setError("Falha na conexão. Verifique a internet e recarregue a página.");
+          setIsReady(false);
         });
       }
     });
@@ -52,7 +53,8 @@ export default function SignUpPage() {
     const trimmedNumber = congregationNumber.trim();
 
     try {
-      const q = query(collection(db, 'congregations'), where("number", "==", trimmedNumber));
+      const congregationsRef = collection(db, 'congregations');
+      const q = query(congregationsRef, where("number", "==", trimmedNumber));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
@@ -60,23 +62,29 @@ export default function SignUpPage() {
       }
       
       const congregationId = querySnapshot.docs[0].id;
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      await setDoc(doc(db, "users", userCredential.user.uid), {
-        name,
-        email,
-        congregationId,
-        role: "Publicador",
-        status: "pendente",
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error("Sessão de usuário perdida. Por favor, recarregue a página.");
+      }
+
+      const credential = EmailAuthProvider.credential(email, password);
+      const userCredential = await linkWithCredential(currentUser, credential);
+      const permanentUser = userCredential.user;
+
+      await setDoc(doc(db, "users", permanentUser.uid), {
+        name: name, email: email, congregationId: congregationId, role: "Publicador", status: "pendente"
       });
       
-      router.push('/dashboard'); 
+      router.push('/aguardando-aprovacao');
 
     } catch (err: any) {
-      if (err.message?.includes("Número da congregação")) {
+      if (err.message?.includes("Número da congregação") || err.message?.includes("Sessão de usuário perdida")) {
         setError(err.message);
       } else if (err.code === 'auth/email-already-in-use') {
-        setError("Este e-mail já está em uso.");
+        setError("Este e-mail já está em uso por outra conta.");
+      } else if (err.code === 'auth/credential-already-in-use') {
+         setError("Erro: Esta conta já está vinculada. Tente fazer login.");
       } else {
         console.error("Erro detalhado no cadastro:", err);
         setError("Ocorreu um erro ao criar a conta.");
