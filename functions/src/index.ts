@@ -116,13 +116,11 @@ export const onHouseWrite = functions.firestore
   .onWrite(async (change, context) => {
     console.log(`[onHouseWrite] Acionado para a casa: ${context.params.casaId}`);
     
-    try {
-      const quadraRef = change.after.ref.parent.parent;
-      if (!quadraRef) {
-        console.error("[onHouseWrite] Erro: Não foi possível encontrar a referência da quadra pai.");
-        return;
-      }
+    // Using direct path construction is more robust for creates, updates, and deletes.
+    const quadraPath = `congregations/${context.params.congregationId}/territories/${context.params.territoryId}/quadras/${context.params.quadraId}`;
+    const quadraRef = db.doc(quadraPath);
 
+    try {
       const casasSnapshot = await quadraRef.collection("casas").get();
       const totalHouses = casasSnapshot.size;
       const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
@@ -132,7 +130,7 @@ export const onHouseWrite = functions.firestore
       console.log(`[onHouseWrite] Sucesso ao atualizar a quadra.`);
 
     } catch(error) {
-      console.error(`[onHouseWrite] FALHA: `, error);
+      console.error(`[onHouseWrite] FALHA ao atualizar quadra ${quadraRef.id}: `, error);
     }
 });
 
@@ -142,13 +140,10 @@ export const onQuadraWrite = functions.firestore
   .onWrite(async (change, context) => {
     console.log(`[onQuadraWrite] Acionado para a quadra: ${context.params.quadraId}`);
 
+    const territoryPath = `congregations/${context.params.congregationId}/territories/${context.params.territoryId}`;
+    const territoryRef = db.doc(territoryPath);
+
     try {
-      const territoryRef = change.after.ref.parent.parent;
-       if (!territoryRef) {
-        console.error("[onQuadraWrite] Erro: Não foi possível encontrar a referência do território pai.");
-        return;
-      }
-      
       const quadrasSnapshot = await territoryRef.collection("quadras").get();
       
       const quadraCount = quadrasSnapshot.size;
@@ -173,7 +168,7 @@ export const onQuadraWrite = functions.firestore
       console.log(`[onQuadraWrite] Sucesso ao atualizar o território.`);
 
     } catch (error) {
-      console.error(`[onQuadraWrite] FALHA: `, error);
+      console.error(`[onQuadraWrite] FALHA ao atualizar território ${territoryRef.id}: `, error);
     }
 });
 
@@ -186,15 +181,22 @@ export const onTerritoryWrite = functions.firestore
         const congregationRef = db.collection("congregations").doc(congregationId);
 
         try {
-            const territoriesSnapshot = await congregationRef.collection("territories").get();
+            const territoriesRef = congregationRef.collection("territories");
+            
+            const urbanTerritoriesQuery = territoriesRef.where("type", "in", ["urban", null]);
+            const urbanTerritoriesSnapshot = await urbanTerritoriesQuery.get();
 
-            const territoryCount = territoriesSnapshot.docs.filter(doc => doc.data().type === 'urban').length;
-            const ruralTerritoryCount = territoriesSnapshot.docs.filter(doc => doc.data().type === 'rural').length;
+            const ruralTerritoriesQuery = territoriesRef.where("type", "==", "rural");
+            const ruralTerritoriesSnapshot = await ruralTerritoriesQuery.get();
+            
+            const territoryCount = urbanTerritoriesSnapshot.size;
+            const ruralTerritoryCount = ruralTerritoriesSnapshot.size;
+
             let totalQuadras = 0;
             let totalHouses = 0;
             let totalHousesDone = 0;
 
-            territoriesSnapshot.forEach(doc => {
+            urbanTerritoriesSnapshot.forEach(doc => {
                 totalQuadras += doc.data().quadraCount || 0;
                 totalHouses += doc.data().totalHouses || 0;
                 totalHousesDone += doc.data().housesDone || 0;
@@ -210,7 +212,7 @@ export const onTerritoryWrite = functions.firestore
             });
             console.log(`[onTerritoryWrite] Sucesso ao atualizar a congregação.`);
         } catch(error) {
-            console.error(`[onTerritoryWrite] FALHA: `, error);
+            console.error(`[onTerritoryWrite] FALHA ao atualizar congregação ${congregationId}:`, error);
         }
     });
 
