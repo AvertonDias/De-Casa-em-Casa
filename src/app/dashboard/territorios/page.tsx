@@ -156,17 +156,19 @@ export default function TerritoriosPage() {
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-xs">
-                    <div><p className="text-gray-500 dark:text-gray-400">Total Casas</p><p className="font-bold text-lg">{territory.stats.total}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Feitas</p><p className="font-bold text-lg text-green-500">{territory.stats.feitos}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Pendentes</p><p className="font-bold text-lg text-yellow-500">{territory.stats.pendentes}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Progresso</p><p className="font-bold text-lg text-blue-500">{territory.stats.progresso}%</p></div>
-                  </div>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-3">
-                      <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${territory.stats.progresso}%` }}></div>
-                  </div>
-              </div>
+              {user && ['Administrador', 'Dirigente'].includes(user.role) && (
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-xs">
+                      <div><p className="text-gray-500 dark:text-gray-400">Total Casas</p><p className="font-bold text-lg">{territory.stats.total}</p></div>
+                      <div><p className="text-gray-500 dark:text-gray-400">Feitas</p><p className="font-bold text-lg text-green-500">{territory.stats.feitos}</p></div>
+                      <div><p className="text-gray-500 dark:text-gray-400">Pendentes</p><p className="font-bold text-lg text-yellow-500">{territory.stats.pendentes}</p></div>
+                      <div><p className="text-gray-500 dark:text-gray-400">Progresso</p><p className="font-bold text-lg text-blue-500">{territory.stats.progresso}%</p></div>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-3">
+                        <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${territory.stats.progresso}%` }}></div>
+                    </div>
+                </div>
+              )}
             </div>
           </div>
         ))

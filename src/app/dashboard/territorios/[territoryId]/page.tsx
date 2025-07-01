@@ -286,29 +286,31 @@ export default function TerritorioDetailPage() {
                     <h3 className="font-bold text-lg text-gray-800 dark:text-white">{quadra.name}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{quadra.description || 'Sem descrição'}</p>
 
-                    <div className="bg-gray-100 dark:bg-gray-700/30 p-3 rounded-md mb-4">
-                      <div className="grid grid-cols-4 text-center text-xs">
-                        <div>
-                          <span className="block text-gray-500 dark:text-gray-400">Total</span>
-                          <span className="font-bold text-lg text-gray-800 dark:text-white">{quadra.stats.total}</span>
+                    {user && ['Administrador', 'Dirigente'].includes(user.role) && (
+                      <div className="bg-gray-100 dark:bg-gray-700/30 p-3 rounded-md mb-4">
+                        <div className="grid grid-cols-4 text-center text-xs">
+                          <div>
+                            <span className="block text-gray-500 dark:text-gray-400">Total</span>
+                            <span className="font-bold text-lg text-gray-800 dark:text-white">{quadra.stats.total}</span>
+                          </div>
+                          <div>
+                            <span className="block text-gray-500 dark:text-gray-400">Feitos</span>
+                            <span className="font-bold text-lg text-green-600 dark:text-green-400">{quadra.stats.feitos}</span>
+                          </div>
+                          <div>
+                            <span className="block text-gray-500 dark:text-gray-400">Pendentes</span>
+                            <span className="font-bold text-lg text-yellow-500 dark:text-yellow-400">{quadra.stats.pendentes}</span>
+                          </div>
+                          <div>
+                            <span className="block text-gray-500 dark:text-gray-400">Progresso</span>
+                            <span className="font-bold text-lg text-blue-500 dark:text-blue-400">{quadra.stats.progresso}%</span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="block text-gray-500 dark:text-gray-400">Feitos</span>
-                          <span className="font-bold text-lg text-green-600 dark:text-green-400">{quadra.stats.feitos}</span>
-                        </div>
-                        <div>
-                          <span className="block text-gray-500 dark:text-gray-400">Pendentes</span>
-                          <span className="font-bold text-lg text-yellow-500 dark:text-yellow-400">{quadra.stats.pendentes}</span>
-                        </div>
-                        <div>
-                          <span className="block text-gray-500 dark:text-gray-400">Progresso</span>
-                          <span className="font-bold text-lg text-blue-500 dark:text-blue-400">{quadra.stats.progresso}%</span>
+                        <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mt-2">
+                          <div className="bg-blue-600 dark:bg-blue-400 h-1.5 rounded-full" style={{ width: `${quadra.stats.progresso}%` }}></div>
                         </div>
                       </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mt-2">
-                        <div className="bg-blue-600 dark:bg-blue-400 h-1.5 rounded-full" style={{ width: `${quadra.stats.progresso}%` }}></div>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </Link>
 
