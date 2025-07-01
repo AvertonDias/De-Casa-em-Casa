@@ -93,7 +93,7 @@ export function AddTerritoryModal({ onTerritoryAdded, congregationId }: AddTerri
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Observações (Opcional)</Label>
-              <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex: Território predominantemente comercial..." />
+              <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex: Território da prefeitura..." />
             </div>
             <div className="space-y-2">
               <Label htmlFor="mapLink">Link do Mapa (Opcional)</Label>
