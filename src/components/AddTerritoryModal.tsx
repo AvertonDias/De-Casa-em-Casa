@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from './ui/textarea';
 
 interface AddTerritoryModalProps {
   onTerritoryAdded: () => void;
@@ -17,6 +18,7 @@ export function AddTerritoryModal({ onTerritoryAdded, congregationId }: AddTerri
   const [isOpen, setIsOpen] = useState(false);
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [mapLink, setMapLink] = useState('');
   const [cardUrl, setCardUrl] = useState('');
   const [error, setError] = useState('');
@@ -45,6 +47,7 @@ export function AddTerritoryModal({ onTerritoryAdded, congregationId }: AddTerri
       await addDoc(territoriesRef, {
         number,
         name,
+        description,
         mapLink,
         cardUrl,
         lastUpdate: serverTimestamp(),
@@ -53,6 +56,7 @@ export function AddTerritoryModal({ onTerritoryAdded, congregationId }: AddTerri
 
       setNumber('');
       setName('');
+      setDescription('');
       setMapLink('');
       setCardUrl('');
       setIsOpen(false);
@@ -86,6 +90,10 @@ export function AddTerritoryModal({ onTerritoryAdded, congregationId }: AddTerri
             <div className="space-y-2">
               <Label htmlFor="name">Nome</Label>
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Centro Comercial" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Observações (Opcional)</Label>
+              <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex: Território predominantemente comercial..." />
             </div>
             <div className="space-y-2">
               <Label htmlFor="mapLink">Link do Mapa (Opcional)</Label>
