@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Search, ArrowUp, ArrowDown, ArrowLeft } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, ArrowLeft, Edit } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
 import { EditCasaModal } from '@/components/EditCasaModal';
 import { useUser } from '@/contexts/UserContext';
@@ -40,6 +40,10 @@ export default function QuadraDetailPage() {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [actionToConfirm, setActionToConfirm] = useState<{ casaId: string; newStatus: boolean; } | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  
+  // Estado e Ref para o destaque
+  const [recentlyMovedId, setRecentlyMovedId] = useState<string | null>(null);
+  const highlightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (userLoading) {
@@ -83,7 +87,8 @@ export default function QuadraDetailPage() {
   }, [casas]);
 
   const handleReorder = async (casaId: string, direction: 'up' | 'down') => {
-    const congregationId = user!.congregationId!;
+    if (!user?.congregationId) return;
+
     const originalCasas = [...casas];
     const currentIndex = originalCasas.findIndex(c => c.id === casaId);
     if (currentIndex === -1) return;
@@ -95,11 +100,19 @@ export default function QuadraDetailPage() {
     const [movedItem] = reorderedCasas.splice(currentIndex, 1);
     reorderedCasas.splice(newIndex, 0, movedItem);
 
+    if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+    }
+    setRecentlyMovedId(movedItem.id);
+    highlightTimeoutRef.current = setTimeout(() => {
+        setRecentlyMovedId(null);
+    }, 500);
+
     setCasas(reorderedCasas);
 
     const batch = writeBatch(db);
     reorderedCasas.forEach((casa, index) => {
-      const casaRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
+      const casaRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
       batch.update(casaRef, { order: index }); 
     });
 
@@ -154,6 +167,16 @@ export default function QuadraDetailPage() {
   if (!user || !user.congregationId) {
     return <div className="text-center p-10 text-red-500">Erro: Usuário não associado a uma congregação. Contate o administrador.</div>;
   }
+  
+  const finishReordering = () => {
+    setIsReordering(false);
+    setRecentlyMovedId(null);
+  };
+
+  const startReordering = () => {
+    setIsReordering(true);
+    setRecentlyMovedId(null);
+  };
 
   return (
     <div className="min-h-full">
@@ -194,64 +217,73 @@ export default function QuadraDetailPage() {
       <div className="bg-white dark:bg-[#2f2b3a] rounded-lg shadow-md overflow-hidden">
         <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
             <AddCasaModal territoryId={territoryId} quadraId={quadraId} onCasaAdded={() => {}} congregationId={user.congregationId} />
-            <button 
-                onClick={() => setIsReordering(!isReordering)}
-                disabled={searchTerm !== '' || casas.length < 2}
-                className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-800 dark:disabled:text-gray-500 ${
-                    isReordering 
-                    ? 'bg-green-600 hover:bg-green-700 text-white' 
-                    : 'bg-blue-100 hover:bg-blue-200 text-blue-800 dark:bg-purple-900/50 dark:hover:bg-purple-900/70 dark:text-purple-300'
-                }`}
-                title={searchTerm !== '' ? "Limpe a busca para reordenar" : ""}
-            >
-                {isReordering ? 'Concluir Reordenação' : 'Reordenar'}
-            </button>
+            
+            {isReordering ? (
+                <button onClick={finishReordering} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm">
+                    Concluir Reordenação
+                </button>
+            ) : (
+                <button 
+                    onClick={startReordering}
+                    disabled={searchTerm !== '' || casas.length < 2}
+                    className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 text-sm disabled:bg-blue-900/50 disabled:cursor-not-allowed"
+                    title={searchTerm !== '' ? "Limpe a busca para reordenar" : ""}
+                >
+                    Reordenar
+                </button>
+            )}
         </div>
 
         <div>
-            {filteredCasas.length > 0 ? filteredCasas.map((casa, index) => (
-                <div
-                    key={casa.id}
-                    className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0"
-                >
-                    <div className="flex items-center space-x-4 min-w-0">
-                        <input
-                            type="checkbox"
-                            checked={casa.status}
-                            onChange={() => handleToggleCheckbox(casa)}
-                            className="flex-shrink-0 h-6 w-6 rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-500 cursor-pointer"
-                            disabled={isReordering}
-                        />
-                        <div className="min-w-0 flex-1">
-                            <p className="font-bold text-lg text-gray-800 dark:text-white truncate">
-                                {casa.number}
-                            </p>
-                            {casa.observations && (
-                                <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                                {casa.observations}
+            {filteredCasas.length > 0 ? filteredCasas.map((casa, index) => {
+                const isHighlighted = casa.id === recentlyMovedId;
+                const bgClass = isHighlighted ? 'bg-purple-100 dark:bg-purple-900/60' : 'bg-transparent';
+
+                return (
+                    <div
+                        key={casa.id}
+                        className={`flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors duration-300 ${bgClass}`}
+                    >
+                        <div className="flex items-center space-x-4 min-w-0">
+                            {!isReordering && (
+                                <input
+                                    type="checkbox"
+                                    checked={casa.status}
+                                    onChange={() => handleToggleCheckbox(casa)}
+                                    className="flex-shrink-0 h-6 w-6 rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                                />
+                            )}
+                            <div className="min-w-0 flex-1">
+                                <p className="font-bold text-lg text-gray-800 dark:text-white truncate">
+                                    {casa.number}
                                 </p>
+                                {casa.observations && (
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                                    {casa.observations}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex-shrink-0 pl-4">
+                            {isReordering ? (
+                            <div className="flex flex-col items-center gap-1">
+                                <button onClick={() => handleReorder(casa.id, 'up')} disabled={index === 0} className="p-1 disabled:opacity-20 text-blue-500 dark:text-blue-400">
+                                <ArrowUp size={18} />
+                                </button>
+                                <button onClick={() => handleReorder(casa.id, 'down')} disabled={index === filteredCasas.length - 1} className="p-1 disabled:opacity-20 text-blue-500 dark:text-blue-400">
+                                <ArrowDown size={18} />
+                                </button>
+                            </div>
+                            ) : (
+                              user?.congregationId && (
+                                <EditCasaModal casa={casa} territoryId={territoryId} quadraId={quadraId} onCasaUpdated={() => {}} congregationId={user.congregationId} />
+                              )
                             )}
                         </div>
                     </div>
-
-                    <div className="flex-shrink-0 pl-4">
-                        {isReordering ? (
-                        <div className="flex flex-col items-center space-y-1">
-                            <button onClick={() => handleReorder(casa.id, 'up')} disabled={index === 0} className="p-1 disabled:opacity-20 text-blue-500 dark:text-blue-400">
-                            <ArrowUp size={22} />
-                            </button>
-                            <button onClick={() => handleReorder(casa.id, 'down')} disabled={index === filteredCasas.length - 1} className="p-1 disabled:opacity-20 text-blue-500 dark:text-blue-400">
-                            <ArrowDown size={22} />
-                            </button>
-                        </div>
-                        ) : (
-                          user?.congregationId && (
-                            <EditCasaModal casa={casa} territoryId={territoryId} quadraId={quadraId} onCasaUpdated={() => {}} congregationId={user.congregationId} />
-                          )
-                        )}
-                    </div>
-                </div>
-            )) : (
+                )
+            }) : (
                 <p className="text-center text-gray-500 dark:text-gray-400 py-8">Nenhum registro encontrado</p>
             )}
         </div>
