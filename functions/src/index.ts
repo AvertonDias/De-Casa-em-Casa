@@ -59,7 +59,7 @@ export const notifyAdminOfNewUser = functions.firestore
     return null;
   });
 
-// Função para deletar um usuário (Callable Function)
+// ▼▼▼ FUNÇÃO DE DELETAR USUÁRIO ATUALIZADA E MAIS ROBUSTA ▼▼▼
 export const deleteUserAccount = functions.https.onCall(async (data, context) => {
   // 1. Verificação de Permissão
   const callingUserUid = context.auth?.uid;
@@ -82,7 +82,7 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
 
   // 2. Lógica de Exclusão
   const userIdToDelete = data.uid; // Corrigido para 'uid' para corresponder ao frontend
-  if (!userIdToDelete) {
+  if (!userIdToDelete || typeof userIdToDelete !== 'string') {
     throw new functions.https.HttpsError(
       "invalid-argument",
       "O ID do usuário a ser excluído não foi fornecido."
@@ -97,21 +97,38 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
   }
 
   try {
-    // Ação 1: Deletar do Firebase Authentication
-    await admin.auth().deleteUser(userIdToDelete);
-    console.log(`Usuário ${userIdToDelete} excluído da autenticação com sucesso.`);
+    // --- LÓGICA DE EXCLUSÃO COM MAIS VERIFICAÇÕES ---
 
-    // Ação 2: Deletar do Firestore Database
-    await db.collection("users").doc(userIdToDelete).delete();
-    console.log(`Documento do usuário ${userIdToDelete} excluído do Firestore com sucesso.`);
+    // Ação 1: Deletar do Firestore PRIMEIRO.
+    const userDocRef = db.collection("users").doc(userIdToDelete);
+    const userDocSnap = await userDocRef.get();
+    
+    if (userDocSnap.exists) {
+        await userDocRef.delete();
+        console.log(`Documento do usuário ${userIdToDelete} excluído do Firestore.`);
+    } else {
+        console.log(`Documento do usuário ${userIdToDelete} não foi encontrado no Firestore, pulando.`);
+    }
 
-    return { success: true, message: "Usuário excluído com sucesso." };
+    // Ação 2: Deletar do Firebase Authentication
+    try {
+      await admin.auth().deleteUser(userIdToDelete);
+      console.log(`Usuário ${userIdToDelete} excluído da autenticação.`);
+    } catch (authError: any) {
+        if (authError.code === "auth/user-not-found") {
+            console.warn(`Usuário ${userIdToDelete} não encontrado na autenticação, provavelmente já foi deletado.`);
+        } else {
+            throw authError;
+        }
+    }
 
-  } catch (error) {
-    console.error("Erro ao excluir usuário:", error);
+    return { success: true, message: "Operação de exclusão concluída." };
+
+  } catch (error: any) {
+    console.error("Erro CRÍTICO ao excluir usuário:", error);
     throw new functions.https.HttpsError(
       "internal",
-      "Ocorreu um erro interno ao tentar excluir o usuário."
+      `Falha na exclusão: ${error.message}`
     );
   }
 });
