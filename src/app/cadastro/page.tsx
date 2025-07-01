@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore'; 
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
@@ -51,6 +51,8 @@ export default function SignUpPage() {
     const trimmedNumber = congregationNumber.trim();
 
     try {
+      await setPersistence(auth, browserLocalPersistence);
+
       const congregationsRef = collection(db, 'congregations');
       const q = query(congregationsRef, where("number", "==", trimmedNumber));
       const querySnapshot = await getDocs(q);
