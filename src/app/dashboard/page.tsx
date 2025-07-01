@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { Users, Map, Home, CheckSquare, LandPlot } from 'lucide-react';
+import { Users, Map, HousePlus, CheckSquare, LandPlot } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // O StatCard não muda, continua igual
@@ -55,7 +55,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard icon={Map} title="Total de Territórios" value={0} loading={false} />
         <StatCard icon={LandPlot} title="Quadras Registradas" value={0} loading={false} />
-        <StatCard icon={Home} title="Casas Mapeadas" value={0} loading={false} />
+        <StatCard icon={HousePlus} title="Casas Mapeadas" value={0} loading={false} />
         <StatCard icon={CheckSquare} title="Casas Visitadas" value={0} loading={false} />
       </div>
       
