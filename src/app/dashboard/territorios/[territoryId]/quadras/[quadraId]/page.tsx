@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch } from 'firebase/firestore';
@@ -41,9 +41,8 @@ export default function QuadraDetailPage() {
   const [actionToConfirm, setActionToConfirm] = useState<{ casaId: string; newStatus: boolean; } | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   
-  // Estado e Ref para o destaque
+  // Estado para o destaque
   const [recentlyMovedId, setRecentlyMovedId] = useState<string | null>(null);
-  const highlightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (userLoading) {
@@ -64,17 +63,20 @@ export default function QuadraDetailPage() {
     const q = query(casasRef, orderBy('order'));
     
     const unsubscribe = onSnapshot(q, (casasSnap) => {
-      const fetchedCasas = casasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Casa);
-      setCasas(fetchedCasas);
-      setLoading(false);
+      // Apenas atualiza o estado com dados do Firebase se NÃO estivermos reordenando.
+      // Esta é a linha que corrige o "pisca".
+      if (!isReordering) {
+        const fetchedCasas = casasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Casa);
+        setCasas(fetchedCasas);
+        setLoading(false);
+      }
     }, (error) => {
       console.error("Erro ao ouvir as atualizações das casas:", error);
       setLoading(false);
     });
 
     return () => unsubscribe();
-    
-  }, [user, userLoading, territoryId, quadraId]);
+  }, [user, userLoading, territoryId, quadraId, isReordering]);
 
   const stats = useMemo(() => {
     const total = casas.length;
@@ -86,42 +88,20 @@ export default function QuadraDetailPage() {
     return { total, feitos, pendentes, progresso };
   }, [casas]);
 
-  const handleReorder = async (casaId: string, direction: 'up' | 'down') => {
-    if (!user?.congregationId) return;
-
-    const originalCasas = [...casas];
-    const currentIndex = originalCasas.findIndex(c => c.id === casaId);
+  const handleReorder = (casaId: string, direction: 'up' | 'down') => {
+    const currentIndex = casas.findIndex(c => c.id === casaId);
     if (currentIndex === -1) return;
 
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (newIndex < 0 || newIndex >= originalCasas.length) return;
+    if ((direction === 'up' && currentIndex === 0) || (direction === 'down' && currentIndex === casas.length - 1)) return;
 
-    const reorderedCasas = [...originalCasas];
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    
+    const reorderedCasas = [...casas];
     const [movedItem] = reorderedCasas.splice(currentIndex, 1);
     reorderedCasas.splice(newIndex, 0, movedItem);
 
-    if (highlightTimeoutRef.current) {
-        clearTimeout(highlightTimeoutRef.current);
-    }
     setRecentlyMovedId(movedItem.id);
-    highlightTimeoutRef.current = setTimeout(() => {
-        setRecentlyMovedId(null);
-    }, 500);
-
     setCasas(reorderedCasas);
-
-    const batch = writeBatch(db);
-    reorderedCasas.forEach((casa, index) => {
-      const casaRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
-      batch.update(casaRef, { order: index }); 
-    });
-
-    try {
-      await batch.commit();
-    } catch (error)      {
-      console.error("Falha ao reordenar:", error);
-      setCasas(originalCasas);
-    }
   };
 
   const handleToggleCheckbox = (casa: Casa) => {
@@ -168,9 +148,25 @@ export default function QuadraDetailPage() {
     return <div className="text-center p-10 text-red-500">Erro: Usuário não associado a uma congregação. Contate o administrador.</div>;
   }
   
-  const finishReordering = () => {
-    setIsReordering(false);
-    setRecentlyMovedId(null);
+  const finishReordering = async () => {
+    if (!user?.congregationId) return;
+    setLoading(true); // Mostra um feedback de que estamos salvando
+
+    const batch = writeBatch(db);
+    casas.forEach((casa, index) => {
+      const casaRef = doc(db, 'congregations', user.congregationId!, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
+      batch.update(casaRef, { order: index }); 
+    });
+
+    try {
+      await batch.commit();
+    } catch (error)      {
+      console.error("Falha ao reordenar:", error);
+    } finally {
+      setRecentlyMovedId(null);
+      setIsReordering(false);
+      // setLoading(false) será chamado pelo onSnapshot quando ele receber a nova ordem.
+    }
   };
 
   const startReordering = () => {
@@ -216,7 +212,7 @@ export default function QuadraDetailPage() {
       
       <div className="bg-white dark:bg-[#2f2b3a] rounded-lg shadow-md overflow-hidden">
         <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
-            <AddCasaModal territoryId={territoryId} quadraId={quadraId} onCasaAdded={() => {}} congregationId={user.congregationId} />
+            {user.congregationId && <AddCasaModal territoryId={territoryId} quadraId={quadraId} onCasaAdded={() => {}} congregationId={user.congregationId} />}
             
             {isReordering ? (
                 <button onClick={finishReordering} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm">
@@ -236,13 +232,14 @@ export default function QuadraDetailPage() {
 
         <div>
             {filteredCasas.length > 0 ? filteredCasas.map((casa, index) => {
-                const isHighlighted = casa.id === recentlyMovedId;
-                const bgClass = isHighlighted ? 'bg-purple-100 dark:bg-purple-900/60' : 'bg-transparent';
+                const isHighlighted = isReordering && casa.id === recentlyMovedId;
+                const baseBg = 'bg-transparent';
+                const highlightedBg = 'bg-purple-100 dark:bg-purple-900/60';
 
                 return (
                     <div
                         key={casa.id}
-                        className={`flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors duration-300 ${bgClass}`}
+                        className={`flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors duration-300 ${isHighlighted ? highlightedBg : baseBg}`}
                     >
                         <div className="flex items-center space-x-4 min-w-0">
                             {!isReordering && (
