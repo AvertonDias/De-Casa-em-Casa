@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader, Pencil, Trash2 } from 'lucide-react';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -36,15 +36,15 @@ export function EditQuadraModal({ quadra, territoryId, onQuadraUpdated, congrega
   const [isLoading, setIsLoading] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-  // Reset state on close
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      setError('');
+  // Sincroniza o estado do formulário com os dados da quadra sempre que o modal for aberto.
+  useEffect(() => {
+    if (isOpen) {
       setName(quadra.name);
       setDescription(quadra.description || '');
+      setError('');
     }
-    setIsOpen(open);
-  }
+  }, [isOpen, quadra]);
+
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +91,7 @@ export function EditQuadraModal({ quadra, territoryId, onQuadraUpdated, congrega
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
            <Button
             size="sm"
