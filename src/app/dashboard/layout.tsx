@@ -29,8 +29,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         try {
           const permission = await Notification.requestPermission();
           if (permission === 'granted') {
-            // IMPORTANTE: Substitua 'SUA_VAPID_KEY_AQUI' pela sua VAPID key do Firebase Cloud Messaging.
-            const token = await getToken(messaging, { vapidKey: 'SUA_VAPID_KEY_AQUI' });
+            const token = await getToken(messaging, { vapidKey: 'BD_279ckw7U8KPc5KFJX-8V2UFyvJhnWVqa-XgvJnb91RHf0bjBn21hDHMOKxq1Hb2bEFnOdeclWRnKKsbFfhbk' });
             if (token) {
               console.log('FCM Token:', token);
               // Salva o token no perfil do usuário no Firestore
