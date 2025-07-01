@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from './ui/textarea';
 
 interface AddQuadraModalProps {
   territoryId: string;
@@ -19,6 +20,7 @@ interface AddQuadraModalProps {
 export function AddQuadraModal({ territoryId, onQuadraAdded, existingQuadrasCount, congregationId }: AddQuadraModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -26,6 +28,7 @@ export function AddQuadraModal({ territoryId, onQuadraAdded, existingQuadrasCoun
     if (isOpen) {
       const nextNumber = (existingQuadrasCount + 1).toString().padStart(2, '0');
       setName(`Quadra ${nextNumber}`);
+      setDescription('');
     }
   }, [existingQuadrasCount, isOpen]);
 
@@ -52,10 +55,12 @@ export function AddQuadraModal({ territoryId, onQuadraAdded, existingQuadrasCoun
       
       await addDoc(quadrasRef, {
         name,
+        description,
         createdAt: serverTimestamp(),
       });
 
       setName('');
+      setDescription('');
       setIsOpen(false);
       onQuadraAdded();
       
@@ -79,13 +84,22 @@ export function AddQuadraModal({ territoryId, onQuadraAdded, existingQuadrasCoun
         <DialogHeader>
           <DialogTitle>Adicionar Nova Quadra</DialogTitle>
           <DialogDescription>
-            Digite o nome ou identificador da quadra (ex: Quadra 01, Rua Principal).
+            Digite o nome ou identificador da quadra e adicione observações, se necessário.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} id="add-quadra-form" className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="name">Nome da Quadra</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Quadra 01" required/>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="description">Observações (Opcional)</Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Ex: Área comercial, lado ímpar da rua."
+            />
           </div>
           {error && <p className="text-red-500 text-sm text-center">{error}</p>}
         </form>
