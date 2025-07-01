@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { AddTerritoryModal } from '@/components/AddTerritoryModal';
 import { EditTerritoryModal } from '@/components/EditTerritoryModal';
 import { useUser } from '@/contexts/UserContext';
-import { Search, Inbox } from 'lucide-react';
+import { Search, Inbox, Loader } from 'lucide-react';
 import { RestrictedContent } from '@/components/RestrictedContent';
 
 // Interface atualizada para incluir as estatísticas e os campos opcionais
@@ -39,64 +39,64 @@ export default function TerritoriosPage() {
       return;
     }
 
-    if (!user || !user.congregationId || user.status !== 'ativo') {
-      setLoading(false);
-      return;
+    // A busca de dados só acontece se o usuário estiver ATIVO.
+    if (user?.status === 'ativo' && user.congregationId) {
+      const fetchCongregationName = async () => {
+        const congRef = doc(db, 'congregations', user.congregationId!);
+        const congSnap = await getDoc(congRef);
+        if (congSnap.exists()) {
+          setCongregationName(congSnap.data().name);
+        }
+      };
+      fetchCongregationName();
+
+      const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
+      const q = query(territoriesRef, where("type", "==", "urban"), orderBy('number'));
+
+      const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+        const territoriesData = await Promise.all(
+          querySnapshot.docs.map(async (territoryDoc) => {
+            let totalCasas = 0;
+            let feitos = 0;
+
+            const quadrasRef = collection(territoryDoc.ref, 'quadras');
+            const quadrasSnap = await getDocs(quadrasRef);
+
+            for (const quadraDoc of quadrasSnap.docs) {
+              const casasRef = collection(quadraDoc.ref, 'casas');
+              const casasSnap = await getDocs(casasRef);
+              totalCasas += casasSnap.size;
+              feitos += casasSnap.docs.filter(doc => doc.data().status === true).length;
+            }
+
+            const pendentes = totalCasas - feitos;
+            const progresso = totalCasas > 0 ? Math.round((feitos / totalCasas) * 100) : 0;
+            
+            const data = territoryDoc.data();
+
+            return {
+              id: territoryDoc.id,
+              number: data.number,
+              name: data.name,
+              description: data.description,
+              mapLink: data.mapLink,
+              cardUrl: data.cardUrl,
+              stats: { total: totalCasas, feitos, pendentes, progresso }
+            } as Territory;
+          })
+        );
+        
+        setTerritories(territoriesData);
+        setLoading(false);
+      }, (error) => {
+        console.error("Erro ao ouvir territórios:", error);
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
+    } else if (!userLoading) {
+        setLoading(false);
     }
-
-    const fetchCongregationName = async () => {
-      const congRef = doc(db, 'congregations', user.congregationId!);
-      const congSnap = await getDoc(congRef);
-      if (congSnap.exists()) {
-        setCongregationName(congSnap.data().name);
-      }
-    };
-    fetchCongregationName();
-
-    const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-    const q = query(territoriesRef, where("type", "==", "urban"), orderBy('number'));
-
-    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-      const territoriesData = await Promise.all(
-        querySnapshot.docs.map(async (territoryDoc) => {
-          let totalCasas = 0;
-          let feitos = 0;
-
-          const quadrasRef = collection(territoryDoc.ref, 'quadras');
-          const quadrasSnap = await getDocs(quadrasRef);
-
-          for (const quadraDoc of quadrasSnap.docs) {
-            const casasRef = collection(quadraDoc.ref, 'casas');
-            const casasSnap = await getDocs(casasRef);
-            totalCasas += casasSnap.size;
-            feitos += casasSnap.docs.filter(doc => doc.data().status === true).length;
-          }
-
-          const pendentes = totalCasas - feitos;
-          const progresso = totalCasas > 0 ? Math.round((feitos / totalCasas) * 100) : 0;
-          
-          const data = territoryDoc.data();
-
-          return {
-            id: territoryDoc.id,
-            number: data.number,
-            name: data.name,
-            description: data.description,
-            mapLink: data.mapLink,
-            cardUrl: data.cardUrl,
-            stats: { total: totalCasas, feitos, pendentes, progresso }
-          } as Territory;
-        })
-      );
-      
-      setTerritories(territoriesData);
-      setLoading(false);
-    }, (error) => {
-      console.error("Erro ao ouvir territórios:", error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
   }, [user, userLoading, router]);
   
   const filteredTerritories = territories.filter(territory =>
@@ -105,10 +105,14 @@ export default function TerritoriosPage() {
   );
 
   if (loading || userLoading) {
-    return <p className="text-center text-gray-400 py-10">Carregando...</p>;
+    return <div className="flex justify-center items-center h-full"><Loader className="animate-spin" /></div>;
   }
 
-  if (user?.status === 'pendente') {
+  if (!user) {
+    return <p>Usuário não encontrado.</p>;
+  }
+
+  if (user.status === 'pendente') {
     return (
         <RestrictedContent
             title="Acesso aos Territórios Restrito"
