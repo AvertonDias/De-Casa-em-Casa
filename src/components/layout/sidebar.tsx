@@ -13,6 +13,7 @@ import {
   Sun,
   Moon,
   Trees,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ import { FeedbackModal } from "@/components/FeedbackModal";
 import { useEffect, useState } from "react";
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { getInitials } from "@/lib/utils";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
 
 const navItems = [
   { name: "Início", href: "/dashboard", icon: Home, roles: ['Administrador', 'Dirigente', 'Publicador'] },
@@ -79,6 +81,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user } = useUser();
   const router = useRouter();
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
+  const { canInstall, onInstall } = usePWAInstall();
 
   useEffect(() => {
     if (user && ['Administrador', 'Dirigente'].includes(user.role) && user.congregationId) {
@@ -187,6 +190,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               </div>
             </div>
           )}
+          {canInstall && (
+              <Button
+                onClick={onInstall}
+                variant="outline"
+                className="w-full justify-center border-green-300 bg-green-100 text-green-800 hover:bg-green-200 hover:text-green-900 dark:border-green-700 dark:bg-green-900/50 dark:text-white dark:hover:bg-green-900/80"
+              >
+                <Download className="mr-2" size={20} /> Instalar Aplicativo
+              </Button>
+            )}
           <FeedbackModal />
           <Button
             onClick={handleLogout}
