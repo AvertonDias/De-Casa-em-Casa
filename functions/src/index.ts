@@ -55,3 +55,59 @@ export const deleteUserAccount = functions.https.onCall(
     }
   },
 );
+
+
+// Função que dispara na criação de um novo documento de usuário
+export const notifyAdminOfNewUser = functions.firestore
+  .document("users/{userId}")
+  .onCreate(async (snapshot) => {
+    const newUser = snapshot.data();
+
+    // 1. Verifica se o novo usuário está pendente
+    if (newUser.status !== "pendente") {
+      console.log("Novo usuário não está pendente, nenhuma notificação enviada.");
+      return null;
+    }
+
+    const congregationId = newUser.congregationId;
+
+    if (!congregationId) {
+        console.log("Novo usuário não tem congregationId, nenhuma notificação enviada.");
+        return null;
+    }
+
+    // 2. Busca todos os admins da mesma congregação
+    const adminsSnapshot = await db
+      .collection("users")
+      .where("congregationId", "==", congregationId)
+      .where("role", "==", "Administrador")
+      .get();
+
+    if (adminsSnapshot.empty) {
+      console.log("Nenhum administrador encontrado para esta congregação.");
+      return null;
+    }
+
+    // 3. Monta e envia a notificação para cada admin
+    const payload = {
+      notification: {
+        title: "Novo Usuário Aguardando Aprovação!",
+        body: `O usuário ${newUser.name} se cadastrou e precisa de sua aprovação.`,
+        icon: "/icon-192x192.png", // Assegure-se que este ícone existe na sua pasta /public
+        click_action: "/dashboard/usuarios", // URL para abrir ao clicar
+      },
+    };
+
+    const promises = adminsSnapshot.docs.map(async (adminDoc) => {
+      const adminData = adminDoc.data();
+      if (adminData.fcmTokens && adminData.fcmTokens.length > 0) {
+        // Envia para todos os dispositivos do admin
+        return admin.messaging().sendToDevice(adminData.fcmTokens, payload);
+      }
+      return Promise.resolve();
+    });
+
+    await Promise.all(promises);
+    console.log("Notificações enviadas para os administradores.");
+    return null;
+  });

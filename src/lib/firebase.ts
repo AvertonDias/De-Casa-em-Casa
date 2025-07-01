@@ -3,6 +3,7 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
+import { getMessaging } from "firebase/messaging";
 
 // Simplesmente montamos o objeto de configuração a partir das variáveis de ambiente.
 // A verificação de erro foi removida para permitir que o build da Vercel seja concluído.
@@ -22,3 +23,6 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app, 'us-central1');
+
+// Conditionally initialize messaging only on the client to avoid SSR errors.
+export const messaging = (typeof window !== 'undefined') ? getMessaging(app) : null;

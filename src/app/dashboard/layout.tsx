@@ -7,6 +7,9 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/contexts/UserContext";
 import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
+import { getToken } from 'firebase/messaging';
+import { db, messaging } from "@/lib/firebase";
+import { doc, arrayUnion, updateDoc } from 'firebase/firestore';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useUser();
@@ -18,6 +21,32 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         router.push('/');
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    const requestPermission = async () => {
+      // Check if user is loaded, notifications are supported, user is active, and messaging is available.
+      if (user && user.status === 'ativo' && typeof window !== 'undefined' && 'Notification' in window && messaging) {
+        try {
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted') {
+            // IMPORTANTE: Substitua 'SUA_VAPID_KEY_AQUI' pela sua VAPID key do Firebase Cloud Messaging.
+            const token = await getToken(messaging, { vapidKey: 'SUA_VAPID_KEY_AQUI' });
+            if (token) {
+              console.log('FCM Token:', token);
+              // Salva o token no perfil do usuário no Firestore
+              const userRef = doc(db, 'users', user.uid);
+              await updateDoc(userRef, {
+                fcmTokens: arrayUnion(token) // Usa arrayUnion para adicionar sem duplicar
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Erro ao obter permissão de notificação:', error);
+        }
+      }
+    };
+    requestPermission();
+  }, [user]);
 
   if (loading) {
     return (

@@ -161,7 +161,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                       <span>{item.name}</span>
                     </div>
                     {item.name === "Usuários" && pendingUsersCount > 0 && (
-                      <span className="w-2.5 h-2.5 bg-yellow-400 rounded-full animate-pulse"></span>
+                      <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
                     )}
                   </Link>
                 </li>
