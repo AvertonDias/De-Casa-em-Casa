@@ -70,17 +70,6 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
     );
   }
 
-  const callingUserRef = db.collection("users").doc(callingUserUid);
-  const callingUserSnap = await callingUserRef.get();
-
-  if (!callingUserSnap.exists || callingUserSnap.data()?.role !== "Administrador") {
-    throw new functions.https.HttpsError(
-      "permission-denied",
-      "Você não tem permissão para realizar esta ação."
-    );
-  }
-
-  // 2. Lógica de Exclusão
   const userIdToDelete = data.uid; // Corrigido para 'uid' para corresponder ao frontend
   if (!userIdToDelete || typeof userIdToDelete !== 'string') {
     throw new functions.https.HttpsError(
@@ -88,12 +77,26 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
       "O ID do usuário a ser excluído não foi fornecido."
     );
   }
-  
-  if (callingUserUid === userIdToDelete) {
-    throw new functions.https.HttpsError(
+
+  const callingUserRef = db.collection("users").doc(callingUserUid);
+  const callingUserSnap = await callingUserRef.get();
+  const isCallerAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
+
+  // Permite a ação se:
+  // 1. O chamador for um admin E não estiver se auto-excluindo por esta via.
+  // 2. O chamador estiver se auto-excluindo.
+  if (isCallerAdmin && callingUserUid === userIdToDelete) {
+     throw new functions.https.HttpsError(
       "permission-denied",
-      "Um administrador não pode se autoexcluir através desta função."
+      "Um administrador não pode se autoexcluir através da lista de usuários. Use a opção no seu perfil."
     );
+  }
+  
+  if (!isCallerAdmin && callingUserUid !== userIdToDelete) {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "Você não tem permissão para realizar esta ação."
+      );
   }
 
   try {
