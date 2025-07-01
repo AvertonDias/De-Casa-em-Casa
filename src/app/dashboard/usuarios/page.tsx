@@ -52,6 +52,7 @@ export default function UsersPage() {
       await updateDoc(userRef, dataToUpdate);
     } catch (error) {
       console.error("Erro ao atualizar usuário:", error);
+      // Adicionar toast de erro aqui
     } finally {
       setUpdatingUserId(null);
     }
@@ -66,11 +67,14 @@ export default function UsersPage() {
     if (!userToDelete || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
 
     setUpdatingUserId(userToDelete.uid);
+    setIsConfirmModalOpen(false); // Fechar o modal imediatamente
     try {
         const deleteUser = httpsCallable(functions, 'deleteUserAccount');
         await deleteUser({ uid: userToDelete.uid });
+        // O onSnapshot vai atualizar a UI automaticamente.
     } catch (error: any) {
         console.error("Erro ao chamar a função para excluir usuário:", error);
+        // Adicionar toast de erro aqui
     } finally {
         setUpdatingUserId(null);
         setUserToDelete(null);
@@ -196,8 +200,11 @@ export default function UsersPage() {
           isOpen={isConfirmModalOpen}
           onClose={() => setIsConfirmModalOpen(false)}
           onConfirm={confirmDeleteUser}
+          isLoading={!!updatingUserId}
           title="Excluir Usuário"
           message={`Você tem certeza que deseja excluir permanentemente o usuário ${userToDelete?.name}? Todos os seus dados serão perdidos e esta ação não pode ser desfeita.`}
+          confirmText="Sim, excluir"
+          cancelText="Cancelar"
       />
     </div>
   );

@@ -4,59 +4,6 @@ import * as admin from "firebase-admin";
 admin.initializeApp();
 const db = admin.firestore();
 
-export const deleteUserAccount = functions.https.onCall(
-  async (data, context) => {
-    // 1. Validação: Garante que um usuário autenticado está fazendo a chamada.
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "Você precisa estar logado para fazer isso.");
-    }
-
-    const callingUid = context.auth.uid; // UID de quem está chamando
-    const uidToDelete = data.uid;       // UID de quem será deletado (vem do front-end)
-
-    if (!uidToDelete) {
-        throw new functions.https.HttpsError("invalid-argument", "O UID do usuário a ser deletado é obrigatório.");
-    }
-    
-    try {
-        const callingUserDoc = await db.collection("users").doc(callingUid).get();
-        const callingUserData = callingUserDoc.data();
-        
-        if (!callingUserData) {
-            throw new functions.https.HttpsError("not-found", "Usuário que fez a chamada não encontrado.");
-        }
-
-        // 2. Lógica de Permissão
-        const isSelfDelete = callingUid === uidToDelete;
-        const isAdminDeleting = callingUserData.role === 'Administrador';
-
-        if (!isSelfDelete && !isAdminDeleting) {
-            throw new functions.https.HttpsError("permission-denied", "Você não tem permissão para excluir este usuário.");
-        }
-        
-        // Se um admin tentar deletar a si mesmo através deste fluxo, negue.
-        if(isSelfDelete && callingUserData.role === 'Administrador') {
-             throw new functions.https.HttpsError("permission-denied", "Um administrador não pode se autoexcluir.");
-        }
-
-        // 3. Execução da Exclusão
-        // Primeiro, deleta o usuário da Authentication. Isso irá disparar o logout no cliente.
-        await admin.auth().deleteUser(uidToDelete);
-        
-        // Em seguida, deleta o documento do Firestore.
-        await db.collection("users").doc(uidToDelete).delete();
-
-        console.log(`Usuário ${uidToDelete} excluído com sucesso por ${callingUid}.`);
-        return { success: true, message: "Usuário excluído com sucesso." };
-
-    } catch (error) {
-        console.error("Erro ao excluir usuário:", error);
-        throw new functions.https.HttpsError("internal", "Ocorreu um erro interno ao excluir o usuário.");
-    }
-  },
-);
-
-
 // Função que dispara na criação de um novo documento de usuário
 export const notifyAdminOfNewUser = functions.firestore
   .document("users/{userId}")
@@ -111,3 +58,60 @@ export const notifyAdminOfNewUser = functions.firestore
     console.log("Notificações enviadas para os administradores.");
     return null;
   });
+
+// Função para deletar um usuário (Callable Function)
+export const deleteUserAccount = functions.https.onCall(async (data, context) => {
+  // 1. Verificação de Permissão
+  const callingUserUid = context.auth?.uid;
+  if (!callingUserUid) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "Ação não autorizada. Você precisa estar logado."
+    );
+  }
+
+  const callingUserRef = db.collection("users").doc(callingUserUid);
+  const callingUserSnap = await callingUserRef.get();
+
+  if (!callingUserSnap.exists || callingUserSnap.data()?.role !== "Administrador") {
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "Você não tem permissão para realizar esta ação."
+    );
+  }
+
+  // 2. Lógica de Exclusão
+  const userIdToDelete = data.uid; // Corrigido para 'uid' para corresponder ao frontend
+  if (!userIdToDelete) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "O ID do usuário a ser excluído não foi fornecido."
+    );
+  }
+  
+  if (callingUserUid === userIdToDelete) {
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "Um administrador não pode se autoexcluir através desta função."
+    );
+  }
+
+  try {
+    // Ação 1: Deletar do Firebase Authentication
+    await admin.auth().deleteUser(userIdToDelete);
+    console.log(`Usuário ${userIdToDelete} excluído da autenticação com sucesso.`);
+
+    // Ação 2: Deletar do Firestore Database
+    await db.collection("users").doc(userIdToDelete).delete();
+    console.log(`Documento do usuário ${userIdToDelete} excluído do Firestore com sucesso.`);
+
+    return { success: true, message: "Usuário excluído com sucesso." };
+
+  } catch (error) {
+    console.error("Erro ao excluir usuário:", error);
+    throw new functions.https.HttpsError(
+      "internal",
+      "Ocorreu um erro interno ao tentar excluir o usuário."
+    );
+  }
+});
