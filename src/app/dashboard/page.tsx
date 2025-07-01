@@ -76,7 +76,7 @@ export default function DashboardPage() {
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard icon={Map} title="Territórios Urbanos" value={stats.territoryCount || 0} loading={loading} />
+        <StatCard icon={Map} title="Territórios" value={stats.territoryCount || 0} loading={loading} />
         <StatCard icon={Building} title="Quadras Registradas" value={stats.totalQuadras || 0} loading={loading} />
         <StatCard icon={Home} title="Casas Mapeadas" value={stats.totalHouses || 0} loading={loading} />
         <StatCard icon={CheckSquare} title="Casas Visitadas" value={stats.totalHousesDone || 0} loading={loading} />
