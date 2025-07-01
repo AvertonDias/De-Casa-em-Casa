@@ -1,38 +1,12 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { doc, onSnapshot, collection, query, orderBy, limit } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { Map, CheckSquare, Loader, Building, Home } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-
-// Componente do Card de Estatística
-interface StatCardProps {
-  icon: React.ElementType;
-  title: string;
-  value: number | string;
-  loading: boolean;
-}
-
-function StatCard({ icon: Icon, title, value, loading }: StatCardProps) {
-  return (
-    <div className="bg-white dark:bg-[#2a2736] p-6 rounded-lg shadow-md flex items-center">
-      <div className="bg-purple-600/20 text-purple-500 p-3 rounded-full mr-4">
-        <Icon size={24} />
-      </div>
-      <div>
-        <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">{title}</h3>
-        {loading ? (
-          <div className="h-7 w-12 bg-gray-300 dark:bg-gray-600 rounded-md animate-pulse mt-1"></div>
-        ) : (
-          <p className="text-2xl font-bold text-gray-800 dark:text-white">{value}</p>
-        )}
-      </div>
-    </div>
-  );
-}
+import { StatCard } from '@/components/StatCard';
 
 // Interface para as estatísticas globais
 interface CongregationStats {
@@ -40,6 +14,7 @@ interface CongregationStats {
   totalQuadras?: number;
   totalHouses?: number;
   totalHousesDone?: number;
+  ruralTerritoryCount?: number;
 }
 interface RecentTerritory {
   id: string;
@@ -69,10 +44,15 @@ export default function DashboardPage() {
         setLoading(false);
       });
 
-      // Listener 2: Ouve os territórios para a lista de "recentemente trabalhados"
+      // Listener 2: Ouve os territórios para a lista de "recentemente trabalhados", filtrando rurais.
       const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-      // Ordena por 'lastUpdate' e pega os 5 mais recentes
-      const q = query(territoriesRef, orderBy("lastUpdate", "desc"), limit(5));
+      const q = query(
+        territoriesRef, 
+        where("type", "in", ["urban", null]), 
+        orderBy("lastUpdate", "desc"), 
+        limit(5)
+      );
+
       const unsubscribeRecent = onSnapshot(q, (snapshot) => {
         const territoriesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as RecentTerritory[];
         setRecentTerritories(territoriesData);
@@ -96,7 +76,7 @@ export default function DashboardPage() {
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard icon={Map} title="Total de Territórios" value={stats.territoryCount || 0} loading={loading} />
+        <StatCard icon={Map} title="Territórios Urbanos" value={stats.territoryCount || 0} loading={loading} />
         <StatCard icon={Building} title="Quadras Registradas" value={stats.totalQuadras || 0} loading={loading} />
         <StatCard icon={Home} title="Casas Mapeadas" value={stats.totalHouses || 0} loading={loading} />
         <StatCard icon={CheckSquare} title="Casas Visitadas" value={stats.totalHousesDone || 0} loading={loading} />
