@@ -8,6 +8,7 @@ import { httpsCallable } from 'firebase/functions';
 import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 // Interface do usuário
 interface AppUser {
@@ -81,6 +82,15 @@ export default function UsersPage() {
     }
   };
 
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase();
+  };
+
   if (userLoading || loading) {
     return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
   }
@@ -104,12 +114,15 @@ export default function UsersPage() {
         <ul className="divide-y divide-gray-200 dark:divide-gray-700">
             {users.map((user) => (
                 <li key={user.uid} className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                    <div className="flex items-center">
-                        <div className="w-10 h-10 rounded-full bg-purple-600/20 flex items-center justify-center mr-4">
-                            <User className="text-purple-500" size={20}/>
-                        </div>
+                    <div className="flex items-center space-x-4">
+                        <Avatar>
+                          <AvatarFallback>
+                            {user.name ? getInitials(user.name) : <User size={20} />}
+                          </AvatarFallback>
+                        </Avatar>
                         <div>
                             <p className="font-semibold text-gray-900 dark:text-white">{user.name}</p>
+                            {user.email && <p className="text-sm text-muted-foreground">{user.email}</p>}
                         </div>
                     </div>
                     
