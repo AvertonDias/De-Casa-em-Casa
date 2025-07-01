@@ -2,40 +2,22 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import ApprovalBanner from '@/components/ApprovalBanner';
+import { useUser } from "@/contexts/UserContext";
+import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useUser();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-        if (!firebaseUser) {
-            router.push('/');
-        } else {
-            setLoading(false);
-        }
-    });
-
-    const timer = setTimeout(() => {
-        if (auth.currentUser) {
-            setLoading(false);
-        } else {
-            router.push('/');
-        }
-    }, 1500);
-
-    return () => {
-        unsubscribe();
-        clearTimeout(timer);
-    };
-  }, [router]);
+    if (!loading && !user) {
+        router.push('/');
+    }
+  }, [user, loading, router]);
 
   if (loading) {
     return (
@@ -57,11 +39,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <h1 className="text-lg font-bold">De Casa em Casa</h1>
             <div className="w-10"></div> {/* Spacer to balance the header */}
         </header>
-        <main className="flex-1 overflow-y-auto">
-           <div className="p-4 md:p-8">
-            <ApprovalBanner />
-            {children}
-          </div>
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+           {user?.status === 'pendente' && <PendingApprovalBanner />}
+           {children}
         </main>
       </div>
     </div>

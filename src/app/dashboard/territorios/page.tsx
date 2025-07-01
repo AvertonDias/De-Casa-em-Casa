@@ -8,6 +8,7 @@ import { AddTerritoryModal } from '@/components/AddTerritoryModal';
 import { EditTerritoryModal } from '@/components/EditTerritoryModal';
 import { useUser } from '@/contexts/UserContext';
 import { Search, Inbox } from 'lucide-react';
+import { RestrictedContent } from '@/components/RestrictedContent';
 
 // Interface atualizada para incluir as estatísticas e os campos opcionais
 interface Territory {
@@ -109,10 +110,10 @@ export default function TerritoriosPage() {
 
   if (user?.status === 'pendente') {
     return (
-        <div className="text-center mt-10">
-            <h1 className="text-2xl font-bold">Acesso aos Territórios Restrito</h1>
-            <p className="text-muted-foreground mt-2">Seu acesso precisa ser aprovado por um administrador para que você possa ver esta página.</p>
-        </div>
+        <RestrictedContent
+            title="Acesso aos Territórios Restrito"
+            message="Seu acesso precisa ser aprovado por um administrador para que você possa ver esta página."
+        />
     )
   }
 

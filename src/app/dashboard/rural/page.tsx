@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
-import { PendingApprovalBanner } from '@/components/PendingApprovalBanner';
 import { RestrictedContent } from '@/components/RestrictedContent';
 import { AddRuralTerritoryModal } from '@/components/AddRuralTerritoryModal';
 import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
@@ -67,13 +66,10 @@ export default function RuralPage() {
   // Se o usuário estiver com status pendente, mostramos a tela de bloqueio.
   if (user.status === 'pendente') {
     return (
-      <>
-        <PendingApprovalBanner />
         <RestrictedContent
           title="Acesso aos Territórios Rurais Restrito"
           message="Seu acesso precisa ser aprovado por um administrador para que você possa ver esta página."
         />
-      </>
     );
   }
 
