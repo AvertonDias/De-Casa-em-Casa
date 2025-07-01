@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
+  Home,
   Map,
   Users,
   Settings,
@@ -12,6 +12,7 @@ import {
   Laptop,
   Sun,
   Moon,
+  Mountain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,8 +31,9 @@ import { useEffect, useState } from "react";
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 const navItems = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ['Administrador', 'Dirigente', 'Publicador'] },
+  { name: "Início", href: "/dashboard", icon: Home, roles: ['Administrador', 'Dirigente', 'Publicador'] },
   { name: "Territórios", href: "/dashboard/territorios", icon: Map, roles: ['Administrador', 'Dirigente', 'Publicador'] },
+  { name: "Rural", href: "/dashboard/rural", icon: Mountain, roles: ['Administrador', 'Dirigente', 'Publicador'] },
   { name: "Usuários", href: "/dashboard/usuarios", icon: Users, roles: ['Administrador', 'Dirigente'] },
   { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings, roles: ['Administrador', 'Dirigente', 'Publicador'] },
 ];
@@ -182,7 +184,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold truncate">{user.name}</p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {user.email}
+                  {user.role}
                 </p>
               </div>
             </div>
