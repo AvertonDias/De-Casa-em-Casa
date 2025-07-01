@@ -223,7 +223,7 @@ export default function QuadraDetailPage() {
                             disabled={isReordering}
                         />
                         <div className="min-w-0 flex-1">
-                            <p className={`font-bold text-lg text-gray-800 dark:text-white truncate ${casa.status ? 'line-through text-gray-500 dark:text-gray-500' : ''}`}>
+                            <p className="font-bold text-lg text-gray-800 dark:text-white truncate">
                                 {casa.number}
                             </p>
                             {casa.observations && (
