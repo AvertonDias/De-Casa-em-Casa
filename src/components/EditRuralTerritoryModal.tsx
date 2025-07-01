@@ -1,47 +1,60 @@
 "use client";
 
-import { useState, useEffect, Fragment } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import { doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { MapPin, X } from 'lucide-react';
+import { useUser } from '@/contexts/UserContext';
+import { cn } from '@/lib/utils';
+import { Trash2, Edit, Loader } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 interface RuralTerritory {
   id: string;
   number: string;
   name: string;
-  description: string;
-  mapLink: string;
+  description?: string;
+  mapLink?: string;
 }
 
 interface EditRuralTerritoryModalProps {
-  isOpen: boolean;
-  onClose: () => void;
   onTerritoryUpdated: () => void;
   congregationId: string;
-  territory: RuralTerritory | null; 
+  territory: RuralTerritory; 
 }
 
-export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, congregationId, territory }: EditRuralTerritoryModalProps) {
-  const [number, setNumber] = useState('');
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [mapLink, setMapLink] = useState('');
+export function EditRuralTerritoryModal({ onTerritoryUpdated, congregationId, territory }: EditRuralTerritoryModalProps) {
+  const { user } = useUser();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    number: '',
+    name: '',
+    description: '',
+    mapLink: '',
+  });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (territory) {
-      setNumber(territory.number);
-      setName(territory.name);
-      setDescription(territory.description || '');
-      setMapLink(territory.mapLink || '');
+    if (isOpen && territory) {
+      setFormData({
+        number: territory.number || '',
+        name: territory.name || '',
+        description: territory.description || '',
+        mapLink: territory.mapLink || '',
+      });
+      setError('');
     }
-  }, [territory]);
+  }, [territory, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!territory) return; 
+    if (!territory) return;
     
     setIsLoading(true);
     setError('');
@@ -49,15 +62,12 @@ export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, c
     try {
       const territoryRef = doc(db, 'congregations', congregationId, 'territories', territory.id);
       await updateDoc(territoryRef, {
-        number: number,
-        name: name,
-        description: description,
-        mapLink: mapLink,
+        ...formData,
         lastUpdate: serverTimestamp(),
       });
       
       onTerritoryUpdated();
-      onClose();
+      setIsOpen(false);
 
     } catch (err) {
       console.error("Erro ao atualizar território rural:", err);
@@ -66,40 +76,102 @@ export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, c
       setIsLoading(false);
     }
   };
+  
+  const handleDelete = async () => {
+    if (!user || user.role !== 'Administrador' || !territory) {
+      setError("Ação não permitida.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const territoryRef = doc(db, 'congregations', congregationId, 'territories', territory.id);
+      await deleteDoc(territoryRef);
+      onTerritoryUpdated();
+      setIsConfirmOpen(false);
+      setIsOpen(false);
+    } catch (err) {
+      console.error("Erro ao excluir território rural:", err);
+      setError("Falha ao excluir o território.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
-          <div className="fixed inset-0 bg-black/60" />
-        </Transition.Child>
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-2xl bg-white dark:bg-[#2a2736] p-6 text-left align-middle shadow-xl transition-all">
-               <div className="flex items-center justify-between mb-4">
-                    <Dialog.Title as="h3" className="text-xl font-bold leading-6 text-gray-900 dark:text-white">Editar Território Rural</Dialog.Title>
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"><X size={20}/></button>
-               </div>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <input type="text" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Número" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" />
-                      <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" />
-                  </div>
-                  <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Observações" rows={4} className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md"></textarea>
-                  <input type="url" value={mapLink} onChange={(e) => setMapLink(e.target.value)} placeholder="Link do Google Maps" className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md" />
-                  
-                  {error && <p className="text-red-500 text-sm">{error}</p>}
-
-                  <div className="flex justify-end pt-4">
-                    <button type="submit" disabled={isLoading} className="px-6 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 disabled:bg-purple-900">
-                      {isLoading ? "Salvando..." : "Salvar Alterações"}
-                    </button>
-                  </div>
-              </form>
-            </Dialog.Panel>
-          </div>
-        </div>
+    <>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+          <button className="flex items-center px-3 py-1 text-sm font-semibold text-blue-500 bg-blue-500/10 rounded-md hover:bg-blue-500/20"><Edit size={14} className="mr-1"/> Editar</button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar Território Rural</DialogTitle>
+            <DialogDescription>
+              Faça alterações nos dados do território.
+            </DialogDescription>
+          </DialogHeader>
+          <form id="edit-rural-form" onSubmit={handleSubmit} className="space-y-4 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="number">Número</Label>
+                <Input id="number" value={formData.number} onChange={(e) => setFormData({...formData, number: e.target.value})} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome</Label>
+                <Input id="name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Observações</Label>
+              <Textarea id="description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mapLink">Link do Mapa</Label>
+              <Input id="mapLink" type="url" value={formData.mapLink} onChange={(e) => setFormData({...formData, mapLink: e.target.value})} />
+            </div>
+            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+          </form>
+          <DialogFooter className="justify-between sm:justify-between">
+            {user?.role === 'Administrador' ? (
+              <Button variant="destructive" onClick={() => setIsConfirmOpen(true)} disabled={isLoading}>
+                <Trash2 className="mr-2 h-4 w-4" /> Excluir
+              </Button>
+            ) : <div />}
+            <div className="flex gap-2">
+              <DialogClose asChild>
+                <Button type="button" variant="secondary">Cancelar</Button>
+              </DialogClose>
+              <Button type="submit" form="edit-rural-form" disabled={isLoading}>
+                {isLoading ? <><Loader className="animate-spin mr-2" /> Salvando...</> : 'Salvar Alterações'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
-    </Transition>
+      
+      <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Território Rural?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o território "{territory.name}"? Esta ação é permanente e não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete} 
+              disabled={isLoading}
+              className={cn(buttonVariants({ variant: "destructive" }))}
+            >
+              {isLoading ? "Excluindo..." : "Sim, excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

@@ -23,8 +23,6 @@ export default function RuralPage() {
   const [territories, setTerritories] = useState<RuralTerritory[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedTerritory, setSelectedTerritory] = useState<RuralTerritory | null>(null);
 
   useEffect(() => {
     // A busca de dados só acontece se o usuário estiver ATIVO.
@@ -46,11 +44,6 @@ export default function RuralPage() {
       setLoading(false);
     }
   }, [user, userLoading]);
-
-  const handleEditClick = (territory: RuralTerritory) => {
-    setSelectedTerritory(territory);
-    setIsEditModalOpen(true);
-  };
 
   // --- Renderização Condicional ---
   
@@ -106,8 +99,12 @@ export default function RuralPage() {
                 {territory.mapLink && (
                    <a href={territory.mapLink} target="_blank" rel="noopener noreferrer" className="px-3 py-1 text-sm font-semibold text-purple-600 hover:text-purple-400">Ver Mapa ↗</a>
                 )}
-                {user.role === 'Administrador' && (
-                   <button onClick={() => handleEditClick(territory)} className="flex items-center px-3 py-1 text-sm font-semibold text-blue-500 bg-blue-500/10 rounded-md hover:bg-blue-500/20"><Edit size={14} className="mr-1"/> Editar</button>
+                {user.role === 'Administrador' && user.congregationId && (
+                   <EditRuralTerritoryModal
+                     territory={territory}
+                     congregationId={user.congregationId}
+                     onTerritoryUpdated={() => {}}
+                   />
                 )}
               </div>
             </div>
@@ -116,10 +113,7 @@ export default function RuralPage() {
       )}
         
       {user.congregationId && (
-        <>
-          <AddRuralTerritoryModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onTerritoryAdded={() => setIsAddModalOpen(false)} congregationId={user.congregationId} />
-          <EditRuralTerritoryModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onTerritoryUpdated={() => setIsEditModalOpen(false)} congregationId={user.congregationId} territory={selectedTerritory}/>
-        </>
+        <AddRuralTerritoryModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onTerritoryAdded={() => setIsAddModalOpen(false)} congregationId={user.congregationId} />
       )}
     </div>
   );
