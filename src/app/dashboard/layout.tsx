@@ -9,28 +9,17 @@ import { useUser } from "@/contexts/UserContext";
 import { getToken } from 'firebase/messaging';
 import { db, messaging } from "@/lib/firebase";
 import { doc, arrayUnion, updateDoc } from 'firebase/firestore';
+import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useUser();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
 
-  // Lógica do "porteiro inteligente" para redirecionamento
+  // Lógica de proteção simplificada: Apenas expulsa usuários não logados.
   useEffect(() => {
-    if (loading) {
-      return; // Aguarda a verificação do usuário terminar
-    }
-    
-    // Se não houver usuário, redireciona para o login
-    if (!user) {
+    if (!loading && !user) {
       router.replace('/');
-      return;
-    }
-
-    // Se o usuário existir mas estiver pendente, redireciona para a "sala de espera"
-    if (user.status === 'pendente') {
-      router.replace('/aguardando-aprovacao');
-      return;
     }
   }, [user, loading, router]);
 
@@ -38,7 +27,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     const requestPermission = async () => {
       // Garante que a permissão só seja pedida para usuários ativos no navegador
-      if (user && user.status === 'ativo' && typeof window !== 'undefined' && 'Notification' in window && messaging) {
+      if (user && user.status === 'ativo' && messaging) {
         try {
           const permission = await Notification.requestPermission();
           if (permission === 'granted') {
@@ -59,32 +48,42 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     requestPermission();
   }, [user]);
 
-  // Mostra um loader genérico enquanto as verificações acontecem
-  if (loading || !user || user.status !== 'ativo') {
+  // Enquanto o UserContext carrega, mostramos um loader.
+  if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
-        <p>Verificando sua sessão e permissões...</p>
+        <p>Verificando sua sessão...</p>
       </div>
     );
   }
 
-  // Se todas as verificações passaram, renderiza o layout para o usuário ativo
-  return (
-    <div className="flex h-screen bg-gray-100 dark:bg-[#1e1b29]">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile Header */}
-        <header className="md:hidden flex items-center justify-between p-2 border-b bg-card">
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
-                <Menu />
-            </Button>
-            <h1 className="text-lg font-bold">De Casa em Casa</h1>
-            <div className="w-10"></div> {/* Spacer para balancear o header */}
-        </header>
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-           {children}
-        </main>
+  // Se o carregamento terminou e o usuário EXISTE (qualquer que seja seu status),
+  // renderizamos o layout do painel.
+  if (user) {
+    return (
+      <div className="flex h-screen bg-gray-100 dark:bg-[#1e1b29]">
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Mobile Header */}
+          <header className="md:hidden flex items-center justify-between p-2 border-b bg-card">
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
+                  <Menu />
+              </Button>
+              <h1 className="text-lg font-bold">De Casa em Casa</h1>
+              <div className="w-10"></div> {/* Spacer para balancear o header */}
+          </header>
+          <main className="flex-1 overflow-y-auto p-4 md:p-8">
+            {/* O banner de "pendente" é renderizado aqui, com base no status do usuário */}
+            {user.status === 'pendente' && <PendingApprovalBanner />}
+
+            {/* As páginas filhas renderizam aqui e controlam seu próprio conteúdo restrito */}
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+  
+  // Se não está carregando e não há usuário, não renderiza nada (será redirecionado).
+  return null;
 }
