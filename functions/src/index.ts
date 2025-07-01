@@ -76,6 +76,10 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
   if (!isAdmin && callingUserUid !== userIdToDelete) {
       throw new functions.https.HttpsError("permission-denied", "Você não tem permissão para realizar esta ação.");
   }
+  
+  if (isAdmin && callingUserUid === userIdToDelete) {
+    throw new functions.https.HttpsError("permission-denied", "Um administrador não pode se autoexcluir através desta função.");
+  }
 
   try {
     const userDocRef = db.collection("users").doc(userIdToDelete);
@@ -104,53 +108,132 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
   }
 });
 
-// Atualiza as estatísticas de uma quadra e do território pai sempre que uma casa é alterada.
-export const updateTerritoryStats = functions.firestore
+
+// ▼▼▼ FUNÇÕES DE ESTATÍSTICAS ATUALIZADAS COM LOGS PARA DEPURAÇÃO ▼▼▼
+
+export const onHouseWrite = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
   .onWrite(async (change, context) => {
-    const { congregationId, territoryId, quadraId } = context.params;
-
-    const quadraRef = db.doc(`congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
-    const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
-
-    // Recalcula stats da quadra
-    const casasSnapshot = await quadraRef.collection("casas").get();
-    const totalHousesInQuadra = casasSnapshot.size;
-    const housesDoneInQuadra = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
-    await quadraRef.update({
-      totalHouses: totalHousesInQuadra,
-      housesDone: housesDoneInQuadra,
-    });
-    console.log(`Stats for quadra ${quadraId} updated.`);
-
-    // Recalcula stats do território
-    const quadrasSnapshot = await territoryRef.collection("quadras").get();
-    let totalHousesInTerritory = 0;
-    let housesDoneInTerritory = 0;
-    quadrasSnapshot.forEach(doc => {
-      totalHousesInTerritory += doc.data().totalHouses || 0;
-      housesDoneInTerritory += doc.data().housesDone || 0;
-    });
-
-    const progress = totalHousesInTerritory > 0 ? (housesDoneInTerritory / totalHousesInTerritory) : 0;
-    await territoryRef.update({
-      totalHouses: totalHousesInTerritory,
-      housesDone: housesDoneInTerritory,
-      progress: progress,
-    });
-    console.log(`Stats for territory ${territoryId} updated.`);
-
-    return null;
-  });
-
-// Deleta sub-coleções quando um território é excluído para manter a integridade dos dados.
-export const deleteSubcollectionsOnTerritoryDelete = functions.firestore
-  .document("congregations/{congregationId}/territories/{territoryId}")
-  .onDelete(async (snapshot, context) => {
-    const { congregationId, territoryId } = context.params;
-    const territoryPath = `congregations/${congregationId}/territories/${territoryId}`;
+    console.log(`[onHouseWrite] Acionado para a casa: ${context.params.casaId}`);
     
-    console.log(`Deleting all subcollections for territory: ${territoryPath}`);
-    await admin.firestore().recursiveDelete(db.collection(territoryPath));
-    console.log("Subcollections deleted successfully.");
-  });
+    try {
+      const quadraRef = change.after.ref.parent.parent;
+      if (!quadraRef) {
+        console.error("[onHouseWrite] Erro: Não foi possível encontrar a referência da quadra pai.");
+        return;
+      }
+
+      const casasSnapshot = await quadraRef.collection("casas").get();
+      const totalHouses = casasSnapshot.size;
+      const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
+      
+      console.log(`[onHouseWrite] Atualizando quadra ${quadraRef.id} com: total=${totalHouses}, done=${housesDone}`);
+      await quadraRef.update({ totalHouses, housesDone });
+      console.log(`[onHouseWrite] Sucesso ao atualizar a quadra.`);
+
+    } catch(error) {
+      console.error(`[onHouseWrite] FALHA: `, error);
+    }
+});
+
+
+export const onQuadraWrite = functions.firestore
+  .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
+  .onWrite(async (change, context) => {
+    console.log(`[onQuadraWrite] Acionado para a quadra: ${context.params.quadraId}`);
+
+    try {
+      const territoryRef = change.after.ref.parent.parent;
+       if (!territoryRef) {
+        console.error("[onQuadraWrite] Erro: Não foi possível encontrar a referência do território pai.");
+        return;
+      }
+      
+      const quadrasSnapshot = await territoryRef.collection("quadras").get();
+      
+      const quadraCount = quadrasSnapshot.size;
+      let totalHouses = 0;
+      let housesDone = 0;
+      
+      quadrasSnapshot.forEach(doc => {
+        totalHouses += doc.data().totalHouses || 0;
+        housesDone += doc.data().housesDone || 0;
+      });
+
+      const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
+      
+      console.log(`[onQuadraWrite] Atualizando território ${territoryRef.id} com: total=${totalHouses}, done=${housesDone}, quadras=${quadraCount}`);
+      await territoryRef.update({ 
+          totalHouses, 
+          housesDone, 
+          progress, 
+          quadraCount, 
+          lastUpdate: admin.firestore.FieldValue.serverTimestamp() 
+      });
+      console.log(`[onQuadraWrite] Sucesso ao atualizar o território.`);
+
+    } catch (error) {
+      console.error(`[onQuadraWrite] FALHA: `, error);
+    }
+});
+
+
+export const onTerritoryWrite = functions.firestore
+    .document("congregations/{congregationId}/territories/{territoryId}")
+    .onWrite(async (change, context) => {
+        console.log(`[onTerritoryWrite] Acionado para o território: ${context.params.territoryId}`);
+        const { congregationId } = context.params;
+        const congregationRef = db.collection("congregations").doc(congregationId);
+
+        try {
+            const territoriesSnapshot = await congregationRef.collection("territories").get();
+
+            const territoryCount = territoriesSnapshot.docs.filter(doc => doc.data().type === 'urban').length;
+            const ruralTerritoryCount = territoriesSnapshot.docs.filter(doc => doc.data().type === 'rural').length;
+            let totalQuadras = 0;
+            let totalHouses = 0;
+            let totalHousesDone = 0;
+
+            territoriesSnapshot.forEach(doc => {
+                totalQuadras += doc.data().quadraCount || 0;
+                totalHouses += doc.data().totalHouses || 0;
+                totalHousesDone += doc.data().housesDone || 0;
+            });
+            
+            console.log(`[onTerritoryWrite] Atualizando congregação ${congregationId}`);
+            await congregationRef.update({ 
+                territoryCount, 
+                ruralTerritoryCount,
+                totalQuadras,
+                totalHouses, 
+                totalHousesDone 
+            });
+            console.log(`[onTerritoryWrite] Sucesso ao atualizar a congregação.`);
+        } catch(error) {
+            console.error(`[onTerritoryWrite] FALHA: `, error);
+        }
+    });
+
+// FUNÇÃO DE EXCLUSÃO: Exclusão em Cascata para Territórios
+export const onDeleteTerritory = functions.firestore
+    .document("congregations/{congregationId}/territories/{territoryId}")
+    .onDelete(async (snap, context) => {
+        const territoryPath = snap.ref.path;
+        console.log(`Iniciando exclusão em cascata para: ${territoryPath}`);
+        
+        await admin.firestore().recursiveDelete(snap.ref);
+        
+        console.log(`Exclusão em cascata para ${territoryPath} concluída.`);
+    });
+
+// FUNÇÃO DE EXCLUSÃO: Exclusão em Cascata para Quadras
+export const onDeleteQuadra = functions.firestore
+    .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
+    .onDelete(async (snap, context) => {
+        const quadraPath = snap.ref.path;
+        console.log(`Iniciando exclusão em cascata para a quadra: ${quadraPath}`);
+
+        await admin.firestore().recursiveDelete(snap.ref);
+        
+        console.log(`Exclusão em cascata para ${quadraPath} concluída.`);
+    });
