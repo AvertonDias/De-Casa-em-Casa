@@ -11,6 +11,9 @@ import { getToken } from 'firebase/messaging';
 import { db, messaging } from "@/lib/firebase";
 import { doc, arrayUnion, updateDoc } from 'firebase/firestore';
 import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
+import Image from 'next/image';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { Download } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useUser();
