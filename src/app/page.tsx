@@ -44,8 +44,8 @@ export default function UniversalLoginPage() {
             <Image
                 src="/icon-192x192.png"
                 alt="Logo De Casa em Casa"
-                width={64}
-                height={64}
+                width={80}
+                height={80}
                 className="rounded-lg mb-4"
             />
             <h1 className="text-3xl font-bold text-center text-white">

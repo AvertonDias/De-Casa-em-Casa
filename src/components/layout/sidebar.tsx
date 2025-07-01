@@ -129,28 +129,19 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-                <Image
-                    src="/icon-192x192.png"
-                    alt="Logo De Casa em Casa"
-                    width={32}
-                    height={32}
-                    className="rounded-md"
-                />
-                <h1 className="text-xl font-bold text-foreground">De Casa em Casa</h1>
-            </div>
-            <div className="flex items-center">
-                <ThemeSwitcher />
-                <Button
-                variant="ghost"
-                size="icon"
-                onClick={onClose}
-                className="md:hidden"
-                >
+        <div className="flex flex-col items-center gap-2 mb-8">
+            <Image
+                src="/icon-192x192.png"
+                alt="Logo De Casa em Casa"
+                width={48}
+                height={48}
+                className="rounded-lg"
+            />
+            <h1 className="text-xl font-bold text-gray-800 dark:text-white">De Casa em Casa</h1>
+            
+            <button onClick={onClose} className="md:hidden p-2 absolute top-4 right-4 text-gray-400">
                 <X size={24} />
-                </Button>
-            </div>
+            </button>
         </div>
 
         <nav className="flex-1">
