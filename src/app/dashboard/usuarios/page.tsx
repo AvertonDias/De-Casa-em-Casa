@@ -106,7 +106,6 @@ export default function UsersPage() {
                         </div>
                         <div>
                             <p className="font-semibold text-gray-900 dark:text-white">{user.name}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">{user.email || 'E-mail não disponível'}</p>
                         </div>
                     </div>
                     
