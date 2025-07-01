@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Search, ArrowUp, ArrowDown, ArrowLeft, Edit } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, ArrowLeft } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
 import { EditCasaModal } from '@/components/EditCasaModal';
 import { useUser } from '@/contexts/UserContext';
@@ -20,6 +20,12 @@ interface Casa {
   order: number;
 }
 
+interface Quadra {
+    name: string;
+    totalHouses?: number;
+    housesDone?: number;
+}
+
 interface Territory {
   name: string;
   number: string;
@@ -28,7 +34,7 @@ interface Territory {
 export default function QuadraDetailPage() {
   const { user, loading: userLoading } = useUser();
   const [territory, setTerritory] = useState<Territory | null>(null);
-  const [quadraName, setQuadraName] = useState('');
+  const [quadra, setQuadra] = useState<Quadra | null>(null);
   const [casas, setCasas] = useState<Casa[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,35 +42,30 @@ export default function QuadraDetailPage() {
   const params = useParams<{ territoryId: string; quadraId: string }>();
   const { territoryId, quadraId } = params;
 
-  // Estados para o modal de confirmação
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [actionToConfirm, setActionToConfirm] = useState<{ casaId: string; newStatus: boolean; } | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   
-  // Estado para o destaque
   const [recentlyMovedId, setRecentlyMovedId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (userLoading) {
-      return;
-    }
-    if (!user?.congregationId) {
+    if (userLoading || !user?.congregationId) {
         if(!userLoading) setLoading(false);
         return;
     }
 
     const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
-    const quadraRef = doc(territoryRef, 'quadras', quadraId);
-
     getDoc(territoryRef).then(snap => snap.exists() && setTerritory(snap.data() as Territory));
-    getDoc(quadraRef).then(snap => snap.exists() && setQuadraName(snap.data().name));
+
+    const quadraRef = doc(territoryRef, 'quadras', quadraId);
+    const unsubQuadra = onSnapshot(quadraRef, (snap) => {
+        if (snap.exists()) setQuadra(snap.data() as Quadra);
+    });
     
     const casasRef = collection(quadraRef, 'casas');
     const q = query(casasRef, orderBy('order'));
     
-    const unsubscribe = onSnapshot(q, (casasSnap) => {
-      // Apenas atualiza o estado com dados do Firebase se NÃO estivermos reordenando.
-      // Esta é a linha que corrige o "pisca".
+    const unsubCasas = onSnapshot(q, (casasSnap) => {
       if (!isReordering) {
         const fetchedCasas = casasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Casa);
         setCasas(fetchedCasas);
@@ -75,46 +76,38 @@ export default function QuadraDetailPage() {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubQuadra();
+      unsubCasas();
+    };
   }, [user, userLoading, territoryId, quadraId, isReordering]);
 
-  const stats = useMemo(() => {
-    const total = casas.length;
-    if (total === 0) return { total: 0, feitos: 0, pendentes: 0, progresso: 0 };
-
-    const feitos = casas.filter(c => c.status).length;
-    const pendentes = total - feitos;
-    const progresso = Math.round((feitos / total) * 100);
-    return { total, feitos, pendentes, progresso };
-  }, [casas]);
+  const stats = {
+      total: quadra?.totalHouses || 0,
+      feitos: quadra?.housesDone || 0,
+      pendentes: (quadra?.totalHouses || 0) - (quadra?.housesDone || 0),
+      progresso: (quadra?.totalHouses || 0) > 0 ? Math.round(((quadra?.housesDone || 0) / (quadra?.totalHouses || 1)) * 100) : 0,
+  }
 
   const handleReorder = (casaId: string, direction: 'up' | 'down') => {
     const currentIndex = casas.findIndex(c => c.id === casaId);
     if (currentIndex === -1) return;
-
     if ((direction === 'up' && currentIndex === 0) || (direction === 'down' && currentIndex === casas.length - 1)) return;
-
     const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    
     const reorderedCasas = [...casas];
     const [movedItem] = reorderedCasas.splice(currentIndex, 1);
     reorderedCasas.splice(newIndex, 0, movedItem);
-
     setRecentlyMovedId(movedItem.id);
     setCasas(reorderedCasas);
   };
 
   const handleToggleCheckbox = (casa: Casa) => {
-    setActionToConfirm({
-      casaId: casa.id,
-      newStatus: !casa.status
-    });
+    setActionToConfirm({ casaId: casa.id, newStatus: !casa.status });
     setIsConfirmModalOpen(true);
   };
   
   const handleConfirmStatusChange = async () => {
     if (!actionToConfirm || !user?.congregationId) return;
-
     setIsUpdatingStatus(true);
     const { casaId, newStatus } = actionToConfirm;
     
@@ -150,7 +143,7 @@ export default function QuadraDetailPage() {
   
   const finishReordering = async () => {
     if (!user?.congregationId) return;
-    setLoading(true); // Mostra um feedback de que estamos salvando
+    setLoading(true);
 
     const batch = writeBatch(db);
     casas.forEach((casa, index) => {
@@ -165,7 +158,6 @@ export default function QuadraDetailPage() {
     } finally {
       setRecentlyMovedId(null);
       setIsReordering(false);
-      // setLoading(false) será chamado pelo onSnapshot quando ele receber a nova ordem.
     }
   };
 
@@ -182,7 +174,7 @@ export default function QuadraDetailPage() {
           Voltar para {territory?.name || 'Território'}
         </Link>
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-          {quadraName || 'Detalhes da Quadra'}
+          {quadra?.name || 'Detalhes da Quadra'}
         </h1>
       </div>
       

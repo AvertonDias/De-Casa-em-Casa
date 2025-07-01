@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, query, orderBy, onSnapshot, doc, getDoc, where } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, getDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { AddTerritoryModal } from '@/components/AddTerritoryModal';
 import { EditTerritoryModal } from '@/components/EditTerritoryModal';
@@ -10,7 +11,6 @@ import { useUser } from '@/contexts/UserContext';
 import { Search, Inbox, Loader } from 'lucide-react';
 import { RestrictedContent } from '@/components/RestrictedContent';
 
-// Interface atualizada para incluir as estatísticas e os campos opcionais
 interface Territory {
   id: string;
   number: string;
@@ -18,12 +18,9 @@ interface Territory {
   description?: string;
   mapLink?: string;
   cardUrl?: string;
-  stats: {
-    total: number;
-    feitos: number;
-    pendentes: number;
-    progresso: number;
-  };
+  totalHouses?: number;
+  housesDone?: number;
+  progress?: number;
 }
 
 export default function TerritoriosPage() {
@@ -35,11 +32,8 @@ export default function TerritoriosPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    if (userLoading) {
-      return;
-    }
+    if (userLoading) return;
 
-    // A busca de dados só acontece se o usuário estiver ATIVO.
     if (user?.status === 'ativo' && user.congregationId) {
       const fetchCongregationName = async () => {
         const congRef = doc(db, 'congregations', user.congregationId!);
@@ -53,38 +47,11 @@ export default function TerritoriosPage() {
       const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
       const q = query(territoriesRef, where("type", "==", "urban"), orderBy('number'));
 
-      const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-        const territoriesData = await Promise.all(
-          querySnapshot.docs.map(async (territoryDoc) => {
-            let totalCasas = 0;
-            let feitos = 0;
-
-            const quadrasRef = collection(territoryDoc.ref, 'quadras');
-            const quadrasSnap = await getDocs(quadrasRef);
-
-            for (const quadraDoc of quadrasSnap.docs) {
-              const casasRef = collection(quadraDoc.ref, 'casas');
-              const casasSnap = await getDocs(casasRef);
-              totalCasas += casasSnap.size;
-              feitos += casasSnap.docs.filter(doc => doc.data().status === true).length;
-            }
-
-            const pendentes = totalCasas - feitos;
-            const progresso = totalCasas > 0 ? Math.round((feitos / totalCasas) * 100) : 0;
-            
-            const data = territoryDoc.data();
-
-            return {
-              id: territoryDoc.id,
-              number: data.number,
-              name: data.name,
-              description: data.description,
-              mapLink: data.mapLink,
-              cardUrl: data.cardUrl,
-              stats: { total: totalCasas, feitos, pendentes, progresso }
-            } as Territory;
-          })
-        );
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const territoriesData = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        })) as Territory[];
         
         setTerritories(territoriesData);
         setLoading(false);
@@ -97,7 +64,7 @@ export default function TerritoriosPage() {
     } else if (!userLoading) {
         setLoading(false);
     }
-  }, [user, userLoading, router]);
+  }, [user, userLoading]);
   
   const filteredTerritories = territories.filter(territory =>
     territory.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -148,35 +115,42 @@ export default function TerritoriosPage() {
 
       <div className="space-y-6">
         {filteredTerritories.length > 0 ? (
-          filteredTerritories.map(territory => (
-          <div key={territory.id} onClick={() => router.push(`/dashboard/territorios/${territory.id}`)} className="block group cursor-pointer">
-            <div className="bg-white dark:bg-[#2f2b3a] rounded-lg shadow-lg p-6 transition-all duration-200 group-hover:shadow-xl group-hover:ring-2 group-hover:ring-primary">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <span className="font-bold text-xl text-purple-600 dark:text-purple-300 mr-4">{territory.number}</span>
-                  <span className="font-semibold text-lg group-hover:underline">{territory.name}</span>
-                </div>
-                <div onClick={(e) => e.stopPropagation()}>
-                    {['Administrador', 'Dirigente'].includes(user?.role || '') && user?.congregationId && <EditTerritoryModal territory={territory} onTerritoryUpdated={() => {}} congregationId={user.congregationId} />}
+          filteredTerritories.map(territory => {
+            const totalHouses = territory.totalHouses || 0;
+            const housesDone = territory.housesDone || 0;
+            const progress = territory.progress || 0;
+            const housesPending = totalHouses - housesDone;
+
+            return (
+              <div key={territory.id} onClick={() => router.push(`/dashboard/territorios/${territory.id}`)} className="block group cursor-pointer">
+                <div className="bg-white dark:bg-[#2f2b3a] rounded-lg shadow-lg p-6 transition-all duration-200 group-hover:shadow-xl group-hover:ring-2 group-hover:ring-primary">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <span className="font-bold text-xl text-purple-600 dark:text-purple-300 mr-4">{territory.number}</span>
+                      <span className="font-semibold text-lg group-hover:underline">{territory.name}</span>
+                    </div>
+                    <div onClick={(e) => e.stopPropagation()}>
+                        {['Administrador', 'Dirigente'].includes(user?.role || '') && user?.congregationId && <EditTerritoryModal territory={territory} onTerritoryUpdated={() => {}} congregationId={user.congregationId} />}
+                    </div>
+                  </div>
+
+                  {user && ['Administrador', 'Dirigente'].includes(user.role) && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-xs">
+                          <div><p className="text-gray-500 dark:text-gray-400">Total Casas</p><p className="font-bold text-lg">{totalHouses}</p></div>
+                          <div><p className="text-gray-500 dark:text-gray-400">Feitas</p><p className="font-bold text-lg text-green-500">{housesDone}</p></div>
+                          <div><p className="text-gray-500 dark:text-gray-400">Pendentes</p><p className="font-bold text-lg text-yellow-500">{housesPending}</p></div>
+                          <div><p className="text-gray-500 dark:text-gray-400">Progresso</p><p className="font-bold text-lg text-blue-500">{Math.round(progress * 100)}%</p></div>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-3">
+                            <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${progress * 100}%` }}></div>
+                        </div>
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {user && ['Administrador', 'Dirigente'].includes(user.role) && (
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-xs">
-                      <div><p className="text-gray-500 dark:text-gray-400">Total Casas</p><p className="font-bold text-lg">{territory.stats.total}</p></div>
-                      <div><p className="text-gray-500 dark:text-gray-400">Feitas</p><p className="font-bold text-lg text-green-500">{territory.stats.feitos}</p></div>
-                      <div><p className="text-gray-500 dark:text-gray-400">Pendentes</p><p className="font-bold text-lg text-yellow-500">{territory.stats.pendentes}</p></div>
-                      <div><p className="text-gray-500 dark:text-gray-400">Progresso</p><p className="font-bold text-lg text-blue-500">{territory.stats.progresso}%</p></div>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-3">
-                        <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${territory.stats.progresso}%` }}></div>
-                    </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ))
+            )
+          })
         ) : (
           <div className="text-center mt-16 p-6 bg-white dark:bg-[#2a2736] rounded-lg">
               <Inbox size={56} className="mx-auto text-gray-400" />
