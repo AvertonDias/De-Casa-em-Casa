@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore'; 
 import { auth, db } from '@/lib/firebase';
 
 interface AppUser {
@@ -12,7 +12,7 @@ interface AppUser {
   role: string;
   status: string;
   congregationId: string | null;
-  congregationName?: string | null;
+  congregationName: string | null;
 }
 
 interface UserContextType {
@@ -28,46 +28,62 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const authUnsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      let firestoreUnsubscribe: () => void = () => {};
+
       if (firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
-        const userSnap = await getDoc(userRef);
-
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          let congregationName: string | null = null;
-          
-          if (userData.status === 'ativo' && userData.congregationId) {
-            try {
-              const congregationRef = doc(db, 'congregations', userData.congregationId);
-              const congregationSnap = await getDoc(congregationRef);
-              if (congregationSnap.exists()) {
-                congregationName = congregationSnap.data().name;
+        
+        firestoreUnsubscribe = onSnapshot(userRef, async (userSnap) => {
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            let congregationName: string | null = null;
+            
+            if (userData.status === 'ativo' && userData.congregationId) {
+              try {
+                const congregationRef = doc(db, 'congregations', userData.congregationId);
+                const congregationSnap = await getDoc(congregationRef);
+                if (congregationSnap.exists()) {
+                  congregationName = congregationSnap.data().name;
+                }
+              } catch(error) {
+                console.error("Não foi possível buscar os dados da congregação.", error);
               }
-            } catch(error) {
-              console.error("Não foi possível buscar os dados da congregação.", error);
             }
+
+            setUser({
+              uid: firebaseUser.uid,
+              name: userData.name,
+              email: firebaseUser.email,
+              role: userData.role,
+              status: userData.status,
+              congregationId: userData.congregationId,
+              congregationName: congregationName,
+            });
+
+          } else {
+            setUser(null);
           }
+          setLoading(false);
+        }, (error) => {
+           console.error("Erro no listener do usuário:", error);
+           setLoading(false);
+           setUser(null);
+        });
 
-          setUser({
-            uid: firebaseUser.uid,
-            name: userData.name,
-            email: firebaseUser.email,
-            role: userData.role,
-            status: userData.status,
-            congregationId: userData.congregationId,
-            congregationName: congregationName,
-          });
-
-        } else {
-          setUser(null);
-        }
       } else {
         setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
+      
+      return () => {
+        firestoreUnsubscribe();
+      };
     });
-    return () => unsubscribe();
+    
+    return () => {
+      authUnsubscribe();
+    };
   }, []);
 
   const updateUser = (data: Partial<AppUser>) => {
