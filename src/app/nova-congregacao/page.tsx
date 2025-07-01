@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { collection, addDoc, setDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, setDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
@@ -38,15 +38,27 @@ export default function NewCongregationPage() {
     }
 
     try {
+      // Passo 1: Criar a conta de autenticação do Administrador
       const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
       const adminUser = userCredential.user;
 
+      // Passo 2: Criar o documento da Congregação com TODOS os campos iniciais
       const congregationRef = await addDoc(collection(db, 'congregations'), {
         name: congregationName,
         number: congregationNumber,
+        
+        // Inicializa todos os contadores com 0.
+        territoryCount: 0,
+        ruralTerritoryCount: 0,
+        totalQuadras: 0,
+        totalHouses: 0,
+        totalHousesDone: 0,
+
+        createdAt: serverTimestamp()
       });
       const newCongregationId = congregationRef.id;
 
+      // Passo 3: Criar o documento do usuário Administrador, vinculando-o à nova congregação
       await setDoc(doc(db, "users", adminUser.uid), {
         name: adminName,
         email: adminEmail,
@@ -55,7 +67,9 @@ export default function NewCongregationPage() {
         status: "ativo"
       });
       
-      router.push('/dashboard');
+      // Força um recarregamento para garantir que o UserContext pegue os novos dados
+      window.location.href = '/dashboard';
+
     } catch (err: any) {
        if (err.code === 'auth/email-already-in-use') {
         setError("Este e-mail já está cadastrado.");
