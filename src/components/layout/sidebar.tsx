@@ -1,7 +1,9 @@
+
 "use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import Image from 'next/image';
 import {
   Home,
   Map,
@@ -128,18 +130,27 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
       >
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-xl font-bold text-foreground">De Casa em Casa</h1>
-          <div className="flex items-center">
-            <ThemeSwitcher />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="md:hidden"
-            >
-              <X size={24} />
-            </Button>
-          </div>
+            <div className="flex items-center gap-3">
+                <Image
+                    src="/icon-192x192.png"
+                    alt="Logo De Casa em Casa"
+                    width={32}
+                    height={32}
+                    className="rounded-md"
+                />
+                <h1 className="text-xl font-bold text-foreground">De Casa em Casa</h1>
+            </div>
+            <div className="flex items-center">
+                <ThemeSwitcher />
+                <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className="md:hidden"
+                >
+                <X size={24} />
+                </Button>
+            </div>
         </div>
 
         <nav className="flex-1">
@@ -165,7 +176,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                       <span>{item.name}</span>
                     </div>
                     {item.name === "Usuários" && pendingUsersCount > 0 && (
-                      <span className="w-2 h-2 rounded-full animate-pulse-subtle"></span>
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                     )}
                   </Link>
                 </li>

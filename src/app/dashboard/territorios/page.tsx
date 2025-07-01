@@ -3,13 +3,17 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, orderBy, onSnapshot, doc, getDoc, where } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, getDoc, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { AddTerritoryModal } from '@/components/AddTerritoryModal';
 import { EditTerritoryModal } from '@/components/EditTerritoryModal';
 import { useUser } from '@/contexts/UserContext';
-import { Search, Inbox, Loader } from 'lucide-react';
+import { Search, Inbox, Loader, PlusCircle } from 'lucide-react';
 import { RestrictedContent } from '@/components/RestrictedContent';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 interface Territory {
   id: string;
@@ -31,6 +35,71 @@ export default function TerritoriosPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
 
+  // State and logic for the "Add Territory" modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [number, setNumber] = useState('');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [mapLink, setMapLink] = useState('');
+  const [cardUrl, setCardUrl] = useState('');
+  const [modalError, setModalError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleOpenModal = () => {
+    setNumber('');
+    setName('');
+    setDescription('');
+    setMapLink('');
+    setCardUrl('');
+    setModalError('');
+    setIsModalOpen(true);
+  };
+
+  const handleTerritoryAdded = () => {
+    // This can be used for a success toast in the future
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setModalError('');
+
+    if (!number || !name) {
+      setModalError('Número e Nome são campos obrigatórios.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!user?.congregationId) {
+      setModalError("ID da congregação não encontrado. Ação bloqueada.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
+      await addDoc(territoriesRef, {
+        number,
+        name,
+        description,
+        mapLink,
+        cardUrl,
+        type: 'urban',
+        lastUpdate: serverTimestamp(),
+        progress: 0,
+      });
+
+      setIsModalOpen(false);
+      handleTerritoryAdded();
+      
+    } catch (err) {
+      console.error("Erro ao adicionar território:", err);
+      setModalError("Não foi possível adicionar o território. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     if (userLoading) return;
 
@@ -45,7 +114,7 @@ export default function TerritoriosPage() {
       fetchCongregationName();
 
       const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-      const q = query(territoriesRef, where("type", "==", "urban"), orderBy('number'));
+      const q = query(territoriesRef, where("type", "in", ["urban", null]), orderBy('number'));
 
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const territoriesData = querySnapshot.docs.map(doc => ({
@@ -90,14 +159,20 @@ export default function TerritoriosPage() {
 
   return (
     <div className="text-gray-800 dark:text-white">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
         <div>
-          <h1 className="text-4xl font-bold">Territórios da congregação</h1>
-          <h2 className="text-2xl font-semibold text-purple-600 dark:text-purple-400">
-            {congregationName || 'Carregando...'}
-          </h2>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Territórios da Congregação</h1>
+          <p className="text-purple-400 font-semibold">{user?.congregationName || 'Carregando...'}</p>
         </div>
-        {user?.role === 'Administrador' && user?.congregationId && <AddTerritoryModal onTerritoryAdded={() => {}} congregationId={user.congregationId} />}
+        {user?.role === 'Administrador' && (
+            <button 
+              onClick={handleOpenModal} 
+              className="w-full md:w-auto flex items-center justify-center px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors"
+            >
+                <PlusCircle size={20} className="mr-2" />
+                Adicionar Território
+            </button>
+        )}
       </div>
 
       <div className="mb-6 relative">
@@ -163,6 +238,46 @@ export default function TerritoriosPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>Adicionar Novo Território</DialogTitle>
+            <DialogDescription>
+              Preencha os detalhes do novo território abaixo.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} id="add-territory-form" className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="number-modal">Número</Label>
+                <Input id="number-modal" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Ex: 12" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="name-modal">Nome</Label>
+                <Input id="name-modal" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Centro Comercial" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description-modal">Observações (Opcional)</Label>
+                <Textarea id="description-modal" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex: Território da prefeitura..." />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="mapLink-modal">Link do Mapa (Opcional)</Label>
+                <Input id="mapLink-modal" value={mapLink} onChange={(e) => setMapLink(e.target.value)} placeholder="https://maps.google.com/..." />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cardUrl-modal">URL do Cartão (Opcional)</Label>
+                <Input id="cardUrl-modal" value={cardUrl} onChange={(e) => setCardUrl(e.target.value)} placeholder="https://drive.google.com/..." />
+              </div>
+            {modalError && <p className="text-red-500 text-sm text-center">{modalError}</p>}
+          </form>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+            <Button type="submit" form="add-territory-form" disabled={isSubmitting}>
+              {isSubmitting ? "Salvando..." : "Salvar Território"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

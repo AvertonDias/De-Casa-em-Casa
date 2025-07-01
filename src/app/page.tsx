@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -6,6 +7,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
+import Image from 'next/image';
 
 export default function UniversalLoginPage() {
   const [email, setEmail] = useState('');
@@ -38,7 +40,18 @@ export default function UniversalLoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#1e1b29]">
       <div className="w-full max-w-sm p-8 space-y-6 bg-[#2f2b3a] rounded-xl shadow-lg">
-        <h1 className="text-3xl font-bold text-center text-white">De Casa em Casa</h1>
+        <div className="flex flex-col items-center justify-center">
+            <Image
+                src="/icon-192x192.png"
+                alt="Logo De Casa em Casa"
+                width={64}
+                height={64}
+                className="rounded-lg mb-4"
+            />
+            <h1 className="text-3xl font-bold text-center text-white">
+                De Casa em Casa
+            </h1>
+        </div>
         <p className="text-center text-gray-400">Acesse o painel com suas credenciais.</p>
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
