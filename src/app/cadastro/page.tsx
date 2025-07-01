@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider, signOut } from 'firebase/auth';
+import { signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore'; 
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast";
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -20,8 +18,6 @@ export default function SignUpPage() {
   const [isReady, setIsReady] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const router = useRouter();
-  const { toast } = useToast();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -78,14 +74,8 @@ export default function SignUpPage() {
         name: name, email: email, congregationId: congregationId, role: "Publicador", status: "pendente"
       });
       
-      await signOut(auth);
-      
-      toast({
-        title: "Solicitação enviada!",
-        description: "Seu acesso será liberado por um administrador. Você pode fazer login para verificar o status.",
-      });
-
-      router.push('/');
+      // Force a full page reload to ensure the new auth state is correctly picked up.
+      window.location.href = '/dashboard';
 
     } catch (err: any) {
       if (err.message?.includes("Número da congregação") || err.message?.includes("Sessão de usuário perdida")) {
@@ -98,8 +88,7 @@ export default function SignUpPage() {
         console.error("Erro detalhado no cadastro:", err);
         setError("Ocorreu um erro ao criar a conta.");
       }
-    } finally {
-      setLoading(false);
+      setLoading(false); // Stop loading on error
     }
   };
   
