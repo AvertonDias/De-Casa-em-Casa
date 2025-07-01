@@ -129,15 +129,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex flex-col items-center gap-2 mb-8">
+        <div className="flex flex-col items-center gap-3 mb-8">
             <Image
                 src="/icon-192x192.png"
                 alt="Logo De Casa em Casa"
-                width={48}
-                height={48}
+                width={64}
+                height={64}
                 className="rounded-lg"
             />
-            <h1 className="text-xl font-bold text-gray-800 dark:text-white">De Casa em Casa</h1>
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">De Casa em Casa</h1>
             
             <button onClick={onClose} className="md:hidden p-2 absolute top-4 right-4 text-gray-400">
                 <X size={24} />
