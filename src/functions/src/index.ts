@@ -105,7 +105,7 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
 });
 
 
-// ▼▼▼ FUNÇÃO 1: Acionada quando uma CASA muda (Criação, Edição, Exclusão) ▼▼▼
+// FUNÇÃO 1: Acionada quando uma CASA muda (Criação, Edição, Exclusão)
 export const onHouseWrite = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
   .onWrite(async (change, context) => {
@@ -125,7 +125,7 @@ export const onHouseWrite = functions.firestore
 });
 
 
-// ▼▼▼ FUNÇÃO 2: Acionada quando uma QUADRA muda (Criação, Edição, Exclusão) ▼▼▼
+// FUNÇÃO 2: Acionada quando uma QUADRA muda (Criação, Edição, Exclusão)
 export const onQuadraWrite = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
   .onWrite(async (change, context) => {
@@ -137,6 +137,7 @@ export const onQuadraWrite = functions.firestore
 
     const quadrasSnapshot = await territoryRef.collection("quadras").get();
 
+    const quadraCount = quadrasSnapshot.size;
     let totalHousesInTerritory = 0;
     let housesDoneInTerritory = 0;
     
@@ -147,36 +148,69 @@ export const onQuadraWrite = functions.firestore
 
     const progress = totalHousesInTerritory > 0 ? (housesDoneInTerritory / totalHousesInTerritory) : 0;
     
-    console.log(`Atualizando território ${context.params.territoryId}: Total=${totalHousesInTerritory}, Feitas=${housesDoneInTerritory}`);
+    console.log(`Atualizando território ${context.params.territoryId}: Total Casas=${totalHousesInTerritory}, Feitas=${housesDoneInTerritory}, Quadras=${quadraCount}`);
     return territoryRef.update({
       totalHouses: totalHousesInTerritory,
       housesDone: housesDoneInTerritory,
-      progress: progress
+      progress: progress,
+      quadraCount: quadraCount,
+      lastUpdate: admin.firestore.FieldValue.serverTimestamp() // Add timestamp for recent list
+    });
+});
+
+// NOVA FUNÇÃO: Acionada quando um TERRITÓRIO muda
+export const onTerritoryWrite = functions.firestore
+  .document("congregations/{congregationId}/territories/{territoryId}")
+  .onWrite(async (change, context) => {
+    
+    const { congregationId } = context.params;
+    const congregationRef = db.collection("congregations").doc(congregationId);
+
+    const territoriesSnapshot = await congregationRef.collection("territories").get();
+
+    const territoryCount = territoriesSnapshot.docs.filter(doc => doc.data().type === 'urban').length;
+    const ruralTerritoryCount = territoriesSnapshot.docs.filter(doc => doc.data().type === 'rural').length;
+
+    let totalQuadras = 0;
+    let totalHouses = 0;
+    let totalHousesDone = 0;
+    
+    territoriesSnapshot.forEach(doc => {
+      totalQuadras += doc.data().quadraCount || 0;
+      totalHouses += doc.data().totalHouses || 0;
+      totalHousesDone += doc.data().housesDone || 0;
+    });
+
+    console.log(`Atualizando congregação ${congregationId}: Territórios=${territoryCount}, Quadras=${totalQuadras}, Casas=${totalHouses}`);
+    return congregationRef.update({
+      territoryCount,
+      ruralTerritoryCount,
+      totalQuadras,
+      totalHouses,
+      totalHousesDone
     });
 });
 
 
-// ▼▼▼ FUNÇÃO 3: Exclusão em Cascata para Territórios ▼▼▼
+// FUNÇÃO DE EXCLUSÃO: Exclusão em Cascata para Territórios
 export const onDeleteTerritory = functions.firestore
     .document("congregations/{congregationId}/territories/{territoryId}")
     .onDelete(async (snap, context) => {
         const territoryPath = snap.ref.path;
         console.log(`Iniciando exclusão em cascata para: ${territoryPath}`);
         
-        // Deleta recursivamente o conteúdo do documento (suas subcoleções)
         await admin.firestore().recursiveDelete(snap.ref);
         
         console.log(`Exclusão em cascata para ${territoryPath} concluída.`);
     });
 
-// ▼▼▼ FUNÇÃO 4: Exclusão em Cascata para Quadras ▼▼▼
+// FUNÇÃO DE EXCLUSÃO: Exclusão em Cascata para Quadras
 export const onDeleteQuadra = functions.firestore
     .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
     .onDelete(async (snap, context) => {
         const quadraPath = snap.ref.path;
         console.log(`Iniciando exclusão em cascata para a quadra: ${quadraPath}`);
 
-        // Deleta recursivamente o conteúdo do documento da quadra (a subcoleção de casas)
         await admin.firestore().recursiveDelete(snap.ref);
         
         console.log(`Exclusão em cascata para ${quadraPath} concluída.`);
