@@ -50,6 +50,7 @@ export function AddTerritoryModal({ onTerritoryAdded, congregationId }: AddTerri
         description,
         mapLink,
         cardUrl,
+        type: 'urban', // Define o tipo padrão para territórios criados aqui
         lastUpdate: serverTimestamp(),
         progress: 0,
       });

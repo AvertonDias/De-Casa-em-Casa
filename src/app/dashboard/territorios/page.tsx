@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, query, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, onSnapshot, doc, getDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { AddTerritoryModal } from '@/components/AddTerritoryModal';
 import { EditTerritoryModal } from '@/components/EditTerritoryModal';
 import { useUser } from '@/contexts/UserContext';
+import { Search, Inbox } from 'lucide-react';
 
 // Interface atualizada para incluir as estatísticas e os campos opcionais
 interface Territory {
@@ -30,6 +31,7 @@ export default function TerritoriosPage() {
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (userLoading) {
@@ -51,7 +53,7 @@ export default function TerritoriosPage() {
     fetchCongregationName();
 
     const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-    const q = query(territoriesRef, orderBy('number'));
+    const q = query(territoriesRef, where("type", "==", "urban"), orderBy('number'));
 
     const unsubscribe = onSnapshot(q, async (querySnapshot) => {
       const territoriesData = await Promise.all(
@@ -95,6 +97,11 @@ export default function TerritoriosPage() {
 
     return () => unsubscribe();
   }, [user, userLoading, router]);
+  
+  const filteredTerritories = territories.filter(territory =>
+    territory.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    territory.number.toString().toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading || userLoading) {
     return <p className="text-center text-gray-400 py-10">Carregando...</p>;
@@ -121,8 +128,22 @@ export default function TerritoriosPage() {
         {user?.role === 'Administrador' && user?.congregationId && <AddTerritoryModal onTerritoryAdded={() => {}} congregationId={user.congregationId} />}
       </div>
 
+      <div className="mb-6 relative">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+              <Search className="h-5 w-5 text-gray-400" />
+          </span>
+          <input
+              type="text"
+              placeholder="Buscar por nome ou número..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-card border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+      </div>
+
       <div className="space-y-6">
-        {territories.length > 0 ? territories.map(territory => (
+        {filteredTerritories.length > 0 ? (
+          filteredTerritories.map(territory => (
           <div key={territory.id} onClick={() => router.push(`/dashboard/territorios/${territory.id}`)} className="block group cursor-pointer">
             <div className="bg-white dark:bg-[#2f2b3a] rounded-lg shadow-lg p-6 transition-all duration-200 group-hover:shadow-xl group-hover:ring-2 group-hover:ring-primary">
               <div className="flex items-center justify-between">
@@ -148,9 +169,16 @@ export default function TerritoriosPage() {
               </div>
             </div>
           </div>
-        )) : (
-          <div className="text-center py-10 bg-white dark:bg-[#2f2b3a] rounded-lg">
-            <p className="text-gray-400">Nenhum território cadastrado ainda.</p>
+        ))
+        ) : (
+          <div className="text-center mt-16 p-6 bg-white dark:bg-[#2a2736] rounded-lg">
+              <Inbox size={56} className="mx-auto text-gray-400" />
+              <h2 className="mt-4 text-xl font-semibold text-gray-800 dark:text-white">
+                {searchTerm ? "Nenhum resultado encontrado" : "Nenhum território cadastrado"}
+              </h2>
+              <p className="mt-2 text-gray-500 dark:text-gray-400">
+                {searchTerm ? "Tente buscar por um termo diferente." : "Clique em \"Adicionar Território\" para começar."}
+              </p>
           </div>
         )}
       </div>
