@@ -10,6 +10,7 @@ import { Search, ArrowUp, ArrowDown, ArrowLeft } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
 import { EditCasaModal } from '@/components/EditCasaModal';
 import { useUser } from '@/contexts/UserContext';
+import { ConfirmationModal } from '@/components/ConfirmationModal';
 
 interface Casa {
   id: string;
@@ -34,6 +35,11 @@ export default function QuadraDetailPage() {
   const [isReordering, setIsReordering] = useState(false);
   const params = useParams<{ territoryId: string; quadraId: string }>();
   const { territoryId, quadraId } = params;
+
+  // Estados para o modal de confirmação
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [actionToConfirm, setActionToConfirm] = useState<{ casaId: string; newStatus: boolean; } | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   useEffect(() => {
     if (userLoading) {
@@ -105,15 +111,35 @@ export default function QuadraDetailPage() {
     }
   };
 
-  const handleStatusChange = async (casaId: string, currentStatus: boolean) => {
-    const congregationId = user!.congregationId!;
-    const newStatus = !currentStatus;
+  const handleToggleCheckbox = (casa: Casa) => {
+    setActionToConfirm({
+      casaId: casa.id,
+      newStatus: !casa.status
+    });
+    setIsConfirmModalOpen(true);
+  };
+  
+  const handleConfirmStatusChange = async () => {
+    if (!actionToConfirm || !user?.congregationId) return;
+
+    setIsUpdatingStatus(true);
+    const { casaId, newStatus } = actionToConfirm;
+    
     try {
-        const casaRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casaId);
-        await updateDoc(casaRef, { status: newStatus });
+      const casaRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casaId);
+      await updateDoc(casaRef, { status: newStatus });
     } catch (error) {
-        console.error("Erro ao atualizar status:", error);
+      console.error("Erro ao atualizar o status da casa:", error);
+    } finally {
+      setIsUpdatingStatus(false);
+      setIsConfirmModalOpen(false);
+      setActionToConfirm(null);
     }
+  };
+
+  const handleCancelStatusChange = () => {
+    setIsConfirmModalOpen(false);
+    setActionToConfirm(null);
   };
 
   const filteredCasas = casas.filter(c => 
@@ -192,12 +218,12 @@ export default function QuadraDetailPage() {
                         <input
                             type="checkbox"
                             checked={casa.status}
-                            onChange={() => handleStatusChange(casa.id, casa.status)}
-                            className="flex-shrink-0 h-6 w-6 rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-500"
+                            onChange={() => handleToggleCheckbox(casa)}
+                            className="flex-shrink-0 h-6 w-6 rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-500 cursor-pointer"
                             disabled={isReordering}
                         />
                         <div className="min-w-0 flex-1">
-                            <p className="font-bold text-lg text-gray-800 dark:text-white truncate">
+                            <p className={`font-bold text-lg text-gray-800 dark:text-white truncate ${casa.status ? 'line-through text-gray-500 dark:text-gray-500' : ''}`}>
                                 {casa.number}
                             </p>
                             {casa.observations && (
@@ -230,6 +256,23 @@ export default function QuadraDetailPage() {
             )}
         </div>
       </div>
+      
+      {actionToConfirm && (
+        <ConfirmationModal
+          isOpen={isConfirmModalOpen}
+          onClose={handleCancelStatusChange}
+          onConfirm={handleConfirmStatusChange}
+          isLoading={isUpdatingStatus}
+          title="Confirmar Alteração de Status"
+          message={
+            actionToConfirm.newStatus
+              ? `Tem certeza de que deseja marcar a casa "${casas.find(c => c.id === actionToConfirm.casaId)?.number}" como trabalhada?`
+              : `Tem certeza de que deseja desmarcar a casa "${casas.find(c => c.id === actionToConfirm.casaId)?.number}" como não trabalhada?`
+          }
+          confirmText="Sim, confirmar"
+          cancelText="Cancelar"
+        />
+      )}
     </div>
   );
 }
