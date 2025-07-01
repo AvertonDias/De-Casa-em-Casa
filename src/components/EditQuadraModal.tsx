@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Loader, Pencil, Trash2 } from 'lucide-react';
+import { Loader, Trash2 } from 'lucide-react';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Textarea } from './ui/textarea';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -17,7 +17,17 @@ import {
   DialogTrigger,
   DialogClose
 } from '@/components/ui/dialog';
-import { ConfirmationModal } from './ConfirmationModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { cn } from '@/lib/utils';
 
 interface Quadra { id: string; name: string; description?: string; }
 
@@ -36,7 +46,6 @@ export function EditQuadraModal({ quadra, territoryId, onQuadraUpdated, congrega
   const [isLoading, setIsLoading] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-  // Sincroniza o estado do formulário com os dados da quadra sempre que o modal for aberto.
   useEffect(() => {
     if (isOpen) {
       setName(quadra.name);
@@ -132,16 +141,26 @@ export function EditQuadraModal({ quadra, territoryId, onQuadraUpdated, congrega
         </DialogContent>
       </Dialog>
 
-      <ConfirmationModal
-        isOpen={isConfirmOpen}
-        onClose={() => setIsConfirmOpen(false)}
-        onConfirm={handleDelete}
-        isLoading={isLoading}
-        title="Excluir Quadra?"
-        message={`Tem certeza que deseja EXCLUIR a quadra "${quadra.name}"? Todas as casas e dados associados a ela serão perdidos permanentemente. Esta ação não pode ser desfeita.`}
-        confirmText="Sim, excluir"
-        cancelText="Cancelar"
-      />
+      <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Quadra?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja EXCLUIR a quadra "{quadra.name}"? Todas as casas e dados associados a ela serão perdidos permanentemente. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete} 
+              disabled={isLoading}
+              className={cn(buttonVariants({ variant: "destructive" }))}
+            >
+              {isLoading ? "Excluindo..." : "Sim, excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

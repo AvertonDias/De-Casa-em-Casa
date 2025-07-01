@@ -1,12 +1,17 @@
 "use client";
 
-import { useState, useEffect, Fragment } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
-import { Pencil, X, AlertTriangle, Loader } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Pencil, AlertTriangle, Loader } from 'lucide-react';
 import { doc, updateDoc, deleteDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
-import { ConfirmationModal } from './ConfirmationModal'; 
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 interface Territory {
   id: string;
@@ -26,13 +31,10 @@ interface EditTerritoryModalProps {
 export function EditTerritoryModal({ territory, onTerritoryUpdated, congregationId }: EditTerritoryModalProps) {
   const { user } = useUser();
   const [isOpen, setIsOpen] = useState(false);
-
   const [formData, setFormData] = useState(territory);
-  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [actionToConfirm, setActionToConfirm] = useState<'clean' | 'delete' | null>(null);
 
   useEffect(() => {
@@ -80,17 +82,14 @@ export function EditTerritoryModal({ territory, onTerritoryUpdated, congregation
     }
   };
   
-  const handleCleanTerritory = () => {
-    setActionToConfirm('clean');
-    setIsConfirmModalOpen(true);
-  };
-
-  const handleDeleteTerritory = () => {
-    setActionToConfirm('delete');
-    setIsConfirmModalOpen(true);
+  const triggerConfirmation = (e: React.MouseEvent, action: 'clean' | 'delete') => {
+    e.stopPropagation();
+    setActionToConfirm(action);
+    setIsConfirmOpen(true);
   };
   
-  const handleConfirmAction = async () => {
+  const handleConfirmAction = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!territory || !user?.congregationId) return;
 
     setLoading(true);
@@ -119,7 +118,8 @@ export function EditTerritoryModal({ territory, onTerritoryUpdated, congregation
         await deleteDoc(territoryRef);
       }
       onTerritoryUpdated(); 
-      setIsOpen(false); 
+      setIsConfirmOpen(false);
+      setIsOpen(false);
     } catch (err) {
       console.error(`Erro ao ${actionToConfirm} território:`, err);
       setError(`Não foi possível ${actionToConfirm === 'clean' ? 'limpar' : 'excluir'} o território.`);
@@ -131,111 +131,98 @@ export function EditTerritoryModal({ territory, onTerritoryUpdated, congregation
 
   return (
     <>
-      <button 
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen(true);
-        }} 
-        className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"
-      >
-        <Pencil className="h-4 w-4 mr-2" /> Editar Território
-      </button>
-
-      <Transition.Root show={isOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-50" onClose={() => setIsOpen(false)}>
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) setError(null); setIsOpen(open); }}>
+        <DialogTrigger asChild>
+          <Button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(true);
+            }} 
+            className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"
           >
-            <div className="fixed inset-0 bg-black/60" />
-          </Transition.Child>
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4 text-center">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
-                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-[#2a2736] p-6 text-left align-middle shadow-xl transition-all">
-                  <Dialog.Title as="h3" className="text-lg font-bold leading-6 text-white flex justify-between items-center">
-                    Editar Território
-                    <button onClick={() => setIsOpen(false)} className="p-1 rounded-full hover:bg-white/10"><X size={20} /></button>
-                  </Dialog.Title>
-
-                  <form onSubmit={handleUpdate} className="mt-4 space-y-4">
-                    <div className="flex space-x-4">
-                      <div className="flex-1">
-                        <label htmlFor="number" className="text-sm font-medium text-gray-400">Número</label>
-                        <input id="number" value={formData.number} onChange={handleChange} className="w-full mt-1 bg-gray-800 text-white rounded px-3 py-2 border border-gray-700" />
-                      </div>
-                      <div className="flex-grow">
-                        <label htmlFor="name" className="text-sm font-medium text-gray-400">Nome</label>
-                        <input id="name" value={formData.name} onChange={handleChange} className="w-full mt-1 bg-gray-800 text-white rounded px-3 py-2 border border-gray-700" />
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="description" className="text-sm font-medium text-gray-400">Descrição</label>
-                      <textarea id="description" value={formData.description || ''} onChange={handleChange} rows={3} className="w-full mt-1 bg-gray-800 text-white rounded px-3 py-2 border border-gray-700" />
-                    </div>
-                    <div>
-                      <label htmlFor="mapLink" className="text-sm font-medium text-gray-400">Link do Mapa</label>
-                      <input id="mapLink" value={formData.mapLink || ''} onChange={handleChange} className="w-full mt-1 bg-gray-800 text-white rounded px-3 py-2 border border-gray-700" />
-                    </div>
-                    <div>
-                      <label htmlFor="cardUrl" className="text-sm font-medium text-gray-400">URL do Cartão</label>
-                      <input id="cardUrl" value={formData.cardUrl || ''} onChange={handleChange} className="w-full mt-1 bg-gray-800 text-white rounded px-3 py-2 border border-gray-700" />
-                    </div>
-                    <div className="flex justify-end mt-6">
-                      <button type="submit" disabled={loading} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">
-                        {loading && !actionToConfirm ? 'Salvando...' : 'Salvar Alterações'}
-                      </button>
-                    </div>
-                  </form>
-                  
-                  {user?.role === 'Administrador' && (
-                    <div className="mt-6 pt-4 border-t border-red-500/30">
-                      <h4 className="flex items-center text-md font-semibold text-red-400">
-                        <AlertTriangle size={18} className="mr-2"/> Ações de Risco
-                      </h4>
-                      <div className="flex space-x-2 mt-2">
-                          <button type="button" onClick={handleCleanTerritory} disabled={loading} className="flex-1 bg-yellow-500/20 text-yellow-300 py-2 rounded-md hover:bg-yellow-500/30 transition-colors disabled:opacity-50">
-                              Limpar Território
-                          </button>
-                          <button type="button" onClick={handleDeleteTerritory} disabled={loading} className="flex-1 bg-red-500/20 text-red-300 py-2 rounded-md hover:bg-red-500/30 transition-colors disabled:opacity-50">
-                              {loading && actionToConfirm === 'delete' ? <Loader className="mx-auto animate-spin"/> : 'Excluir Território'}
-                          </button>
-                      </div>
-                      {error && <p className="text-red-400 text-sm text-center mt-2">{error}</p>}
-                    </div>
-                  )}
-                </Dialog.Panel>
-              </Transition.Child>
+            <Pencil className="h-4 w-4 mr-2" /> Editar Território
+          </Button>
+        </DialogTrigger>
+        <DialogContent onClick={(e) => e.stopPropagation()} className="sm:max-w-md bg-card">
+          <DialogHeader>
+            <DialogTitle>Editar Território</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdate} id="edit-territory-form" className="space-y-4">
+            <div className="flex space-x-4">
+              <div className="flex-1">
+                <Label htmlFor="number" className="text-sm font-medium">Número</Label>
+                <Input id="number" value={formData.number} onChange={handleChange} className="w-full mt-1" />
+              </div>
+              <div className="flex-grow">
+                <Label htmlFor="name" className="text-sm font-medium">Nome</Label>
+                <Input id="name" value={formData.name} onChange={handleChange} className="w-full mt-1" />
+              </div>
             </div>
-          </div>
-        </Dialog>
-      </Transition.Root>
+            <div>
+              <Label htmlFor="description" className="text-sm font-medium">Descrição</Label>
+              <Textarea id="description" value={formData.description || ''} onChange={handleChange} rows={3} className="w-full mt-1" />
+            </div>
+            <div>
+              <Label htmlFor="mapLink" className="text-sm font-medium">Link do Mapa</Label>
+              <Input id="mapLink" value={formData.mapLink || ''} onChange={handleChange} className="w-full mt-1" />
+            </div>
+            <div>
+              <Label htmlFor="cardUrl" className="text-sm font-medium">URL do Cartão</Label>
+              <Input id="cardUrl" value={formData.cardUrl || ''} onChange={handleChange} className="w-full mt-1" />
+            </div>
+          </form>
+          
+          {user?.role === 'Administrador' && (
+            <div className="mt-6 pt-4 border-t border-destructive/20">
+              <h4 className="flex items-center text-md font-semibold text-destructive">
+                <AlertTriangle size={18} className="mr-2"/> Ações de Risco
+              </h4>
+              <div className="flex space-x-2 mt-2">
+                <Button type="button" variant="outline" onClick={(e) => triggerConfirmation(e, 'clean')} disabled={loading} className="flex-1 border-yellow-500 text-yellow-500 hover:bg-yellow-500/10 hover:text-yellow-600">
+                  Limpar Território
+                </Button>
+                <Button type="button" variant="destructive" onClick={(e) => triggerConfirmation(e, 'delete')} disabled={loading} className="flex-1">
+                  {loading && actionToConfirm === 'delete' ? <Loader className="mx-auto animate-spin"/> : 'Excluir Território'}
+                </Button>
+              </div>
+              {error && <p className="text-red-500 text-sm text-center mt-2">{error}</p>}
+            </div>
+          )}
+          <DialogFooter>
+             <DialogClose asChild>
+                <Button type="button" variant="secondary">Cancelar</Button>
+              </DialogClose>
+              <Button type="submit" form="edit-territory-form" disabled={loading && !actionToConfirm}>
+                {loading && !actionToConfirm ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
-      <ConfirmationModal
-        isOpen={isConfirmModalOpen}
-        onClose={() => setIsConfirmModalOpen(false)}
-        onConfirm={handleConfirmAction}
-        title={actionToConfirm === 'clean' ? "Limpar Território?" : "Excluir Território?"}
-        message={
-          actionToConfirm === 'clean'
-            ? "Esta ação irá marcar todas as casas deste território como 'não trabalhadas', reiniciando o progresso. Deseja continuar?"
-            : "Esta ação é irreversível e irá apagar permanentemente este território, incluindo todas as suas quadras e casas. Você tem certeza absoluta?"
-        }
-        confirmButtonText={actionToConfirm === 'clean' ? "Sim, Limpar" : "Sim, Excluir"}
-      />
+      <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {actionToConfirm === 'clean' ? "Limpar Território?" : "Excluir Território?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {actionToConfirm === 'clean'
+                ? "Esta ação irá marcar todas as casas deste território como 'não trabalhadas', reiniciando o progresso. Deseja continuar?"
+                : "Esta ação é irreversível e irá apagar permanentemente este território, incluindo todas as suas quadras e casas. Você tem certeza absoluta?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmAction}
+              disabled={loading}
+              className={cn(actionToConfirm === 'delete' && buttonVariants({ variant: 'destructive' }))}
+            >
+              {loading ? "Processando..." : (actionToConfirm === 'clean' ? "Sim, Limpar" : "Sim, Excluir")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
