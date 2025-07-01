@@ -1,11 +1,23 @@
 "use client";
 
 import { useState } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
-import { Pencil, X, Trash2 } from 'lucide-react';
+import { Loader, Pencil, Trash2 } from 'lucide-react';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Textarea } from './ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose
+} from '@/components/ui/dialog';
+import { ConfirmationModal } from './ConfirmationModal';
 
 interface Quadra { id: string; name: string; description?: string; }
 
@@ -22,10 +34,22 @@ export function EditQuadraModal({ quadra, territoryId, onQuadraUpdated, congrega
   const [description, setDescription] = useState(quadra.description || '');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+  // Reset state on close
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      setError('');
+      setName(quadra.name);
+      setDescription(quadra.description || '');
+    }
+    setIsOpen(open);
+  }
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
     if (!congregationId) {
       setError("ID da congregação não encontrado. Ação bloqueada.");
@@ -38,13 +62,14 @@ export function EditQuadraModal({ quadra, territoryId, onQuadraUpdated, congrega
       await updateDoc(quadraRef, { name, description });
       setIsOpen(false);
       onQuadraUpdated();
-    } catch (err) { setError("Falha ao atualizar."); } 
+    } catch (err) { 
+      setError("Falha ao atualizar.");
+      console.error(err);
+    } 
     finally { setIsLoading(false); }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Tem certeza que deseja EXCLUIR a quadra "${quadra.name}"? Todas as casas dentro dela serão perdidas.`)) return;
-    
     if (!congregationId) {
       setError("ID da congregação não encontrado. Ação bloqueada.");
       return;
@@ -54,40 +79,69 @@ export function EditQuadraModal({ quadra, territoryId, onQuadraUpdated, congrega
     try {
       const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadra.id);
       await deleteDoc(quadraRef);
+      setIsConfirmOpen(false);
       setIsOpen(false);
       onQuadraUpdated();
-    } catch (err) { setError("Falha ao excluir."); } 
+    } catch (err) { 
+      setError("Falha ao excluir."); 
+      console.error(err);
+    } 
     finally { setIsLoading(false); }
   };
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
-      <Dialog.Trigger asChild>
-        <button className="font-semibold text-purple-700 dark:text-purple-400 bg-gray-200 dark:bg-purple-900/50 px-3 py-1 rounded-md text-sm hover:bg-gray-300 dark:hover:bg-purple-900/80">
-          Editar
-        </button>
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Overlay className="bg-black/60 fixed inset-0" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white dark:bg-[#2f2b3a] p-6 shadow-lg">
-          <Dialog.Title className="text-gray-800 dark:text-white text-lg font-medium">Editar Quadra</Dialog.Title>
-          <form onSubmit={handleUpdate} className="mt-4 space-y-4">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome da Quadra" className="w-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white rounded px-3 py-2 border border-gray-300 dark:border-gray-700" />
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição da quadra (opcional)" rows={3} className="w-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white rounded px-3 py-2 border border-gray-300 dark:border-gray-700" />
-            {error && <p className="text-red-500 text-sm">{error}</p>}
-            <div className="flex justify-between items-center mt-6">
-              <button type="button" onClick={handleDelete} className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300" title="Excluir"><Trash2 /></button>
-              <div className="flex gap-4">
-                <Dialog.Close asChild>
-                  <button type="button" className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-500">Cancelar</button>
-                </Dialog.Close>
-                <button type="submit" disabled={isLoading} className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Salvar</button>
-              </div>
+    <>
+      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+        <DialogTrigger asChild>
+           <Button
+            size="sm"
+            className="font-semibold text-purple-700 dark:text-purple-400 bg-gray-200 dark:bg-purple-900/50 hover:bg-gray-300 dark:hover:bg-purple-900/80"
+          >
+            Editar
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>Editar Quadra</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdate} id="edit-quadra-form" className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name-edit">Nome da Quadra</Label>
+              <Input id="name-edit" value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="description-edit">Observações</Label>
+              <Textarea id="description-edit" value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
           </form>
-          <Dialog.Close asChild><button className="absolute top-3 right-3 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white"><X /></button></Dialog.Close>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+          <DialogFooter className="justify-between sm:justify-between">
+            <Button variant="destructive" onClick={() => setIsConfirmOpen(true)} disabled={isLoading}>
+              <Trash2 className="mr-0 sm:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Excluir</span>
+            </Button>
+            <div className="flex gap-2">
+              <DialogClose asChild>
+                <Button type="button" variant="secondary">Cancelar</Button>
+              </DialogClose>
+              <Button type="submit" form="edit-quadra-form" disabled={isLoading}>
+                {isLoading ? <><Loader className="animate-spin mr-2" /> Salvando...</> : 'Salvar'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmationModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleDelete}
+        isLoading={isLoading}
+        title="Excluir Quadra?"
+        message={`Tem certeza que deseja EXCLUIR a quadra "${quadra.name}"? Todas as casas e dados associados a ela serão perdidos permanentemente. Esta ação não pode ser desfeita.`}
+        confirmText="Sim, excluir"
+        cancelText="Cancelar"
+      />
+    </>
   );
 }

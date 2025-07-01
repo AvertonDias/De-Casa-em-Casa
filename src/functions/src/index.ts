@@ -109,20 +109,17 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
 export const onHouseWrite = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
   .onWrite(async (change, context) => {
-    // O `parent.parent!` se refere ao documento da quadra (casas -> quadra)
     const quadraRef = change.after.ref.parent.parent;
     if (!quadraRef) {
         console.error("Referência da quadra pai não encontrada.");
         return;
     }
 
-    // Recalcula os totais para a quadra específica
     const casasSnapshot = await quadraRef.collection("casas").get();
     
     const totalHouses = casasSnapshot.size;
     const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
     
-    // Atualiza a quadra-pai com os novos totais.
     console.log(`Atualizando quadra ${context.params.quadraId}: Total=${totalHouses}, Feitas=${housesDone}`);
     return quadraRef.update({ totalHouses, housesDone });
 });
@@ -132,14 +129,12 @@ export const onHouseWrite = functions.firestore
 export const onQuadraWrite = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
   .onWrite(async (change, context) => {
-    // O `parent.parent!` se refere ao documento do território (quadras -> territorio)
     const territoryRef = change.after.ref.parent.parent;
      if (!territoryRef) {
         console.error("Referência do território pai não encontrada.");
         return;
     }
 
-    // Pega TODAS as quadras irmãs para recalcular o total do território.
     const quadrasSnapshot = await territoryRef.collection("quadras").get();
 
     let totalHousesInTerritory = 0;
@@ -152,7 +147,6 @@ export const onQuadraWrite = functions.firestore
 
     const progress = totalHousesInTerritory > 0 ? (housesDoneInTerritory / totalHousesInTerritory) : 0;
     
-    // Atualiza o território-pai com os novos totais.
     console.log(`Atualizando território ${context.params.territoryId}: Total=${totalHousesInTerritory}, Feitas=${housesDoneInTerritory}`);
     return territoryRef.update({
       totalHouses: totalHousesInTerritory,
@@ -162,16 +156,28 @@ export const onQuadraWrite = functions.firestore
 });
 
 
-// ▼▼▼ FUNÇÃO 3: Exclusão em Cascata ▼▼▼
+// ▼▼▼ FUNÇÃO 3: Exclusão em Cascata para Territórios ▼▼▼
 export const onDeleteTerritory = functions.firestore
     .document("congregations/{congregationId}/territories/{territoryId}")
     .onDelete(async (snap, context) => {
         const territoryPath = snap.ref.path;
         console.log(`Iniciando exclusão em cascata para: ${territoryPath}`);
         
-        await admin.firestore().recursiveDelete(db.collection(territoryPath));
+        // Deleta recursivamente o conteúdo do documento (suas subcoleções)
+        await admin.firestore().recursiveDelete(snap.ref);
         
         console.log(`Exclusão em cascata para ${territoryPath} concluída.`);
     });
 
-    
+// ▼▼▼ FUNÇÃO 4: Exclusão em Cascata para Quadras ▼▼▼
+export const onDeleteQuadra = functions.firestore
+    .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
+    .onDelete(async (snap, context) => {
+        const quadraPath = snap.ref.path;
+        console.log(`Iniciando exclusão em cascata para a quadra: ${quadraPath}`);
+
+        // Deleta recursivamente o conteúdo do documento da quadra (a subcoleção de casas)
+        await admin.firestore().recursiveDelete(snap.ref);
+        
+        console.log(`Exclusão em cascata para ${quadraPath} concluída.`);
+    });
