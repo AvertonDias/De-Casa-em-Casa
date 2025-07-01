@@ -9,6 +9,7 @@ import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert } from '
 import { Menu, Transition } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { getInitials } from '@/lib/utils';
 
 // Interface do usuário
 interface AppUser {
@@ -82,15 +83,6 @@ export default function UsersPage() {
     }
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase();
-  };
-
   if (userLoading || loading) {
     return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
   }
@@ -117,7 +109,7 @@ export default function UsersPage() {
                     <div className="flex items-center space-x-4">
                         <Avatar>
                           <AvatarFallback>
-                            {user.name ? getInitials(user.name) : <User size={20} />}
+                            {getInitials(user.name) || <User size={20} />}
                           </AvatarFallback>
                         </Avatar>
                         <div>

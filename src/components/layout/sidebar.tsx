@@ -29,6 +29,7 @@ import { auth, db } from "@/lib/firebase";
 import { FeedbackModal } from "@/components/FeedbackModal";
 import { useEffect, useState } from "react";
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { getInitials } from "@/lib/utils";
 
 const navItems = [
   { name: "Início", href: "/dashboard", icon: Home, roles: ['Administrador', 'Dirigente', 'Publicador'] },
@@ -175,10 +176,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div className="flex items-center space-x-3 text-left p-2 rounded-md w-full">
               <Avatar>
                 <AvatarFallback>
-                  {user.name
-                    ?.split(" ")
-                    .map((n) => n[0])
-                    .join("")}
+                  {getInitials(user.name)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
