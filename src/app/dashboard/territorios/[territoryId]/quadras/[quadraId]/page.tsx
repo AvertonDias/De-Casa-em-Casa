@@ -2,11 +2,11 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Search, ArrowUp, ArrowDown, ArrowLeft } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
 import { EditCasaModal } from '@/components/EditCasaModal';
 import { useUser } from '@/contexts/UserContext';
@@ -40,6 +40,7 @@ export default function QuadraDetailPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isReordering, setIsReordering] = useState(false);
   const params = useParams<{ territoryId: string; quadraId: string }>();
+  const router = useRouter();
   const { territoryId, quadraId } = params;
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -57,9 +58,19 @@ export default function QuadraDetailPage() {
     const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
     getDoc(territoryRef).then(snap => snap.exists() && setTerritory(snap.data() as Territory));
 
-    const quadraRef = doc(territoryRef, 'quadras', quadraId);
-    const unsubQuadra = onSnapshot(quadraRef, (snap) => {
-        if (snap.exists()) setQuadra(snap.data() as Quadra);
+    const quadraPath = `congregations/${user.congregationId}/territories/${territoryId}/quadras/${quadraId}`;
+    const quadraRef = doc(db, quadraPath);
+
+    const unsubQuadra = onSnapshot(quadraRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setQuadra(docSnap.data() as Quadra);
+      } else {
+        setQuadra(null);
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error("Erro ao ouvir o documento da quadra:", error);
+      setLoading(false);
     });
     
     const casasRef = collection(quadraRef, 'casas');
@@ -69,11 +80,9 @@ export default function QuadraDetailPage() {
       if (!isReordering) {
         const fetchedCasas = casasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Casa);
         setCasas(fetchedCasas);
-        setLoading(false);
       }
     }, (error) => {
       console.error("Erro ao ouvir as atualizações das casas:", error);
-      setLoading(false);
     });
 
     return () => {
@@ -81,6 +90,14 @@ export default function QuadraDetailPage() {
       unsubCasas();
     };
   }, [user, userLoading, territoryId, quadraId, isReordering]);
+  
+  useEffect(() => {
+    if (!loading && quadra === null) {
+      setTimeout(() => {
+        router.push(`/dashboard/territorios/${territoryId}`);
+      }, 2000);
+    }
+  }, [loading, quadra, router, territoryId]);
 
   const stats = {
       total: quadra?.totalHouses || 0,
@@ -134,7 +151,16 @@ export default function QuadraDetailPage() {
   );
 
   if (userLoading || loading) {
-    return <div className="text-center text-gray-500 dark:text-gray-400">Carregando...</div>;
+    return <div className="flex items-center justify-center h-full"><Loader className="animate-spin text-purple-600" size={48} /></div>;
+  }
+  
+  if (!quadra) {
+    return (
+        <div className="flex flex-col items-center justify-center h-full text-center p-8">
+            <h1 className="text-2xl font-bold text-destructive">Quadra Excluída</h1>
+            <p className="text-muted-foreground mt-2">Esta quadra não existe mais. Você será redirecionado...</p>
+        </div>
+    );
   }
 
   if (!user || !user.congregationId) {
@@ -174,7 +200,7 @@ export default function QuadraDetailPage() {
           Voltar para {territory?.name || 'Território'}
         </Link>
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-          {quadra?.name || 'Detalhes da Quadra'}
+          {quadra.name || 'Detalhes da Quadra'}
         </h1>
       </div>
       
@@ -297,3 +323,5 @@ export default function QuadraDetailPage() {
     </div>
   );
 }
+
+    
