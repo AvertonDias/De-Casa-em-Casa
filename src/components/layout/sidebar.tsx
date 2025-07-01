@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -133,8 +132,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <Image
                 src="/icon-192x192.png"
                 alt="Logo De Casa em Casa"
-                width={64}
-                height={64}
+                width={80}
+                height={80}
                 className="rounded-lg"
             />
             <h1 className="text-2xl font-bold text-gray-800 dark:text-white">De Casa em Casa</h1>
