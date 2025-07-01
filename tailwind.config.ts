@@ -72,11 +72,11 @@ export default {
         },
         'pulse-subtle': {
           '0%, 100%': { 
-            opacity: '1',
+            backgroundColor: '#facc15', // yellow-400
             transform: 'scale(1)' 
           },
           '50%': { 
-            opacity: '.75',
+            backgroundColor: '#ef4444', // red-500
             transform: 'scale(1.2)'
           },
         },
