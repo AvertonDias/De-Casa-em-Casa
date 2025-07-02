@@ -45,7 +45,6 @@ export default function QuadraDetailPage() {
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [actionToConfirm, setActionToConfirm] = useState<{ casaId: string; newStatus: boolean; } | null>(null);
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   
   const [recentlyMovedId, setRecentlyMovedId] = useState<string | null>(null);
 
@@ -123,21 +122,21 @@ export default function QuadraDetailPage() {
     setIsConfirmModalOpen(true);
   };
   
-  const handleConfirmStatusChange = async () => {
+  const handleConfirmStatusChange = () => {
     if (!actionToConfirm || !user?.congregationId) return;
-    setIsUpdatingStatus(true);
+
     const { casaId, newStatus } = actionToConfirm;
+    const casaRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casaId);
     
-    try {
-      const casaRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casaId);
-      await updateDoc(casaRef, { status: newStatus });
-    } catch (error) {
-      console.error("Erro ao atualizar o status da casa:", error);
-    } finally {
-      setIsUpdatingStatus(false);
-      setIsConfirmModalOpen(false);
-      setActionToConfirm(null);
-    }
+    // Dispara a atualização sem esperar (otimista)
+    updateDoc(casaRef, { status: newStatus }).catch(error => {
+        // Opcional: lidar com erro em segundo plano, talvez com um toast.
+        console.error("Erro ao atualizar o status da casa em segundo plano:", error);
+    });
+    
+    // Fecha o modal imediatamente
+    setIsConfirmModalOpen(false);
+    setActionToConfirm(null);
   };
 
   const handleCancelStatusChange = () => {
@@ -309,7 +308,6 @@ export default function QuadraDetailPage() {
           isOpen={isConfirmModalOpen}
           onClose={handleCancelStatusChange}
           onConfirm={handleConfirmStatusChange}
-          isLoading={isUpdatingStatus}
           title="Confirmar Alteração de Status"
           message={
             actionToConfirm.newStatus
@@ -323,5 +321,7 @@ export default function QuadraDetailPage() {
     </div>
   );
 }
+
+    
 
     

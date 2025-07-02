@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -32,35 +33,45 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
       return;
     }
 
+    if (!number) {
+        setError('O número da casa é obrigatório.');
+        setIsLoading(false);
+        return;
+    }
+
     try {
       const casasRef = collection(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas');
       
       const snapshot = await getDocs(casasRef);
       const order = snapshot.size;
 
-      await addDoc(casasRef, { 
+      // Dispara a criação do documento sem esperar
+      addDoc(casasRef, { 
         number, 
         observations, 
         status, 
         createdAt: serverTimestamp(),
         order
+      }).catch(err => {
+        console.error("Erro ao adicionar casa em segundo plano:", err);
+        // Opcional: mostrar um toast informando sobre o erro em segundo plano
       });
 
+      // Limpa o formulário e fecha o modal imediatamente
       setNumber('');
       setObservations('');
       setStatus(false);
       setIsOpen(false);
       onCasaAdded();
     } catch (err) {
-      console.error("Erro ao adicionar casa:", err);
+      console.error("Erro ao preparar para adicionar casa:", err);
       setError("Falha ao adicionar casa.");
-    } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Reseta o loading apenas em caso de erro
     }
   };
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog.Root open={isOpen} onOpenChange={(open) => { setIsOpen(open); if(open) { setIsLoading(false); setError('') } }}>
       <Dialog.Trigger asChild>
         <button className="flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors text-sm">
           <Plus className="h-5 w-5 mr-2" />
@@ -131,3 +142,5 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
     </Dialog.Root>
   );
 }
+
+    
