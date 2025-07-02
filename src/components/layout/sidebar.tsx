@@ -33,6 +33,7 @@ import { useEffect, useState } from "react";
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { getInitials } from "@/lib/utils";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
+import { ConfirmationModal } from '@/components/ConfirmationModal';
 
 const navItems = [
   { name: "Início", href: "/dashboard", icon: Home, roles: ['Administrador', 'Dirigente', 'Publicador'] },
@@ -82,7 +83,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user } = useUser();
   const router = useRouter();
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
-  const { canInstall, onInstall } = usePWAInstall();
+  const { showInstallButton, canPrompt, onInstall } = usePWAInstall();
+  const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false);
 
   useEffect(() => {
     if (user && ['Administrador', 'Dirigente'].includes(user.role) && user.congregationId) {
@@ -109,6 +111,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     }
   };
   
+  const handleInstallButtonClick = () => {
+      if (canPrompt) {
+          onInstall();
+      } else {
+          setIsInstructionsModalOpen(true);
+      }
+  };
+
   const filteredNavItems = navItems.filter(item => item.roles.includes(user?.role || ''));
 
   return (
@@ -191,9 +201,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               </div>
             </div>
           )}
-          {canInstall && (
+          {showInstallButton && (
               <Button
-                onClick={onInstall}
+                onClick={handleInstallButtonClick}
                 variant="outline"
                 className="w-full justify-center border-green-300 bg-green-100 text-green-800 hover:bg-green-200 hover:text-green-900 dark:border-green-700 dark:bg-green-900/50 dark:text-white dark:hover:bg-green-900/80"
               >
@@ -211,6 +221,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </Button>
         </div>
       </aside>
+      
+      <ConfirmationModal
+          isOpen={isInstructionsModalOpen}
+          onClose={() => setIsInstructionsModalOpen(false)}
+          onConfirm={() => setIsInstructionsModalOpen(false)}
+          title="Como Instalar o Aplicativo"
+          message="Para instalar, toque no menu do seu navegador (os três pontinhos ou ícone de compartilhamento) e procure pela opção 'Instalar aplicativo' ou 'Adicionar à tela inicial'."
+          confirmText="Entendi"
+          showCancelButton={false}
+      />
     </>
   );
 }

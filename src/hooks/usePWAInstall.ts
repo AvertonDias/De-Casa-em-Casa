@@ -31,7 +31,6 @@ export const usePWAInstall = () => {
       setInstallPromptEvent(event as BeforeInstallPromptEvent);
     };
 
-    // A verificação inicial se o app já está instalado continua aqui.
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsAppInstalled(true);
     }
@@ -49,26 +48,18 @@ export const usePWAInstall = () => {
   }, []);
 
   const handleInstallClick = async () => {
-    // Se o evento estiver disponível, use-o! É a melhor experiência.
-    if (installPromptEvent) {
-      await installPromptEvent.prompt(); 
-      const { outcome } = await installPromptEvent.userChoice;
-      if (outcome === 'accepted') setIsAppInstalled(true);
-      setInstallPromptEvent(null);
-    } else {
-      // ▼▼▼ LÓGICA DE FALLBACK ▼▼▼
-      // Se o evento não estiver disponível (período de carência), mostre instruções.
-      alert(
-        'Para instalar o aplicativo, toque no menu do seu navegador (os três pontinhos) e procure pela opção "Instalar aplicativo" ou "Adicionar à tela inicial".'
-      );
+    if (!installPromptEvent) {
+      return;
     }
+    await installPromptEvent.prompt();
+    const { outcome } = await installPromptEvent.userChoice;
+    if (outcome === 'accepted') setIsAppInstalled(true);
+    setInstallPromptEvent(null);
   };
   
-  // ▼▼▼ LÓGICA DE RETORNO ATUALIZADA ▼▼▼
   return {
-    // Retorna se o app pode ser instalado (sempre que for mobile e não estiver instalado).
-    // Não depende mais do evento `installPromptEvent` para ser verdadeiro.
-    canInstall: isMobile && !isAppInstalled,
+    showInstallButton: isMobile && !isAppInstalled, 
+    canPrompt: installPromptEvent !== null,
     onInstall: handleInstallClick
   };
 };

@@ -13,6 +13,7 @@ interface ConfirmationModalProps {
   confirmText?: string;
   cancelText?: string;
   isLoading?: boolean;
+  showCancelButton?: boolean;
 }
 
 export function ConfirmationModal({
@@ -23,7 +24,8 @@ export function ConfirmationModal({
   message,
   confirmText = "Sim",
   cancelText = "Não",
-  isLoading = false
+  isLoading = false,
+  showCancelButton = true
 }: ConfirmationModalProps) {
 
   return (
@@ -63,14 +65,16 @@ export function ConfirmationModal({
                 </div>
 
                 <div className="mt-6 flex justify-end space-x-4">
-                  <button
-                    type="button"
-                    className="inline-flex justify-center rounded-md border border-transparent bg-gray-100 dark:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                    onClick={onClose}
-                    disabled={isLoading}
-                  >
-                    {cancelText}
-                  </button>
+                  {showCancelButton && (
+                    <button
+                      type="button"
+                      className="inline-flex justify-center rounded-md border border-transparent bg-gray-100 dark:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                      onClick={onClose}
+                      disabled={isLoading}
+                    >
+                      {cancelText}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="inline-flex justify-center rounded-md border border-transparent bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 disabled:bg-purple-900"
