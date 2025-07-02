@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import type { User } from 'firebase/auth';
 import { linkWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
-import { auth, db, getAuthSession } from '@/lib/firebase';
+import { auth, db, ensureAuthIsReady } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -16,24 +17,24 @@ export default function SignUpPage() {
   const [congregationNumber, setCongregationNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [anonymousSession, setAnonymousSession] = useState<User | null>(null);
+  const [authSession, setAuthSession] = useState<User | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    getAuthSession()
-      .then((user) => {
-        setAnonymousSession(user);
-        console.log("Sessão anônima garantida. Formulário pronto.");
-      })
+    // Apenas chamamos a nossa função guardiã.
+    ensureAuthIsReady()
+      .then(setAuthSession) // Salva a sessão pronta no estado
       .catch((err) => {
-        setError(err.message);
+        console.error("Falha ao preparar a sessão:", err);
+        setError("Não foi possível conectar. Verifique sua conexão e recarregue.");
       });
   }, []);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!anonymousSession) {
+    if (!authSession) {
         setError("Aguarde, a conexão ainda não está pronta.");
         return;
     }
@@ -64,9 +65,9 @@ export default function SignUpPage() {
       const congregationId = querySnapshot.docs[0].id;
       
       const credential = EmailAuthProvider.credential(email, password);
-      await linkWithCredential(anonymousSession, credential);
+      await linkWithCredential(authSession, credential);
       
-      await setDoc(doc(db, "users", anonymousSession.uid), {
+      await setDoc(doc(db, "users", authSession.uid), {
         name,
         email,
         congregationId,
@@ -74,8 +75,6 @@ export default function SignUpPage() {
         status: "pendente"
       });
       
-      // Use window.location.href to force a full page reload.
-      // This ensures the UserContext is re-initialized from scratch on the new route.
       window.location.href = '/dashboard';
 
     } catch (err: any) {
@@ -89,7 +88,6 @@ export default function SignUpPage() {
         console.error("Erro detalhado no cadastro:", err);
         setError("Ocorreu um erro ao criar a conta.");
       }
-      // Only set loading false on error, as success causes a page reload.
       setLoading(false);
     }
   };
@@ -119,8 +117,8 @@ export default function SignUpPage() {
             <input type="tel" inputMode="numeric" value={congregationNumber} onChange={e => setCongregationNumber(e.target.value.replace(/\D/g, ''))} placeholder="Número da Congregação" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <button type="submit" disabled={loading || !anonymousSession} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-wait">
-              {!anonymousSession ? 'Conectando...' : (loading ? 'Enviando...' : 'Solicitar Acesso')}
+            <button type="submit" disabled={loading || !authSession} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-wait">
+              {!authSession ? 'Conectando...' : (loading ? 'Enviando...' : 'Solicitar Acesso')}
             </button>
         </form>
          <div className="text-center text-sm">

@@ -6,7 +6,8 @@ import {
   initializeAuth,
   signInAnonymously,
   Auth,
-  User
+  User,
+  onAuthStateChanged
 } from "firebase/auth";
 import {
   initializeFirestore,
@@ -31,7 +32,7 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// --- INICIALIZAÇÃO SEGURA E ROBUSTA ---
+// --- INICIALIZAÇÕES SEGURAS ---
 export const auth: Auth = initializeAuth(app, {
   persistence: browserLocalPersistence
 });
@@ -52,22 +53,46 @@ export const storage = getStorage(app);
 export const functions = getFunctions(app, 'us-central1');
 export const messaging = (typeof window !== 'undefined') ? getMessaging(app) : null;
 
-// ▼▼▼ A FUNÇÃO "GUARDIÃO" ▼▼▼
-// Esta função garante que obteremos uma sessão de usuário (anônima ou não)
-// e só tenta o login anônimo se for estritamente necessário.
-export const getAuthSession = async (): Promise<User> => {
-  // 1. Verifica se já existe um usuário logado.
-  if (auth.currentUser) {
-    return auth.currentUser;
+
+// ▼▼▼ O PADRÃO SINGLETON DEFINITIVO ▼▼▼
+
+let authReadyPromise: Promise<User> | null = null;
+
+// Esta é a nossa função "guardiã" pública.
+export const ensureAuthIsReady = (): Promise<User> => {
+  // Se a promessa ainda não foi criada, crie-a.
+  if (!authReadyPromise) {
+    authReadyPromise = new Promise((resolve, reject) => {
+      // Usamos onAuthStateChanged para saber quando a autenticação está pronta.
+      const unsubscribe = onAuthStateChanged(auth,
+        (user) => {
+          if (user) {
+            // Se encontrarmos um usuário (seja ele persistente ou recém-criado anonimamente),
+            // a promessa é resolvida com sucesso e o listener é removido.
+            unsubscribe();
+            resolve(user);
+          }
+        },
+        (error) => {
+          // Se houver um erro no listener, rejeitamos a promessa.
+          unsubscribe();
+          reject(error);
+        }
+      );
+    });
   }
-  
-  // 2. Se não houver, tenta logar anonimamente.
-  try {
-    const userCredential = await signInAnonymously(auth);
-    return userCredential.user;
-  } catch (error) {
-    console.error("Falha crítica no login anônimo:", error);
-    // Lança um erro para que a página de cadastro possa pegá-lo.
-    throw new Error("Não foi possível estabelecer uma sessão segura.");
-  }
+
+  // Retorna a promessa existente (ou a recém-criada).
+  return authReadyPromise;
 };
+
+// Esta chamada inicializa o processo de login anônimo SE necessário.
+// Nós a chamamos uma vez, aqui no módulo, para "acordar" o sistema.
+// E imediatamente iniciamos o processo de verificação da autenticação
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    signInAnonymously(auth).catch((error) => {
+      console.error("Falha no login anônimo inicial: ", error);
+    });
+  }
+});
