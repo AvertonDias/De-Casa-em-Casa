@@ -12,5 +12,6 @@ const nextConfig = {
   // Configurações do Next.js entram aqui, se necessário.
 };
 
-// Passo 2: Exporte o resultado da função PWA envolvendo sua nextConfig.
-module.exports = withPWA(nextConfig);
+// Passo 2: Desabilitando o PWA temporariamente para diagnosticar o erro de build.
+// module.exports = withPWA(nextConfig);
+module.exports = nextConfig;
