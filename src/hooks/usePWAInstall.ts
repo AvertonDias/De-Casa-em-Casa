@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 
-// A interface para o evento que o navegador nos dá.
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
   readonly userChoice: Promise<{
@@ -12,10 +11,8 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
-// ▼▼▼ NOVA FUNÇÃO HELPER ▼▼▼
 const isMobileDevice = () => {
     if (typeof navigator !== 'undefined') {
-        // Expressão regular para detectar os sistemas operacionais móveis mais comuns.
         return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     }
     return false;
@@ -23,44 +20,28 @@ const isMobileDevice = () => {
 
 export const usePWAInstall = () => {
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  
-  // Estado para saber se o app já foi instalado ou se o prompt foi dispensado
   const [isAppInstalled, setIsAppInstalled] = useState(false);
-  // ▼▼▼ NOVO ESTADO ▼▼▼
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    // Detecta se é mobile assim que o componente é montado no cliente
     setIsMobile(isMobileDevice());
 
-    // Handler para capturar o evento do navegador
     const handleBeforeInstallPrompt = (event: Event) => {
-      // Previne o pop-up padrão do navegador
       event.preventDefault(); 
-      
-      // Salva o evento para podermos usá-lo depois
       setInstallPromptEvent(event as BeforeInstallPromptEvent);
-      
-      console.log("PWA: Evento 'beforeinstallprompt' capturado.");
     };
 
-    // Verifica se o app já está rodando no modo standalone (instalado)
+    // A verificação inicial se o app já está instalado continua aqui.
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsAppInstalled(true);
-      console.log("PWA: App já está instalado.");
     }
     
-    // Adiciona o listener
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    // Listener para saber quando o app foi instalado com sucesso
     window.addEventListener('appinstalled', () => {
-      console.log("PWA: App instalado com sucesso!");
       setIsAppInstalled(true);
-      setInstallPromptEvent(null); // Limpa o evento
+      setInstallPromptEvent(null);
     });
 
-    // Função de limpeza para remover os listeners quando o componente for desmontado
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', () => {});
@@ -68,29 +49,26 @@ export const usePWAInstall = () => {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!installPromptEvent) return; // Segurança, caso o evento não esteja pronto
-
-    // Mostra a caixa de diálogo de instalação nativa do navegador
-    await installPromptEvent.prompt(); 
-    
-    // Aguarda a escolha do usuário
-    const { outcome } = await installPromptEvent.userChoice;
-    
-    if (outcome === 'accepted') {
-      console.log("PWA: Usuário aceitou a instalação.");
-      setIsAppInstalled(true);
+    // Se o evento estiver disponível, use-o! É a melhor experiência.
+    if (installPromptEvent) {
+      await installPromptEvent.prompt(); 
+      const { outcome } = await installPromptEvent.userChoice;
+      if (outcome === 'accepted') setIsAppInstalled(true);
+      setInstallPromptEvent(null);
     } else {
-      console.log("PWA: Usuário recusou a instalação.");
+      // ▼▼▼ LÓGICA DE FALLBACK ▼▼▼
+      // Se o evento não estiver disponível (período de carência), mostre instruções.
+      alert(
+        'Para instalar o aplicativo, toque no menu do seu navegador (os três pontinhos) e procure pela opção "Instalar aplicativo" ou "Adicionar à tela inicial".'
+      );
     }
-
-    // Limpa o evento, pois ele só pode ser usado uma vez
-    setInstallPromptEvent(null);
   };
   
   // ▼▼▼ LÓGICA DE RETORNO ATUALIZADA ▼▼▼
   return {
-    // A condição 'canInstall' agora só é verdadeira se for um dispositivo móvel.
-    canInstall: isMobile && !isAppInstalled && installPromptEvent !== null,
+    // Retorna se o app pode ser instalado (sempre que for mobile e não estiver instalado).
+    // Não depende mais do evento `installPromptEvent` para ser verdadeiro.
+    canInstall: isMobile && !isAppInstalled,
     onInstall: handleInstallClick
   };
 };
