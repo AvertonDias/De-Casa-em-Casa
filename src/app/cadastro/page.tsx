@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-// ▼▼▼ MUDANÇA: APENAS AS IMPORTAÇÕES NECESSÁRIAS ▼▼▼
 import { createUserWithEmailAndPassword } from 'firebase/auth'; 
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -68,7 +67,8 @@ export default function SignUpPage() {
       }, 1500);
       
 
-    } catch (err: any) {
+    } catch (err: any)
+{
       console.error("Erro detalhado no cadastro:", err);
       if (err.message?.includes("Número da congregação")) { setError(err.message); }
       else if (err.code === 'auth/email-already-in-use') { setError("Este e-mail já está em uso."); }
