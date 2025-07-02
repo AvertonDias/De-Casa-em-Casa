@@ -1,12 +1,18 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { 
+  getAuth, 
+  browserLocalPersistence, // Importa o tipo de persistência desejado
+  initializeAuth // Nova função para inicialização com persistência
+} from "firebase/auth";
 import { 
   getFirestore, 
   initializeFirestore, 
   persistentLocalCache, 
   CACHE_SIZE_UNLIMITED,
-  Firestore // Importamos o tipo Firestore
+  Firestore
 } from "firebase/firestore";
+
+// As outras importações continuam as mesmas...
 import { getStorage } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
 import { getFunctions } from "firebase/functions";
@@ -22,34 +28,41 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Inicializações que funcionam em qualquer ambiente
-export const auth = getAuth(app);
-export const storage = getStorage(app);
-export const functions = getFunctions(app, 'us-central1');
-export const messaging = (typeof window !== 'undefined') ? getMessaging(app) : null;
+// --- INICIALIZAÇÃO SEGURA E CONDICIONAL DOS SERVIÇOS ---
 
-// ▼▼▼ MUDANÇA CRÍTICA: INICIALIZAÇÃO SEGURA DO FIRESTORE ▼▼▼
+let authInstance: any;
+let dbInstance: Firestore;
 
-// Declaramos a variável 'db' que vai guardar nossa instância do Firestore.
-let db: Firestore;
-
-// Verificamos se estamos no ambiente do NAVEGADOR.
+// Verificamos se estamos no NAVEGADOR antes de inicializar serviços de cliente
 if (typeof window !== 'undefined') {
+  
+  // ▼▼▼ CORREÇÃO PARA O LOGIN PERSISTENTE ▼▼▼
+  // Inicializa o Auth com a persistência de armazenamento local.
+  authInstance = initializeAuth(app, {
+    persistence: browserLocalPersistence
+  });
+  console.log("Autenticação configurada para persistência local.");
+
+  // ▼▼▼ CORREÇÃO PARA O MODO OFFLINE ▼▼▼
+  // Inicializa o Firestore com o cache offline.
   try {
-    // Se estamos no navegador, inicializamos o Firestore COM persistência.
-    db = initializeFirestore(app, {
-        localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
+    dbInstance = initializeFirestore(app, {
+      localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
     });
     console.log("Firestore inicializado com persistência offline.");
   } catch (e) {
-    console.error("Não foi possível inicializar o Firestore com persistência, usando o padrão.", e);
-    // Se a inicialização com cache falhar, usamos o getFirestore padrão.
-    db = getFirestore(app);
+    console.error("Persistência do Firestore falhou, usando o padrão.", e);
+    dbInstance = getFirestore(app);
   }
+
 } else {
-  // Se estamos no SERVIDOR, usamos o getFirestore padrão (que não tem persistência).
-  db = getFirestore(app);
+  // Se estamos no SERVIDOR, inicializamos as versões padrão sem persistência.
+  authInstance = getAuth(app);
+  dbInstance = getFirestore(app);
 }
 
-// Exportamos a instância 'db' que agora temos certeza que foi inicializada.
-export { db };
+export const auth = authInstance;
+export const db = dbInstance;
+export const storage = getStorage(app);
+export const functions = getFunctions(app, 'us-central1');
+export const messaging = (typeof window !== 'undefined') ? getMessaging(app) : null;
