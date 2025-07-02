@@ -85,16 +85,24 @@ export default function UniversalLoginPage() {
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
-        <div className="text-center text-gray-400 text-sm space-y-2">
+        <div className="text-center text-gray-400 text-sm space-y-3">
           <Link href="/recuperar-senha" className="block hover:text-purple-400">Esqueceu a senha?</Link>
-          <p>
-            É novo por aqui?{' '}
-            <Link href="/cadastro" className="font-semibold hover:text-purple-400">Solicite seu acesso</Link>
-          </p>
-          <p className="pt-2 border-t border-gray-700/50">
-            É o primeiro na sua congregação?{' '}
-            <Link href="/nova-congregacao" className="font-semibold hover:text-purple-400">Comece aqui</Link>
-          </p>
+
+          <div className="p-4 bg-purple-900/30 border border-purple-500/50 rounded-lg">
+            <p>
+              É novo por aqui?{' '}
+              <Link href="/cadastro" className="font-bold text-purple-300 hover:text-purple-200 underline">
+                Solicite seu acesso aqui
+              </Link>
+            </p>
+          </div>
+
+          <div className="pt-3 border-t border-gray-700/50">
+            <p>
+              É o primeiro na sua congregação?{' '}
+              <Link href="/nova-congregacao" className="font-semibold hover:text-purple-400">Comece aqui</Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>
