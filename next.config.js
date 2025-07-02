@@ -3,10 +3,9 @@ const withPWAInit = require("@ducanh2912/next-pwa");
 
 // Passo 1: Inicialize a função PWA com suas opções.
 const withPWA = withPWAInit.default({
-  dest: "public",
-  disable: process.env.NODE_ENV === "development",
-  register: true,
-  skipWaiting: true,
+  dest: 'public',
+  disable: process.env.NODE_ENV === 'development',
+  importScripts: ['/firebase-messaging-sw.js'],
 });
 
 const nextConfig = {

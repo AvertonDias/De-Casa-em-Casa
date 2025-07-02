@@ -6,8 +6,13 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "De Casa em Casa",
-  description: "Painel de Gerenciamento de Territórios",
+  description: "Painel de Controle de Territórios",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "De Casa",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode; }) {
