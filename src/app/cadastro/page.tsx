@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { User } from 'firebase/auth';
 import { linkWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
-import { auth, db, ensureAuthReady } from '@/lib/firebase';
+import { auth, db, getAuthSession } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
@@ -18,26 +18,26 @@ export default function SignUpPage() {
   const [congregationNumber, setCongregationNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [anonymousUser, setAnonymousUser] = useState<User | null>(null);
+  const [anonymousSession, setAnonymousSession] = useState<User | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
-    ensureAuthReady().then((user) => {
-      if(user){
-        setAnonymousUser(user);
-        console.log("Autenticação anônima pronta com UID:", user.uid);
-      } else {
-        setError("Não foi possível conectar. Verifique sua conexão e tente recarregar a página.");
-      }
-    });
+    getAuthSession()
+      .then((user) => {
+        setAnonymousSession(user);
+        console.log("Sessão anônima garantida. Formulário pronto.");
+      })
+      .catch((err) => {
+        setError(err.message);
+      });
   }, []);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!anonymousUser) {
+    if (!anonymousSession) {
         setError("Aguarde, a conexão ainda não está pronta.");
         return;
     }
@@ -68,9 +68,9 @@ export default function SignUpPage() {
       const congregationId = querySnapshot.docs[0].id;
       
       const credential = EmailAuthProvider.credential(email, password);
-      await linkWithCredential(anonymousUser, credential);
+      await linkWithCredential(anonymousSession, credential);
       
-      await setDoc(doc(db, "users", anonymousUser.uid), {
+      await setDoc(doc(db, "users", anonymousSession.uid), {
         name,
         email,
         congregationId,
@@ -129,8 +129,8 @@ export default function SignUpPage() {
             <input type="tel" inputMode="numeric" value={congregationNumber} onChange={e => setCongregationNumber(e.target.value.replace(/\D/g, ''))} placeholder="Número da Congregação" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <button type="submit" disabled={loading || !anonymousUser} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-wait">
-              {!anonymousUser ? 'Conectando...' : (loading ? 'Enviando...' : 'Solicitar Acesso')}
+            <button type="submit" disabled={loading || !anonymousSession} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-wait">
+              {!anonymousSession ? 'Conectando...' : (loading ? 'Enviando...' : 'Solicitar Acesso')}
             </button>
         </form>
          <div className="text-center text-sm">

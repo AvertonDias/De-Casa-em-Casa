@@ -4,7 +4,6 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   browserLocalPersistence,
   initializeAuth,
-  onAuthStateChanged,
   signInAnonymously,
   Auth,
   User
@@ -53,28 +52,22 @@ export const storage = getStorage(app);
 export const functions = getFunctions(app, 'us-central1');
 export const messaging = (typeof window !== 'undefined') ? getMessaging(app) : null;
 
-// ▼▼▼ A LÓGICA DO "GUARDIÃO" ▼▼▼
-let authReadyPromise: Promise<User | null> | null = null;
-
-export const ensureAuthReady = (): Promise<User | null> => {
-  if (!authReadyPromise) {
-    authReadyPromise = new Promise((resolve) => {
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        if (user) {
-          resolve(user); // Resolve com o objeto do usuário encontrado
-          unsubscribe();
-        } else {
-          signInAnonymously(auth).then((userCredential) => {
-            resolve(userCredential.user); // Resolve com o novo usuário anônimo
-            unsubscribe();
-          }).catch((err) => {
-            console.error("Falha no login anônimo:", err);
-            resolve(null); // Resolve com null em caso de falha
-            unsubscribe();
-          });
-        }
-      });
-    });
+// ▼▼▼ A FUNÇÃO "GUARDIÃO" ▼▼▼
+// Esta função garante que obteremos uma sessão de usuário (anônima ou não)
+// e só tenta o login anônimo se for estritamente necessário.
+export const getAuthSession = async (): Promise<User> => {
+  // 1. Verifica se já existe um usuário logado.
+  if (auth.currentUser) {
+    return auth.currentUser;
   }
-  return authReadyPromise;
+  
+  // 2. Se não houver, tenta logar anonimamente.
+  try {
+    const userCredential = await signInAnonymously(auth);
+    return userCredential.user;
+  } catch (error) {
+    console.error("Falha crítica no login anônimo:", error);
+    // Lança um erro para que a página de cadastro possa pegá-lo.
+    throw new Error("Não foi possível estabelecer uma sessão segura.");
+  }
 };
