@@ -31,11 +31,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     const requestPermission = async () => {
       // Garante que a permissão só seja pedida para usuários ativos no navegador
-      if (user && user.status === 'ativo' && messaging) {
+      if (user && user.status === 'ativo' && messaging && 'serviceWorker' in navigator) {
         try {
           const permission = await Notification.requestPermission();
           if (permission === 'granted') {
-            const token = await getToken(messaging, { vapidKey: 'BD_279ckw7U8KPc5KFJX-8V2UFyvJhnWVqa-XgvJnb91RHf0bjBn21hDHMOKxq1Hb2bEFnOdeclWRnKKsbFfhbk' });
+            // Aguarda o service worker estar pronto para evitar race conditions
+            const swRegistration = await navigator.serviceWorker.ready;
+            const token = await getToken(messaging, { 
+              vapidKey: 'BD_279ckw7U8KPc5KFJX-8V2UFyvJhnWVqa-XgvJnb91RHf0bjBn21hDHMOKxq1Hb2bEFnOdeclWRnKKsbFfhbk',
+              serviceWorkerRegistration: swRegistration
+            });
             if (token) {
               console.log('FCM Token:', token);
               const userRef = doc(db, 'users', user.uid);
