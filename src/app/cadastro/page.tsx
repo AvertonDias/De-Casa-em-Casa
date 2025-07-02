@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { signInAnonymously, linkWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore'; 
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -18,20 +20,27 @@ export default function SignUpPage() {
   const [isReady, setIsReady] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
+    const initializeSession = async () => {
+      if (auth.currentUser) {
         setIsReady(true);
-      } else {
-        signInAnonymously(auth).catch(err => {
-          console.error("Erro no login anônimo:", err);
-          setError("Falha na conexão. Verifique a internet e recarregue a página.");
-          setIsReady(false);
-        });
+        return;
       }
-    });
-    return () => unsubscribe();
+      try {
+        await signInAnonymously(auth);
+        setIsReady(true);
+        console.log("Sessão anônima criada com sucesso.");
+      } catch (err: any) {
+        console.error("Erro CRÍTICO no login anônimo:", err);
+        setError("Não foi possível conectar. Verifique sua conexão e tente recarregar.");
+      }
+    };
+    
+    initializeSession();
+
   }, []);
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -45,12 +54,17 @@ export default function SignUpPage() {
       setError("As senhas não coincidem.");
       return;
     }
+    
+    if (password.length < 6) {
+        setError("A senha deve ter pelo menos 6 caracteres.");
+        return;
+    }
 
     setLoading(true);
     setError(null);
-    const trimmedNumber = congregationNumber.trim();
-
+    
     try {
+      const trimmedNumber = congregationNumber.trim();
       const congregationsRef = collection(db, 'congregations');
       const q = query(congregationsRef, where("number", "==", trimmedNumber));
       const querySnapshot = await getDocs(q);
@@ -62,33 +76,47 @@ export default function SignUpPage() {
       const congregationId = querySnapshot.docs[0].id;
       
       const currentUser = auth.currentUser;
-      if (!currentUser) {
-        throw new Error("Sessão de usuário perdida. Por favor, recarregue a página.");
+      if (!currentUser || !currentUser.isAnonymous) {
+        // Tenta criar uma nova sessão anônima se a anterior foi perdida
+        await signInAnonymously(auth);
+        const newCurrentUser = auth.currentUser;
+        if (!newCurrentUser) {
+            throw new Error("Sessão de usuário inválida. Por favor, recarregue a página.");
+        }
+        const credential = EmailAuthProvider.credential(email, password);
+        const userCredential = await linkWithCredential(newCurrentUser, credential);
+        await setDoc(doc(db, "users", userCredential.user.uid), { name, email, congregationId, role: "Publicador", status: "pendente" });
+      } else {
+        const credential = EmailAuthProvider.credential(email, password);
+        const userCredential = await linkWithCredential(currentUser, credential);
+        await setDoc(doc(db, "users", userCredential.user.uid), { name, email, congregationId, role: "Publicador", status: "pendente" });
       }
-
-      const credential = EmailAuthProvider.credential(email, password);
-      const userCredential = await linkWithCredential(currentUser, credential);
-      const permanentUser = userCredential.user;
-
-      await setDoc(doc(db, "users", permanentUser.uid), {
-        name: name, email: email, congregationId: congregationId, role: "Publicador", status: "pendente"
-      });
       
-      // Force a full page reload to ensure the new auth state is correctly picked up.
-      window.location.href = '/dashboard';
+      await auth.signOut();
+      
+      toast({
+          title: "Solicitação Enviada!",
+          description: "Faça o login com suas novas credenciais para verificar o status.",
+          duration: 5000,
+      });
+
+      router.push('/');
 
     } catch (err: any) {
-      if (err.message?.includes("Número da congregação") || err.message?.includes("Sessão de usuário perdida")) {
+      if (err.message?.includes("Número da congregação") || err.message?.includes("Sessão de usuário")) {
         setError(err.message);
       } else if (err.code === 'auth/email-already-in-use') {
         setError("Este e-mail já está em uso por outra conta.");
       } else if (err.code === 'auth/credential-already-in-use') {
          setError("Erro: Esta conta já está vinculada. Tente fazer login.");
+      } else if (err.code === 'auth/weak-password') {
+         setError("A senha é muito fraca. Tente uma senha mais forte.");
       } else {
         console.error("Erro detalhado no cadastro:", err);
         setError("Ocorreu um erro ao criar a conta.");
       }
-      setLoading(false); // Stop loading on error
+    } finally {
+        setLoading(false);
     }
   };
   
@@ -101,7 +129,7 @@ export default function SignUpPage() {
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="E-mail" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             
             <div className="relative">
-              <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 pr-10" />
+              <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha (mín. 6 caracteres)" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 pr-10" />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400">
                 {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
               </button>
