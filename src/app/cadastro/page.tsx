@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider } from 'firebase/auth';
-import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore'; 
-import { auth, db } from '@/lib/firebase';
+import { useRouter } from 'next/navigation';
+import { linkWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
+import { auth, db, authReady } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -17,35 +17,26 @@ export default function SignUpPage() {
   const [congregationNumber, setCongregationNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
+  // O useEffect agora só espera pela nossa função centralizada
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setIsAuthReady(true);
-      } else {
-        signInAnonymously(auth)
-          .then(() => setIsAuthReady(true))
-          .catch((err) => {
-            console.error("Falha crítica no login anônimo:", err);
-            setError("Não foi possível conectar. Verifique sua conexão e recarregue a página.");
-          });
-      }
+    authReady.then(() => {
+      setIsReady(true);
+      console.log("Sessão de autenticação pronta.");
+    }).catch(err => {
+      console.error("Falha na preparação da autenticação:", err);
+      setError("Falha crítica na conexão. Por favor, recarregue a página.");
     });
-    return () => unsubscribe();
   }, []);
-
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAuthReady) {
-      setError("Aguarde a conexão ser estabelecida.");
-      return;
-    }
+    if (!isReady) return;
     
     if (password !== confirmPassword) {
       setError("As senhas não coincidem.");
@@ -74,7 +65,7 @@ export default function SignUpPage() {
       
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        throw new Error("Sessão expirou. Por favor, recarregue a página.");
+        throw new Error("Erro de sessão. Por favor, recarregue a página.");
       }
       
       const credential = EmailAuthProvider.credential(email, password);
@@ -92,7 +83,7 @@ export default function SignUpPage() {
       router.push('/');
 
     } catch (err: any) {
-      if (err.message?.includes("Número da congregação") || err.message?.includes("Sessão expirou")) {
+      if (err.message?.includes("Número da congregação") || err.message?.includes("Erro de sessão")) {
         setError(err.message);
       } else if (err.code === 'auth/email-already-in-use') {
         setError("Este e-mail já está em uso por outra conta.");
@@ -134,8 +125,8 @@ export default function SignUpPage() {
             <input type="tel" inputMode="numeric" value={congregationNumber} onChange={e => setCongregationNumber(e.target.value.replace(/\D/g, ''))} placeholder="Número da Congregação" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <button type="submit" disabled={loading || !isAuthReady} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-wait">
-              {!isAuthReady ? 'Conectando...' : (loading ? 'Enviando...' : 'Solicitar Acesso')}
+            <button type="submit" disabled={loading || !isReady} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-wait">
+              {!isReady ? 'Conectando...' : (loading ? 'Enviando...' : 'Solicitar Acesso')}
             </button>
         </form>
          <div className="text-center text-sm">

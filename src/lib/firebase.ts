@@ -1,13 +1,15 @@
+"use client";
+
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { 
-  getAuth, 
-  browserLocalPersistence, // Importa o tipo de persistência desejado
-  initializeAuth // Nova função para inicialização com persistência
+import {
+  browserLocalPersistence,
+  initializeAuth,
+  onAuthStateChanged,
+  signInAnonymously
 } from "firebase/auth";
-import { 
-  getFirestore, 
-  initializeFirestore, 
-  persistentLocalCache, 
+import {
+  initializeFirestore,
+  persistentLocalCache,
   CACHE_SIZE_UNLIMITED,
   Firestore
 } from "firebase/firestore";
@@ -28,41 +30,42 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// --- INICIALIZAÇÃO SEGURA E CONDICIONAL DOS SERVIÇOS ---
+// --- INICIALIZAÇÕES SEGURAS ---
+// Usamos a função 'initializeAuth' com persistência local.
+export const auth = initializeAuth(app, {
+  persistence: browserLocalPersistence
+});
 
-let authInstance: any;
 let dbInstance: Firestore;
-
-// Verificamos se estamos no NAVEGADOR antes de inicializar serviços de cliente
-if (typeof window !== 'undefined') {
-  
-  // ▼▼▼ CORREÇÃO PARA O LOGIN PERSISTENTE ▼▼▼
-  // Inicializa o Auth com a persistência de armazenamento local.
-  authInstance = initializeAuth(app, {
-    persistence: browserLocalPersistence
+try {
+  dbInstance = initializeFirestore(app, {
+    localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
   });
-  console.log("Autenticação configurada para persistência local.");
-
-  // ▼▼▼ CORREÇÃO PARA O MODO OFFLINE ▼▼▼
-  // Inicializa o Firestore com o cache offline.
-  try {
-    dbInstance = initializeFirestore(app, {
-      localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
-    });
-    console.log("Firestore inicializado com persistência offline.");
-  } catch (e) {
-    console.error("Persistência do Firestore falhou, usando o padrão.", e);
-    dbInstance = getFirestore(app);
-  }
-
-} else {
-  // Se estamos no SERVIDOR, inicializamos as versões padrão sem persistência.
-  authInstance = getAuth(app);
+} catch (e) {
+  console.error("Persistência do Firestore falhou, usando o padrão.", e);
   dbInstance = getFirestore(app);
 }
 
-export const auth = authInstance;
 export const db = dbInstance;
+
 export const storage = getStorage(app);
 export const functions = getFunctions(app, 'us-central1');
 export const messaging = (typeof window !== 'undefined') ? getMessaging(app) : null;
+
+// Função para garantir que a sessão anônima exista, chamada apenas uma vez.
+const ensureAnonymousAuth = () => {
+  return new Promise((resolve, reject) => {
+    // onAuthStateChanged returns an unsubscribe function
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      unsubscribe(); // Unsubscribe immediately after the first check to prevent memory leaks
+      if (user) {
+        resolve(user);
+      } else {
+        signInAnonymously(auth).then(resolve).catch(reject);
+      }
+    }, reject); // Handle potential errors during initialization
+  });
+};
+
+// Exportamos a promessa para usar em outros lugares.
+export const authReady = ensureAnonymousAuth();
