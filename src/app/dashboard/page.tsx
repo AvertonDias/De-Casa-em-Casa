@@ -87,20 +87,31 @@ export default function DashboardPage() {
         {loading ? ( <div className="text-center p-4"><Loader className="animate-spin mx-auto text-purple-500"/></div> ) 
          : recentTerritories.length > 0 ? (
           <ul className="space-y-4">
-            {recentTerritories.map((territory) => (
-              <li key={territory.id} className="flex items-center justify-between p-3 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                <div>
-                  <h3 className="font-semibold text-gray-800 dark:text-white">{territory.number} - {territory.name}</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Última atualização: {territory.lastUpdate ? new Date(territory.lastUpdate.seconds * 1000).toLocaleDateString() : 'N/A'}
-                  </p>
-                </div>
-                <div className="text-right">
-                    <p className="font-semibold text-gray-800 dark:text-white">{Math.round((territory.progress || 0) * 100)}% completo</p>
-                    <button onClick={() => router.push(`/dashboard/territorios/${territory.id}`)} className="text-sm font-semibold text-purple-600 dark:text-purple-400 hover:underline">Ver Território</button>
-                </div>
-              </li>
-            ))}
+            {recentTerritories.map((territory) => {
+              const progress = Math.round((territory.progress || 0) * 100);
+              return (
+                <li 
+                  key={territory.id} 
+                  className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/40 hover:bg-gray-100 dark:hover:bg-gray-900/80 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
+                  onClick={() => router.push(`/dashboard/territorios/${territory.id}`)}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="font-semibold text-gray-800 dark:text-white">{territory.number} - {territory.name}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Última atualização: {territory.lastUpdate ? new Date(territory.lastUpdate.seconds * 1000).toLocaleDateString() : 'N/A'}
+                      </p>
+                    </div>
+                    <p className="font-bold text-lg text-blue-600 dark:text-blue-400">{progress}%</p>
+                  </div>
+                  <div className="mt-3">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${progress}%` }}></div>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="text-gray-500 dark:text-gray-400 text-center py-4">Nenhum território foi trabalhado ainda.</p>
