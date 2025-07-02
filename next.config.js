@@ -1,13 +1,17 @@
 /** @type {import('next').NextConfig} */
-const withPWA = require("@ducanh2912/next-pwa").default;
+const withPWAInit = require("@ducanh2912/next-pwa");
 
-const nextConfig = {
-  // Suas configurações do Next.js podem ser adicionadas aqui.
-};
-
-module.exports = withPWA({
+// Passo 1: Inicialize a função PWA com suas opções.
+const withPWA = withPWAInit.default({
   dest: "public",
+  disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
-  disable: process.env.NODE_ENV === "development",
-})(nextConfig);
+});
+
+const nextConfig = {
+  // Configurações do Next.js entram aqui, se necessário.
+};
+
+// Passo 2: Exporte o resultado da função PWA envolvendo sua nextConfig.
+module.exports = withPWA(nextConfig);
