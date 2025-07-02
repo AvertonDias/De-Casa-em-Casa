@@ -97,10 +97,10 @@ export default function UniversalLoginPage() {
             </p>
           </div>
 
-          <div className="pt-3 border-t border-gray-700/50">
+          <div className="p-4 bg-purple-900/30 border border-purple-500/50 rounded-lg">
             <p>
               É o primeiro na sua congregação?{' '}
-              <Link href="/nova-congregacao" className="font-semibold hover:text-purple-400">Comece aqui</Link>
+              <Link href="/nova-congregacao" className="font-bold text-purple-300 hover:text-purple-200 underline">Comece aqui</Link>
             </p>
           </div>
         </div>
