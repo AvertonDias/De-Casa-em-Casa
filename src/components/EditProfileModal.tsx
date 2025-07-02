@@ -216,7 +216,7 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
                   onConfirm={confirmSelfDelete}
                   title="Excluir Minha Conta"
                   message="Esta é uma ação definitiva e irreversível. Todos os seus dados serão permanentemente apagados. Você tem certeza absoluta que deseja continuar?"
-                  confirmButtonText="Sim, excluir minha conta"
+                  confirmText="Sim, excluir minha conta"
               />
 
               </Dialog.Panel>
