@@ -1,3 +1,4 @@
+
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
 import Image from 'next/image';
@@ -115,15 +116,24 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}>
         
-        <div className="flex items-center justify-between mb-8 pl-2">
-            <div className="flex items-center gap-3">
-                 <Image src="/icon-192x192.png" alt="Logo" width={32} height={32} className="rounded-md" />
-                 <h1 className="text-xl font-bold">De Casa em Casa</h1>
+        <div className="flex flex-col items-center mb-8 gap-4">
+            <div className="w-full flex justify-center items-center">
+                <div className="flex-1"></div> {/* Spacer Left */}
+                <Image
+                    src="/icon-192x192.png"
+                    alt="Logo"
+                    width={80}
+                    height={80}
+                    className="rounded-lg"
+                />
+                <div className="flex-1 flex justify-end">
+                    <div className="hidden md:block">
+                        <ThemeSwitcher />
+                    </div>
+                    <button onClick={onClose} className="md:hidden p-1 rounded-full"><X size={24} /></button>
+                </div>
             </div>
-            <div className="hidden md:block">
-              <ThemeSwitcher />
-            </div>
-            <button onClick={onClose} className="md:hidden p-1 rounded-full"><X size={24} /></button>
+            <h1 className="text-xl font-bold">De Casa em Casa</h1>
         </div>
 
         <nav className="flex-1">
