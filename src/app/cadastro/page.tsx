@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import type { User } from 'firebase/auth';
 import { linkWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
 import { auth, db, getAuthSession } from '@/lib/firebase';
-import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -21,8 +19,6 @@ export default function SignUpPage() {
   const [anonymousSession, setAnonymousSession] = useState<User | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const router = useRouter();
-  const { toast } = useToast();
 
   useEffect(() => {
     getAuthSession()
@@ -78,15 +74,9 @@ export default function SignUpPage() {
         status: "pendente"
       });
       
-      await auth.signOut();
-      
-      toast({
-          title: "Solicitação Enviada!",
-          description: "Faça o login com suas novas credenciais para verificar o status.",
-          duration: 5000,
-      });
-
-      router.push('/');
+      // Use window.location.href to force a full page reload.
+      // This ensures the UserContext is re-initialized from scratch on the new route.
+      window.location.href = '/dashboard';
 
     } catch (err: any) {
       if (err.message?.includes("Número da congregação")) {
@@ -99,8 +89,8 @@ export default function SignUpPage() {
         console.error("Erro detalhado no cadastro:", err);
         setError("Ocorreu um erro ao criar a conta.");
       }
-    } finally {
-        setLoading(false);
+      // Only set loading false on error, as success causes a page reload.
+      setLoading(false);
     }
   };
   
