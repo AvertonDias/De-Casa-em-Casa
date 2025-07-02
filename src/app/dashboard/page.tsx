@@ -1,11 +1,10 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot, collection, query, where, orderBy, limit } from 'firebase/firestore';
-import { Map, CheckSquare, Loader, LandPlot, Home } from 'lucide-react';
+import { Map, CheckSquare, Loader, LandPlot, HousePlus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { StatCard } from '@/components/StatCard';
 
@@ -79,7 +78,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard icon={Map} title="Territórios" value={stats.territoryCount || 0} loading={loading} />
         <StatCard icon={LandPlot} title="Quadras Registradas" value={stats.totalQuadras || 0} loading={loading} />
-        <StatCard icon={Home} title="Casas Mapeadas" value={stats.totalHouses || 0} loading={loading} />
+        <StatCard icon={HousePlus} title="Casas Mapeadas" value={stats.totalHouses || 0} loading={loading} />
         <StatCard icon={CheckSquare} title="Casas Visitadas" value={stats.totalHousesDone || 0} loading={loading} />
       </div>
 
