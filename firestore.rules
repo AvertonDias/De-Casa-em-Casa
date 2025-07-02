@@ -2,23 +2,91 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // --- Funções Auxiliares ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
     
-    // --- REGRA DE DEBUG ---
-    // Permite que qualquer usuário autenticado leia qualquer documento na coleção 'users'.
-    // Removemos toda a lógica de papéis e status TEMPORARIAMENTE.
-    match /users/{userId} {
-      allow read: if request.auth != null; 
-      // Manter as outras regras como estão por enquanto.
-      allow create: if true; // Mantendo o cadastro aberto
-      allow update, delete: if request.auth.uid == userId; // Só pode editar a si mesmo
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
     }
 
-    // Deixe as outras regras (congregations, territories, etc.) como estavam, 
-    // ou comente-as se quiser isolar ainda mais.
-    // Por agora, apenas alterar a regra de leitura de 'users' deve ser suficiente.
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
 
-    match /congregations/{congregationId}/{document=**} {
-        allow read, write: if request.auth != null;
+    function isMemberActive(congregationId) {
+      if (!isSignedIn()) { return false; }
+      let userData = getUserData(request.auth.uid);
+      return userData.congregationId == congregationId && userData.status == 'ativo';
+    }
+
+    function isAdmin(congregationId) {
+      if (!isMemberActive(congregationId)) { return false; }
+      let userData = getUserData(request.auth.uid);
+      return userData.role == 'Administrador';
+    }
+
+    function isAtLeastDirigente(congregationId) {
+      if (!isMemberActive(congregationId)) { return false; }
+      let userData = getUserData(request.auth.uid);
+      return userData.role == 'Administrador' || userData.role == 'Dirigente';
+    }
+
+    // --- Regras das Coleções ---
+    match /congregations/{congregationId} {
+      // Permite que qualquer um (mesmo não autenticado) liste/consulte as congregações.
+      // É seguro, pois só é usado para validar o número da congregação.
+      allow list: if true;
+      
+      // Permite a criação de congregação apenas para usuários autenticados.
+      allow create: if isSignedIn();
+      
+      // Apenas membros ativos podem obter os detalhes completos da congregação.
+      allow get: if isMemberActive(congregationId);
+      
+      // Apenas administradores podem atualizar a congregação.
+      allow update: if isAdmin(congregationId);
+      
+      // Não permite deletar congregações.
+      allow delete: if false;
+    }
+
+    match /users/{userId} {
+      // Permite que um usuário crie seu próprio documento ao se registrar.
+      allow create: if isOwner(userId);
+      
+      // Um usuário pode ler seus próprios dados. Dirigentes/Admins podem ler dados de usuários em sua congregação.
+      allow get: if isOwner(userId) || isAtLeastDirigente(resource.data.congregationId);
+      
+      // Um usuário pode atualizar seus próprios dados. Admins podem atualizar dados de outros na mesma congregação.
+      allow update: if isOwner(userId) || isAdmin(resource.data.congregationId);
+      
+      // Apenas membros ativos podem listar os usuários da sua congregação.
+      allow list: if isMemberActive(resource.data.congregationId);
+      
+      // A exclusão é gerenciada por uma Cloud Function para mais segurança.
+      allow delete: if false;
+    }
+
+    // --- Subcoleções de Territórios ---
+    match /congregations/{congregationId}/territories/{territoryId} {
+      allow read, list: if isMemberActive(congregationId);
+      allow create, update: if isAtLeastDirigente(congregationId);
+      allow delete: if isAdmin(congregationId);
+
+      match /quadras/{quadraId} {
+        allow read, list: if isMemberActive(congregationId);
+        allow create, update: if isAtLeastDirigente(congregationId);
+        allow delete: if isAdmin(congregationId);
+
+        match /casas/{casaId} {
+          allow read, list: if isMemberActive(congregationId);
+          allow create, update: if isMemberActive(congregationId);
+          allow delete: if isAtLeastDirigente(congregationId);
+        }
+      }
     }
   }
 }
