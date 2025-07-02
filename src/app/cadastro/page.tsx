@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { signInAnonymously, linkWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { signInAnonymously, onAuthStateChanged, linkWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore'; 
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
@@ -17,41 +17,32 @@ export default function SignUpPage() {
   const [congregationNumber, setCongregationNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isReady, setIsReady] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Usamos um temporizador para dar ao onAuthStateChanged principal (do UserContext)
-    // a chance de rodar primeiro.
-    const timer = setTimeout(() => {
-      // Após 200ms, verificamos se o Firebase já tem um usuário.
-      if (auth.currentUser) {
-        // Se já tiver, estamos prontos.
-        setIsReady(true);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setIsAuthReady(true);
       } else {
-        // Se ainda não tiver, AGORA sim tentamos logar anonimamente.
         signInAnonymously(auth)
-          .then(() => {
-            setIsReady(true);
-            console.log("Sessão anônima criada com sucesso.");
-          })
+          .then(() => setIsAuthReady(true))
           .catch((err) => {
-            console.error("Erro CRÍTICO no login anônimo:", err);
+            console.error("Falha crítica no login anônimo:", err);
             setError("Não foi possível conectar. Verifique sua conexão e recarregue a página.");
           });
       }
-    }, 200); // 200ms é um bom valor de espera.
-
-    return () => clearTimeout(timer); // Limpa o temporizador se o componente for desmontado
-  }, []); // O array vazio garante que isso só rode uma vez.
+    });
+    return () => unsubscribe();
+  }, []);
 
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isReady) {
+    if (!isAuthReady) {
       setError("Aguarde a conexão ser estabelecida.");
       return;
     }
@@ -82,21 +73,13 @@ export default function SignUpPage() {
       const congregationId = querySnapshot.docs[0].id;
       
       const currentUser = auth.currentUser;
-      if (!currentUser || !currentUser.isAnonymous) {
-        // Tenta criar uma nova sessão anônima se a anterior foi perdida
-        await signInAnonymously(auth);
-        const newCurrentUser = auth.currentUser;
-        if (!newCurrentUser) {
-            throw new Error("Sessão de usuário inválida. Por favor, recarregue a página.");
-        }
-        const credential = EmailAuthProvider.credential(email, password);
-        const userCredential = await linkWithCredential(newCurrentUser, credential);
-        await setDoc(doc(db, "users", userCredential.user.uid), { name, email, congregationId, role: "Publicador", status: "pendente" });
-      } else {
-        const credential = EmailAuthProvider.credential(email, password);
-        const userCredential = await linkWithCredential(currentUser, credential);
-        await setDoc(doc(db, "users", userCredential.user.uid), { name, email, congregationId, role: "Publicador", status: "pendente" });
+      if (!currentUser) {
+        throw new Error("Sessão expirou. Por favor, recarregue a página.");
       }
+      
+      const credential = EmailAuthProvider.credential(email, password);
+      await linkWithCredential(currentUser, credential);
+      await setDoc(doc(db, "users", currentUser.uid), { name, email, congregationId, role: "Publicador", status: "pendente" });
       
       await auth.signOut();
       
@@ -109,7 +92,7 @@ export default function SignUpPage() {
       router.push('/');
 
     } catch (err: any) {
-      if (err.message?.includes("Número da congregação") || err.message?.includes("Sessão de usuário")) {
+      if (err.message?.includes("Número da congregação") || err.message?.includes("Sessão expirou")) {
         setError(err.message);
       } else if (err.code === 'auth/email-already-in-use') {
         setError("Este e-mail já está em uso por outra conta.");
@@ -151,8 +134,8 @@ export default function SignUpPage() {
             <input type="tel" inputMode="numeric" value={congregationNumber} onChange={e => setCongregationNumber(e.target.value.replace(/\D/g, ''))} placeholder="Número da Congregação" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <button type="submit" disabled={loading || !isReady} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-wait">
-              {loading ? 'Enviando...' : 'Solicitar Acesso'}
+            <button type="submit" disabled={loading || !isAuthReady} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-wait">
+              {!isAuthReady ? 'Conectando...' : (loading ? 'Enviando...' : 'Solicitar Acesso')}
             </button>
         </form>
          <div className="text-center text-sm">
