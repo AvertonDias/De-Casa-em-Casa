@@ -54,27 +54,35 @@ export const functions = getFunctions(app, 'us-central1');
 export const messaging = (typeof window !== 'undefined') ? getMessaging(app) : null;
 
 
-// ▼▼▼ O PADRÃO SINGLETON DEFINITIVO ▼▼▼
+// ▼▼▼ O SINGLETON GLOBAL (À PROVA DE HOT RELOAD) ▼▼▼
 
-let authReadyPromise: Promise<User> | null = null;
+// Estendemos a interface global Window para que o TypeScript nos permita adicionar nossa promessa.
+declare global {
+  interface Window {
+    _authReadyPromise: Promise<User> | null;
+  }
+}
 
-// Esta é a nossa função "guardiã" pública.
+// Esta é a nossa função "guardiã" final.
 export const ensureAuthIsReady = (): Promise<User> => {
-  // Se a promessa ainda não foi criada, crie-a.
-  if (!authReadyPromise) {
-    authReadyPromise = new Promise((resolve, reject) => {
-      // Usamos onAuthStateChanged para saber quando a autenticação está pronta.
+  // Verificamos se estamos no navegador.
+  if (typeof window === 'undefined') {
+    return Promise.reject(new Error("A autenticação só pode ser garantida no navegador."));
+  }
+
+  // Se a promessa global ainda não foi criada, crie-a UMA ÚNICA VEZ.
+  if (!window._authReadyPromise) {
+    window._authReadyPromise = new Promise((resolve, reject) => {
       const unsubscribe = onAuthStateChanged(auth,
         (user) => {
           if (user) {
-            // Se encontrarmos um usuário (seja ele persistente ou recém-criado anonimamente),
-            // a promessa é resolvida com sucesso e o listener é removido.
+            // Se um usuário for encontrado, resolve a promessa e para de ouvir.
             unsubscribe();
             resolve(user);
           }
         },
         (error) => {
-          // Se houver um erro no listener, rejeitamos a promessa.
+          // Se houver um erro no listener, rejeita a promessa.
           unsubscribe();
           reject(error);
         }
@@ -82,17 +90,18 @@ export const ensureAuthIsReady = (): Promise<User> => {
     });
   }
 
-  // Retorna a promessa existente (ou a recém-criada).
-  return authReadyPromise;
+  // Sempre retorna a promessa global existente.
+  return window._authReadyPromise;
 };
 
-// Esta chamada inicializa o processo de login anônimo SE necessário.
-// Nós a chamamos uma vez, aqui no módulo, para "acordar" o sistema.
-// E imediatamente iniciamos o processo de verificação da autenticação
+// Esta chamada inicial "acorda" o listener do Firebase e inicia o processo
+// de login anônimo SE e SOMENTE SE for necessário.
 onAuthStateChanged(auth, (user) => {
   if (!user) {
     signInAnonymously(auth).catch((error) => {
-      console.error("Falha no login anônimo inicial: ", error);
+      if (error.code !== 'auth/too-many-requests') {
+         console.error("Falha no login anônimo inicial: ", error);
+      }
     });
   }
 });
