@@ -1,12 +1,11 @@
 {
-  "theme_color": "#8E44AD",
-  "background_color": "#1e1b29",
-  "display": "standalone",
-  "scope": "/",
-  "start_url": "/dashboard",
   "name": "De Casa em Casa",
   "short_name": "De Casa",
-  "description": "Painel de Gerenciamento de Territórios",
+  "description": "Painel de Controle de Territórios",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e1b29",
+  "theme_color": "#2a2736",
   "icons": [
     {
       "src": "/icon-192x192.png",
