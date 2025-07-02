@@ -728,3 +728,9 @@ INFO: Detected non-HTTP/2 connection.
 [debug] [2025-07-02T22:21:56.901Z] Jul 02, 2025 10:21:56 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected HTTP/2 connection.
  {"metadata":{"emulator":{"name":"firestore"},"message":"Jul 02, 2025 10:21:56 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead\nINFO: Detected HTTP/2 connection.\n"}}
+[debug] [2025-07-02T22:22:02.267Z] <<< [apiv2][status] PUT http://127.0.0.1:8080/emulator/v1/projects/demo-app:securityRules 200
+[debug] [2025-07-02T22:22:02.275Z] <<< [apiv2][body] PUT http://127.0.0.1:8080/emulator/v1/projects/demo-app:securityRules {"issues":[{"sourcePosition":{"fileName":"security.rules","line":20,"column":7,"currentOffset":461,"endOffset":462},"description":"Unexpected 'if'.","severity":"ERROR"},{"sourcePosition":{"fileName":"security.rules","line":21,"column":7,"currentOffset":504,"endOffset":506},"description":"Unexpected 'let'.","severity":"ERROR"},{"sourcePosition":{"fileName":"security.rules","line":26,"column":7,"currentOffset":688,"endOffset":689},"description":"Unexpected 'if'.","severity":"ERROR"}]}
+[warn] ⚠  firestore.rules:20:7 - ERROR Unexpected 'if'. 
+[warn] ⚠  firestore.rules:21:7 - ERROR Unexpected 'let'. 
+[warn] ⚠  firestore.rules:26:7 - ERROR Unexpected 'if'. 
+[info] ✔  firestore: Rules updated. 

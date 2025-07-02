@@ -92,7 +92,7 @@ export default function DashboardPage() {
               return (
                 <li 
                   key={territory.id} 
-                  className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/40 hover:bg-gray-100 dark:hover:bg-gray-900/80 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
+                  className="group p-4 rounded-lg bg-gray-50 dark:bg-gray-900/40 hover:bg-gray-100 dark:hover:bg-gray-900/80 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
                   onClick={() => router.push(`/dashboard/territorios/${territory.id}`)}
                 >
                   <div className="flex justify-between items-center">
@@ -108,6 +108,9 @@ export default function DashboardPage() {
                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${progress}%` }}></div>
                     </div>
+                  </div>
+                  <div className="text-right mt-2 text-sm font-semibold text-purple-600 dark:text-purple-400 group-hover:underline">
+                    Ver Território →
                   </div>
                 </li>
               );
