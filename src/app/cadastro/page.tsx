@@ -24,24 +24,30 @@ export default function SignUpPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const initializeSession = async () => {
+    // Usamos um temporizador para dar ao onAuthStateChanged principal (do UserContext)
+    // a chance de rodar primeiro.
+    const timer = setTimeout(() => {
+      // Após 200ms, verificamos se o Firebase já tem um usuário.
       if (auth.currentUser) {
+        // Se já tiver, estamos prontos.
         setIsReady(true);
-        return;
+      } else {
+        // Se ainda não tiver, AGORA sim tentamos logar anonimamente.
+        signInAnonymously(auth)
+          .then(() => {
+            setIsReady(true);
+            console.log("Sessão anônima criada com sucesso.");
+          })
+          .catch((err) => {
+            console.error("Erro CRÍTICO no login anônimo:", err);
+            setError("Não foi possível conectar. Verifique sua conexão e recarregue a página.");
+          });
       }
-      try {
-        await signInAnonymously(auth);
-        setIsReady(true);
-        console.log("Sessão anônima criada com sucesso.");
-      } catch (err: any) {
-        console.error("Erro CRÍTICO no login anônimo:", err);
-        setError("Não foi possível conectar. Verifique sua conexão e tente recarregar.");
-      }
-    };
-    
-    initializeSession();
+    }, 200); // 200ms é um bom valor de espera.
 
-  }, []);
+    return () => clearTimeout(timer); // Limpa o temporizador se o componente for desmontado
+  }, []); // O array vazio garante que isso só rode uma vez.
+
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
