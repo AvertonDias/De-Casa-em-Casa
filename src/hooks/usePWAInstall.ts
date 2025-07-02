@@ -2,29 +2,38 @@
 
 import { useState, useEffect } from 'react';
 
+// A interface do evento não muda.
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
-  readonly userChoice: Promise<{
-    outcome: 'accepted' | 'dismissed';
-    platform: string;
-  }>;
+  readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string; }>;
   prompt(): Promise<void>;
 }
 
-const isMobileDevice = () => {
-    if (typeof navigator !== 'undefined') {
-        return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+// ▼▼▼ FUNÇÕES HELPER ATUALIZADAS ▼▼▼
+const detectUserAgent = () => {
+    if (typeof navigator === 'undefined') {
+        return { isMobile: false, isIOS: false };
     }
-    return false;
+    const userAgent = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+    const isAndroid = /Android/.test(userAgent);
+    
+    return {
+        isMobile: isIOS || isAndroid,
+        isIOS: isIOS,
+    };
 };
+
 
 export const usePWAInstall = () => {
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [isAppInstalled, setIsAppInstalled] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  // ▼▼▼ MUDANÇA: AGORA GUARDAMOS O TIPO DE DISPOSITIVO ▼▼▼
+  const [deviceInfo, setDeviceInfo] = useState({ isMobile: false, isIOS: false });
 
   useEffect(() => {
-    setIsMobile(isMobileDevice());
+    // Detecta o tipo de dispositivo na montagem
+    setDeviceInfo(detectUserAgent());
 
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault(); 
@@ -48,18 +57,22 @@ export const usePWAInstall = () => {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!installPromptEvent) {
-      return;
+    if (installPromptEvent) {
+      await installPromptEvent.prompt();
+      const { outcome } = await installPromptEvent.userChoice;
+      if (outcome === 'accepted') setIsAppInstalled(true);
+      setInstallPromptEvent(null);
     }
-    await installPromptEvent.prompt();
-    const { outcome } = await installPromptEvent.userChoice;
-    if (outcome === 'accepted') setIsAppInstalled(true);
-    setInstallPromptEvent(null);
   };
   
+  // ▼▼▼ LÓGICA DE RETORNO ATUALIZADA E MAIS RICA ▼▼▼
   return {
-    showInstallButton: isMobile && !isAppInstalled, 
+    // Mostra o botão se for um dispositivo móvel e o app não estiver instalado.
+    showInstallButton: deviceInfo.isMobile && !isAppInstalled, 
+    // Informa se podemos usar o prompt automático (só funciona no Android/Desktop).
     canPrompt: installPromptEvent !== null,
+    // Informa se o dispositivo é iOS, para que a UI possa mostrar a mensagem correta.
+    isIOS: deviceInfo.isIOS,
     onInstall: handleInstallClick
   };
 };
