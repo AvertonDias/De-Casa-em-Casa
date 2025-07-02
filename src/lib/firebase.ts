@@ -6,7 +6,8 @@ import {
   initializeAuth,
   onAuthStateChanged,
   signInAnonymously,
-  Auth
+  Auth,
+  User
 } from "firebase/auth";
 import {
   initializeFirestore,
@@ -53,27 +54,25 @@ export const functions = getFunctions(app, 'us-central1');
 export const messaging = (typeof window !== 'undefined') ? getMessaging(app) : null;
 
 // ▼▼▼ A LÓGICA DO "GUARDIÃO" ▼▼▼
-let authReadyPromise: Promise<void> | null = null;
+let authReadyPromise: Promise<User | null> | null = null;
 
-export const ensureAuthReady = () => {
+export const ensureAuthReady = (): Promise<User | null> => {
   if (!authReadyPromise) {
-    authReadyPromise = new Promise((resolve, reject) => {
+    authReadyPromise = new Promise((resolve) => {
       const unsubscribe = onAuthStateChanged(auth, (user) => {
-        unsubscribe(); // Garante que será executado apenas uma vez.
         if (user) {
-          resolve(); // Já existe um usuário, estamos prontos.
+          resolve(user); // Resolve com o objeto do usuário encontrado
+          unsubscribe();
         } else {
-          // Só tenta o login anônimo se NÃO houver nenhum usuário.
-          signInAnonymously(auth)
-            .then(() => resolve())
-            .catch((err) => {
-              console.error("Falha no login anônimo:", err);
-              reject(err);
-            });
+          signInAnonymously(auth).then((userCredential) => {
+            resolve(userCredential.user); // Resolve com o novo usuário anônimo
+            unsubscribe();
+          }).catch((err) => {
+            console.error("Falha no login anônimo:", err);
+            resolve(null); // Resolve com null em caso de falha
+            unsubscribe();
+          });
         }
-      }, (err) => {
-        console.error("Falha no onAuthStateChanged:", err);
-        reject(err);
       });
     });
   }
