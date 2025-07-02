@@ -1,6 +1,6 @@
 {
   "name": "De Casa em Casa",
-  "short_name": "De Casa",
+  "short_name": "Casa em Casa", 
   "description": "Painel de Controle de Territórios",
   "start_url": "/",
   "display": "standalone",
