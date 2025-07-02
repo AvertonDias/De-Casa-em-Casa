@@ -20,25 +20,22 @@ import { FeedbackModal } from "@/components/FeedbackModal";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
 
+
+// Componente para trocar o tema (agora mais robusto)
 function ThemeSwitcher() {
-  const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => setMounted(true), []);
-  
-  if (!mounted) {
-    return <div className="w-8 h-8" />;
-  }
-
-  const isDark = theme === 'dark' || (theme === 'system' && typeof window !== "undefined" && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  if (!mounted) return <div className="w-8 h-8" />;
 
   return (
     <button
-      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
       aria-label="Trocar tema"
-      className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+      className="p-2 rounded-full transition-colors text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
     >
-      {isDark ? <Sun size={20} /> : <Moon size={20} />}
+      {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
     </button>
   );
 }
@@ -99,11 +96,18 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
           "fixed top-0 left-0 h-full w-64 bg-gray-50 dark:bg-[#2A2736] text-gray-800 dark:text-gray-200 p-4 flex flex-col border-r border-gray-200 dark:border-gray-700/50 z-40 transition-transform transform md:relative md:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}>
-        <div className="flex flex-col items-center gap-2 mb-8">
-          <Image src="/icon-192x192.png" alt="Logo" width={48} height={48} className="rounded-lg"/>
-          <h1 className="text-xl font-bold text-gray-800 dark:text-white">De Casa em Casa</h1>
-          <button onClick={onClose} className="md:hidden p-2 absolute top-4 right-4 text-gray-400"><X size={24} /></button>
+        
+        <div className="flex items-center justify-between mb-8 pl-2">
+            <div className="flex items-center gap-3">
+                 <Image src="/icon-192x192.png" alt="Logo" width={32} height={32} className="rounded-md" />
+                 <h1 className="text-xl font-bold">De Casa em Casa</h1>
+            </div>
+            <div className="hidden md:block">
+              <ThemeSwitcher />
+            </div>
+            <button onClick={onClose} className="md:hidden p-1 rounded-full"><X size={24} /></button>
         </div>
+
         <nav className="flex-1">
           <ul className="space-y-1">
             {filteredNavLinks.map((link) => {
