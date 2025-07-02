@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { linkWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { auth, db, ensureAuthReady } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
@@ -17,13 +17,24 @@ export default function SignUpPage() {
   const [congregationNumber, setCongregationNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
+  useEffect(() => {
+    ensureAuthReady().then(() => {
+      setIsAuthReady(true);
+      console.log("Autenticação garantida. Formulário pronto.");
+    }).catch(() => {
+        setError("Não foi possível conectar. Verifique sua conexão e tente recarregar a página.")
+    });
+  }, []);
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAuthReady) return;
     
     if (password !== confirmPassword) {
       setError("As senhas não coincidem.");
@@ -39,6 +50,9 @@ export default function SignUpPage() {
     setError(null);
     
     try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("Erro de sessão. Por favor, recarregue a página.");
+
       const trimmedNumber = congregationNumber.trim();
       const congregationsRef = collection(db, 'congregations');
       const q = query(congregationsRef, where("number", "==", trimmedNumber));
@@ -50,10 +64,10 @@ export default function SignUpPage() {
       
       const congregationId = querySnapshot.docs[0].id;
       
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const newUser = userCredential.user;
+      const credential = EmailAuthProvider.credential(email, password);
+      await linkWithCredential(currentUser, credential);
       
-      await setDoc(doc(db, "users", newUser.uid), {
+      await setDoc(doc(db, "users", currentUser.uid), {
         name,
         email,
         congregationId,
@@ -112,8 +126,8 @@ export default function SignUpPage() {
             <input type="tel" inputMode="numeric" value={congregationNumber} onChange={e => setCongregationNumber(e.target.value.replace(/\D/g, ''))} placeholder="Número da Congregação" required className="w-full px-4 py-2 text-white bg-[#1e1b29] border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" />
             
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <button type="submit" disabled={loading} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-wait">
-              {loading ? 'Enviando...' : 'Solicitar Acesso'}
+            <button type="submit" disabled={loading || !isAuthReady} className="w-full px-4 py-2 font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-purple-900 disabled:cursor-wait">
+              {isAuthReady ? (loading ? 'Enviando...' : 'Solicitar Acesso') : 'Conectando...'}
             </button>
         </form>
          <div className="text-center text-sm">

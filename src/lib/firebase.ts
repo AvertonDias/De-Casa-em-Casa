@@ -5,16 +5,17 @@ import {
   browserLocalPersistence,
   initializeAuth,
   onAuthStateChanged,
-  signInAnonymously
+  signInAnonymously,
+  Auth
 } from "firebase/auth";
 import {
   initializeFirestore,
   persistentLocalCache,
   CACHE_SIZE_UNLIMITED,
-  Firestore
+  Firestore,
+  getFirestore
 } from "firebase/firestore";
 
-// As outras importações continuam as mesmas...
 import { getStorage } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
 import { getFunctions } from "firebase/functions";
@@ -30,9 +31,8 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// --- INICIALIZAÇÕES SEGURAS ---
-// Usamos a função 'initializeAuth' com persistência local.
-export const auth = initializeAuth(app, {
+// --- INICIALIZAÇÃO SEGURA E ROBUSTA ---
+export const auth: Auth = initializeAuth(app, {
   persistence: browserLocalPersistence
 });
 
@@ -52,20 +52,30 @@ export const storage = getStorage(app);
 export const functions = getFunctions(app, 'us-central1');
 export const messaging = (typeof window !== 'undefined') ? getMessaging(app) : null;
 
-// Função para garantir que a sessão anônima exista, chamada apenas uma vez.
-const ensureAnonymousAuth = () => {
-  return new Promise((resolve, reject) => {
-    // onAuthStateChanged returns an unsubscribe function
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      unsubscribe(); // Unsubscribe immediately after the first check to prevent memory leaks
-      if (user) {
-        resolve(user);
-      } else {
-        signInAnonymously(auth).then(resolve).catch(reject);
-      }
-    }, reject); // Handle potential errors during initialization
-  });
-};
+// ▼▼▼ A LÓGICA DO "GUARDIÃO" ▼▼▼
+let authReadyPromise: Promise<void> | null = null;
 
-// Exportamos a promessa para usar em outros lugares.
-export const authReady = ensureAnonymousAuth();
+export const ensureAuthReady = () => {
+  if (!authReadyPromise) {
+    authReadyPromise = new Promise((resolve, reject) => {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        unsubscribe(); // Garante que será executado apenas uma vez.
+        if (user) {
+          resolve(); // Já existe um usuário, estamos prontos.
+        } else {
+          // Só tenta o login anônimo se NÃO houver nenhum usuário.
+          signInAnonymously(auth)
+            .then(() => resolve())
+            .catch((err) => {
+              console.error("Falha no login anônimo:", err);
+              reject(err);
+            });
+        }
+      }, (err) => {
+        console.error("Falha no onAuthStateChanged:", err);
+        reject(err);
+      });
+    });
+  }
+  return authReadyPromise;
+};
