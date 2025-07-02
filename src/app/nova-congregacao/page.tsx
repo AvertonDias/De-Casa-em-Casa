@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { collection, addDoc, setDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
@@ -38,8 +38,6 @@ export default function NewCongregationPage() {
     }
 
     try {
-      await setPersistence(auth, browserLocalPersistence);
-
       // Passo 1: Criar a conta de autenticação do Administrador
       const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
       const adminUser = userCredential.user;
