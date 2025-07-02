@@ -5,7 +5,7 @@ const withPWAInit = require("@ducanh2912/next-pwa");
 const withPWA = withPWAInit.default({
   dest: 'public',
   disable: process.env.NODE_ENV === 'development',
-  importScripts: ['/firebase-messaging-sw.js'],
+  // A linha 'importScripts' foi REMOVIDA para este teste.
 });
 
 const nextConfig = {
