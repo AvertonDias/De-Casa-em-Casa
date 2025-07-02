@@ -9,30 +9,22 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
-// ▼▼▼ FUNÇÕES HELPER ATUALIZADAS ▼▼▼
+// A função de detecção do agente do usuário continua a mesma.
 const detectUserAgent = () => {
-    if (typeof navigator === 'undefined') {
-        return { isMobile: false, isIOS: false };
-    }
+    if (typeof navigator === 'undefined') return { isMobile: false, isIOS: false };
     const userAgent = navigator.userAgent;
     const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
     const isAndroid = /Android/.test(userAgent);
-    
-    return {
-        isMobile: isIOS || isAndroid,
-        isIOS: isIOS,
-    };
+    return { isMobile: isIOS || isAndroid, isIOS: isIOS };
 };
 
 
 export const usePWAInstall = () => {
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [isAppInstalled, setIsAppInstalled] = useState(false);
-  // ▼▼▼ MUDANÇA: AGORA GUARDAMOS O TIPO DE DISPOSITIVO ▼▼▼
   const [deviceInfo, setDeviceInfo] = useState({ isMobile: false, isIOS: false });
 
   useEffect(() => {
-    // Detecta o tipo de dispositivo na montagem
     setDeviceInfo(detectUserAgent());
 
     const handleBeforeInstallPrompt = (event: Event) => {
@@ -57,22 +49,23 @@ export const usePWAInstall = () => {
   }, []);
 
   const handleInstallClick = async () => {
-    if (installPromptEvent) {
-      await installPromptEvent.prompt();
-      const { outcome } = await installPromptEvent.userChoice;
-      if (outcome === 'accepted') setIsAppInstalled(true);
-      setInstallPromptEvent(null);
-    }
+    // Esta função só deve ser chamada se 'canPrompt' for verdadeiro.
+    if (!installPromptEvent) return;
+    
+    await installPromptEvent.prompt();
+    const { outcome } = await installPromptEvent.userChoice;
+    if (outcome === 'accepted') setIsAppInstalled(true);
+    setInstallPromptEvent(null);
   };
   
-  // ▼▼▼ LÓGICA DE RETORNO ATUALIZADA E MAIS RICA ▼▼▼
+  // ▼▼▼ LÓGICA DE RETORNO ATUALIZADA E UNIVERSAL ▼▼▼
   return {
-    // Mostra o botão se for um dispositivo móvel e o app não estiver instalado.
+    // 'showInstallButton' é verdadeiro para qualquer celular que não tenha o app instalado.
     showInstallButton: deviceInfo.isMobile && !isAppInstalled, 
-    // Informa se podemos usar o prompt automático (só funciona no Android/Desktop).
+    // 'canPrompt' nos diz se podemos usar o atalho de instalação nativo (só Chromium).
     canPrompt: installPromptEvent !== null,
-    // Informa se o dispositivo é iOS, para que a UI possa mostrar a mensagem correta.
-    isIOS: deviceInfo.isIOS,
+    // 'deviceInfo' nos dá o contexto sobre qual mensagem de instrução mostrar.
+    deviceInfo: deviceInfo,
     onInstall: handleInstallClick
   };
 };

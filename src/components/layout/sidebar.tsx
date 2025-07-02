@@ -83,12 +83,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user } = useUser();
   const router = useRouter();
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
-  const { showInstallButton, canPrompt, isIOS, onInstall } = usePWAInstall();
+  const { showInstallButton, canPrompt, deviceInfo, onInstall } = usePWAInstall();
   const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false);
 
-  const instructionsMessage = isIOS 
-    ? "Para instalar, toque no ícone de 'Compartilhar' (um quadrado com uma seta para cima) na barra de menu do Safari e, em seguida, procure pela opção 'Adicionar à Tela de Início'."
-    : "Para instalar, toque no menu do seu navegador (os três pontinhos) e procure pela opção 'Instalar aplicativo' ou 'Adicionar à tela de início'.";
+  const getInstructionsMessage = () => {
+      if (deviceInfo.isIOS) {
+          return "Para instalar, toque no ícone de 'Compartilhar' (um quadrado com uma seta para cima) na barra de menu do Safari e, em seguida, procure pela opção 'Adicionar à Tela de Início'.";
+      }
+      return "Para instalar o aplicativo, procure no menu do seu navegador (geralmente três pontinhos ou na barra de endereço) pela opção 'Instalar aplicativo' ou 'Adicionar à tela de início'.";
+  };
 
   useEffect(() => {
     if (user && ['Administrador', 'Dirigente'].includes(user.role) && user.congregationId) {
@@ -231,7 +234,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           onClose={() => setIsInstructionsModalOpen(false)}
           onConfirm={() => setIsInstructionsModalOpen(false)}
           title="Como Instalar o Aplicativo"
-          message={instructionsMessage}
+          message={getInstructionsMessage()}
           confirmText="Entendi"
           showCancelButton={false}
       />
