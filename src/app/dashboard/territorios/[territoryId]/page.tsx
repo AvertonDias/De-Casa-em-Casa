@@ -4,8 +4,8 @@
 import { useEffect, useState } from 'react';
 import { doc, collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Map, Image as ImageIcon, LayoutGrid, ArrowLeft, BarChart2 } from 'lucide-react';
-import { useRouter, useParams } from 'next/navigation';
+import { Map, Image as ImageIcon, LayoutGrid, ArrowLeft, BarChart2, Loader } from 'lucide-react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { AddQuadraModal } from '@/components/AddQuadraModal';
 import { EditQuadraModal } from '@/components/EditQuadraModal';
@@ -32,7 +32,7 @@ interface Territory {
   progress?: number;
 }
 
-// Funções de conversão (sem alteração)
+// Funções de conversão
 function getEmbedLink(url?: string): string | null {
   if (!url) return null;
   try {
@@ -58,34 +58,111 @@ function convertGoogleDriveLink(url: string): string | null {
   return null;
 }
 
-export default function TerritorioDetailPage() {
+// Componente de Progresso
+const TerritoryProgressBar = ({ territory }: { territory: Territory }) => {
+    const totalHouses = territory.totalHouses || 0;
+    const housesDone = territory.housesDone || 0;
+    const housesPending = totalHouses - housesDone;
+    const progress = territory.progress || 0;
+
+    return (
+        <div className="bg-white dark:bg-[#2f2b3a] p-4 rounded-lg shadow-lg">
+          <h2 className="text-lg font-bold text-gray-800 dark:text-white flex items-center mb-4">
+            <BarChart2 className="mr-3 text-purple-600 dark:text-purple-400" />
+            Progresso Geral do Território
+          </h2>
+          <div className="bg-gray-50 dark:bg-gray-700/30 p-4 rounded-md">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div><p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total de Casas</p><p className="text-2xl font-bold text-gray-800 dark:text-white">{totalHouses}</p></div>
+              <div><p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Casas Feitas</p><p className="text-2xl font-bold text-green-600 dark:text-green-400">{housesDone}</p></div>
+              <div><p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Casas Pendentes</p><p className="text-2xl font-bold text-yellow-500 dark:text-yellow-400">{housesPending}</p></div>
+              <div><p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Progresso</p><p className="text-2xl font-bold text-blue-500 dark:text-blue-400">{Math.round(progress * 100)}%</p></div>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5 mt-4">
+              <div className="bg-blue-600 dark:bg-blue-400 h-2.5 rounded-full" style={{ width: `${progress * 100}%` }}></div>
+            </div>
+          </div>
+        </div>
+    );
+};
+
+// Componente da Seção de Quadras
+const QuadrasSection = ({ quadras, territoryId }: { quadras: Quadra[], territoryId: string }) => {
+    const { user } = useUser();
+
+    return (
+        <div className="bg-white dark:bg-[#2f2b3a] rounded-lg shadow-lg p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold flex items-center text-gray-800 dark:text-white"><LayoutGrid className="h-6 w-6 mr-3 text-purple-600 dark:text-purple-400" />Quadras</h2>
+            {user?.role === 'Administrador' && user?.congregationId && <AddQuadraModal territoryId={territoryId} onQuadraAdded={() => {}} existingQuadrasCount={quadras.length} congregationId={user.congregationId} />}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {quadras.length > 0 ? quadras.map(quadra => {
+               const quadraTotal = quadra.totalHouses || 0;
+               const quadraDone = quadra.housesDone || 0;
+               const quadraPending = quadraTotal - quadraDone;
+               const quadraProgress = quadraTotal > 0 ? (quadraDone / quadraTotal) * 100 : 0;
+  
+               return (
+               <div key={quadra.id} className="bg-gray-50 dark:bg-[#2a2736] p-4 rounded-lg shadow flex flex-col justify-between hover:shadow-xl transition-shadow">
+                  <Link href={`/dashboard/territorios/${territoryId}/quadras/${quadra.id}`}>
+                    <div className="cursor-pointer">
+                      <h3 className="font-bold text-lg text-gray-800 dark:text-white">{quadra.name}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{quadra.description || 'Sem descrição'}</p>
+  
+                      {user && ['Administrador', 'Dirigente'].includes(user.role) && (
+                        <div className="bg-gray-100 dark:bg-gray-700/30 p-3 rounded-md mb-4">
+                          <div className="grid grid-cols-4 text-center text-xs">
+                            <div><span className="block text-gray-500 dark:text-gray-400">Total</span><span className="font-bold text-lg text-gray-800 dark:text-white">{quadraTotal}</span></div>
+                            <div><span className="block text-gray-500 dark:text-gray-400">Feitos</span><span className="font-bold text-lg text-green-600 dark:text-green-400">{quadraDone}</span></div>
+                            <div><span className="block text-gray-500 dark:text-gray-400">Pendentes</span><span className="font-bold text-lg text-yellow-500 dark:text-yellow-400">{quadraPending}</span></div>
+                            <div><span className="block text-gray-500 dark:text-gray-400">Progresso</span><span className="font-bold text-lg text-blue-500 dark:text-blue-400">{Math.round(quadraProgress)}%</span></div>
+                          </div>
+                          <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mt-2">
+                            <div className="bg-blue-600 dark:bg-blue-400 h-1.5 rounded-full" style={{ width: `${quadraProgress}%` }}></div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+  
+                  <div className="flex justify-end items-center">
+                    {['Administrador', 'Dirigente'].includes(user?.role || '') && user?.congregationId && <EditQuadraModal quadra={quadra} territoryId={territoryId} onQuadraUpdated={() => {}} congregationId={user.congregationId} />}
+                  </div>
+                </div>
+              )
+            }) : <p className="text-gray-500 dark:text-gray-400 col-span-full text-center py-5">Nenhuma quadra adicionada.</p>}
+          </div>
+        </div>
+    );
+};
+
+export default function TerritoryDetailPage() {
   const { user, loading: userLoading } = useUser();
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [quadras, setQuadras] = useState<Quadra[]>([]);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
   const params = useParams<{ territoryId: string }>();
   const territoryId = params.territoryId;
+  const congregationId = user?.congregationId;
 
-  // Listeners em tempo real para território e quadras
+  // Listener em tempo real para território e quadras
   useEffect(() => {
-    if (userLoading || !user?.congregationId || !territoryId) {
+    if (!congregationId || !territoryId) {
       if (!userLoading) setLoading(false);
       return;
     }
 
-    // Listener para o documento do território
-    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
+    const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
     const unsubTerritory = onSnapshot(territoryRef, (docSnap) => {
       if (docSnap.exists()) {
         setTerritory({ id: docSnap.id, ...docSnap.data() } as Territory);
       } else {
-        router.push('/dashboard/territorios');
+        setTerritory(null);
       }
       setLoading(false);
     });
 
-    // Listener para a sub-coleção de quadras
     const quadrasRef = collection(territoryRef, 'quadras');
     const q = query(quadrasRef, orderBy('name'));
     const unsubQuadras = onSnapshot(q, (quadrasSnapshot) => {
@@ -97,23 +174,30 @@ export default function TerritorioDetailPage() {
       unsubTerritory();
       unsubQuadras();
     };
-  }, [territoryId, user, userLoading, router]);
+  }, [territoryId, congregationId, userLoading]);
 
-  if (loading) {
-    return <div className="text-center text-gray-500 dark:text-gray-400">Carregando detalhes do território...</div>;
-  }
-
-  if (!territory) {
-    return <div className="text-center text-red-500 dark:text-red-400">Território não encontrado.</div>;
+  if (loading || userLoading || !territory) {
+    return <div className="flex h-full w-full items-center justify-center"><Loader className="animate-spin text-purple-500" /></div>;
   }
   
+  const isPublisher = user?.role === 'Publicador';
   const displayMapEmbedUrl = getEmbedLink(territory.mapLink);
   const displayableCardUrl = territory.cardUrl ? convertGoogleDriveLink(territory.cardUrl) : null;
-  const totalHouses = territory.totalHouses || 0;
-  const housesDone = territory.housesDone || 0;
-  const housesPending = totalHouses - housesDone;
-  const progress = territory.progress || 0;
+  
+  const cardSection = (
+    <div className="bg-white dark:bg-[#2f2b3a] p-6 rounded-lg shadow-md">
+      <h2 className="text-xl font-bold flex items-center mb-4 text-gray-800 dark:text-white"><ImageIcon className="mr-3 text-purple-600 dark:text-purple-400" /> Cartão do Território</h2>
+      {displayableCardUrl ? (<a href={territory.cardUrl} target="_blank" rel="noopener noreferrer"><img src={displayableCardUrl} alt={`Cartão do Território ${territory.name}`} className="w-full h-auto rounded-md border border-gray-200 dark:border-gray-700 object-cover" /></a>) : (<div className="text-center py-10 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg"><p className="text-gray-500 dark:text-gray-500">{territory.cardUrl ? "Não foi possível exibir a imagem." : "Nenhum cartão cadastrado."}</p></div>)}
+    </div>
+  );
 
+  const mapSection = (
+    <div className="bg-white dark:bg-[#2f2b3a] p-6 rounded-lg shadow-md">
+      <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center mb-4"><Map className="mr-3 text-purple-600 dark:text-purple-400" /> Mapa do Território</h2>
+      {displayMapEmbedUrl ? (<iframe src={displayMapEmbedUrl} width="100%" height="250" style={{ border: 0 }} allowFullScreen={false} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="rounded-md"></iframe>) : (<div className="text-center py-10 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg"><p className="text-gray-500 dark:text-gray-500">Nenhum link de mapa válido.</p></div>)}
+    </div>
+  );
+  
   return (
     <div className="text-gray-800 dark:text-white space-y-8">
       <div className="flex justify-between items-start">
@@ -128,78 +212,27 @@ export default function TerritorioDetailPage() {
         {['Administrador', 'Dirigente'].includes(user?.role || '') && user?.congregationId && <EditTerritoryModal territory={territory} onTerritoryUpdated={() => {}} congregationId={user.congregationId} />}
       </div>
 
-       <div className="bg-white dark:bg-[#2f2b3a] p-4 rounded-lg shadow-lg">
-        <h2 className="text-lg font-bold text-gray-800 dark:text-white flex items-center mb-4">
-          <BarChart2 className="mr-3 text-purple-600 dark:text-purple-400" />
-          Progresso Geral do Território
-        </h2>
-        <div className="bg-gray-50 dark:bg-gray-700/30 p-4 rounded-md">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div><p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Total de Casas</p><p className="text-2xl font-bold text-gray-800 dark:text-white">{totalHouses}</p></div>
-            <div><p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Casas Feitas</p><p className="text-2xl font-bold text-green-600 dark:text-green-400">{housesDone}</p></div>
-            <div><p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Casas Pendentes</p><p className="text-2xl font-bold text-yellow-500 dark:text-yellow-400">{housesPending}</p></div>
-            <div><p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Progresso</p><p className="text-2xl font-bold text-blue-500 dark:text-blue-400">{Math.round(progress * 100)}%</p></div>
+      {isPublisher ? (
+        // Layout para Publicadores: Foco nas quadras
+        <div className="space-y-8">
+          <QuadrasSection quadras={quadras} territoryId={territoryId} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {cardSection}
+              {mapSection}
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5 mt-4">
-            <div className="bg-blue-600 dark:bg-blue-400 h-2.5 rounded-full" style={{ width: `${progress * 100}%` }}></div>
+          <TerritoryProgressBar territory={territory} />
+        </div>
+      ) : (
+        // Layout para Admins/Dirigentes: Visão completa
+        <div className="space-y-8">
+          <TerritoryProgressBar territory={territory} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {cardSection}
+            {mapSection}
           </div>
+          <QuadrasSection quadras={quadras} territoryId={territoryId} />
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white dark:bg-[#2f2b3a] p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-bold flex items-center mb-4 text-gray-800 dark:text-white"><ImageIcon className="mr-3 text-purple-600 dark:text-purple-400" /> Cartão do Território</h2>
-          {displayableCardUrl ? (<a href={territory.cardUrl} target="_blank" rel="noopener noreferrer"><img src={displayableCardUrl} alt={`Cartão do Território ${territory.name}`} className="w-full h-auto rounded-md border border-gray-200 dark:border-gray-700 object-cover" /></a>) : (<div className="text-center py-10 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg"><p className="text-gray-500 dark:text-gray-500">{territory.cardUrl ? "Não foi possível exibir a imagem." : "Nenhum cartão cadastrado."}</p></div>)}
-        </div>
-        <div className="bg-white dark:bg-[#2f2b3a] p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center mb-4"><Map className="mr-3 text-purple-600 dark:text-purple-400" /> Mapa do Território</h2>
-          {displayMapEmbedUrl ? (<iframe src={displayMapEmbedUrl} width="100%" height="250" style={{ border: 0 }} allowFullScreen={false} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="rounded-md"></iframe>) : (<div className="text-center py-10 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg"><p className="text-gray-500 dark:text-gray-500">Nenhum link de mapa válido.</p></div>)}
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-[#2f2b3a] rounded-lg shadow-lg p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold flex items-center text-gray-800 dark:text-white"><LayoutGrid className="h-6 w-6 mr-3 text-purple-600 dark:text-purple-400" />Quadras</h2>
-          {user?.role === 'Administrador' && user?.congregationId && <AddQuadraModal territoryId={territoryId} onQuadraAdded={() => {}} existingQuadrasCount={quadras.length} congregationId={user.congregationId} />}
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {quadras.length > 0 ? quadras.map(quadra => {
-             const quadraTotal = quadra.totalHouses || 0;
-             const quadraDone = quadra.housesDone || 0;
-             const quadraPending = quadraTotal - quadraDone;
-             const quadraProgress = quadraTotal > 0 ? (quadraDone / quadraTotal) * 100 : 0;
-
-             return (
-             <div key={quadra.id} className="bg-gray-50 dark:bg-[#2a2736] p-4 rounded-lg shadow flex flex-col justify-between hover:shadow-xl transition-shadow">
-                <Link href={`/dashboard/territorios/${territoryId}/quadras/${quadra.id}`}>
-                  <div className="cursor-pointer">
-                    <h3 className="font-bold text-lg text-gray-800 dark:text-white">{quadra.name}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{quadra.description || 'Sem descrição'}</p>
-
-                    {user && ['Administrador', 'Dirigente'].includes(user.role) && (
-                      <div className="bg-gray-100 dark:bg-gray-700/30 p-3 rounded-md mb-4">
-                        <div className="grid grid-cols-4 text-center text-xs">
-                          <div><span className="block text-gray-500 dark:text-gray-400">Total</span><span className="font-bold text-lg text-gray-800 dark:text-white">{quadraTotal}</span></div>
-                          <div><span className="block text-gray-500 dark:text-gray-400">Feitos</span><span className="font-bold text-lg text-green-600 dark:text-green-400">{quadraDone}</span></div>
-                          <div><span className="block text-gray-500 dark:text-gray-400">Pendentes</span><span className="font-bold text-lg text-yellow-500 dark:text-yellow-400">{quadraPending}</span></div>
-                          <div><span className="block text-gray-500 dark:text-gray-400">Progresso</span><span className="font-bold text-lg text-blue-500 dark:text-blue-400">{Math.round(quadraProgress)}%</span></div>
-                        </div>
-                        <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mt-2">
-                          <div className="bg-blue-600 dark:bg-blue-400 h-1.5 rounded-full" style={{ width: `${quadraProgress}%` }}></div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </Link>
-
-                <div className="flex justify-end items-center">
-                  {['Administrador', 'Dirigente'].includes(user?.role || '') && user?.congregationId && <EditQuadraModal quadra={quadra} territoryId={territoryId} onQuadraUpdated={() => {}} congregationId={user.congregationId} />}
-                </div>
-              </div>
-            )
-          }) : <p className="text-gray-500 dark:text-gray-400 col-span-full text-center py-5">Nenhuma quadra adicionada.</p>}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
