@@ -12,14 +12,27 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
+// ▼▼▼ NOVA FUNÇÃO HELPER ▼▼▼
+const isMobileDevice = () => {
+    if (typeof navigator !== 'undefined') {
+        // Expressão regular para detectar os sistemas operacionais móveis mais comuns.
+        return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    }
+    return false;
+};
+
 export const usePWAInstall = () => {
-  // Estado para guardar o evento de instalação
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
   
   // Estado para saber se o app já foi instalado ou se o prompt foi dispensado
   const [isAppInstalled, setIsAppInstalled] = useState(false);
+  // ▼▼▼ NOVO ESTADO ▼▼▼
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
+    // Detecta se é mobile assim que o componente é montado no cliente
+    setIsMobile(isMobileDevice());
+
     // Handler para capturar o evento do navegador
     const handleBeforeInstallPrompt = (event: Event) => {
       // Previne o pop-up padrão do navegador
@@ -74,9 +87,10 @@ export const usePWAInstall = () => {
     setInstallPromptEvent(null);
   };
   
-  // O hook retorna o estado e a função para serem usados na UI
+  // ▼▼▼ LÓGICA DE RETORNO ATUALIZADA ▼▼▼
   return {
-    canInstall: !isAppInstalled && installPromptEvent !== null,
+    // A condição 'canInstall' agora só é verdadeira se for um dispositivo móvel.
+    canInstall: isMobile && !isAppInstalled && installPromptEvent !== null,
     onInstall: handleInstallClick
   };
 };
