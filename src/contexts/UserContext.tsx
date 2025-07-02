@@ -1,12 +1,11 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-// MUDANÇA: IMPORTAR AS FUNÇÕES DE PERSISTÊNCIA E getDoc
-import { onAuthStateChanged, User as FirebaseUser, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore'; 
 import { auth, db } from '@/lib/firebase';
+import { useRouter } from 'next/navigation';
 
-// Interfaces (sem alteração)
 interface AppUser {
   uid: string;
   name: string;
@@ -28,77 +27,85 @@ const UserContext = createContext<UserContextType>({ user: null, loading: true, 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    // Definimos uma função de limpeza padrão.
-    let unsubscribe = () => {};
+    const authUnsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      let firestoreUnsubscribe: () => void = () => {};
 
-    // MUDANÇA CRÍTICA: GARANTIR PERSISTÊNCIA ANTES DO LISTENER
-    setPersistence(auth, browserLocalPersistence)
-      .then(() => {
-        // Agora, dentro do .then(), configuramos o listener de estado.
-        unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-          let firestoreUnsubscribe: () => void = () => {};
-
-          if (firebaseUser) {
-            const userRef = doc(db, 'users', firebaseUser.uid);
+      if (firebaseUser) {
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        
+        firestoreUnsubscribe = onSnapshot(userRef, async (userSnap) => {
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            let congregationName: string | null = null;
             
-            firestoreUnsubscribe = onSnapshot(userRef, async (userSnap) => {
-              if (userSnap.exists()) {
-                const userData = userSnap.data();
-                let congregationName: string | null = null;
-                
-                if (userData.status === 'ativo' && userData.congregationId) {
-                  try {
-                    const congregationRef = doc(db, 'congregations', userData.congregationId);
-                    const congregationSnap = await getDoc(congregationRef);
-                    if (congregationSnap.exists()) {
-                      congregationName = congregationSnap.data().name;
-                    }
-                  } catch(error) {
-                    console.error("Não foi possível buscar os dados da congregação.", error);
-                  }
+            if (userData.congregationId) {
+              try {
+                const congregationRef = doc(db, 'congregations', userData.congregationId);
+                const congregationSnap = await getDoc(congregationRef);
+                if (congregationSnap.exists()) {
+                  congregationName = congregationSnap.data().name;
                 }
-
-                setUser({
-                  uid: firebaseUser.uid,
-                  name: userData.name,
-                  email: firebaseUser.email,
-                  role: userData.role,
-                  status: userData.status,
-                  congregationId: userData.congregationId,
-                  congregationName: congregationName,
-                });
-
-              } else {
-                setUser(null);
+              } catch(error) {
+                console.error("Não foi possível buscar os dados da congregação.", error);
               }
-              setLoading(false);
-            }, (error) => {
-               console.error("Erro no listener do usuário:", error);
-               setLoading(false);
-               setUser(null);
-            });
+            }
+            
+            const currentUserData = {
+              uid: firebaseUser.uid,
+              name: userData.name,
+              email: firebaseUser.email,
+              role: userData.role,
+              status: userData.status,
+              congregationId: userData.congregationId,
+              congregationName: congregationName,
+            };
+
+            setUser(currentUserData);
+            
+            // LÓGICA DE REDIRECIONAMENTO INTELIGENTE
+            if (loading) {
+              if (currentUserData.status === 'ativo') {
+                if (currentUserData.role === 'Publicador') {
+                  router.replace('/dashboard/territorios');
+                } else {
+                  // Admins e Dirigentes vão para o painel principal
+                  router.replace('/dashboard');
+                }
+              } else if (currentUserData.status === 'pendente') {
+                router.replace('/aguardando-aprovacao');
+              } else {
+                // Status rejeitado ou inválido, desloga
+                auth.signOut();
+              }
+            }
+
+            setLoading(false);
 
           } else {
-            setUser(null);
+            // Documento do usuário não encontrado no Firestore, desloga.
+            auth.signOut();
             setLoading(false);
           }
-          
-          // Retornamos a função para limpar o listener do Firestore.
-          return () => {
-            firestoreUnsubscribe();
-          };
+        }, (error) => {
+           console.error("Erro no listener do usuário:", error);
+           auth.signOut();
+           setLoading(false);
         });
-      })
-      .catch((error) => {
-        console.error("Erro ao configurar a persistência de login:", error);
+
+      } else {
+        // Não há usuário no Firebase Auth, está deslogado.
+        setUser(null);
         setLoading(false);
-      });
+      }
       
-    // Retornamos a função para limpar o listener do Auth quando o componente for desmontado.
-    return () => unsubscribe();
-  }, []);
+      return () => firestoreUnsubscribe();
+    });
+    
+    return () => authUnsubscribe();
+  }, [router, loading]); 
 
   const updateUser = (data: Partial<AppUser>) => {
     setUser(currentUser => currentUser ? { ...currentUser, ...data } : null);
