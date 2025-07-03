@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -6,12 +5,11 @@ import { useUser } from '@/contexts/UserContext';
 import { db, functions } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, PlusCircle } from 'lucide-react';
+import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 
 // Interface do usuário
 interface AppUser {
@@ -123,13 +121,8 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
-        {currentUser.role === 'Administrador' && (
-          <Button disabled>
-            <PlusCircle size={20} className="mr-2"/> Adicionar Usuário
-          </Button>
-        )}
       </div>
 
       <div className="mb-6 relative">
