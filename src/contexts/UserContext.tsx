@@ -39,21 +39,37 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         firestoreUnsubscribe = onSnapshot(userRef, async (userSnap) => {
           if (userSnap.exists()) {
             const userData = userSnap.data();
-            let congregationName: string | null = null;
             
-            if (userData.congregationId) {
-              try {
-                const congregationRef = doc(db, 'congregations', userData.congregationId);
-                const congregationSnap = await getDoc(congregationRef);
-                if (congregationSnap.exists()) {
-                  congregationName = congregationSnap.data().name;
+            // LÓGICA DE REDIRECIONAMENTO CORRIGIDA E FINAL
+            // Só redirecionamos quando o usuário é carregado pela primeira vez.
+            if (loading) {
+              // Se o usuário já for 'ativo', o levamos para sua página inicial correta.
+              if (userData.status === 'ativo') {
+                if (userData.role === 'Publicador') {
+                  router.replace('/dashboard/territorios');
+                } else {
+                  // Admins e Dirigentes vão para o painel principal.
+                  router.replace('/dashboard');
                 }
-              } catch(error) {
-                console.error("Não foi possível buscar os dados da congregação.", error);
               }
+              // Se o status for 'pendente', NÃO fazemos nada. Deixamos ele entrar no dashboard
+              // para ver as telas de acesso restrito.
             }
-            
-            const currentUserData = {
+
+            let congregationName: string | null = null;
+            if (userData.congregationId) {
+                try {
+                    const congregationRef = doc(db, 'congregations', userData.congregationId);
+                    const congregationSnap = await getDoc(congregationRef);
+                    if (congregationSnap.exists()) {
+                        congregationName = congregationSnap.data().name;
+                    }
+                } catch(error) {
+                    console.error("Não foi possível buscar os dados da congregação.", error);
+                }
+            }
+
+            setUser({
               uid: firebaseUser.uid,
               name: userData.name,
               email: firebaseUser.email,
@@ -61,31 +77,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
               status: userData.status,
               congregationId: userData.congregationId,
               congregationName: congregationName,
-            };
-
-            setUser(currentUserData);
-            
-            // LÓGICA DE REDIRECIONAMENTO INTELIGENTE
-            if (loading) {
-              if (currentUserData.status === 'ativo') {
-                if (currentUserData.role === 'Publicador') {
-                  router.replace('/dashboard/territorios');
-                } else {
-                  // Admins e Dirigentes vão para o painel principal
-                  router.replace('/dashboard');
-                }
-              } else if (currentUserData.status === 'pendente') {
-                router.replace('/aguardando-aprovacao');
-              } else {
-                // Status rejeitado ou inválido, desloga
-                auth.signOut();
-              }
-            }
-
+            });
             setLoading(false);
 
           } else {
-            // Documento do usuário não encontrado no Firestore, desloga.
+            // Documento não encontrado, desloga
             auth.signOut();
             setLoading(false);
           }
@@ -96,7 +92,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         });
 
       } else {
-        // Não há usuário no Firebase Auth, está deslogado.
         setUser(null);
         setLoading(false);
       }
@@ -105,7 +100,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     });
     
     return () => authUnsubscribe();
-  }, [router, loading]); 
+  }, [router, loading]); // Dependências do useEffect
 
   const updateUser = (data: Partial<AppUser>) => {
     setUser(currentUser => currentUser ? { ...currentUser, ...data } : null);

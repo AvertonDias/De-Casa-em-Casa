@@ -60,15 +60,12 @@ export default function SignUpPage() {
         description: 'Você será redirecionado para o painel.',
         variant: 'default',
       });
-
-      // Um pequeno delay para o toast ser visível antes do redirecionamento
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 1500);
       
+      // Força um recarregamento completo para o dashboard, garantindo que o UserContext
+      // seja reinicializado e leia os novos dados do usuário 'pendente'.
+      window.location.href = '/dashboard';
 
-    } catch (err: any)
-{
+    } catch (err: any) {
       console.error("Erro detalhado no cadastro:", err);
       if (err.message?.includes("Número da congregação")) { setError(err.message); }
       else if (err.code === 'auth/email-already-in-use') { setError("Este e-mail já está em uso."); }
