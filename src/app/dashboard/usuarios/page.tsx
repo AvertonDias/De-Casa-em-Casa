@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db, functions } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
@@ -101,6 +101,36 @@ export default function UsersPage() {
     }
   };
 
+  const sortedAndFilteredUsers = useMemo(() => {
+    if (!users.length || !currentUser) return [];
+  
+    const statusOrder = { 'pendente': 1, 'ativo': 2, 'inativo': 3 };
+  
+    const filtered = users.filter(user =>
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  
+    return filtered.sort((a, b) => {
+      // Se a busca estiver vazia, o usuário atual vai para o topo.
+      if (searchTerm.length === 0) {
+        if (a.uid === currentUser.uid) return -1;
+        if (b.uid === currentUser.uid) return 1;
+      }
+  
+      // Ordena por status (pendente primeiro)
+      const statusA = statusOrder[a.status] || 99;
+      const statusB = statusOrder[b.status] || 99;
+      if (statusA !== statusB) {
+        return statusA - statusB;
+      }
+  
+      // Por último, ordena por nome
+      return a.name.localeCompare(b.name);
+    });
+  }, [users, currentUser, searchTerm]);
+
+
   if (userLoading || loading) {
     return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
   }
@@ -113,11 +143,6 @@ export default function UsersPage() {
         </div>
     );
   }
-
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
 
   return (
     <div>
@@ -139,9 +164,9 @@ export default function UsersPage() {
       <div className="bg-white dark:bg-[#2a2736] rounded-lg shadow-md">
         {loading ? (
            <div className="text-center p-8 text-muted-foreground"><Loader className="animate-spin mx-auto" /></div>
-        ) : filteredUsers.length > 0 ? (
+        ) : sortedAndFilteredUsers.length > 0 ? (
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredUsers.map((user) => (
+              {sortedAndFilteredUsers.map((user) => (
                   <li key={user.uid} className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       {/* Seção 1: Informações do Usuário */}
                       <div className="flex items-center flex-1 min-w-0">
@@ -151,7 +176,10 @@ export default function UsersPage() {
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                              <p className="font-semibold text-gray-900 dark:text-white truncate">{user.name}</p>
+                              <p className="font-semibold text-gray-900 dark:text-white truncate">
+                                {user.name}
+                                {user.uid === currentUser.uid && <span className="text-purple-400 font-normal ml-2">(Você)</span>}
+                              </p>
                               <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{user.email || 'E-mail não disponível'}</p>
                           </div>
                       </div>
