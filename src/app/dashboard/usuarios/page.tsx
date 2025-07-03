@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -5,11 +6,12 @@ import { useUser } from '@/contexts/UserContext';
 import { db, functions } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search } from 'lucide-react';
+import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, PlusCircle } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 // Interface do usuário
 interface AppUser {
@@ -83,6 +85,23 @@ export default function UsersPage() {
         setUserToDelete(null);
     }
   };
+  
+  const getStatusClass = (status: string) => {
+    switch (status) {
+      case 'ativo': return 'bg-green-500 text-white';
+      case 'pendente': return 'bg-yellow-500 text-white';
+      case 'inativo': return 'bg-red-500 text-white';
+      default: return 'bg-gray-400 text-white';
+    }
+  };
+
+  const getRoleClass = (role: string) => {
+    switch (role) {
+      case 'Administrador': return 'bg-purple-500 text-white';
+      case 'Dirigente': return 'bg-blue-500 text-white';
+      default: return 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200';
+    }
+  };
 
   if (userLoading || loading) {
     return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
@@ -104,8 +123,13 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
         <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
+        {currentUser.role === 'Administrador' && (
+          <Button disabled>
+            <PlusCircle size={20} className="mr-2"/> Adicionar Usuário
+          </Button>
+        )}
       </div>
 
       <div className="mb-6 relative">
@@ -125,22 +149,24 @@ export default function UsersPage() {
         ) : filteredUsers.length > 0 ? (
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredUsers.map((user) => (
-                  <li key={user.uid} className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                      <div className="flex items-center space-x-4">
-                          <Avatar>
+                  <li key={user.uid} className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      {/* Seção 1: Informações do Usuário */}
+                      <div className="flex items-center flex-1 min-w-0">
+                          <Avatar className="mr-4 flex-shrink-0">
                             <AvatarFallback>
                               {getInitials(user.name) || <User size={20} />}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                              <p className="font-semibold text-gray-900 dark:text-white">{user.name}</p>
-                              {user.email && <p className="text-sm text-muted-foreground">{user.email}</p>}
+                          <div className="min-w-0">
+                              <p className="font-semibold text-gray-900 dark:text-white truncate">{user.name}</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{user.email || 'E-mail não disponível'}</p>
                           </div>
                       </div>
                       
-                      <div className="flex items-center gap-4">
-                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${user.role === 'Administrador' ? 'bg-purple-500 text-white' : (user.role === 'Dirigente' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200')}`}>{user.role}</span>
-                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${user.status === 'ativo' ? 'bg-green-500 text-white' : 'bg-yellow-500 text-white'}`}>{user.status}</span>
+                      {/* Seção 2: Badges e Ações */}
+                      <div className="flex items-center justify-end gap-3 shrink-0">
+                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRoleClass(user.role)}`}>{user.role}</span>
+                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusClass(user.status)}`}>{user.status.charAt(0).toUpperCase() + user.status.slice(1)}</span>
                           
                           {currentUser && currentUser.uid !== user.uid && (
                               <Menu as="div" className="relative">
