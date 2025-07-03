@@ -13,7 +13,7 @@ export function PendingApprovalBanner() {
         <div>
           <h3 className="font-bold text-yellow-900 dark:text-yellow-200">Seu acesso está pendente de aprovação!</h3>
           <p className="text-sm text-yellow-700 dark:text-yellow-300">
-            Para usar todas as funcionalidades, incluindo o acesso aos territórios, por favor, peça para um dos dirigentes ou administradores da sua congregação aprovar seu acesso.
+            Para usar todas as funcionalidades, incluindo o acesso aos territórios, por favor, peça para um dos dirigentes da sua congregação aprovar seu acesso.
           </p>
         </div>
       </div>
