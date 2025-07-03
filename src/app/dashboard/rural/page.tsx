@@ -7,7 +7,7 @@ import { useUser } from '@/contexts/UserContext';
 import { RestrictedContent } from '@/components/RestrictedContent';
 import { AddRuralTerritoryModal } from '@/components/AddRuralTerritoryModal';
 import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
-import { Map, PlusCircle, Loader, Inbox, Edit } from 'lucide-react';
+import { Map, PlusCircle, Loader, Inbox, Edit, Search } from 'lucide-react';
 
 interface RuralTerritory {
   id: string;
@@ -23,6 +23,7 @@ export default function RuralPage() {
   const [territories, setTerritories] = useState<RuralTerritory[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     // A busca de dados só acontece se o usuário estiver ATIVO.
@@ -44,6 +45,11 @@ export default function RuralPage() {
       setLoading(false);
     }
   }, [user, userLoading]);
+
+  const filteredTerritories = territories.filter(t =>
+    t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.number.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // --- Renderização Condicional ---
   
@@ -78,15 +84,32 @@ export default function RuralPage() {
         )}
       </div>
 
-      {territories.length === 0 ? (
+      <div className="mb-6 relative">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+              <Search className="h-5 w-5 text-gray-400" />
+          </span>
+          <input
+              type="text"
+              placeholder="Buscar por nome ou número..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-card border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+      </div>
+
+      {filteredTerritories.length === 0 ? (
         <div className="text-center mt-16 p-6 bg-white dark:bg-[#2a2736] rounded-lg">
           <Inbox size={56} className="mx-auto text-gray-400" />
-          <h2 className="mt-4 text-xl font-semibold">Nenhum território rural encontrado</h2>
-          <p className="mt-2 text-gray-500">Clique no botão acima para adicionar o primeiro.</p>
+          <h2 className="mt-4 text-xl font-semibold">
+            {searchTerm ? "Nenhum resultado encontrado" : "Nenhum território rural encontrado"}
+          </h2>
+          <p className="mt-2 text-gray-500">
+            {searchTerm ? "Tente buscar por um termo diferente." : "Clique no botão acima para adicionar o primeiro."}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {territories.map((territory) => (
+          {filteredTerritories.map((territory) => (
             <div key={territory.id} className="bg-white dark:bg-[#2a2736] p-5 rounded-lg shadow-md flex flex-col justify-between">
               <div>
                 <div className="flex items-center mb-3">
