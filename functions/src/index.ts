@@ -5,59 +5,73 @@ import * as admin from "firebase-admin";
 admin.initializeApp();
 const db = admin.firestore();
 
-// Função que dispara na criação de um novo documento de usuário
+// ▼▼▼ FUNÇÃO DE NOTIFICAÇÃO ATUALIZADA E MAIS ROBUSTA ▼▼▼
+
+// A função agora é acionada apenas na CRIAÇÃO de um novo usuário.
 export const notifyAdminOfNewUser = functions.firestore
   .document("users/{userId}")
-  .onCreate(async (snapshot) => {
+  .onCreate(async (snapshot, context) => {
+    
     const newUser = snapshot.data();
+    console.log(`[notifyAdmin] Função acionada para novo usuário: ${newUser.name}`);
 
-    // 1. Verifica se o novo usuário está pendente
-    if (newUser.status !== "pendente") {
-      console.log("Novo usuário não está pendente, nenhuma notificação enviada.");
+    // 1. Garante que temos todos os dados necessários.
+    if (!newUser || newUser.status !== "pendente" || !newUser.congregationId) {
+      console.log("[notifyAdmin] Usuário não está pendente ou não tem congregação. Nenhuma notificação será enviada.");
       return null;
     }
 
-    const congregationId = newUser.congregationId;
+    try {
+      // 2. Busca todos os administradores da MESMA congregação.
+      const adminsSnapshot = await admin.firestore().collection("users")
+        .where("congregationId", "==", newUser.congregationId)
+        .where("role", "==", "Administrador")
+        .get();
 
-    if (!congregationId) {
-        console.log("Novo usuário não tem congregationId, nenhuma notificação enviada.");
+      if (adminsSnapshot.empty) {
+        console.warn(`[notifyAdmin] Nenhum administrador encontrado para a congregação ${newUser.congregationId}.`);
         return null;
-    }
-
-    // 2. Busca todos os admins da mesma congregação
-    const adminsSnapshot = await db
-      .collection("users")
-      .where("congregationId", "==", congregationId)
-      .where("role", "==", "Administrador")
-      .get();
-
-    if (adminsSnapshot.empty) {
-      console.log("Nenhum administrador encontrado para esta congregação.");
-      return null;
-    }
-
-    // 3. Monta e envia a notificação para cada admin
-    const payload = {
-      notification: {
-        title: "Novo Usuário Aguardando Aprovação!",
-        body: `O usuário ${newUser.name} se cadastrou e precisa de sua aprovação.`,
-        icon: "/icon-192x192.png",
-        click_action: "/dashboard/usuarios",
-      },
-    };
-
-    const promises = adminsSnapshot.docs.map(async (adminDoc) => {
-      const adminData = adminDoc.data();
-      if (adminData.fcmTokens && adminData.fcmTokens.length > 0) {
-        return admin.messaging().sendToDevice(adminData.fcmTokens, payload);
       }
-      return Promise.resolve();
-    });
+      
+      console.log(`[notifyAdmin] Encontrados ${adminsSnapshot.size} administradores para notificar.`);
 
-    await Promise.all(promises);
-    console.log("Notificações enviadas para os administradores.");
-    return null;
-  });
+      // 3. Pega todos os tokens FCM de todos os administradores.
+      const tokens: string[] = [];
+      adminsSnapshot.forEach(adminDoc => {
+        const adminData = adminDoc.data();
+        if (adminData.fcmTokens && Array.isArray(adminData.fcmTokens)) {
+          tokens.push(...adminData.fcmTokens);
+        }
+      });
+      
+      if (tokens.length === 0) {
+        console.warn("[notifyAdmin] Administradores encontrados, mas nenhum possui token FCM para receber notificações.");
+        return null;
+      }
+      
+      console.log(`[notifyAdmin] Enviando notificação para ${tokens.length} dispositivo(s).`);
+
+      // 4. Prepara e envia a mensagem de notificação.
+      const payload = {
+        notification: {
+          title: "Novo Usuário Aguardando Aprovação!",
+          body: `O usuário "${newUser.name}" se cadastrou e precisa de sua aprovação.`,
+          icon: "/icon-192x192.png", // Ícone que aparece na notificação
+          click_action: "/dashboard/usuarios", // URL que abre ao clicar na notificação
+        },
+      };
+
+      // Envia para todos os tokens encontrados
+      await admin.messaging().sendToDevice(tokens, payload);
+      
+      console.log("[notifyAdmin] Notificações enviadas com sucesso!");
+      return { success: true };
+
+    } catch (error) {
+      console.error("[notifyAdmin] FALHA CRÍTICA ao tentar enviar notificação:", error);
+      return { success: false, error: error as any };
+    }
+});
 
 export const deleteUserAccount = functions.https.onCall(async (data, context) => {
   const callingUserUid = context.auth?.uid;
