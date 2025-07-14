@@ -1,4 +1,3 @@
-
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 
@@ -546,59 +545,59 @@ export const resetPeakUsers = functions.https.onCall(async (data, context) => {
     }
 });
 
-// ▼▼▼ SUBSTITUA SUAS DUAS FUNÇÕES DE PRESENÇA POR ESTA ▼▼▼
-export const onUserPresenceChange = functions.database.ref('/status/{uid}')
+// ▼▼▼ FUNÇÃO DE PRESENÇA FINAL, EFICIENTE E CORRIGIDA ▼▼▼
+export const handleUserPresence = functions.database.ref('/status/{uid}')
   .onWrite(async (change, context) => {
-    const eventStatus = change.after.val();
+    
+    // Pega o estado ANTES e DEPOIS da mudança
+    const stateBefore = change.before.exists() ? change.before.val().state : null;
+    const stateAfter = change.after.exists() ? change.after.val().state : null;
+
+    // ▼▼▼ A CORREÇÃO PRINCIPAL ESTÁ AQUI ▼▼▼
+    // Se o estado não mudou (ex: de 'online' para 'online'), não faz nada.
+    // Isso quebra o loop de atualização infinita.
+    if (stateBefore === stateAfter) {
+      console.log(`[Presence] Sem mudança de estado para ${context.params.uid}. Ignorando.`);
+      return null;
+    }
+
     const firestoreUserRef = db.doc(`users/${context.params.uid}`);
 
-    // --- Parte 1: Atualizar o status individual do usuário ---
-    const isOffline = !eventStatus || eventStatus.state === 'offline';
-    try {
-      await firestoreUserRef.update({
-        isOnline: !isOffline,
+    // Se o nó foi DELETADO ou marcado como OFFLINE
+    if (!stateAfter || stateAfter === 'offline') {
+      return firestoreUserRef.update({
+        isOnline: false,
         lastSeen: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      console.log(`[Presence] Usuário ${context.params.uid} marcado como ${isOffline ? 'OFFLINE' : 'ONLINE'}.`);
-    } catch (error) {
-      if ((error as any).code !== 'not-found') {
-        console.error(`Falha ao atualizar presença para usuário ${context.params.uid}:`, error);
-      }
+      }).catch(err => { if(err.code !== 'not-found') console.error(err) });
     }
+    
+    // Se o nó foi CRIADO ou ATUALIZADO para ONLINE
+    await firestoreUserRef.update({
+      isOnline: true,
+      lastSeen: change.after.val().last_changed,
+    }).catch(err => { if(err.code !== 'not-found') console.error(err) });
 
-    // --- Parte 2: Recalcular e, se necessário, atualizar o pico de usuários ---
-    // Apenas recalcula se alguém ficou ONLINE. Não precisamos recalcular quando alguém sai.
-    if (!isOffline) {
-        const userDocSnap = await db.doc(`users/${context.params.uid}`).get();
-        if (!userDocSnap.exists) return;
-        
-        const congregationId = userDocSnap.data()?.congregationId;
-        if (!congregationId) return;
+    // A lógica de PICO de usuários agora só roda quando alguém FICA online.
+    const userDocSnap = await db.doc(`users/${context.params.uid}`).get();
+    if (!userDocSnap.exists()) return;
+    const congregationId = userDocSnap.data()?.congregationId;
+    if (!congregationId) return;
 
-        const congregationRef = db.doc(`congregations/${congregationId}`);
-        const statusRef = change.after.ref.parent; // Referência para a pasta 'status/' no RTDB
+    const congregationRef = db.doc(`congregations/${congregationId}`);
+    const statusRef = change.after.ref.parent; 
 
-        // Transação para garantir que a leitura e a escrita aconteçam de forma segura
-        await db.runTransaction(async (transaction) => {
-            const congDoc = await transaction.get(congregationRef);
-            if (!congDoc.exists) return;
+    return db.runTransaction(async (transaction) => {
+        const congDoc = await transaction.get(congregationRef);
+        if (!congDoc.exists) return;
+        const onlineUsersSnapshot = await statusRef!.orderByChild('state').equalTo('online').once('value');
+        const currentOnlineCount = onlineUsersSnapshot.numChildren();
+        const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
+        if (currentOnlineCount > peakData.count) {
+            transaction.update(congregationRef, { peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
+        }
+    });
+  });
 
-            const onlineUsersSnapshot = await statusRef!.orderByChild('state').equalTo('online').once('value');
-            const currentOnlineCount = onlineUsersSnapshot.numChildren();
-            
-            const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
-
-            if (currentOnlineCount > peakData.count) {
-                console.log(`[PeakUsers] Novo pico de ${currentOnlineCount} usuários na congregação ${congregationId}.`);
-                transaction.update(congregationRef, {
-                    peakOnlineUsers: {
-                        count: currentOnlineCount,
-                        timestamp: admin.firestore.FieldValue.serverTimestamp()
-                    }
-                });
-            }
-        });
-    }
-});
+    
 
     
