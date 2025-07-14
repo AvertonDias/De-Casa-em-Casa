@@ -18,18 +18,30 @@ interface UserData {
   fcmTokens?: string[];
 }
 
+// A interface para validar os dados continua a mesma
+interface CreateCongregationData {
+    adminName: string;
+    adminEmail: string;
+    adminPassword: string;
+    congregationName: string;
+    congregationNumber: string;
+}
+
 // ============================================================================
 //   FUNÇÕES DE CRIAÇÃO E GERENCIAMENTO DE USUÁRIOS
 // ============================================================================
 
+// ▼▼▼ CORREÇÃO NA ASSINATURA DA FUNÇÃO ▼▼▼
 export const createCongregationAndAdmin = functions.https.onCall(async (data, context) => {
-    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = data;
+    // 1. Pegamos os dados e aplicamos o nosso tipo 'CreateCongregationData' a eles.
+    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = data as CreateCongregationData;
 
+    // 2. O resto da sua lógica continua exatamente a mesma.
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
         throw new functions.https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
     }
 
-    let newUser;
+    let newUser: admin.auth.UserRecord | undefined;
     try {
         newUser = await admin.auth().createUser({
             email: adminEmail,
@@ -38,7 +50,6 @@ export const createCongregationAndAdmin = functions.https.onCall(async (data, co
         });
 
         const batch = db.batch();
-
         const newCongregationRef = db.collection('congregations').doc();
         batch.set(newCongregationRef, {
             name: congregationName,
@@ -62,13 +73,12 @@ export const createCongregationAndAdmin = functions.https.onCall(async (data, co
         });
 
         await batch.commit();
-
         return { success: true, userId: newUser.uid };
 
     } catch (error: any) {
         if (newUser) {
             await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
-                console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser.uid}':`, deleteError);
+                console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser!.uid}':`, deleteError);
             });
         }
         
@@ -77,7 +87,7 @@ export const createCongregationAndAdmin = functions.https.onCall(async (data, co
         if (error.code === 'auth/email-already-exists') {
              throw new functions.https.HttpsError("already-exists", "Este e-mail já está em uso.");
         }
-        throw new functions.https.HttpsError("internal", "Ocorreu um erro interno ao processar a criação.");
+        throw new functions.https.HttpsError("internal", "Ocorreu um erro interno.");
     }
 });
 
@@ -508,37 +518,6 @@ export const generateUploadUrl = functions.region("southamerica-east1")
 // ============================================================================
 //   FUNÇÕES DE PRESENÇA E PICO DE USUÁRIOS
 // ============================================================================
-export const updatePeakOnlineUsers = functions.database.ref('/status/{uid}')
-  .onWrite(async (change, context) => {
-    const statusRef = change.after.ref.parent;
-    if (!statusRef) return null;
-
-    const userDocSnap = await db.doc(`users/${context.params.uid}`).get();
-    if (!userDocSnap.exists) return null;
-    const congregationId = userDocSnap.data()?.congregationId;
-    if (!congregationId) return null;
-
-    const congregationRef = db.doc(`congregations/${congregationId}`);
-    
-    const onlineUsersSnapshot = await statusRef.orderByChild('state').equalTo('online').once('value');
-    const currentOnlineCount = onlineUsersSnapshot.numChildren();
-
-    const congregationDoc = await congregationRef.get();
-    const peakData = congregationDoc.data()?.peakOnlineUsers || { count: 0 };
-    
-    if (currentOnlineCount > peakData.count) {
-      console.log(`[PeakUsers] Novo pico de ${currentOnlineCount} usuários na congregação ${congregationId}.`);
-      return congregationRef.update({
-        peakOnlineUsers: {
-          count: currentOnlineCount,
-          timestamp: admin.firestore.FieldValue.serverTimestamp()
-        }
-      });
-    }
-    
-    return null;
-});
-
 export const resetPeakUsers = functions.https.onCall(async (data, context) => {
     const uid = context.auth?.uid;
     if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
@@ -566,6 +545,61 @@ export const resetPeakUsers = functions.https.onCall(async (data, context) => {
     } catch (error) {
         console.error("Falha ao resetar o pico de usuários:", error);
         throw new functions.https.HttpsError("internal", "Não foi possível resetar a estatística.");
+    }
+});
+
+// ▼▼▼ SUBSTITUA SUAS DUAS FUNÇÕES DE PRESENÇA POR ESTA ▼▼▼
+export const onUserPresenceChange = functions.database.ref('/status/{uid}')
+  .onWrite(async (change, context) => {
+    const eventStatus = change.after.val();
+    const firestoreUserRef = db.doc(`users/${context.params.uid}`);
+
+    // --- Parte 1: Atualizar o status individual do usuário ---
+    const isOffline = !eventStatus || eventStatus.state === 'offline';
+    try {
+      await firestoreUserRef.update({
+        isOnline: !isOffline,
+        lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      console.log(`[Presence] Usuário ${context.params.uid} marcado como ${isOffline ? 'OFFLINE' : 'ONLINE'}.`);
+    } catch (error) {
+      if ((error as any).code !== 'not-found') {
+        console.error(`Falha ao atualizar presença para usuário ${context.params.uid}:`, error);
+      }
+    }
+
+    // --- Parte 2: Recalcular e, se necessário, atualizar o pico de usuários ---
+    // Apenas recalcula se alguém ficou ONLINE. Não precisamos recalcular quando alguém sai.
+    if (!isOffline) {
+        const userDocSnap = await db.doc(`users/${context.params.uid}`).get();
+        if (!userDocSnap.exists) return;
+        
+        const congregationId = userDocSnap.data()?.congregationId;
+        if (!congregationId) return;
+
+        const congregationRef = db.doc(`congregations/${congregationId}`);
+        const statusRef = change.after.ref.parent; // Referência para a pasta 'status/' no RTDB
+
+        // Transação para garantir que a leitura e a escrita aconteçam de forma segura
+        await db.runTransaction(async (transaction) => {
+            const congDoc = await transaction.get(congregationRef);
+            if (!congDoc.exists) return;
+
+            const onlineUsersSnapshot = await statusRef!.orderByChild('state').equalTo('online').once('value');
+            const currentOnlineCount = onlineUsersSnapshot.numChildren();
+            
+            const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
+
+            if (currentOnlineCount > peakData.count) {
+                console.log(`[PeakUsers] Novo pico de ${currentOnlineCount} usuários na congregação ${congregationId}.`);
+                transaction.update(congregationRef, {
+                    peakOnlineUsers: {
+                        count: currentOnlineCount,
+                        timestamp: admin.firestore.FieldValue.serverTimestamp()
+                    }
+                });
+            }
+        });
     }
 });
 
@@ -611,3 +645,5 @@ export const onUserStatusChanged = functions.database.ref('/status/{uid}')
         }
     }
   });
+
+```
