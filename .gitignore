@@ -1,43 +1,20 @@
-# Dependencies
-/node_modules
-/.pnp
-.pnp.js
-
-# Testing
-/coverage
-
-# Next.js
-/.next/
-/out/
-
-# Production
-/build
-
-# Misc
-.DS_Store
-*.pem
-
-# Logs
+# Dependências e Cache
+node_modules
+.next/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
 
-# Local Env Files
+# Arquivos de Build
+.pnp
+.pnp.js
+
+# Arquivos de Ambiente (Segredos)
+.env.local
 .env*.local
 
-# IDEs and editors
-.idea
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Ignorar chaves de serviço do Google e arquivos de ambiente
-*.json
-.env.local
-
-# Ignorar a pasta inteira de migração para segurança
+# Pasta do Script de Migração (que contém as chaves)
 migration-script/
+
+# Arquivos de Configuração do Editor
+.vscode/
