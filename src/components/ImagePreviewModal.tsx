@@ -32,8 +32,8 @@ export default function ImagePreviewModal({ isOpen, imageUrl, onClose }: ImagePr
           src={imageUrl} 
           alt="Preview do Cartão em tela cheia" 
           // Rotação aplicada em telas pequenas (smartphones)
-          // AQUI A MUDANÇA: Reduzi o tamanho máximo para 80vw, um pouco menor.
-          className="max-w-screen-xl max-h-[90vh] object-contain md:max-h-[90vh] md:max-w-[90vw] md:rotate-0 rotate-90 max-h-[80vw] max-w-[80vw] transition-transform duration-300"
+          // AQUI A MUDANÇA: Reduzi o tamanho máximo para 70vw, um pouco menor.
+          className="max-w-screen-xl max-h-[90vh] object-contain md:max-h-[90vh] md:max-w-[90vw] md:rotate-0 rotate-90 max-h-[70vw] max-w-[70vw] transition-transform duration-300"
         />
       </div>
     </div>
