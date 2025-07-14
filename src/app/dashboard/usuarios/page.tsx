@@ -6,7 +6,7 @@ import { UserContext } from '@/contexts/UserContext';
 import { db, functions } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, ChevronUp } from 'lucide-react';
+import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, ChevronUp, SlidersHorizontal } from 'lucide-react';
 import { Menu, Transition, Disclosure } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -294,70 +294,52 @@ export default function UsersPage() {
     <div className="p-4 md:p-8">
       <h1 className="text-3xl font-bold mb-6">Gerenciamento de Usuários</h1>
 
-      <div className="w-full space-y-2 mb-6">
-          <div className="bg-card rounded-lg p-2">
-              <Disclosure>
-                  {({ open }) => (
-                  <>
-                      <Disclosure.Button className="flex w-full justify-between rounded-lg px-4 py-2 text-left text-sm font-medium hover:bg-white/5 focus:outline-none focus-visible:ring focus-visible:ring-purple-500/75">
-                          <span>Filtrar por Status de Presença</span>
-                          <ChevronUp className={`${open ? 'rotate-180 transform' : ''} h-5 w-5 transition-transform`} />
-                      </Disclosure.Button>
-                      <Transition enter="transition duration-100 ease-out" enterFrom="transform scale-95 opacity-0" enterTo="transform scale-100 opacity-100" leave="transition duration-75 ease-out" leaveFrom="transform scale-100 opacity-100" leaveTo="transform scale-95 opacity-0">
-                          <Disclosure.Panel className="px-4 pb-2 pt-4 text-sm text-gray-500 border-t border-border mt-2">
-                              <div className="flex flex-wrap gap-2">
-                                  <FilterButton label="Todos" value="all" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
-                                  <FilterButton label="Online" value="online" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
-                                  <FilterButton label="Offline" value="offline" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
-                              </div>
-                          </Disclosure.Panel>
-                      </Transition>
-                  </>
-                  )}
-              </Disclosure>
-          </div>
-          <div className="bg-card rounded-lg p-2">
-            <Disclosure>
-              {({ open }) => (
+      <div className="w-full mb-6">
+        <div className="bg-card rounded-lg p-2">
+            <Disclosure as="div">
+                {({ open }) => (
                 <>
-                  <Disclosure.Button className="flex w-full justify-between rounded-lg px-4 py-2 text-left text-sm font-medium hover:bg-white/5 focus:outline-none focus-visible:ring focus-visible:ring-purple-500/75">
-                      <span>Filtrar por Perfil de Usuário</span>
-                      <ChevronUp className={`${open ? 'rotate-180 transform' : ''} h-5 w-5 transition-transform`} />
-                  </Disclosure.Button>
-                  <Transition enter="transition duration-100 ease-out" enterFrom="transform scale-95 opacity-0" enterTo="transform scale-100 opacity-100" leave="transition duration-75 ease-out" leaveFrom="transform scale-100 opacity-100" leaveTo="transform scale-95 opacity-0">
-                    <Disclosure.Panel className="px-4 pb-2 pt-4 text-sm text-gray-500 border-t border-border mt-2">
-                        <div className="flex flex-wrap gap-2">
-                            <FilterButton label="Todos" value="all" currentFilter={roleFilter} setFilter={setRoleFilter} />
-                            <FilterButton label="Admin" value="Administrador" currentFilter={roleFilter} setFilter={setRoleFilter} />
-                            <FilterButton label="Dirigente" value="Dirigente" currentFilter={roleFilter} setFilter={setRoleFilter} />
-                            <FilterButton label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                    <Disclosure.Button className="flex w-full justify-between items-center rounded-lg px-4 py-2 text-left text-lg font-medium hover:bg-white/5 focus:outline-none focus-visible:ring focus-visible:ring-purple-500/75">
+                        <div className="flex items-center gap-3">
+                           <SlidersHorizontal size={20} />
+                           <span>Filtros</span>
                         </div>
-                    </Disclosure.Panel>
-                  </Transition>
+                        <ChevronUp className={`${open ? 'rotate-180 transform' : ''} h-5 w-5 transition-transform`} />
+                    </Disclosure.Button>
+                    <Transition show={open} enter="transition duration-100 ease-out" enterFrom="transform scale-95 opacity-0" enterTo="transform scale-100 opacity-100" leave="transition duration-75 ease-out" leaveFrom="transform scale-100 opacity-100" leaveTo="transform scale-95 opacity-0">
+                        <Disclosure.Panel className="px-4 pb-4 pt-4 text-sm text-gray-500 border-t border-border mt-2 space-y-4">
+                            <div>
+                                <p className="font-semibold mb-2">Status de Presença</p>
+                                <div className="flex flex-wrap gap-2">
+                                    <FilterButton label="Todos" value="all" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
+                                    <FilterButton label="Online" value="online" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
+                                    <FilterButton label="Offline" value="offline" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <p className="font-semibold mb-2">Perfil de Usuário</p>
+                                <div className="flex flex-wrap gap-2">
+                                    <FilterButton label="Todos" value="all" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                    <FilterButton label="Admin" value="Administrador" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                    <FilterButton label="Dirigente" value="Dirigente" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                    <FilterButton label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="font-semibold mb-2">Status de Aprovação</p>
+                                <div className="flex flex-wrap gap-2">
+                                    <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                    <FilterButton label="Apenas Pendentes" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                </div>
+                            </div>
+                        </Disclosure.Panel>
+                    </Transition>
                 </>
-              )}
+                )}
             </Disclosure>
-          </div>
-          <div className="bg-card rounded-lg p-2">
-            <Disclosure>
-              {({ open }) => (
-                <>
-                  <Disclosure.Button className="flex w-full justify-between rounded-lg px-4 py-2 text-left text-sm font-medium hover:bg-white/5 focus:outline-none focus-visible:ring focus-visible:ring-purple-500/75">
-                      <span>Filtrar por Status de Aprovação</span>
-                      <ChevronUp className={`${open ? 'rotate-180 transform' : ''} h-5 w-5 transition-transform`} />
-                  </Disclosure.Button>
-                  <Transition enter="transition duration-100 ease-out" enterFrom="transform scale-95 opacity-0" enterTo="transform scale-100 opacity-100" leave="transition duration-75 ease-out" leaveFrom="transform scale-100 opacity-100" leaveTo="transform scale-95 opacity-0">
-                    <Disclosure.Panel className="px-4 pb-2 pt-4 text-sm text-gray-500 border-t border-border mt-2">
-                      <div className="flex flex-wrap gap-2">
-                          <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} />
-                          <FilterButton label="Pendentes" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
-                      </div>
-                    </Disclosure.Panel>
-                  </Transition>
-                </>
-              )}
-            </Disclosure>
-          </div>
+        </div>
       </div>
 
       <div className="relative mb-4">
@@ -402,4 +384,3 @@ export default function UsersPage() {
   );
 }
 
-    
