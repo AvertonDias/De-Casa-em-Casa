@@ -1,3 +1,4 @@
+
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -97,7 +98,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     if (!user && !isPublicPage) {
       router.replace('/');
     } else if (user && isPublicPage) {
-        router.replace('/dashboard');
+        if (user.role === 'Publicador') {
+          router.replace('/dashboard/territorios');
+        } else {
+          router.replace('/dashboard');
+        }
     }
   }, [user, loading, router, pathname]);
 
