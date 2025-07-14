@@ -179,6 +179,8 @@ export default function UsersPage() {
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ action: () => void, title: string, message: string, confirmText: string } | null>(null);
+
 
   useEffect(() => {
     if (currentUser?.congregationId) {
@@ -233,6 +235,12 @@ export default function UsersPage() {
   const openDeleteConfirm = (user: AppUser) => {
     if (currentUser?.role !== 'Administrador') return;
     setUserToDelete(user);
+    setConfirmAction({
+      action: confirmDeleteUser,
+      title: "Excluir Usuário",
+      message: `Você tem certeza que deseja excluir permanentemente o usuário ${user.name}? Todos os seus dados serão perdidos e esta ação não pode ser desfeita.`,
+      confirmText: "Sim, excluir",
+    });
     setIsConfirmModalOpen(true);
   };
 
@@ -240,7 +248,6 @@ export default function UsersPage() {
     if (!userToDelete || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
 
     setUpdatingUserId(userToDelete.uid);
-    setIsConfirmModalOpen(false);
     try {
         const deleteUser = httpsCallable(functions, 'deleteUserAccount');
         await deleteUser({ uid: userToDelete.uid });
@@ -252,16 +259,24 @@ export default function UsersPage() {
     }
   };
 
-  const handleResetPeak = async () => {
+  const handleResetPeak = () => {
     if (!currentUser?.congregationId || currentUser.role !== 'Administrador') return;
-    const resetFunction = httpsCallable(functions, 'resetPeakUsers');
-    try {
-        await resetFunction({ congregationId: currentUser.congregationId });
-        // Você pode adicionar um toast de sucesso aqui
-    } catch (error) {
-        console.error("Erro ao resetar pico:", error);
-        // E um toast de erro aqui
-    }
+
+    setConfirmAction({
+        action: async () => {
+            const resetFunction = httpsCallable(functions, 'resetPeakUsers');
+            try {
+                await resetFunction({ congregationId: currentUser.congregationId });
+            } catch (error) {
+                console.error("Erro ao resetar pico:", error);
+            }
+        },
+        title: "Confirmar Reset",
+        message: "Você tem certeza que deseja zerar a estatística de pico de usuários online? Esta ação não pode ser desfeita.",
+        confirmText: "Sim, resetar"
+    });
+    
+    setIsConfirmModalOpen(true);
   };
 
   const stats = useMemo(() => {
@@ -325,6 +340,7 @@ export default function UsersPage() {
   );
 
   return (
+    <>
     <div className="p-4 md:p-8 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
@@ -450,21 +466,23 @@ export default function UsersPage() {
             </div>
         )}
       </div>
-
-      <ConfirmationModal
-          isOpen={isConfirmModalOpen}
-          onClose={() => setIsConfirmModalOpen(false)}
-          onConfirm={confirmDeleteUser}
-          isLoading={!!updatingUserId}
-          title="Excluir Usuário"
-          message={`Você tem certeza que deseja excluir permanentemente o usuário ${userToDelete?.name}? Todos os seus dados serão perdidos e esta ação não pode ser desfeita.`}
-          confirmText="Sim, excluir"
-          cancelText="Cancelar"
-      />
     </div>
+    
+      {confirmAction && (
+          <ConfirmationModal
+            isOpen={isConfirmModalOpen}
+            onClose={() => setIsConfirmModalOpen(false)}
+            onConfirm={() => {
+                confirmAction.action();
+                setIsConfirmModalOpen(false);
+            }}
+            isLoading={!!updatingUserId && userToDelete?.uid === updatingUserId}
+            title={confirmAction.title}
+            message={confirmAction.message}
+            confirmText={confirmAction.confirmText}
+            cancelText="Cancelar"
+          />
+      )}
+    </>
   );
 }
-
-    
-
-    
