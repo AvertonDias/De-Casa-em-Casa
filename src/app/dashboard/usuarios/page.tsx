@@ -3,7 +3,7 @@
 
 import { useState, useEffect, Fragment, useMemo, useContext } from 'react';
 import { UserContext } from '@/contexts/UserContext';
-import { db, functions } from '@/lib/firebase';
+import { db, app, functions } from '@/lib/firebase'; // Importa a instância 'app' e 'functions'
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, ChevronUp, SlidersHorizontal, Wifi, WifiOff, Users as UsersIcon, Zap, RefreshCw } from 'lucide-react';
@@ -15,6 +15,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { AppUser, Congregation } from '@/types/types';
 import { usePresence } from '@/hooks/usePresence';
+
 
 const UserListItem = ({ user, currentUserUid, onUpdate, onDelete, isUpdating }: { user: AppUser, currentUserUid: string, onUpdate: (userId: string, data: object) => void, onDelete: (user: AppUser) => void, isUpdating: boolean }) => {
   const isOnline = user.isOnline === true;
@@ -261,22 +262,21 @@ export default function UsersPage() {
 
   const handleResetPeak = () => {
     if (!currentUser?.congregationId || currentUser.role !== 'Administrador') return;
-
-    setConfirmAction({
-        action: async () => {
-            const resetFunction = httpsCallable(functions, 'resetPeakUsers');
-            try {
-                await resetFunction({ congregationId: currentUser.congregationId });
-            } catch (error) {
-                console.error("Erro ao resetar pico:", error);
-            }
-        },
-        title: "Confirmar Reset",
-        message: "Você tem certeza que deseja zerar a estatística de pico de usuários online? Esta ação não pode ser desfeita.",
-        confirmText: "Sim, resetar"
-    });
-    
     setIsConfirmModalOpen(true);
+  };
+
+  const executeResetPeak = async () => {
+    if (!currentUser?.congregationId) return;
+
+    try {
+        const resetFunction = httpsCallable(functions, 'resetPeakUsers');
+        await resetFunction({ congregationId: currentUser.congregationId });
+    } catch (error) {
+        console.error("Erro ao chamar a função de reset:", error);
+        alert("Falha ao resetar o pico de usuários.");
+    } finally {
+        setIsConfirmModalOpen(false); // Fecha o modal após a tentativa
+    }
   };
 
   const stats = useMemo(() => {
@@ -468,21 +468,25 @@ export default function UsersPage() {
       </div>
     </div>
     
-      {confirmAction && (
+      {isConfirmModalOpen && (
           <ConfirmationModal
             isOpen={isConfirmModalOpen}
             onClose={() => setIsConfirmModalOpen(false)}
             onConfirm={() => {
-                confirmAction.action();
-                setIsConfirmModalOpen(false);
+              if (userToDelete) {
+                confirmDeleteUser();
+              } else {
+                executeResetPeak();
+              }
             }}
-            isLoading={!!updatingUserId && userToDelete?.uid === updatingUserId}
-            title={confirmAction.title}
-            message={confirmAction.message}
-            confirmText={confirmAction.confirmText}
+            isLoading={!!updatingUserId}
+            title={userToDelete ? "Excluir Usuário" : "Confirmar Reset"}
+            message={userToDelete ? `Você tem certeza que deseja excluir permanentemente o usuário ${userToDelete.name}?` : "Você tem certeza que deseja zerar a estatística de pico de usuários online?"}
+            confirmText={userToDelete ? "Sim, excluir" : "Sim, resetar"}
             cancelText="Cancelar"
           />
       )}
     </>
   );
 }
+
