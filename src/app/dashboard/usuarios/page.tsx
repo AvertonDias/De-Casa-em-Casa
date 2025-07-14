@@ -6,14 +6,14 @@ import { UserContext } from '@/contexts/UserContext';
 import { db, functions } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, ChevronUp, SlidersHorizontal, Wifi, WifiOff, Users as UsersIcon } from 'lucide-react';
+import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, ChevronUp, SlidersHorizontal, Wifi, WifiOff, Users as UsersIcon, Zap, RefreshCw } from 'lucide-react';
 import { Menu, Transition, Disclosure } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import type { AppUser } from '@/types/types';
+import type { AppUser, Congregation } from '@/types/types';
 import { usePresence } from '@/hooks/usePresence';
 
 const UserListItem = ({ user, currentUserUid, onUpdate, onDelete, isUpdating }: { user: AppUser, currentUserUid: string, onUpdate: (userId: string, data: object) => void, onDelete: (user: AppUser) => void, isUpdating: boolean }) => {
@@ -168,6 +168,7 @@ export default function UsersPage() {
   usePresence(); 
 
   const [users, setUsers] = useState<AppUser[]>([]);
+  const [congregation, setCongregation] = useState<Congregation | null>(null);
   const [loading, setLoading] = useState(true);
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -180,18 +181,31 @@ export default function UsersPage() {
   const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
 
   useEffect(() => {
-    if (currentUser && ['Administrador', 'Dirigente'].includes(currentUser.role) && currentUser.congregationId) {
+    if (currentUser?.congregationId) {
+      setLoading(true);
+      // Listener para os usuários
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where("congregationId", "==", currentUser.congregationId));
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      const unsubUsers = onSnapshot(q, (snapshot) => {
         setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as AppUser[]);
         setLoading(false);
       }, (error) => {
         console.error("Erro ao buscar usuários:", error);
         setLoading(false);
       });
-      return () => unsubscribe();
+
+      // Listener para a congregação
+      const congRef = doc(db, 'congregations', currentUser.congregationId);
+      const unsubCong = onSnapshot(congRef, (docSnap) => {
+        if (docSnap.exists()) {
+          setCongregation({ id: docSnap.id, ...docSnap.data() } as Congregation);
+        }
+      });
+
+      return () => { 
+        unsubUsers(); 
+        unsubCong(); 
+      };
     } else if (!userLoading) {
       setLoading(false);
     }
@@ -238,6 +252,18 @@ export default function UsersPage() {
     }
   };
 
+  const handleResetPeak = async () => {
+    if (!currentUser?.congregationId || currentUser.role !== 'Administrador') return;
+    const resetFunction = httpsCallable(functions, 'resetPeakUsers');
+    try {
+        await resetFunction({ congregationId: currentUser.congregationId });
+        // Você pode adicionar um toast de sucesso aqui
+    } catch (error) {
+        console.error("Erro ao resetar pico:", error);
+        // E um toast de erro aqui
+    }
+  };
+
   const stats = useMemo(() => {
     const onlineCount = users.filter(u => u.isOnline === true).length;
     return {
@@ -279,7 +305,7 @@ export default function UsersPage() {
 
   }, [users, currentUser, searchTerm, presenceFilter, roleFilter, statusFilter]);
 
-  if (userLoading || loading) {
+  if (userLoading || loading || !congregation) {
     return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
   }
   
@@ -305,7 +331,7 @@ export default function UsersPage() {
         <p className="text-muted-foreground">Monitore e gerencie os membros da congregação.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4">
             <div className="bg-blue-500/20 text-blue-400 p-3 rounded-lg">
                 <UsersIcon size={28} />
@@ -332,6 +358,20 @@ export default function UsersPage() {
                 <p className="text-muted-foreground text-sm">Offline</p>
                 <p className="text-2xl font-bold">{stats.offline}</p>
             </div>
+        </div>
+         <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4">
+            <div className="bg-orange-500/20 text-orange-400 p-3 rounded-lg">
+                <Zap size={28} />
+            </div>
+            <div className="flex-1">
+                <p className="text-muted-foreground text-sm">Pico de Usuários</p>
+                <p className="text-2xl font-bold">{congregation.peakOnlineUsers?.count || 0}</p>
+            </div>
+            {currentUser?.role === 'Administrador' && (
+                <button onClick={handleResetPeak} className="p-2 text-muted-foreground hover:text-white" title="Resetar pico">
+                    <RefreshCw size={16} />
+                </button>
+            )}
         </div>
       </div>
 
@@ -424,5 +464,7 @@ export default function UsersPage() {
     </div>
   );
 }
+
+    
 
     

@@ -30,6 +30,17 @@ export interface Territory {
   lastUpdate?: any; // Firestore Timestamp
 }
 
+export interface Congregation {
+  id: string;
+  name: string;
+  number: string;
+  peakOnlineUsers?: {
+    count: number;
+    timestamp: Timestamp;
+  };
+  // ... outros campos que você possa ter
+}
+
 // Definição para uma Quadra
 export interface Quadra {
   id: string;
@@ -82,3 +93,6 @@ export interface RuralTerritory {
   description?: string;
   mapLink?: string;
 }
+
+
+    
