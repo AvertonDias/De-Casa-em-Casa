@@ -18,7 +18,6 @@ interface UserData {
   fcmTokens?: string[];
 }
 
-// A interface para validar os dados continua a mesma
 interface CreateCongregationData {
     adminName: string;
     adminEmail: string;
@@ -31,12 +30,9 @@ interface CreateCongregationData {
 //   FUNÇÕES DE CRIAÇÃO E GERENCIAMENTO DE USUÁRIOS
 // ============================================================================
 
-// ▼▼▼ CORREÇÃO NA ASSINATURA DA FUNÇÃO ▼▼▼
 export const createCongregationAndAdmin = functions.https.onCall(async (data, context) => {
-    // 1. Pegamos os dados e aplicamos o nosso tipo 'CreateCongregationData' a eles.
     const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = data as CreateCongregationData;
 
-    // 2. O resto da sua lógica continua exatamente a mesma.
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
         throw new functions.https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
     }
@@ -50,6 +46,7 @@ export const createCongregationAndAdmin = functions.https.onCall(async (data, co
         });
 
         const batch = db.batch();
+
         const newCongregationRef = db.collection('congregations').doc();
         batch.set(newCongregationRef, {
             name: congregationName,
@@ -73,6 +70,7 @@ export const createCongregationAndAdmin = functions.https.onCall(async (data, co
         });
 
         await batch.commit();
+
         return { success: true, userId: newUser.uid };
 
     } catch (error: any) {
@@ -602,49 +600,5 @@ export const onUserPresenceChange = functions.database.ref('/status/{uid}')
         });
     }
 });
-
-// ▼▼▼ FUNÇÃO DE PRESENÇA FINAL E ROBUSTA ▼▼▼
-export const onUserStatusChanged = functions.database.ref('/status/{uid}')
-  .onWrite(async (change, context) => {
-    
-    // Pega os dados do evento DEPOIS da mudança.
-    const eventStatus = change.after.val();
-    const firestoreUserRef = db.doc(`users/${context.params.uid}`);
-
-    // Cenário 1: O usuário ficou OFFLINE.
-    // O nó de status no RTDB foi apagado ou definido como 'offline'.
-    // `eventStatus` será nulo ou o estado será 'offline'.
-    if (!eventStatus || eventStatus.state === 'offline') {
-      try {
-        // Marca o usuário como offline e atualiza o "visto por último".
-        await firestoreUserRef.update({
-          isOnline: false,
-          lastSeen: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        console.log(`[Presence] Usuário ${context.params.uid} marcado como OFFLINE.`);
-      } catch (error) {
-        // Ignora o erro se o documento do usuário não for encontrado (pode ter sido excluído).
-        if ((error as any).code !== 'not-found') {
-          console.error(`Falha ao marcar usuário ${context.params.uid} como offline:`, error);
-        }
-      }
-      return;
-    }
-    
-    // Cenário 2: O usuário ficou ONLINE.
-    // O nó de status foi criado ou atualizado com o estado 'online'.
-    try {
-      await firestoreUserRef.update({
-        isOnline: true,
-        lastSeen: eventStatus.last_changed, // Usa o timestamp que veio do RTDB
-      });
-      console.log(`[Presence] Status do usuário ${context.params.uid} atualizado para ONLINE.`);
-    } catch (error) {
-       if ((error as any).code !== 'not-found') {
-          console.error(`Falha ao atualizar presença para usuário ${context.params.uid}:`, error);
-        }
-    }
-  });
-
 
     
