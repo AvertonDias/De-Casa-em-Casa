@@ -18,18 +18,27 @@ interface UserData {
   fcmTokens?: string[];
 }
 
+interface CreateCongregationData {
+    adminName: string;
+    adminEmail: string;
+    adminPassword: string;
+    congregationName: string;
+    congregationNumber: string;
+}
+
 // ============================================================================
 //   FUNÇÕES DE CRIAÇÃO E GERENCIAMENTO DE USUÁRIOS
 // ============================================================================
 
-export const createCongregationAndAdmin = functions.https.onCall(async (data, context) => {
+export const createCongregationAndAdmin = functions.https.onCall(async (data: CreateCongregationData, context) => {
+    // Agora o TypeScript sabe exatamente o que esperar de 'data'
     const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = data;
 
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
         throw new functions.https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
     }
 
-    let newUser;
+    let newUser: admin.auth.UserRecord | undefined;
     try {
         newUser = await admin.auth().createUser({
             email: adminEmail,
@@ -68,7 +77,7 @@ export const createCongregationAndAdmin = functions.https.onCall(async (data, co
     } catch (error: any) {
         if (newUser) {
             await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
-                console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser.uid}':`, deleteError);
+                console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser!.uid}':`, deleteError);
             });
         }
         
@@ -77,7 +86,7 @@ export const createCongregationAndAdmin = functions.https.onCall(async (data, co
         if (error.code === 'auth/email-already-exists') {
              throw new functions.https.HttpsError("already-exists", "Este e-mail já está em uso.");
         }
-        throw new functions.https.HttpsError("internal", "Ocorreu um erro interno ao processar a criação.");
+        throw new functions.https.HttpsError("internal", "Ocorreu um erro interno.");
     }
 });
 
