@@ -516,32 +516,51 @@ export const generateUploadUrl = functions.region("southamerica-east1")
 //   FUNÇÕES DE PRESENÇA E PICO DE USUÁRIOS
 // ============================================================================
 export const resetPeakUsers = functions.https.onCall(async (data, context) => {
+    // 1. Garante que quem está chamando está autenticado
     const uid = context.auth?.uid;
-    if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
-
-    const adminUserSnap = await db.collection("users").doc(uid).get();
-    if (adminUserSnap.data()?.role !== "Administrador") {
-        throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
+    if (!uid) {
+        console.error("[ResetPeak] Chamada não autenticada.");
+        throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
     
+    // 2. Valida o input
     const { congregationId } = data;
-    if (!congregationId) {
+    if (!congregationId || typeof congregationId !== 'string') {
+        console.error("[ResetPeak] ID da congregação inválido ou faltando na chamada.");
         throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário.");
     }
 
+    // 3. Verifica se o usuário que está chamando é um Administrador
+    try {
+        const adminUserSnap = await db.collection("users").doc(uid).get();
+        if (!adminUserSnap.exists || adminUserSnap.data()?.role !== "Administrador") {
+            console.warn(`[ResetPeak] Tentativa de reset por usuário não-admin: ${uid}`);
+            throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
+        }
+    } catch (error) {
+        console.error("[ResetPeak] Erro ao verificar permissões do usuário:", error);
+        throw new functions.https.HttpsError("internal", "Falha ao verificar permissões.");
+    }
+    
+    console.log(`[ResetPeak] Iniciado pelo admin ${uid} para a congregação ${congregationId}`);
+    
+    // 4. Executa a atualização
     try {
         const congregationRef = db.doc(`congregations/${congregationId}`);
         await congregationRef.update({
+            // Define o objeto completo para garantir consistência
             peakOnlineUsers: {
                 count: 0,
                 timestamp: admin.firestore.FieldValue.serverTimestamp()
             }
         });
-        console.log(`[PeakUsers] Pico de usuários resetado para a congregação ${congregationId} pelo admin ${uid}.`);
+        
+        console.log(`[ResetPeak] SUCESSO: Pico de usuários resetado para a congregação ${congregationId}.`);
         return { success: true, message: "Pico de usuários online resetado com sucesso." };
+
     } catch (error) {
-        console.error("Falha ao resetar o pico de usuários:", error);
-        throw new functions.https.HttpsError("internal", "Não foi possível resetar a estatística.");
+        console.error(`[ResetPeak] FALHA CRÍTICA ao resetar o pico para a congregação ${congregationId}:`, error);
+        throw new functions.https.HttpsError("internal", "Não foi possível resetar a estatística. Verifique os logs da função.");
     }
 });
 
@@ -602,3 +621,4 @@ export const onUserOffline = functions.database.ref('/status/{uid}')
     
 
     
+
