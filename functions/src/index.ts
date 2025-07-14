@@ -506,8 +506,70 @@ export const generateUploadUrl = functions.region("southamerica-east1")
 
 
 // ============================================================================
-//   FUNÇÃO DE PRESENÇA FINAL E ROBUSTA
+//   FUNÇÕES DE PRESENÇA E PICO DE USUÁRIOS
 // ============================================================================
+export const updatePeakOnlineUsers = functions.database.ref('/status/{uid}')
+  .onWrite(async (change, context) => {
+    const statusRef = change.after.ref.parent;
+    if (!statusRef) return null;
+
+    const userDocSnap = await db.doc(`users/${context.params.uid}`).get();
+    if (!userDocSnap.exists) return null;
+    const congregationId = userDocSnap.data()?.congregationId;
+    if (!congregationId) return null;
+
+    const congregationRef = db.doc(`congregations/${congregationId}`);
+    
+    const onlineUsersSnapshot = await statusRef.orderByChild('state').equalTo('online').once('value');
+    const currentOnlineCount = onlineUsersSnapshot.numChildren();
+
+    const congregationDoc = await congregationRef.get();
+    const peakData = congregationDoc.data()?.peakOnlineUsers || { count: 0 };
+    
+    if (currentOnlineCount > peakData.count) {
+      console.log(`[PeakUsers] Novo pico de ${currentOnlineCount} usuários na congregação ${congregationId}.`);
+      return congregationRef.update({
+        peakOnlineUsers: {
+          count: currentOnlineCount,
+          timestamp: admin.firestore.FieldValue.serverTimestamp()
+        }
+      });
+    }
+    
+    return null;
+});
+
+export const resetPeakUsers = functions.https.onCall(async (data, context) => {
+    const uid = context.auth?.uid;
+    if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
+
+    const adminUserSnap = await db.collection("users").doc(uid).get();
+    if (adminUserSnap.data()?.role !== "Administrador") {
+        throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
+    }
+    
+    const { congregationId } = data;
+    if (!congregationId) {
+        throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário.");
+    }
+
+    try {
+        const congregationRef = db.doc(`congregations/${congregationId}`);
+        await congregationRef.update({
+            peakOnlineUsers: {
+                count: 0,
+                timestamp: admin.firestore.FieldValue.serverTimestamp()
+            }
+        });
+        console.log(`[PeakUsers] Pico de usuários resetado para a congregação ${congregationId} pelo admin ${uid}.`);
+        return { success: true, message: "Pico de usuários online resetado com sucesso." };
+    } catch (error) {
+        console.error("Falha ao resetar o pico de usuários:", error);
+        throw new functions.https.HttpsError("internal", "Não foi possível resetar a estatística.");
+    }
+});
+
+// ▼▼▼ FUNÇÃO DE PRESENÇA FINAL E ROBUSTA ▼▼▼
 export const onUserStatusChanged = functions.database.ref('/status/{uid}')
   .onWrite(async (change, context) => {
     
@@ -515,8 +577,10 @@ export const onUserStatusChanged = functions.database.ref('/status/{uid}')
     const eventStatus = change.after.val();
     const firestoreUserRef = db.doc(`users/${context.params.uid}`);
 
-    // Se o nó de status foi DELETADO (usuário ficou offline), o `eventStatus` será nulo.
-    if (!eventStatus) {
+    // Cenário 1: O usuário ficou OFFLINE.
+    // O nó de status no RTDB foi apagado ou definido como 'offline'.
+    // `eventStatus` será nulo ou o estado será 'offline'.
+    if (!eventStatus || eventStatus.state === 'offline') {
       try {
         // Marca o usuário como offline e atualiza o "visto por último".
         await firestoreUserRef.update({
@@ -533,14 +597,14 @@ export const onUserStatusChanged = functions.database.ref('/status/{uid}')
       return;
     }
     
-    // Se o nó de status foi CRIADO ou ATUALIZADO (usuário ficou online),
-    // o `eventStatus` terá dados.
+    // Cenário 2: O usuário ficou ONLINE.
+    // O nó de status foi criado ou atualizado com o estado 'online'.
     try {
       await firestoreUserRef.update({
-        isOnline: eventStatus.state === 'online',
-        lastSeen: eventStatus.last_changed, // Usa o timestamp do RTDB
+        isOnline: true,
+        lastSeen: eventStatus.last_changed, // Usa o timestamp que veio do RTDB
       });
-      console.log(`[Presence] Status do usuário ${context.params.uid} atualizado para: ${eventStatus.state}`);
+      console.log(`[Presence] Status do usuário ${context.params.uid} atualizado para ONLINE.`);
     } catch (error) {
        if ((error as any).code !== 'not-found') {
           console.error(`Falha ao atualizar presença para usuário ${context.params.uid}:`, error);
