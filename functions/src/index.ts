@@ -502,17 +502,38 @@ export const generateUploadUrl = functions.region("southamerica-east1")
 // ============================================================================
 export const onUserStatusChanged = functions.database.ref('/status/{uid}')
   .onWrite(async (change, context) => {
+    
+    // Pega os dados do evento DEPOIS da mudança.
     const eventStatus = change.after.val();
     const firestoreUserRef = db.doc(`users/${context.params.uid}`);
 
-    // Se o usuário fica online/offline, o gatilho RTDB é acionado.
-    // Atualizamos os novos campos no perfil do usuário no Firestore.
+    // Se eventStatus é nulo, significa que o nó foi deletado (usuário ficou offline).
+    if (!eventStatus) {
+      // O testamento do onDisconnect geralmente não inclui um estado, apenas apaga o nó.
+      // Vamos garantir que ele salve 'offline' e o timestamp.
+      try {
+        await firestoreUserRef.update({
+          isOnline: false,
+          lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (error) {
+        // Ignora erros se o documento do usuário não for encontrado (já pode ter sido excluído)
+        if ((error as any).code !== 'not-found') {
+          console.error(`Falha ao marcar usuário ${context.params.uid} como offline:`, error);
+        }
+      }
+      return;
+    }
+    
+    // Se há dados, atualiza com o estado (online).
     try {
       await firestoreUserRef.update({
-        isOnline: eventStatus.state === 'online', // Salva um booleano
-        lastSeen: eventStatus.last_changed, // Salva o timestamp
+        isOnline: eventStatus.state === 'online',
+        lastSeen: eventStatus.last_changed,
       });
     } catch (error) {
-      console.error(`Falha ao atualizar presença para usuário ${context.params.uid}:`, error);
+       if ((error as any).code !== 'not-found') {
+          console.error(`Falha ao atualizar presença para usuário ${context.params.uid}:`, error);
+        }
     }
   });

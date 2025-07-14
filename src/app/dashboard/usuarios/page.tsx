@@ -182,7 +182,7 @@ export default function UsersPage() {
                                   {user.name}
                                   {user.uid === currentUser?.uid && <span className="text-purple-400 font-normal ml-2">(Você)</span>}
                                 </p>
-                                <p className={`text-sm ${isOnline ? 'text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                <p className={`text-sm ${isOnline ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
                                   {isOnline ? 'Online' : (user.lastSeen ? `Visto ${formatDistanceToNow(user.lastSeen.toDate(), { addSuffix: true, locale: ptBR })}` : 'Offline')}
                                 </p>
                             </div>
@@ -190,7 +190,12 @@ export default function UsersPage() {
                         
                         <div className="flex items-center justify-end gap-3 shrink-0">
                             <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRoleClass(user.role)}`}>{user.role}</span>
-                            <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusClass(user.status)}`}>{user.status.charAt(0).toUpperCase() + user.status.slice(1)}</span>
+                            
+                            {user.status !== 'ativo' && (
+                                <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusClass(user.status)}`}>
+                                    {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+                                </span>
+                            )}
                             
                             {currentUser && currentUser.uid !== user.uid && (
                                 <Menu as="div" className="relative">
