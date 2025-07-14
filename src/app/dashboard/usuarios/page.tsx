@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useState, useEffect, Fragment, useMemo, useContext } from 'react'; // Importa useContext
-import { useUser, UserContext } from '@/contexts/UserContext'; // Importa o Context
+import { UserContext } from '@/contexts/UserContext'; // Importa o Context
 import { db, functions } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -15,14 +14,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { AppUser } from '@/types/types';
 
-// ▼▼▼ ADICIONADO: Hook para o sistema de presença ▼▼▼
 import { usePresence } from '@/hooks/usePresence'; 
 
 export default function UsersPage() {
-  // ▼▼▼ ADICIONADO: Renomeei o user do contexto para evitar conflito de nome no .map() ▼▼▼
   const { user: currentUser, loading: userLoading } = useContext(UserContext); 
   
-  // ▼▼▼ ADICIONADO: Ativa o sistema de presença para o usuário logado ▼▼▼
   usePresence(); 
 
   const [users, setUsers] = useState<AppUser[]>([]);
@@ -167,125 +163,131 @@ export default function UsersPage() {
            <div className="text-center p-8 text-muted-foreground"><Loader className="animate-spin mx-auto" /></div>
         ) : sortedAndFilteredUsers.length > 0 ? (
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-              {sortedAndFilteredUsers.map((user) => (
-                  <li key={user.uid} className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                      <div className="flex items-center flex-1 min-w-0">
-                          <Avatar className="mr-4 flex-shrink-0 relative">
-                            <AvatarFallback>
-                              {getInitials(user.name) || <User size={20} />}
-                            </AvatarFallback>
-                            <span className={`absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full ring-2 ring-card ${user.isOnline ? 'bg-green-500' : 'bg-gray-500'}`} />
-                          </Avatar>
-                          <div className="min-w-0">
-                              <p className="font-semibold text-gray-900 dark:text-white truncate">
-                                {user.name}
-                                {user.uid === currentUser?.uid && <span className="text-purple-400 font-normal ml-2">(Você)</span>}
-                              </p>
-                              <p className={`text-sm ${user.isOnline ? 'text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                                {user.isOnline ? 'Online' : (user.lastSeen ? `Visto ${formatDistanceToNow(user.lastSeen.toDate(), { addSuffix: true, locale: ptBR })}` : 'Offline')}
-                              </p>
-                          </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-end gap-3 shrink-0">
-                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRoleClass(user.role)}`}>{user.role}</span>
-                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusClass(user.status)}`}>{user.status.charAt(0).toUpperCase() + user.status.slice(1)}</span>
-                          
-                          {currentUser && currentUser.uid !== user.uid && (
-                              <Menu as="div" className="relative">
-                                  <Menu.Button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:cursor-not-allowed" disabled={updatingUserId === user.uid}>
-                                    {updatingUserId === user.uid ? <Loader size={20} className="animate-spin"/> : <MoreVertical size={20} />}
-                                  </Menu.Button>
-                                  <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                                      <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right bg-white dark:bg-gray-800 divide-y dark:divide-gray-700 rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5 focus:outline-none">
-                                         <div className="p-1">
-                                            {user.status === 'pendente' && (
-                                              <>
-                                                <Menu.Item>
-                                                  {({ active }) => (
-                                                    <button onClick={() => handleUserUpdate(user.uid, { status: 'ativo' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                                      <Check className="mr-2 h-4 w-4"/>Aprovar
-                                                    </button>
-                                                  )}
-                                                </Menu.Item>
-                                                <Menu.Item>
-                                                  {({ active }) => (
-                                                    <button onClick={() => handleUserUpdate(user.uid, { status: 'rejeitado' })} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                                      <XCircle className="mr-2 h-4 w-4"/>Rejeitar
-                                                    </button>
-                                                  )}
-                                                </Menu.Item>
-                                              </>
-                                            )}
-                                            {user.status === 'rejeitado' && (
-                                                <Menu.Item>
-                                                  {({ active }) => (
-                                                    <button onClick={() => handleUserUpdate(user.uid, { status: 'ativo' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                                      <Check className="mr-2 h-4 w-4"/>Aprovar Mesmo Assim
-                                                    </button>
-                                                  )}
-                                                </Menu.Item>
-                                            )}
-                                            
-                                            {currentUser.role === 'Administrador' && user.status === 'ativo' && (
-                                              <>
-                                                {user.role === 'Publicador' && (
-                                                  <Menu.Item>
-                                                    {({ active }) => (
-                                                      <button onClick={() => handleUserUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                                        <Shield className="mr-2 h-4 w-4"/>Tornar Dirigente
-                                                      </button>
-                                                    )}
-                                                  </Menu.Item>
-                                                )}
-                                                {user.role === 'Dirigente' && (
-                                                  <>
-                                                    <Menu.Item>
-                                                      {({ active }) => (
-                                                        <button onClick={() => handleUserUpdate(user.uid, { role: 'Administrador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                                          <ShieldAlert className="mr-2 h-4 w-4"/>Tornar Administrador
-                                                        </button>
-                                                      )}
-                                                    </Menu.Item>
-                                                    <Menu.Item>
-                                                      {({ active }) => (
-                                                        <button onClick={() => handleUserUpdate(user.uid, { role: 'Publicador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                                          <User className="mr-2 h-4 w-4"/>Tornar Publicador
-                                                        </button>
-                                                      )}
-                                                    </Menu.Item>
-                                                  </>
-                                                )}
-                                                {user.role === 'Administrador' && (
-                                                  <Menu.Item>
-                                                    {({ active }) => (
-                                                      <button onClick={() => handleUserUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                                        <Shield className="mr-2 h-4 w-4"/>Rebaixar para Dirigente
-                                                      </button>
-                                                    )}
-                                                  </Menu.Item>
-                                                )}
-                                              </>
-                                            )}
-                                         </div>
-                                         {currentUser.role === 'Administrador' && (
+              {sortedAndFilteredUsers.map((user) => {
+                  const isOnline = user.isOnline === true;
+                  return (
+                    <li key={user.uid} className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex items-center flex-1 min-w-0">
+                            <Avatar className="mr-4 flex-shrink-0 relative">
+                              <AvatarFallback>
+                                {getInitials(user.name) || <User size={20} />}
+                              </AvatarFallback>
+                              <span 
+                                className={`absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full ring-2 ring-card 
+                                  ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} 
+                              />
+                            </Avatar>
+                            <div className="min-w-0">
+                                <p className="font-semibold text-gray-900 dark:text-white truncate">
+                                  {user.name}
+                                  {user.uid === currentUser?.uid && <span className="text-purple-400 font-normal ml-2">(Você)</span>}
+                                </p>
+                                <p className={`text-sm ${isOnline ? 'text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                  {isOnline ? 'Online' : (user.lastSeen ? `Visto ${formatDistanceToNow(user.lastSeen.toDate(), { addSuffix: true, locale: ptBR })}` : 'Offline')}
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-end gap-3 shrink-0">
+                            <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRoleClass(user.role)}`}>{user.role}</span>
+                            <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusClass(user.status)}`}>{user.status.charAt(0).toUpperCase() + user.status.slice(1)}</span>
+                            
+                            {currentUser && currentUser.uid !== user.uid && (
+                                <Menu as="div" className="relative">
+                                    <Menu.Button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:cursor-not-allowed" disabled={updatingUserId === user.uid}>
+                                      {updatingUserId === user.uid ? <Loader size={20} className="animate-spin"/> : <MoreVertical size={20} />}
+                                    </Menu.Button>
+                                    <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+                                        <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right bg-white dark:bg-gray-800 divide-y dark:divide-gray-700 rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5 focus:outline-none">
                                            <div className="p-1">
-                                              <Menu.Item>
-                                                {({ active }) => (
-                                                  <button onClick={() => openDeleteConfirm(user)} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                                    <Trash2 className="mr-2 h-4 w-4"/>Excluir Usuário
-                                                  </button>
-                                                )}
-                                              </Menu.Item>
+                                              {user.status === 'pendente' && (
+                                                <>
+                                                  <Menu.Item>
+                                                    {({ active }) => (
+                                                      <button onClick={() => handleUserUpdate(user.uid, { status: 'ativo' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                                        <Check className="mr-2 h-4 w-4"/>Aprovar
+                                                      </button>
+                                                    )}
+                                                  </Menu.Item>
+                                                  <Menu.Item>
+                                                    {({ active }) => (
+                                                      <button onClick={() => handleUserUpdate(user.uid, { status: 'rejeitado' })} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                                        <XCircle className="mr-2 h-4 w-4"/>Rejeitar
+                                                      </button>
+                                                    )}
+                                                  </Menu.Item>
+                                                </>
+                                              )}
+                                              {user.status === 'rejeitado' && (
+                                                  <Menu.Item>
+                                                    {({ active }) => (
+                                                      <button onClick={() => handleUserUpdate(user.uid, { status: 'ativo' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                                        <Check className="mr-2 h-4 w-4"/>Aprovar Mesmo Assim
+                                                      </button>
+                                                    )}
+                                                  </Menu.Item>
+                                              )}
+                                              
+                                              {currentUser.role === 'Administrador' && user.status === 'ativo' && (
+                                                <>
+                                                  {user.role === 'Publicador' && (
+                                                    <Menu.Item>
+                                                      {({ active }) => (
+                                                        <button onClick={() => handleUserUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                                          <Shield className="mr-2 h-4 w-4"/>Tornar Dirigente
+                                                        </button>
+                                                      )}
+                                                    </Menu.Item>
+                                                  )}
+                                                  {user.role === 'Dirigente' && (
+                                                    <>
+                                                      <Menu.Item>
+                                                        {({ active }) => (
+                                                          <button onClick={() => handleUserUpdate(user.uid, { role: 'Administrador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                                            <ShieldAlert className="mr-2 h-4 w-4"/>Tornar Administrador
+                                                          </button>
+                                                        )}
+                                                      </Menu.Item>
+                                                      <Menu.Item>
+                                                        {({ active }) => (
+                                                          <button onClick={() => handleUserUpdate(user.uid, { role: 'Publicador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                                            <User className="mr-2 h-4 w-4"/>Tornar Publicador
+                                                          </button>
+                                                        )}
+                                                      </Menu.Item>
+                                                    </>
+                                                  )}
+                                                  {user.role === 'Administrador' && (
+                                                    <Menu.Item>
+                                                      {({ active }) => (
+                                                        <button onClick={() => handleUserUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                                          <Shield className="mr-2 h-4 w-4"/>Rebaixar para Dirigente
+                                                        </button>
+                                                      )}
+                                                    </Menu.Item>
+                                                  )}
+                                                </>
+                                              )}
                                            </div>
-                                         )}
-                                      </Menu.Items>
-                                  </Transition>
-                              </Menu>
-                          )}
-                      </div>
-                  </li>
-              ))}
+                                           {currentUser.role === 'Administrador' && (
+                                             <div className="p-1">
+                                                <Menu.Item>
+                                                  {({ active }) => (
+                                                    <button onClick={() => openDeleteConfirm(user)} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                                      <Trash2 className="mr-2 h-4 w-4"/>Excluir Usuário
+                                                    </button>
+                                                  )}
+                                                </Menu.Item>
+                                             </div>
+                                           )}
+                                        </Menu.Items>
+                                    </Transition>
+                                </Menu>
+                            )}
+                        </div>
+                    </li>
+                  );
+                })}
           </ul>
         ) : (
           <div className="text-center p-8 text-muted-foreground">
