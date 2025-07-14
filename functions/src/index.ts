@@ -495,3 +495,24 @@ export const generateUploadUrl = functions.region("southamerica-east1")
         throw new functions.https.HttpsError('internal', 'Não foi possível criar a URL de upload.');
     }
 });
+
+
+// ============================================================================
+//   FUNÇÃO DE PRESENÇA
+// ============================================================================
+export const onUserStatusChanged = functions.database.ref('/status/{uid}')
+  .onWrite(async (change, context) => {
+    const eventStatus = change.after.val();
+    const firestoreUserRef = db.doc(`users/${context.params.uid}`);
+
+    // Se o usuário fica online/offline, o gatilho RTDB é acionado.
+    // Atualizamos os novos campos no perfil do usuário no Firestore.
+    try {
+      await firestoreUserRef.update({
+        isOnline: eventStatus.state === 'online', // Salva um booleano
+        lastSeen: eventStatus.last_changed, // Salva o timestamp
+      });
+    } catch (error) {
+      console.error(`Falha ao atualizar presença para usuário ${context.params.uid}:`, error);
+    }
+  });

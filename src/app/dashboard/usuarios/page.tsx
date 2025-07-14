@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState, useEffect, Fragment, useMemo } from 'react';
-import { useUser } from '@/contexts/UserContext';
+import { useState, useEffect, Fragment, useMemo, useContext } from 'react'; // Importa useContext
+import { useUser, UserContext } from '@/contexts/UserContext'; // Importa o Context
 import { db, functions } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -15,9 +15,16 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { AppUser } from '@/types/types';
 
+// ▼▼▼ ADICIONADO: Hook para o sistema de presença ▼▼▼
+import { usePresence } from '@/hooks/usePresence'; 
 
 export default function UsersPage() {
-  const { user: currentUser, loading: userLoading } = useUser();
+  // ▼▼▼ ADICIONADO: Renomeei o user do contexto para evitar conflito de nome no .map() ▼▼▼
+  const { user: currentUser, loading: userLoading } = useContext(UserContext); 
+  
+  // ▼▼▼ ADICIONADO: Ativa o sistema de presença para o usuário logado ▼▼▼
+  usePresence(); 
+
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -167,17 +174,15 @@ export default function UsersPage() {
                             <AvatarFallback>
                               {getInitials(user.name) || <User size={20} />}
                             </AvatarFallback>
-                            {user.isOnline && (
-                              <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 ring-2 ring-card animate-pulse" />
-                            )}
+                            <span className={`absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full ring-2 ring-card ${user.isOnline ? 'bg-green-500' : 'bg-gray-500'}`} />
                           </Avatar>
                           <div className="min-w-0">
                               <p className="font-semibold text-gray-900 dark:text-white truncate">
                                 {user.name}
                                 {user.uid === currentUser?.uid && <span className="text-purple-400 font-normal ml-2">(Você)</span>}
                               </p>
-                              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                                {user.isOnline ? 'Online' : (user.lastSeen ? `Visto ${formatDistanceToNow(user.lastSeen.toDate(), { addSuffix: true, locale: ptBR })}` : user.email || 'E-mail não disponível')}
+                              <p className={`text-sm ${user.isOnline ? 'text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                                {user.isOnline ? 'Online' : (user.lastSeen ? `Visto ${formatDistanceToNow(user.lastSeen.toDate(), { addSuffix: true, locale: ptBR })}` : 'Offline')}
                               </p>
                           </div>
                       </div>

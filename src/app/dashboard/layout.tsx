@@ -23,6 +23,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
+import { usePresence } from "@/hooks/usePresence";
 import { FeedbackModal } from "@/components/FeedbackModal";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
@@ -239,6 +240,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useUser();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  usePresence(); // Ativa o sistema de presença para o usuário logado
 
   useEffect(() => {
     const requestPermission = async () => {
