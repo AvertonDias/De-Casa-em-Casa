@@ -545,57 +545,58 @@ export const resetPeakUsers = functions.https.onCall(async (data, context) => {
     }
 });
 
-// ▼▼▼ FUNÇÃO DE PRESENÇA FINAL, EFICIENTE E CORRIGIDA ▼▼▼
-export const handleUserPresence = functions.database.ref('/status/{uid}')
-  .onWrite(async (change, context) => {
-    
-    // Pega o estado ANTES e DEPOIS da mudança
-    const stateBefore = change.before.exists() ? change.before.val().state : null;
-    const stateAfter = change.after.exists() ? change.after.val().state : null;
+// FUNÇÃO 1: Acionada APENAS quando um usuário fica ONLINE.
+export const onUserOnline = functions.database.ref('/status/{uid}')
+  .onCreate(async (snapshot, context) => {
+    const { uid } = context.params;
+    const firestoreUserRef = db.doc(`users/${uid}`);
 
-    // ▼▼▼ A CORREÇÃO PRINCIPAL ESTÁ AQUI ▼▼▼
-    // Se o estado não mudou (ex: de 'online' para 'online'), não faz nada.
-    // Isso quebra o loop de atualização infinita.
-    if (stateBefore === stateAfter) {
-      console.log(`[Presence] Sem mudança de estado para ${context.params.uid}. Ignorando.`);
-      return null;
+    // 1. Marca o usuário como online no Firestore.
+    try {
+      await firestoreUserRef.update({ isOnline: true });
+      console.log(`[Presence] Usuário ${uid} ficou ONLINE.`);
+    } catch (error) {
+      if ((error as any).code !== 'not-found') console.error(error);
     }
 
-    const firestoreUserRef = db.doc(`users/${context.params.uid}`);
-
-    // Se o nó foi DELETADO ou marcado como OFFLINE
-    if (!stateAfter || stateAfter === 'offline') {
-      return firestoreUserRef.update({
-        isOnline: false,
-        lastSeen: admin.firestore.FieldValue.serverTimestamp(),
-      }).catch(err => { if(err.code !== 'not-found') console.error(err) });
-    }
-    
-    // Se o nó foi CRIADO ou ATUALIZADO para ONLINE
-    await firestoreUserRef.update({
-      isOnline: true,
-      lastSeen: change.after.val().last_changed,
-    }).catch(err => { if(err.code !== 'not-found') console.error(err) });
-
-    // A lógica de PICO de usuários agora só roda quando alguém FICA online.
-    const userDocSnap = await db.doc(`users/${context.params.uid}`).get();
+    // 2. Lógica para atualizar o pico de usuários.
+    const userDocSnap = await firestoreUserRef.get();
     if (!userDocSnap.exists()) return;
     const congregationId = userDocSnap.data()?.congregationId;
     if (!congregationId) return;
 
     const congregationRef = db.doc(`congregations/${congregationId}`);
-    const statusRef = change.after.ref.parent; 
+    const statusRef = snapshot.ref.parent; // A pasta 'status/'
 
     return db.runTransaction(async (transaction) => {
         const congDoc = await transaction.get(congregationRef);
-        if (!congDoc.exists) return;
-        const onlineUsersSnapshot = await statusRef!.orderByChild('state').equalTo('online').once('value');
+        if (!congDoc.exists()) return;
+        const onlineUsersSnapshot = await statusRef.orderByChild('state').equalTo('online').once('value');
         const currentOnlineCount = onlineUsersSnapshot.numChildren();
         const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
         if (currentOnlineCount > peakData.count) {
             transaction.update(congregationRef, { peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
         }
     });
+  });
+
+
+// FUNÇÃO 2: Acionada APENAS quando um usuário fica OFFLINE.
+export const onUserOffline = functions.database.ref('/status/{uid}')
+  .onDelete(async (snapshot, context) => {
+    const { uid } = context.params;
+    const firestoreUserRef = db.doc(`users/${uid}`);
+
+    // Marca o usuário como offline e salva o 'visto por último'.
+    try {
+      await firestoreUserRef.update({
+        isOnline: false,
+        lastSeen: admin.firestore.FieldValue.serverTimestamp()
+      });
+      console.log(`[Presence] Usuário ${uid} ficou OFFLINE.`);
+    } catch (error) {
+      if ((error as any).code !== 'not-found') console.error(error);
+    }
   });
 
     
