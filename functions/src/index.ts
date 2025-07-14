@@ -141,50 +141,58 @@ export const notifyAdminOfNewUser = functions.firestore
 });
 
 export const deleteUserAccount = functions.https.onCall(async (data, context) => {
+  // 1. Verifica se quem está chamando é um usuário autenticado
   const callingUserUid = context.auth?.uid;
   if (!callingUserUid) {
-    throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
+    throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada. Requer autenticação.");
   }
 
+  // 2. Valida o input: precisa do UID do usuário a ser excluído
   const userIdToDelete = data.uid;
   if (!userIdToDelete || typeof userIdToDelete !== 'string') {
     throw new functions.https.HttpsError("invalid-argument", "O ID do usuário a ser excluído não foi fornecido.");
   }
 
-  const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-  const isAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
-
-  if (!isAdmin && callingUserUid !== userIdToDelete) {
-      throw new functions.https.HttpsError("permission-denied", "Você não tem permissão para realizar esta ação.");
+  // 3. Pega os dados do usuário que está fazendo a chamada para verificar as permissões
+  const callingUserDoc = await db.collection("users").doc(callingUserUid).get();
+  const callingUserData = callingUserDoc.data();
+  
+  // 4. Regra de permissão: só permite se for um Admin
+  if (!callingUserData || callingUserData.role !== "Administrador") {
+    throw new functions.https.HttpsError("permission-denied", "Apenas administradores podem excluir usuários.");
   }
   
-  if (isAdmin && callingUserUid === userIdToDelete) {
-    throw new functions.https.HttpsError("permission-denied", "Um administrador não pode se autoexcluir através desta função.");
+  // 5. Regra de segurança: um admin não pode se auto-excluir
+  if (callingUserUid === userIdToDelete) {
+    throw new functions.https.HttpsError("permission-denied", "Um administrador não pode se autoexcluir.");
   }
 
   try {
+    // 6. Executa a exclusão no Firebase Authentication
+    await admin.auth().deleteUser(userIdToDelete);
+    console.log(`[Delete] Usuário ${userIdToDelete} excluído da Autenticação com sucesso.`);
+
+    // 7. Executa a exclusão do documento no Firestore
     const userDocRef = db.collection("users").doc(userIdToDelete);
-    if ((await userDocRef.get()).exists) {
-        await userDocRef.delete();
-        console.log(`Documento do usuário ${userIdToDelete} excluído do Firestore.`);
-    } else {
-        console.log(`Documento do usuário ${userIdToDelete} não foi encontrado no Firestore, pulando.`);
-    }
+    await userDocRef.delete();
+    console.log(`[Delete] Documento do usuário ${userIdToDelete} excluído do Firestore com sucesso.`);
 
-    try {
-      await admin.auth().deleteUser(userIdToDelete);
-      console.log(`Usuário ${userIdToDelete} excluído da autenticação.`);
-    } catch (authError: any) {
-        if (authError.code === "auth/user-not-found") {
-            console.warn(`Usuário ${userIdToDelete} não encontrado na autenticação, provavelmente já foi deletado.`);
-        } else {
-            throw authError;
-        }
-    }
+    return { success: true, message: `Usuário ${userIdToDelete} excluído com sucesso.` };
 
-    return { success: true, message: "Operação de exclusão concluída." };
   } catch (error: any) {
-    console.error("Erro CRÍTICO ao excluir usuário:", error);
+    console.error(`[Delete] FALHA CRÍTICA ao tentar excluir o usuário ${userIdToDelete}:`, error);
+    
+    // Se o usuário não foi encontrado na Auth (talvez já tenha sido excluído),
+    // ainda tenta apagar o documento do Firestore como uma limpeza final.
+    if (error.code === 'auth/user-not-found') {
+      const userDocRef = db.collection("users").doc(userIdToDelete);
+      if ((await userDocRef.get()).exists) {
+        await userDocRef.delete();
+        console.log(`[Delete] Limpeza: Documento do usuário órfão ${userIdToDelete} excluído do Firestore.`);
+      }
+      return { success: true, message: "Usuário não encontrado na autenticação, mas documento do Firestore limpo." };
+    }
+    
     throw new functions.https.HttpsError("internal", `Falha na exclusão: ${error.message}`);
   }
 });
@@ -498,7 +506,7 @@ export const generateUploadUrl = functions.region("southamerica-east1")
 
 
 // ============================================================================
-//   FUNÇÃO DE PRESENÇA
+//   FUNÇÃO DE PRESENÇA FINAL E ROBUSTA
 // ============================================================================
 export const onUserStatusChanged = functions.database.ref('/status/{uid}')
   .onWrite(async (change, context) => {
@@ -507,17 +515,17 @@ export const onUserStatusChanged = functions.database.ref('/status/{uid}')
     const eventStatus = change.after.val();
     const firestoreUserRef = db.doc(`users/${context.params.uid}`);
 
-    // Se eventStatus é nulo, significa que o nó foi deletado (usuário ficou offline).
+    // Se o nó de status foi DELETADO (usuário ficou offline), o `eventStatus` será nulo.
     if (!eventStatus) {
-      // O testamento do onDisconnect geralmente não inclui um estado, apenas apaga o nó.
-      // Vamos garantir que ele salve 'offline' e o timestamp.
       try {
+        // Marca o usuário como offline e atualiza o "visto por último".
         await firestoreUserRef.update({
           isOnline: false,
           lastSeen: admin.firestore.FieldValue.serverTimestamp(),
         });
+        console.log(`[Presence] Usuário ${context.params.uid} marcado como OFFLINE.`);
       } catch (error) {
-        // Ignora erros se o documento do usuário não for encontrado (já pode ter sido excluído)
+        // Ignora o erro se o documento do usuário não for encontrado (pode ter sido excluído).
         if ((error as any).code !== 'not-found') {
           console.error(`Falha ao marcar usuário ${context.params.uid} como offline:`, error);
         }
@@ -525,17 +533,17 @@ export const onUserStatusChanged = functions.database.ref('/status/{uid}')
       return;
     }
     
-    // Se há dados, atualiza com o estado (online).
+    // Se o nó de status foi CRIADO ou ATUALIZADO (usuário ficou online),
+    // o `eventStatus` terá dados.
     try {
       await firestoreUserRef.update({
         isOnline: eventStatus.state === 'online',
-        lastSeen: eventStatus.last_changed,
+        lastSeen: eventStatus.last_changed, // Usa o timestamp do RTDB
       });
+      console.log(`[Presence] Status do usuário ${context.params.uid} atualizado para: ${eventStatus.state}`);
     } catch (error) {
        if ((error as any).code !== 'not-found') {
           console.error(`Falha ao atualizar presença para usuário ${context.params.uid}:`, error);
         }
     }
   });
-
-    
