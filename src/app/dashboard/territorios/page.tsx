@@ -6,8 +6,9 @@ import { db } from '@/lib/firebase';
 import { UserContext } from '@/contexts/UserContext';
 import { Territory } from '@/types/types';
 import Link from 'next/link';
-import { Plus, Search, ChevronRight } from 'lucide-react';
+import { Plus, Search, ChevronRight, Loader } from 'lucide-react';
 import AddTerritoryModal from '@/components/AddTerritoryModal';
+import { RestrictedContent } from '@/components/RestrictedContent';
 
 // ========================================================================
 //   Componentes de Lista (Com Navegação Corrigida)
@@ -58,24 +59,24 @@ export default function TerritoriosPage() {
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const { user } = useContext(UserContext);
+  const { user, loading: userLoading } = useContext(UserContext);
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
-    if (!user?.congregationId) {
-      if (!user) setLoading(true); else setLoading(false);
-      return;
+    if (user?.status === 'ativo' && user.congregationId) {
+      const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
+      const q = query(territoriesRef, where("type", "in", ["urban", null, ""]), orderBy("number"));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
+        setTerritories(data);
+        setLoading(false);
+      });
+      return () => unsubscribe();
+    } else if (!userLoading) {
+        setLoading(false);
     }
-    const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-    const q = query(territoriesRef, where("type", "in", ["urban", ""]), orderBy("number"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
-      setTerritories(data);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-   }, [user]);
+  }, [user, userLoading]);
 
   const handleAddTerritory = async (data: any) => {
     if (!user?.congregationId) {
@@ -97,10 +98,25 @@ export default function TerritoriosPage() {
     t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.number.includes(searchTerm)
   );
   
+  if (userLoading || loading) {
+    return <div className="flex items-center justify-center h-full"><Loader className="animate-spin text-purple-600" size={48} /></div>;
+  }
+
+  if (!user) {
+    return null; // O layout principal redireciona
+  }
+
+  if (user.status === 'pendente') {
+    return (
+      <RestrictedContent
+        title="Acesso aos Territórios Restrito"
+        message="Seu acesso precisa ser aprovado por um administrador para que você possa ver os territórios da congregação."
+      />
+    );
+  }
+  
   const isManagerView = user?.role === 'Administrador' || user?.role === 'Dirigente';
   const isAdmin = user?.role === 'Administrador';
-
-  if (loading) return <p className="p-8">Carregando...</p>;
 
   return (
     <>
