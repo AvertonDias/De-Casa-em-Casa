@@ -6,7 +6,7 @@ import { UserContext } from '@/contexts/UserContext';
 import { db, functions } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, ChevronUp, SlidersHorizontal } from 'lucide-react';
+import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, ChevronUp, SlidersHorizontal, Wifi, WifiOff, Users as UsersIcon } from 'lucide-react';
 import { Menu, Transition, Disclosure } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -235,6 +235,15 @@ export default function UsersPage() {
     }
   };
 
+  const stats = useMemo(() => {
+    const onlineCount = users.filter(u => u.isOnline === true).length;
+    return {
+      total: users.length,
+      online: onlineCount,
+      offline: users.length - onlineCount,
+    };
+  }, [users]);
+
   const filteredAndSortedUsers = useMemo(() => {
     let filtered = [...users];
 
@@ -291,10 +300,43 @@ export default function UsersPage() {
   );
 
   return (
-    <div className="p-4 md:p-8">
-      <h1 className="text-3xl font-bold mb-6">Gerenciamento de Usuários</h1>
+    <div className="p-4 md:p-8 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
+        <p className="text-muted-foreground">Monitore e gerencie os membros da congregação.</p>
+      </div>
 
-      <div className="w-full mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4">
+            <div className="bg-blue-500/20 text-blue-400 p-3 rounded-lg">
+                <UsersIcon size={28} />
+            </div>
+            <div>
+                <p className="text-muted-foreground text-sm">Total de Usuários</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
+            </div>
+        </div>
+        <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4">
+            <div className="bg-green-500/20 text-green-400 p-3 rounded-lg">
+                <Wifi size={28} />
+            </div>
+            <div>
+                <p className="text-muted-foreground text-sm">Online</p>
+                <p className="text-2xl font-bold">{stats.online}</p>
+            </div>
+        </div>
+        <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4">
+            <div className="bg-gray-500/20 text-gray-400 p-3 rounded-lg">
+                <WifiOff size={28} />
+            </div>
+            <div>
+                <p className="text-muted-foreground text-sm">Offline</p>
+                <p className="text-2xl font-bold">{stats.offline}</p>
+            </div>
+        </div>
+      </div>
+
+      <div className="w-full">
         <div className="bg-card rounded-lg p-2">
             <Disclosure as="div">
                 {({ open }) => (
@@ -342,7 +384,7 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <div className="relative mb-4">
+      <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
         <input type="text" placeholder="Buscar por nome ou e-mail..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-card border border-input rounded-lg" />
       </div>
