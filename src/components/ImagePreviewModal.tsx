@@ -31,7 +31,8 @@ export default function ImagePreviewModal({ isOpen, imageUrl, onClose }: ImagePr
         <img 
           src={imageUrl} 
           alt="Preview do Cartão em tela cheia" 
-          className="max-w-screen-xl max-h-[90vh] object-contain"
+          // Rotação aplicada em telas pequenas (smartphones)
+          className="max-w-screen-xl max-h-[90vh] object-contain md:max-h-[90vh] md:max-w-[90vw] md:rotate-0 rotate-90 max-h-[80vw] max-w-[80vw] transition-transform duration-300"
         />
       </div>
     </div>
