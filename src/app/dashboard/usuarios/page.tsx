@@ -6,8 +6,8 @@ import { UserContext } from '@/contexts/UserContext';
 import { db, functions } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle } from 'lucide-react';
-import { Menu, Transition } from '@headlessui/react';
+import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, ChevronUp } from 'lucide-react';
+import { Menu, Transition, Disclosure } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
@@ -293,29 +293,76 @@ export default function UsersPage() {
   return (
     <div className="p-4 md:p-8">
       <h1 className="text-3xl font-bold mb-6">Gerenciamento de Usuários</h1>
-      <div className="space-y-4 mb-6">
-        <div className="p-4 bg-card rounded-lg flex flex-wrap items-center gap-x-4 gap-y-2">
-            <p className="font-semibold text-sm mr-2 shrink-0">Presença:</p>
-            <FilterButton label="Todos" value="all" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
-            <FilterButton label="Online" value="online" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
-            <FilterButton label="Offline" value="offline" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
-        </div>
-        <div className="p-4 bg-card rounded-lg flex flex-wrap items-center gap-x-4 gap-y-2">
-            <p className="font-semibold text-sm mr-2 shrink-0">Perfil:</p>
-            <FilterButton label="Todos" value="all" currentFilter={roleFilter} setFilter={setRoleFilter} />
-            <FilterButton label="Admin" value="Administrador" currentFilter={roleFilter} setFilter={setRoleFilter} />
-            <FilterButton label="Dirigente" value="Dirigente" currentFilter={roleFilter} setFilter={setRoleFilter} />
-            <FilterButton label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} />
-        </div>
-         <div className="p-4 bg-card rounded-lg flex flex-wrap items-center gap-x-4 gap-y-2">
-            <p className="font-semibold text-sm mr-2 shrink-0">Aprovação:</p>
-            <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} />
-            <FilterButton label="Pendentes" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
-        </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-          <input type="text" placeholder="Buscar por nome ou e-mail..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-card border border-input rounded-lg" />
-        </div>
+
+      <div className="w-full space-y-2 mb-6">
+          <div className="bg-card rounded-lg p-2">
+              <Disclosure>
+                  {({ open }) => (
+                  <>
+                      <Disclosure.Button className="flex w-full justify-between rounded-lg px-4 py-2 text-left text-sm font-medium hover:bg-white/5 focus:outline-none focus-visible:ring focus-visible:ring-purple-500/75">
+                          <span>Filtrar por Status de Presença</span>
+                          <ChevronUp className={`${open ? 'rotate-180 transform' : ''} h-5 w-5 transition-transform`} />
+                      </Disclosure.Button>
+                      <Transition enter="transition duration-100 ease-out" enterFrom="transform scale-95 opacity-0" enterTo="transform scale-100 opacity-100" leave="transition duration-75 ease-out" leaveFrom="transform scale-100 opacity-100" leaveTo="transform scale-95 opacity-0">
+                          <Disclosure.Panel className="px-4 pb-2 pt-4 text-sm text-gray-500 border-t border-border mt-2">
+                              <div className="flex flex-wrap gap-2">
+                                  <FilterButton label="Todos" value="all" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
+                                  <FilterButton label="Online" value="online" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
+                                  <FilterButton label="Offline" value="offline" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
+                              </div>
+                          </Disclosure.Panel>
+                      </Transition>
+                  </>
+                  )}
+              </Disclosure>
+          </div>
+          <div className="bg-card rounded-lg p-2">
+            <Disclosure>
+              {({ open }) => (
+                <>
+                  <Disclosure.Button className="flex w-full justify-between rounded-lg px-4 py-2 text-left text-sm font-medium hover:bg-white/5 focus:outline-none focus-visible:ring focus-visible:ring-purple-500/75">
+                      <span>Filtrar por Perfil de Usuário</span>
+                      <ChevronUp className={`${open ? 'rotate-180 transform' : ''} h-5 w-5 transition-transform`} />
+                  </Disclosure.Button>
+                  <Transition enter="transition duration-100 ease-out" enterFrom="transform scale-95 opacity-0" enterTo="transform scale-100 opacity-100" leave="transition duration-75 ease-out" leaveFrom="transform scale-100 opacity-100" leaveTo="transform scale-95 opacity-0">
+                    <Disclosure.Panel className="px-4 pb-2 pt-4 text-sm text-gray-500 border-t border-border mt-2">
+                        <div className="flex flex-wrap gap-2">
+                            <FilterButton label="Todos" value="all" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                            <FilterButton label="Admin" value="Administrador" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                            <FilterButton label="Dirigente" value="Dirigente" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                            <FilterButton label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                        </div>
+                    </Disclosure.Panel>
+                  </Transition>
+                </>
+              )}
+            </Disclosure>
+          </div>
+          <div className="bg-card rounded-lg p-2">
+            <Disclosure>
+              {({ open }) => (
+                <>
+                  <Disclosure.Button className="flex w-full justify-between rounded-lg px-4 py-2 text-left text-sm font-medium hover:bg-white/5 focus:outline-none focus-visible:ring focus-visible:ring-purple-500/75">
+                      <span>Filtrar por Status de Aprovação</span>
+                      <ChevronUp className={`${open ? 'rotate-180 transform' : ''} h-5 w-5 transition-transform`} />
+                  </Disclosure.Button>
+                  <Transition enter="transition duration-100 ease-out" enterFrom="transform scale-95 opacity-0" enterTo="transform scale-100 opacity-100" leave="transition duration-75 ease-out" leaveFrom="transform scale-100 opacity-100" leaveTo="transform scale-95 opacity-0">
+                    <Disclosure.Panel className="px-4 pb-2 pt-4 text-sm text-gray-500 border-t border-border mt-2">
+                      <div className="flex flex-wrap gap-2">
+                          <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                          <FilterButton label="Pendentes" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                      </div>
+                    </Disclosure.Panel>
+                  </Transition>
+                </>
+              )}
+            </Disclosure>
+          </div>
+      </div>
+
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+        <input type="text" placeholder="Buscar por nome ou e-mail..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-card border border-input rounded-lg" />
       </div>
       
       <div className="bg-white dark:bg-[#2a2736] rounded-lg shadow-md">
