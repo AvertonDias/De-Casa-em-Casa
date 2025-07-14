@@ -40,15 +40,18 @@ const UserListItem = ({ user, currentUserUid, onUpdate, onDelete, isUpdating }: 
   return (
     <li className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
       <div className="flex items-center flex-1 min-w-0">
-          <Avatar className="mr-4 flex-shrink-0 relative">
-            <AvatarFallback>
-              {getInitials(user.name) || <User size={20} />}
-            </AvatarFallback>
+          <div className="relative flex-shrink-0 mr-4">
+            <Avatar>
+              <AvatarFallback>
+                {getInitials(user.name) || <User size={20} />}
+              </AvatarFallback>
+            </Avatar>
             <span 
               className={`absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full ring-2 ring-card 
                 ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} 
+              title={isOnline ? 'Online' : 'Offline'}
             />
-          </Avatar>
+          </div>
           <div className="min-w-0">
               <p className="font-semibold text-gray-900 dark:text-white truncate">
                 {user.name}
@@ -247,19 +250,15 @@ export default function UsersPage() {
   const filteredAndSortedUsers = useMemo(() => {
     let filtered = [...users];
 
-    // 1. Filtro de Presença
     if (presenceFilter !== 'all') {
       filtered = filtered.filter(user => (user.isOnline === true) === (presenceFilter === 'online'));
     }
-    // 2. Filtro de Perfil (Role)
     if (roleFilter !== 'all') {
       filtered = filtered.filter(user => user.role === roleFilter);
     }
-    // 3. Filtro de Status
     if (statusFilter !== 'all') {
       filtered = filtered.filter(user => user.status === statusFilter);
     }
-    // 4. Filtro de Busca por Texto
     if (searchTerm) {
       filtered = filtered.filter(user =>
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -348,7 +347,7 @@ export default function UsersPage() {
                         </div>
                         <ChevronUp className={`${open ? 'rotate-180 transform' : ''} h-5 w-5 transition-transform`} />
                     </Disclosure.Button>
-                    <Transition show={open} enter="transition duration-100 ease-out" enterFrom="transform scale-95 opacity-0" enterTo="transform scale-100 opacity-100" leave="transition duration-75 ease-out" leaveFrom="transform scale-100 opacity-100" leaveTo="transform scale-95 opacity-0">
+                    <Transition show={open} enter="transition duration-100 ease-out" enterFrom="transform scale-95 opacity-0" enterTo="transform scale-100 opacity-100" leave="transition duration-75 ease-out" leaveFrom="transform scale-100 opacity-100" leaveTo="transform scale-95 opacity-100">
                         <Disclosure.Panel className="px-4 pb-4 pt-4 text-sm text-gray-500 border-t border-border mt-2 space-y-4">
                             <div>
                                 <p className="font-semibold mb-2">Status de Presença</p>
@@ -426,3 +425,4 @@ export default function UsersPage() {
   );
 }
 
+    

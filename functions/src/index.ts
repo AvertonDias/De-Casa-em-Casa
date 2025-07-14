@@ -537,3 +537,5 @@ export const onUserStatusChanged = functions.database.ref('/status/{uid}')
         }
     }
   });
+
+    
