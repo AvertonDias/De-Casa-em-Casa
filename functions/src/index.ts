@@ -1,8 +1,13 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as logger from "firebase-functions/logger";
 
 admin.initializeApp();
 const db = admin.firestore();
+
+// --- Definindo a região padrão para todas as funções HTTPS ---
+const regionalFunctions = functions.region("southamerica-east1");
 
 // ============================================================================
 //   DEFINIÇÃO DE TIPOS
@@ -26,62 +31,10 @@ interface CreateCongregationData {
 }
 
 // ============================================================================
-//   ESTRUTURA DE FUNÇÕES HTTPS COM CORS MANUAL
+//   FUNÇÕES HTTPS (onCall) - AGORA COM A REGIÃO CORRETA
 // ============================================================================
 
-// Opções de CORS para permitir a comunicação com o seu site.
-const cors = require("cors")({
-    origin: true, // Permite todas as origens (bom para desenvolvimento)
-});
-
-// Wrapper para emular onCall mas com CORS manual em onRequest
-function onCallWithCors(handler: (data: any, context: functions.https.CallableContext) => any) {
-    return functions.region("southamerica-east1").https.onRequest((req, res) => {
-        cors(req, res, async () => {
-            // Emula o comportamento de onCall
-            if (req.method !== 'POST') {
-                res.status(405).send('Method Not Allowed');
-                return;
-            }
-            try {
-                if (!req.headers.authorization?.startsWith('Bearer ')) {
-                     res.status(401).send('Unauthorized');
-                     return;
-                }
-                const idToken = req.headers.authorization.split('Bearer ')[1];
-                const decodedIdToken = await admin.auth().verifyIdToken(idToken);
-                
-                const context: functions.https.CallableContext = {
-                    auth: {
-                        uid: decodedIdToken.uid,
-                        token: decodedIdToken,
-                    },
-                    instanceIdToken: req.headers['firebase-instance-id-token'] as string | undefined,
-                    rawRequest: req,
-                };
-                
-                const data = req.body.data;
-                const result = await handler(data, context);
-                res.status(200).send({ data: result });
-
-            } catch (error: any) {
-                console.error("Erro na função onRequest:", error);
-                if (error instanceof functions.https.HttpsError) {
-                     res.status(error.httpErrorCode.status).send({ error: { code: error.code, message: error.message, details: error.details } });
-                } else {
-                     res.status(500).send({ error: { code: 'internal', message: 'An internal error occurred.' } });
-                }
-            }
-        });
-    });
-}
-
-
-// ============================================================================
-//   FUNÇÕES HTTPS (onCall) REFEITAS COM O WRAPPER DE CORS
-// ============================================================================
-
-export const createCongregationAndAdmin = onCallWithCors(async (data, context) => {
+export const createCongregationAndAdmin = regionalFunctions.https.onCall(async (data, context) => {
     const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = data as CreateCongregationData;
 
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
@@ -139,7 +92,7 @@ export const createCongregationAndAdmin = onCallWithCors(async (data, context) =
 });
 
 
-export const deleteUserAccount = onCallWithCors(async (data, context) => {
+export const deleteUserAccount = regionalFunctions.https.onCall(async (data, context) => {
   const callingUserUid = context.auth?.uid;
   if (!callingUserUid) {
     throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada. Requer autenticação.");
@@ -181,7 +134,7 @@ export const deleteUserAccount = onCallWithCors(async (data, context) => {
 });
 
 
-export const resetTerritoryProgress = onCallWithCors(async (data, context) => {
+export const resetTerritoryProgress = regionalFunctions.https.onCall(async (data, context) => {
     const uid = context.auth?.uid;
     if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
     
@@ -221,35 +174,46 @@ export const resetTerritoryProgress = onCallWithCors(async (data, context) => {
     }
 });
 
+export const resetPeakUsersV2 = onCall({
+    region: "southamerica-east1",
+    cors: true, 
+}, async (request) => {
+    if (!request.auth) {
+        logger.error("Chamada não autenticada para resetPeakUsersV2");
+        throw new HttpsError('unauthenticated', 'Ação não autorizada.');
+    }
 
-export const resetPeakUsers = onCallWithCors(async (data, context) => {
-    const uid = context.auth?.uid;
-    if (!uid) {
-        throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
-    }
+    const uid = request.auth.uid;
+    const { congregationId } = request.data;
     
-    const { congregationId } = data;
     if (!congregationId) {
-        throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário.");
+        throw new HttpsError('invalid-argument', 'ID da congregação é necessário.');
     }
-    
-    const adminUserSnap = await db.collection("users").doc(uid).get();
-    if (adminUserSnap.data()?.role !== "Administrador") {
-        throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
-    }
-    
-    const congregationRef = db.doc(`congregations/${congregationId}`);
-    await congregationRef.update({
-        peakOnlineUsers: {
-            count: 0,
-            timestamp: admin.firestore.FieldValue.serverTimestamp()
+
+    try {
+        const adminUserSnap = await db.collection("users").doc(uid).get();
+        if (adminUserSnap.data()?.role !== "Administrador") {
+            throw new HttpsError('permission-denied', 'Ação restrita a administradores.');
         }
-    });
-    return { success: true, message: "Pico de usuários resetado." };
+    } catch(error) {
+        logger.error("Erro ao verificar permissões:", error);
+        throw new HttpsError('internal', 'Falha ao verificar permissões.');
+    }
+    
+    try {
+        const congregationRef = db.doc(`congregations/${congregationId}`);
+        await congregationRef.update({
+            peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() }
+        });
+        logger.info(`Pico de usuários resetado para ${congregationId} pelo admin ${uid}.`);
+        return { success: true };
+    } catch (error) {
+        logger.error(`Falha ao resetar pico para ${congregationId}:`, error);
+        throw new HttpsError('internal', 'Não foi possível resetar a estatística.');
+    }
 });
 
-
-export const generateUploadUrl = onCallWithCors(async (data, context) => {
+export const generateUploadUrl = regionalFunctions.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Ação não autorizada.');
     }
@@ -272,7 +236,7 @@ export const generateUploadUrl = onCallWithCors(async (data, context) => {
 
 
 // ============================================================================
-//   FUNÇÕES DE GATILHO (onWrite, onDelete, etc.)
+//   FUNÇÕES DE GATILHO (onWrite, onDelete, onCreate)
 // ============================================================================
 
 export const notifyAdminOfNewUser = functions.firestore
@@ -430,9 +394,14 @@ export const onDeleteQuadra = functions.firestore
         await admin.firestore().recursiveDelete(snap.ref);
     });
 
+
+// ========================================================================
+//   FUNÇÕES DE PRESENÇA E PICO (ESTRUTURA FINAL E CORRIGIDA)
+// ========================================================================
+
 export const onUserOnline = functions.database.ref('/status/{uid}')
   .onCreate(async (snapshot, context) => {
-    const { uid } = context.params;
+    const uid = context.params.uid;
     const firestoreUserRef = db.doc(`users/${uid}`);
 
     try {
@@ -443,6 +412,7 @@ export const onUserOnline = functions.database.ref('/status/{uid}')
 
     const userDocSnap = await firestoreUserRef.get();
     if (!userDocSnap.exists()) return;
+    
     const congregationId = userDocSnap.data()?.congregationId;
     if (!congregationId) return;
 
@@ -452,12 +422,19 @@ export const onUserOnline = functions.database.ref('/status/{uid}')
     return db.runTransaction(async (transaction) => {
         const congDoc = await transaction.get(congregationRef);
         if (!congDoc.exists) return;
+
         const onlineUsersSnapshot = await statusRef.orderByChild('state').equalTo('online').once('value');
         const currentOnlineCount = onlineUsersSnapshot.numChildren();
+        
         const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
+
         if (currentOnlineCount > peakData.count) {
+            console.log(`[PeakUsers] Novo pico de ${currentOnlineCount} na congregação ${congregationId}.`);
             transaction.update(congregationRef, {
-                peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() }
+                peakOnlineUsers: {
+                    count: currentOnlineCount,
+                    timestamp: admin.firestore.FieldValue.serverTimestamp()
+                }
             });
         }
     });
@@ -465,13 +442,15 @@ export const onUserOnline = functions.database.ref('/status/{uid}')
 
 export const onUserOffline = functions.database.ref('/status/{uid}')
   .onDelete(async (snapshot, context) => {
-    const { uid } = context.params;
+    const uid = context.params.uid;
     const firestoreUserRef = db.doc(`users/${uid}`);
+
     try {
       await firestoreUserRef.update({
         isOnline: false,
         lastSeen: admin.firestore.FieldValue.serverTimestamp()
       });
+      console.log(`[Presence] Usuário ${uid} ficou OFFLINE.`);
     } catch (error) {
       if ((error as any).code !== 'not-found') console.error(`[Presence] Falha ao marcar OFFLINE para ${uid}:`, error);
     }

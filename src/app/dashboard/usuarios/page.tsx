@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Fragment, useMemo, useContext } from 'react';
@@ -16,9 +15,8 @@ import { ptBR } from 'date-fns/locale';
 import type { AppUser, Congregation } from '@/types/types';
 import { usePresence } from '@/hooks/usePresence';
 
-// Inicialização correta e segura do serviço de funções
 const functions = getFunctions(app, 'southamerica-east1');
-const resetPeakUsersFunction = httpsCallable(functions, 'resetPeakUsers');
+const resetPeakUsersFunction = httpsCallable(functions, 'resetPeakUsersV2');
 const deleteUserFunction = httpsCallable(functions, 'deleteUserAccount');
 
 
@@ -492,7 +490,7 @@ export default function UsersPage() {
       </div>
     </div>
     
-      {isConfirmModalOpen && confirmAction && (
+      {confirmAction && (
           <ConfirmationModal
             isOpen={isConfirmModalOpen}
             onClose={() => setIsConfirmModalOpen(false)}
@@ -509,5 +507,3 @@ export default function UsersPage() {
     </>
   );
 }
-
-    
