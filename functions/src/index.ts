@@ -5,8 +5,9 @@ const db = admin.firestore();
 // --- IMPORTAÇÕES DA NOVA SINTAXE (V2) ---
 import { https, logger } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from "firebase-functions/v2/firestore";
-import { onValueWritten, onValueCreated, onValueDeleted } from "firebase-functions/v2/database";
+import { onValueCreated, onValueDeleted } from "firebase-functions/v2/database";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+
 
 // ============================================================================
 //   DEFINIÇÃO DE TIPOS
@@ -34,7 +35,10 @@ interface CreateCongregationData {
 // ============================================================================
 
 const regionalOnCall = (handler: (request: https.CallableRequest<any>) => any | Promise<any>) => {
-    return https.onCall({ region: "southamerica-east1" }, handler);
+    return https.onCall({ 
+        region: "southamerica-east1",
+        cors: true // Habilita o CORS
+    }, handler);
 };
 
 export const createCongregationAndAdmin = regionalOnCall(async (request) => {
@@ -237,7 +241,9 @@ export const generateUploadUrl = regionalOnCall(async (request) => {
 //   FUNÇÕES DE GATILHO (onWrite, onDelete, onCreate) - AGORA COM A SINTAXE V2
 // ============================================================================
 
-export const notifyAdminOfNewUser = onDocumentCreated("users/{userId}", async (event) => {
+const firestoreOptions = { region: "southamerica-east1" };
+
+export const notifyAdminOfNewUser = onDocumentCreated({ ...firestoreOptions, document: "users/{userId}" }, async (event) => {
     const newUser = event.data?.data() as UserData;
     if (!newUser || newUser.status !== "pendente" || !newUser.congregationId) {
       return null;
@@ -271,7 +277,7 @@ export const notifyAdminOfNewUser = onDocumentCreated("users/{userId}", async (e
     return { success: true };
 });
 
-export const onHouseWrite = onDocumentWritten("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}", async (event) => {
+export const onHouseWrite = onDocumentWritten({ ...firestoreOptions, document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}"}, async (event) => {
     const { congregationId, territoryId, quadraId } = event.params;
     const quadraRef = db.doc(`congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
     
@@ -282,7 +288,7 @@ export const onHouseWrite = onDocumentWritten("congregations/{congregationId}/te
 });
 
 
-export const onQuadraWrite = onDocumentWritten("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}", async (event) => {
+export const onQuadraWrite = onDocumentWritten({ ...firestoreOptions, document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}"}, async (event) => {
     const territoryRef = db.doc(`congregations/${event.params.congregationId}/territories/${event.params.territoryId}`);
     const quadrasSnapshot = await territoryRef.collection("quadras").get();
       
@@ -309,7 +315,7 @@ export const onQuadraWrite = onDocumentWritten("congregations/{congregationId}/t
 });
 
 
-export const onTerritoryWrite = onDocumentWritten("congregations/{congregationId}/territories/{territoryId}", async (event) => {
+export const onTerritoryWrite = onDocumentWritten({ ...firestoreOptions, document: "congregations/{congregationId}/territories/{territoryId}"}, async (event) => {
     const { congregationId } = event.params;
     const congregationRef = db.collection("congregations").doc(congregationId);
     const territoriesRef = congregationRef.collection("territories");
@@ -337,7 +343,7 @@ export const onTerritoryWrite = onDocumentWritten("congregations/{congregationId
     });
 });
 
-export const onTerritoryUpdateForHistory = onDocumentUpdated("congregations/{congId}/territories/{terrId}", async (event) => {
+export const onTerritoryUpdateForHistory = onDocumentUpdated({ ...firestoreOptions, document: "congregations/{congId}/territories/{terrId}" }, async (event) => {
     const dataBefore = event.data?.before.data();
     const dataAfter = event.data?.after.data();
 
@@ -370,13 +376,13 @@ export const onTerritoryUpdateForHistory = onDocumentUpdated("congregations/{con
     return null;
 });
 
-export const onDeleteTerritory = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}", async (event) => {
+export const onDeleteTerritory = onDocumentDeleted({ ...firestoreOptions, document: "congregations/{congregationId}/territories/{territoryId}"}, async (event) => {
     if (event.data) {
         await admin.firestore().recursiveDelete(event.data.ref);
     }
 });
 
-export const onDeleteQuadra = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}", async (event) => {
+export const onDeleteQuadra = onDocumentDeleted({ ...firestoreOptions, document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}"}, async (event) => {
     if (event.data) {
         await admin.firestore().recursiveDelete(event.data.ref);
     }
@@ -387,7 +393,9 @@ export const onDeleteQuadra = onDocumentDeleted("congregations/{congregationId}/
 //   FUNÇÕES DE PRESENÇA (RTDB) - SINTAXE V2
 // ========================================================================
 
-export const onUserOnline = onValueCreated("/status/{uid}", async (event) => {
+const rtdbOptions = { region: "southamerica-east1" };
+
+export const onUserOnline = onValueCreated({ ...rtdbOptions, ref: "/status/{uid}" }, async (event) => {
     const uid = event.params.uid;
     const firestoreUserRef = db.doc(`users/${uid}`);
 
@@ -427,7 +435,7 @@ export const onUserOnline = onValueCreated("/status/{uid}", async (event) => {
     });
 });
 
-export const onUserOffline = onValueDeleted("/status/{uid}", async (event) => {
+export const onUserOffline = onValueDeleted({ ...rtdbOptions, ref: "/status/{uid}" }, async (event) => {
     const uid = event.params.uid;
     const firestoreUserRef = db.doc(`users/${uid}`);
 
@@ -443,11 +451,12 @@ export const onUserOffline = onValueDeleted("/status/{uid}", async (event) => {
 });
 
 // ============================================================================
-//   FUNÇÕES AGENDADAS (Scheduler) - SINTAXE V2
+//   FUNÇÃO AGENDADA (Scheduler) - SINTAXE V2
 // ============================================================================
 export const scheduledFirestoreExport = onSchedule({
     schedule: "every day 03:00",
     timeZone: "America/Sao_Paulo",
+    region: "southamerica-east1"
 }, async (event) => {
     const firestore = require("@google-cloud/firestore");
     const client = new firestore.v1.FirestoreAdminClient();
@@ -474,5 +483,3 @@ export const scheduledFirestoreExport = onSchedule({
       throw new https.HttpsError("internal", "A operação de exportação falhou.", error);
     }
 });
-
-    

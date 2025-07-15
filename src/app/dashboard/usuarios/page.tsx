@@ -3,7 +3,7 @@
 import { useState, useEffect, Fragment, useMemo, useContext } from 'react';
 import { UserContext } from '@/contexts/UserContext';
 import { db, app } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc } from 'firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, ChevronUp, SlidersHorizontal, Wifi, WifiOff, Users as UsersIcon, Zap, RefreshCw } from 'lucide-react';
 import { Menu, Transition, Disclosure } from '@headlessui/react';
@@ -16,7 +16,7 @@ import type { AppUser, Congregation } from '@/types/types';
 import { usePresence } from '@/hooks/usePresence';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const resetPeakUsersFunction = httpsCallable(functions, 'resetPeakUsersV2');
+const resetPeakUsersFunction = httpsCallable(functions, 'resetPeakUsers');
 const deleteUserFunction = httpsCallable(functions, 'deleteUserAccount');
 
 
