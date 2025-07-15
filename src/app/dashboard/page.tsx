@@ -34,7 +34,7 @@ export default function DashboardPage() {
       const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
       const q = query(
         territoriesRef, 
-        where("type", "in", ["urban", null]), 
+        where("type", "in", ["urban", null, ""]), 
         orderBy("lastWorkedTimestamp", "desc"), 
         limit(8)
       );
@@ -75,7 +75,7 @@ export default function DashboardPage() {
           <ul className="space-y-4">
             {recentTerritories.map((territory) => {
               const progress = Math.round((territory.progress || 0) * 100);
-              const lastWorkedTimestamp = territory.lastWorkedTimestamp || territory.lastUpdate;
+              const lastWorkedTimestamp = territory.lastWorkedTimestamp;
               return (
                 <li 
                   key={territory.id} 
