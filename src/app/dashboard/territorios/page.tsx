@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useContext } from 'react';
@@ -24,7 +25,7 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
     <Link href={`/dashboard/territorios/${territory.id}`} className="block group">
       <div className="bg-card p-4 rounded-lg shadow-md space-y-4 h-full group-hover:border-primary/50 border border-transparent transition-all">
         <div className="flex justify-between items-center">
-          <h3 className="font-bold text-xl">{territory.number}: {territory.name}</h3>
+          <h3 className="font-bold text-xl">{territory.number} - {territory.name}</h3>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div><p className="text-sm text-muted-foreground">Total Casas</p><p className="font-bold text-2xl">{totalCasas}</p></div>
