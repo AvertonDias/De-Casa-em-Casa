@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useContext } from 'react'; // Usaremos useContext diretamente aqui
+import { useEffect, useContext } from 'react';
 import { UserContext } from '@/contexts/UserContext';
 import { getDatabase, ref, onValue, onDisconnect, set, serverTimestamp } from 'firebase/database';
 import { app } from '@/lib/firebase';
@@ -11,13 +11,9 @@ export const usePresence = () => {
   const userContext = useContext(UserContext);
   const user = userContext?.user;
 
-  // ▼▼▼ A CORREÇÃO FUNDAMENTAL ESTÁ AQUI ▼▼▼
-  // O useEffect agora depende APENAS do 'user.uid'.
-  // Ele só vai rodar quando o usuário mudar (login/logout), 
-  // e vai ignorar as atualizações de 'isOnline' ou 'lastSeen'.
   useEffect(() => {
-    if (!user) {
-      return; // Se não há usuário, não faz nada.
+    if (!user?.uid) {
+      return; // Garante que temos um UID para trabalhar
     }
 
     const uid = user.uid;
@@ -29,21 +25,27 @@ export const usePresence = () => {
     const connectedRef = ref(rtdb, '.info/connected');
     
     const listener = onValue(connectedRef, (snap) => {
-      if (snap.val() === true) {
-        // Define o "testamento" para ficar offline quando desconectar.
-        onDisconnect(userStatusDatabaseRef).set(isOfflineForDatabase);
-        
-        // Se marca como online.
-        set(userStatusDatabaseRef, isOnlineForDatabase);
+      // Executa apenas quando a conexão é estabelecida
+      if (snap.val() === false) {
+        return;
       }
+
+      // Em vez de apagar o nó ao desconectar, nós explicitamente ESCREVEMOS o estado offline.
+      // Isso evita a condição de corrida.
+      onDisconnect(userStatusDatabaseRef).set(isOfflineForDatabase)
+        .then(() => {
+          // Apenas DEPOIS que o "testamento" for registrado com sucesso,
+          // nós nos marcamos como online.
+          set(userStatusDatabaseRef, isOnlineForDatabase);
+        });
     });
 
-    // Função de limpeza que roda quando o usuário faz logout.
+    // Função de limpeza que roda quando o usuário faz logout ou o componente é desmontado
     return () => {
         listener(); // Remove o listener da conexão
-        // Remove o status do usuário do RTDB ao deslogar
+        // Ao sair de forma limpa, também nos marcamos como offline.
         set(userStatusDatabaseRef, isOfflineForDatabase); 
     };
 
-  }, [user?.uid]); // A dependência é apenas no ID do usuário.
+  }, [user?.uid]); // A dependência continua sendo apenas no ID do usuário.
 };
