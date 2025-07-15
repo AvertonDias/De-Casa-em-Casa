@@ -112,7 +112,7 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
                       {activity.notes && <p className="text-sm mt-1 text-muted-foreground italic">"{activity.notes}"</p>}
                       <p className="text-xs text-muted-foreground mt-2">Registrado por: {activity.userName}</p>
                     </div>
-                    {canManage && activity.userId !== 'system' && (
+                    {canManage && (
                       <div className="flex space-x-2">
                         <button onClick={() => openEditModal(activity)} className="p-1 text-muted-foreground hover:text-white"><Edit size={16}/></button>
                         <button onClick={() => openConfirmModal(activity.id)} className="p-1 text-muted-foreground hover:text-red-500"><Trash2 size={16}/></button>
