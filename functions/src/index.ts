@@ -275,47 +275,67 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
     }
 });
 
-
-export const onTerritoryUpdateForHistory = functions.firestore
-  .document("congregations/{congId}/territories/{terrId}")
+export const logDailyWorkAndUpdateTimestamp = functions.firestore
+  .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
   .onUpdate(async (change, context) => {
+    const { congregationId, territoryId } = context.params;
+
+    const dataAfter = change.after.data();
+    const dataBefore = change.before.data();
     
-    const beforeData = change.before.data();
-    const afterData = change.after.data();
-
-    // Sai se não houver stats ou se o número de casas feitas não mudou de/para 0.
-    if (!beforeData?.stats || !afterData?.stats || JSON.stringify(beforeData.stats) === JSON.stringify(afterData.stats)) {
-        return null;
+    // Roda SOMENTE se o status mudou de 'não feito' para 'feito'.
+    if (dataBefore?.status === true || dataAfter?.status === false) {
+      return null;
     }
+    
+    const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
+    const historyCollectionRef = territoryRef.collection("activityHistory");
 
-    const { congId, terrId } = context.params;
-    const historyCollectionRef = db.collection(`congregations/${congId}/territories/${terrId}/activityHistory`);
+    const TIME_ZONE = "America/Sao_Paulo";
+    const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+    
+    try {
+      const q = historyCollectionRef.orderBy("activityDate", "desc").limit(1);
+      const lastHistorySnapshot = await q.get();
 
-    // Registra o INÍCIO do trabalho no território
-    if (beforeData.stats.casasFeitas === 0 && afterData.stats.casasFeitas > 0) {
-        console.info(`[History] Registrando INÍCIO do trabalho para o território ${terrId}.`);
-        return historyCollectionRef.add({
-            activityDate: admin.firestore.FieldValue.serverTimestamp(),
-            notes: `O trabalho no território foi iniciado (registro automático).`,
-            userName: "Sistema",
-            userId: "system",
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      let lastWorkDateString = '';
+      if (!lastHistorySnapshot.empty) {
+        const lastLog = lastHistorySnapshot.docs[0].data();
+        if (lastLog.activityDate) {
+            lastWorkDateString = lastLog.activityDate.toDate().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+        }
+      }
+
+      // Se o último trabalho foi hoje, apenas atualiza o timestamp do território e sai.
+      if (lastWorkDateString === todayString) {
+        return territoryRef.update({
+            lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp(),
         });
-    }
+      }
+      
+      console.info(`[History] Registrando trabalho diário para o território ${territoryId}.`);
+      
+      const batch = db.batch();
+      
+      const newHistoryRef = historyCollectionRef.doc();
+      batch.set(newHistoryRef, {
+        activityDate: admin.firestore.FieldValue.serverTimestamp(),
+        notes: `Trabalho registrado neste dia.`,
+        userName: "Sistema",
+        userId: "system",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      
+      batch.update(territoryRef, {
+        lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      
+      return batch.commit();
 
-    // Registra a CONCLUSÃO do trabalho no território
-    if (beforeData.stats.casasPendentes > 0 && afterData.stats.casasPendentes === 0) {
-        console.info(`[History] Registrando TÉRMINO do trabalho para o território ${terrId}.`);
-        return historyCollectionRef.add({
-            activityDate: admin.firestore.FieldValue.serverTimestamp(),
-            notes: `Todas as casas do território foram trabalhadas (registro automático).`,
-            userName: "Sistema",
-            userId: "system",
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+    } catch (error) {
+      console.error(`[History] FALHA CRÍTICA ao registrar trabalho para território ${territoryId}:`, error);
+      return null;
     }
-
-    return null;
 });
 
 
