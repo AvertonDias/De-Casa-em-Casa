@@ -1,29 +1,32 @@
 // src/lib/firebase.ts
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 import { getMessaging } from "firebase/messaging";
+import { getDatabase } from "firebase/database";
 
 // O objeto de configuração agora lê as variáveis de ambiente seguras.
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, // A linha crucial!
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
 };
 
 // Inicializa o Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app); // Inicializa o serviço do Storage
-export const functions = getFunctions(app, 'southamerica-east1'); // Especificando a região
-export const messaging = (typeof window !== 'undefined') ? getMessaging(app) : null;
+const storage = getStorage(app);
+const functions = getFunctions(app, 'southamerica-east1');
+const messaging = (typeof window !== 'undefined') ? getMessaging(app) : null;
+const rtdb = getDatabase(app);
 
 // Habilita a persistência de dados offline
 if (typeof window !== 'undefined') {
@@ -42,4 +45,4 @@ if (typeof window !== 'undefined') {
 }
 
 // Exporta tudo para ser usado em outras partes do aplicativo
-export { app, auth, db, storage };
+export { app, auth, db, storage, functions, messaging, rtdb };

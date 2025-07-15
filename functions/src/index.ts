@@ -7,28 +7,8 @@ import { https, logger } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueCreated, onValueDeleted } from "firebase-functions/v2/database";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import type { UserData, CreateCongregationData } from "./types";
 
-
-// ============================================================================
-//   DEFINIÇÃO DE TIPOS
-// ============================================================================
-interface UserData {
-  uid: string;
-  email: string;
-  displayName: string;
-  congregationId: string;
-  role: 'Administrador' | 'Dirigente' | 'Publicador' | 'pendente';
-  status: 'ativo' | 'inativo' | 'pendente';
-  fcmTokens?: string[];
-}
-
-interface CreateCongregationData {
-    adminName: string;
-    adminEmail: string;
-    adminPassword: string;
-    congregationName: string;
-    congregationNumber: string;
-}
 
 // ============================================================================
 //   FUNÇÕES HTTPS (onCall) - AGORA USANDO A SINTAXE V2
@@ -241,7 +221,7 @@ export const generateUploadUrl = regionalOnCall(async (request) => {
 //   FUNÇÕES DE GATILHO (onWrite, onDelete, onCreate) - AGORA COM A SINTAXE V2
 // ============================================================================
 
-const firestoreOptions = { region: "southamerica-east1" };
+const firestoreOptions = { region: "southamerica-east1" as const };
 
 export const notifyAdminOfNewUser = onDocumentCreated({ ...firestoreOptions, document: "users/{userId}" }, async (event) => {
     const newUser = event.data?.data() as UserData;
@@ -393,7 +373,7 @@ export const onDeleteQuadra = onDocumentDeleted({ ...firestoreOptions, document:
 //   FUNÇÕES DE PRESENÇA (RTDB) - SINTAXE V2
 // ========================================================================
 
-const rtdbOptions = { region: "southamerica-east1" };
+const rtdbOptions = { region: "southamerica-east1" as const };
 
 export const onUserOnline = onValueCreated({ ...rtdbOptions, ref: "/status/{uid}" }, async (event) => {
     const uid = event.params.uid;
@@ -467,7 +447,7 @@ export const scheduledFirestoreExport = onSchedule({
     }
 
     const databaseName = client.databasePath(projectId, "(default)");
-    const bucketName = "gs://appterritorios-e5bb5.appspot.com"; 
+    const bucketName = `gs://${projectId}.appspot.com`; // Usa o bucket padrão do projeto
     const timestamp = new Date().toISOString().split('T')[0];
     const outputUriPrefix = `${bucketName}/backups/${timestamp}`;
 
@@ -477,6 +457,7 @@ export const scheduledFirestoreExport = onSchedule({
         outputUriPrefix: outputUriPrefix,
         collectionIds: [],
       });
+      logger.info(`Backup do Firestore concluído para ${outputUriPrefix}`);
       return null;
     } catch (error: any) {
       logger.error("[Backup] FALHA CRÍTICA:", error);
