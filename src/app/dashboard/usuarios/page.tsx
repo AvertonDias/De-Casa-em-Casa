@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, Fragment, useMemo, useContext } from 'react';
-import { UserContext } from '@/contexts/UserContext';
+import { useState, useEffect, useMemo, useContext, Fragment } from 'react';
+import { useUser } from '@/contexts/UserContext';
 import { db, app } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc } from 'firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, ChevronUp, SlidersHorizontal, Wifi, WifiOff, Users as UsersIcon, Zap, RefreshCw } from 'lucide-react';
+import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, Wifi, WifiOff, Users as UsersIcon, Zap, RefreshCw, SlidersHorizontal, ChevronUp } from 'lucide-react';
 import { Menu, Transition, Disclosure } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -180,7 +180,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete, isUpdating }: { u
 
 
 export default function UsersPage() {
-  const { user: currentUser, loading: userLoading } = useContext(UserContext); 
+  const { user: currentUser, loading: userLoading } = useUser(); 
   usePresence(); 
 
   const [users, setUsers] = useState<AppUser[]>([]);
