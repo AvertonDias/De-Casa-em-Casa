@@ -18,6 +18,7 @@ const nextConfig = {
   // Forcing cache invalidation to resolve a module loading error.
   // Forcing another cache invalidation to fix a persistent module error.
   // Forcing a cache rebuild to solve module resolution issues.
+  // Forcing another cache rebuild to resolve module loading error.
 };
 
 module.exports = withPWA(nextConfig);

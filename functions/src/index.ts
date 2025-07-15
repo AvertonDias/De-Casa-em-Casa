@@ -1,32 +1,41 @@
 
+import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import { GetSignedUrlConfig } from "firebase-admin/storage";
+
 admin.initializeApp();
 const db = admin.firestore();
 
-// --- IMPORTAÇÕES DA NOVA SINTAXE (V2) ---
-import { https, logger } from "firebase-functions/v2";
-import { onDocumentWritten, onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from "firebase-functions/v2/firestore";
-import { onValueCreated, onValueDeleted } from "firebase-functions/v2/database";
-import { onSchedule } from "firebase-functions/v2/scheduler";
-import type { UserData, CreateCongregationData } from "./types";
+// ============================================================================
+//   DEFINIÇÃO DE TIPOS
+// ============================================================================
+interface UserData {
+  uid: string;
+  email: string;
+  displayName: string;
+  congregationId: string;
+  role: 'Administrador' | 'Dirigente' | 'Publicador' | 'pendente';
+  status: 'ativo' | 'inativo' | 'pendente' | 'rejeitado';
+  fcmTokens?: string[];
+}
 
+interface CreateCongregationData {
+    adminName: string;
+    adminEmail: string;
+    adminPassword: string;
+    congregationName: string;
+    congregationNumber: string;
+}
 
 // ============================================================================
-//   FUNÇÕES HTTPS (onCall) - AGORA USANDO A SINTAXE V2
+//   FUNÇÕES DE CRIAÇÃO E GERENCIAMENTO DE USUÁRIOS
 // ============================================================================
 
-const regionalOnCall = (handler: (request: https.CallableRequest<any>) => any | Promise<any>) => {
-    return https.onCall({ 
-        region: "southamerica-east1",
-        cors: true // Habilita o CORS
-    }, handler);
-};
-
-export const createCongregationAndAdmin = regionalOnCall(async (request) => {
-    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = request.data as CreateCongregationData;
+export const createCongregationAndAdmin = functions.https.onCall(async (data: CreateCongregationData, context) => {
+    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = data;
 
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
-        throw new https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
+        throw new functions.https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
     }
 
     let newUser: admin.auth.UserRecord | undefined;
@@ -66,70 +75,181 @@ export const createCongregationAndAdmin = regionalOnCall(async (request) => {
     } catch (error: any) {
         if (newUser) {
             await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
-                logger.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser!.uid}':`, deleteError);
+                console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser!.uid}':`, deleteError);
             });
         }
         
-        logger.error("Erro ao criar congregação e admin:", error);
+        console.error("Erro ao criar congregação e admin:", error);
         
         if (error.code === 'auth/email-already-exists') {
-             throw new https.HttpsError("already-exists", "Este e-mail já está em uso.");
+             throw new functions.https.HttpsError("already-exists", "Este e-mail já está em uso.");
         }
-        throw new https.HttpsError("internal", "Ocorreu um erro interno.");
+        throw new functions.https.HttpsError("internal", "Ocorreu um erro interno.");
     }
 });
 
-export const deleteUserAccount = regionalOnCall(async (request) => {
-  const callingUserUid = request.auth?.uid;
+
+export const notifyAdminOfNewUser = functions.firestore.document("users/{userId}").onCreate(async (snapshot, context) => {
+    const newUser = snapshot.data() as UserData;
+    if (!newUser || newUser.status !== "pendente" || !newUser.congregationId) {
+      return null;
+    }
+    const adminsSnapshot = await db.collection("users")
+        .where("congregationId", "==", newUser.congregationId)
+        .where("role", "==", "Administrador")
+        .get();
+
+    if (adminsSnapshot.empty) return null;
+      
+    const tokens: string[] = [];
+    adminsSnapshot.forEach(adminDoc => {
+        const adminData = adminDoc.data() as UserData;
+        if (adminData.fcmTokens && Array.isArray(adminData.fcmTokens)) {
+          tokens.push(...adminData.fcmTokens);
+        }
+    });
+      
+    if (tokens.length === 0) return null;
+      
+    const payload = {
+        notification: {
+          title: "Novo Usuário Aguardando Aprovação!",
+          body: `O usuário "${newUser.displayName}" se cadastrou e precisa de sua aprovação.`,
+          icon: "/icon-192x192.png",
+          click_action: "/dashboard/usuarios",
+        },
+    };
+
+    try {
+        await admin.messaging().sendToDevice(tokens, payload);
+        return { success: true };
+    } catch(error) {
+        console.error("[notifyAdmin] FALHA CRÍTICA:", error);
+        return null;
+    }
+});
+
+export const deleteUserAccount = functions.https.onCall(async (data, context) => {
+  const callingUserUid = context.auth?.uid;
   if (!callingUserUid) {
-    throw new https.HttpsError("unauthenticated", "Ação não autorizada. Requer autenticação.");
+    throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
   }
 
-  const userIdToDelete = request.data.uid;
+  const userIdToDelete = data.uid;
   if (!userIdToDelete || typeof userIdToDelete !== 'string') {
-    throw new https.HttpsError("invalid-argument", "O ID do usuário a ser excluído não foi fornecido.");
+    throw new functions.https.HttpsError("invalid-argument", "ID inválido.");
   }
 
-  const callingUserDoc = await db.collection("users").doc(callingUserUid).get();
-  const callingUserData = callingUserDoc.data();
-  
-  if (!callingUserData || callingUserData.role !== "Administrador") {
-    throw new https.HttpsError("permission-denied", "Apenas administradores podem excluir usuários.");
+  const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
+  const isAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
+
+  if (!isAdmin && callingUserUid !== userIdToDelete) {
+    throw new functions.https.HttpsError("permission-denied", "Sem permissão.");
   }
-  
-  if (callingUserUid === userIdToDelete) {
-    throw new https.HttpsError("permission-denied", "Um administrador não pode se autoexcluir.");
+  if (isAdmin && callingUserUid === userIdToDelete) {
+    throw new functions.https.HttpsError("permission-denied", "Admin não pode se autoexcluir.");
   }
 
   try {
     await admin.auth().deleteUser(userIdToDelete);
     const userDocRef = db.collection("users").doc(userIdToDelete);
-    await userDocRef.delete();
-    return { success: true, message: `Usuário ${userIdToDelete} excluído com sucesso.` };
-
-  } catch (error: any) {
-    logger.error(`[Delete] FALHA CRÍTICA ao tentar excluir o usuário ${userIdToDelete}:`, error);
-    if (error.code === 'auth/user-not-found') {
-      const userDocRef = db.collection("users").doc(userIdToDelete);
-      if ((await userDocRef.get()).exists) {
+    if ((await userDocRef.get()).exists) {
         await userDocRef.delete();
-      }
-      return { success: true, message: "Usuário não encontrado na autenticação, mas documento do Firestore limpo." };
     }
-    throw new https.HttpsError("internal", `Falha na exclusão: ${error.message}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error("Erro CRÍTICO ao excluir usuário:", error);
+    if (error.code === 'auth/user-not-found') {
+        const userDocRef = db.collection("users").doc(userIdToDelete);
+        if ((await userDocRef.get()).exists) {
+            await userDocRef.delete();
+        }
+        return { success: true, message: "Usuário não encontrado na Auth, mas removido do Firestore." };
+    }
+    throw new functions.https.HttpsError("internal", "Falha na exclusão.");
   }
 });
 
-export const resetTerritoryProgress = regionalOnCall(async (request) => {
-    const uid = request.auth?.uid;
-    if (!uid) { throw new https.HttpsError("unauthenticated", "Ação não autorizada."); }
+
+// ============================================================================
+//   FUNÇÕES DE ESTATÍSTICAS, MANUTENÇÃO E HISTÓRICO
+// ============================================================================
+
+export const onHouseWrite = functions.firestore.document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}").onWrite(async (change, context) => {
+    const { congregationId, territoryId, quadraId } = context.params;
+    const quadraRef = db.doc(`congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
     
-    const { congregationId, territoryId } = request.data;
-    if (!congregationId || !territoryId) { throw new https.HttpsError("invalid-argument", "IDs faltando."); }
+    const casasSnapshot = await quadraRef.collection("casas").get();
+    const totalHouses = casasSnapshot.size;
+    const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
+    
+    return quadraRef.update({ totalHouses, housesDone, lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
+});
+
+export const onQuadraWrite = functions.firestore.document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}").onWrite(async (change, context) => {
+    const territoryRef = db.doc(`congregations/${context.params.congregationId}/territories/${context.params.territoryId}`);
+    const quadrasSnapshot = await territoryRef.collection("quadras").get();
+      
+    const quadraCount = quadrasSnapshot.size;
+    let totalHouses = 0;
+    let housesDone = 0;
+      
+    quadrasSnapshot.forEach(doc => {
+        totalHouses += doc.data().totalHouses || 0;
+        housesDone += doc.data().housesDone || 0;
+    });
+
+    const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
+    const stats = {
+        totalHouses, housesDone,
+        casasPendentes: totalHouses - housesDone,
+        casasFeitas: housesDone,
+    };
+      
+    return territoryRef.update({ 
+        stats, progress, quadraCount, 
+        lastUpdate: admin.firestore.FieldValue.serverTimestamp() 
+    });
+});
+
+export const onTerritoryWrite = functions.firestore.document("congregations/{congregationId}/territories/{territoryId}").onWrite(async (change, context) => {
+    const { congregationId } = context.params;
+    const congregationRef = db.collection("congregations").doc(congregationId);
+    const territoriesRef = congregationRef.collection("territories");
+            
+    const urbanTerritoriesSnapshot = await territoriesRef.where("type", "in", ["urban", null, ""]).get();
+    const ruralTerritoriesSnapshot = await territoriesRef.where("type", "==", "rural").get();
+            
+    const territoryCount = urbanTerritoriesSnapshot.size;
+    const ruralTerritoryCount = ruralTerritoriesSnapshot.size;
+
+    let totalQuadras = 0;
+    let totalHouses = 0;
+    let totalHousesDone = 0;
+
+    urbanTerritoriesSnapshot.forEach(doc => {
+        totalQuadras += doc.data().quadraCount || 0;
+        totalHouses += doc.data().stats?.totalHouses || 0;
+        totalHousesDone += doc.data().stats?.housesDone || 0;
+    });
+            
+    return congregationRef.update({ 
+        territoryCount, ruralTerritoryCount,
+        totalQuadras, totalHouses, totalHousesDone,
+        lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+    });
+});
+
+export const resetTerritoryProgress = functions.https.onCall(async (data, context) => {
+    const uid = context.auth?.uid;
+    if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
+    
+    const { congregationId, territoryId } = data;
+    if (!congregationId || !territoryId) { throw new functions.https.HttpsError("invalid-argument", "IDs faltando."); }
     
     const adminUserSnap = await db.collection("users").doc(uid).get();
     if (adminUserSnap.data()?.role !== "Administrador") {
-        throw new https.HttpsError("permission-denied", "Ação restrita a administradores.");
+        throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
     }
     
     const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
@@ -160,173 +280,9 @@ export const resetTerritoryProgress = regionalOnCall(async (request) => {
     }
 });
 
-export const resetPeakUsers = regionalOnCall(async (request) => {
-    if (!request.auth) {
-        logger.error("Chamada não autenticada para resetPeakUsersV2");
-        throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
-    }
-
-    const uid = request.auth.uid;
-    const { congregationId } = request.data;
-    
-    if (!congregationId) {
-        throw new https.HttpsError('invalid-argument', 'ID da congregação é necessário.');
-    }
-
-    try {
-        const adminUserSnap = await db.collection("users").doc(uid).get();
-        if (adminUserSnap.data()?.role !== "Administrador") {
-            throw new https.HttpsError('permission-denied', 'Ação restrita a administradores.');
-        }
-    } catch(error) {
-        logger.error("Erro ao verificar permissões:", error);
-        throw new https.HttpsError('internal', 'Falha ao verificar permissões.');
-    }
-    
-    try {
-        const congregationRef = db.doc(`congregations/${congregationId}`);
-        await congregationRef.update({
-            peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() }
-        });
-        logger.info(`Pico de usuários resetado para ${congregationId} pelo admin ${uid}.`);
-        return { success: true };
-    } catch (error) {
-        logger.error(`Falha ao resetar pico para ${congregationId}:`, error);
-        throw new https.HttpsError('internal', 'Não foi possível resetar a estatística.');
-    }
-});
-
-export const generateUploadUrl = regionalOnCall(async (request) => {
-    if (!request.auth) {
-        throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
-    }
-    
-    const filePath = request.data.filePath;
-    if (!filePath || typeof filePath !== 'string') {
-        throw new https.HttpsError('invalid-argument', 'O nome do arquivo é necessário.');
-    }
-
-    const options: admin.storage.GetSignedUrlConfig = {
-        version: 'v4',
-        action: 'write',
-        expires: Date.now() + 15 * 60 * 1000,
-        contentType: request.data.contentType,
-    };
-
-    const [url] = await admin.storage().bucket().file(filePath).getSignedUrl(options);
-    return { url };
-});
-
-
-// ============================================================================
-//   FUNÇÕES DE GATILHO (onWrite, onDelete, onCreate) - AGORA COM A SINTAXE V2
-// ============================================================================
-
-const firestoreOptions = { region: "southamerica-east1" as const };
-
-export const notifyAdminOfNewUser = onDocumentCreated({ ...firestoreOptions, document: "users/{userId}" }, async (event) => {
-    const newUser = event.data?.data() as UserData;
-    if (!newUser || newUser.status !== "pendente" || !newUser.congregationId) {
-      return null;
-    }
-    const adminsSnapshot = await db.collection("users")
-        .where("congregationId", "==", newUser.congregationId)
-        .where("role", "==", "Administrador")
-        .get();
-
-    if (adminsSnapshot.empty) return null;
-      
-    const tokens: string[] = [];
-    adminsSnapshot.forEach(adminDoc => {
-        const adminData = adminDoc.data() as UserData;
-        if (adminData.fcmTokens && Array.isArray(adminData.fcmTokens)) {
-          tokens.push(...adminData.fcmTokens);
-        }
-    });
-      
-    if (tokens.length === 0) return null;
-      
-    const payload = {
-        notification: {
-          title: "Novo Usuário Aguardando Aprovação!",
-          body: `O usuário "${newUser.displayName}" se cadastrou e precisa de sua aprovação.`,
-          icon: "/icon-192x192.png",
-          click_action: "/dashboard/usuarios",
-        },
-    };
-    await admin.messaging().sendToDevice(tokens, payload);
-    return { success: true };
-});
-
-export const onHouseWrite = onDocumentWritten({ ...firestoreOptions, document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}"}, async (event) => {
-    const { congregationId, territoryId, quadraId } = event.params;
-    const quadraRef = db.doc(`congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
-    
-    const casasSnapshot = await quadraRef.collection("casas").get();
-    const totalHouses = casasSnapshot.size;
-    const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
-    await quadraRef.update({ totalHouses, housesDone, lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
-});
-
-
-export const onQuadraWrite = onDocumentWritten({ ...firestoreOptions, document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}"}, async (event) => {
-    const territoryRef = db.doc(`congregations/${event.params.congregationId}/territories/${event.params.territoryId}`);
-    const quadrasSnapshot = await territoryRef.collection("quadras").get();
-      
-    const quadraCount = quadrasSnapshot.size;
-    let totalHouses = 0;
-    let housesDone = 0;
-      
-    quadrasSnapshot.forEach(doc => {
-        totalHouses += doc.data().totalHouses || 0;
-        housesDone += doc.data().housesDone || 0;
-    });
-
-    const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
-    const stats = {
-        totalHouses, housesDone,
-        casasPendentes: totalHouses - housesDone,
-        casasFeitas: housesDone,
-    };
-      
-    await territoryRef.update({ 
-        stats, progress, quadraCount, 
-        lastUpdate: admin.firestore.FieldValue.serverTimestamp() 
-    });
-});
-
-
-export const onTerritoryWrite = onDocumentWritten({ ...firestoreOptions, document: "congregations/{congregationId}/territories/{territoryId}"}, async (event) => {
-    const { congregationId } = event.params;
-    const congregationRef = db.collection("congregations").doc(congregationId);
-    const territoriesRef = congregationRef.collection("territories");
-            
-    const urbanTerritoriesSnapshot = await territoriesRef.where("type", "in", ["urban", null]).get();
-    const ruralTerritoriesSnapshot = await territoriesRef.where("type", "==", "rural").get();
-            
-    const territoryCount = urbanTerritoriesSnapshot.size;
-    const ruralTerritoryCount = ruralTerritoriesSnapshot.size;
-
-    let totalQuadras = 0;
-    let totalHouses = 0;
-    let totalHousesDone = 0;
-
-    urbanTerritoriesSnapshot.forEach(doc => {
-        totalQuadras += doc.data().quadraCount || 0;
-        totalHouses += doc.data().stats?.totalHouses || 0;
-        totalHousesDone += doc.data().stats?.housesDone || 0;
-    });
-            
-    await congregationRef.update({ 
-        territoryCount, ruralTerritoryCount,
-        totalQuadras, totalHouses, totalHousesDone,
-        lastUpdate: admin.firestore.FieldValue.serverTimestamp()
-    });
-});
-
-export const onTerritoryUpdateForHistory = onDocumentUpdated({ ...firestoreOptions, document: "congregations/{congId}/territories/{terrId}" }, async (event) => {
-    const dataBefore = event.data?.before.data();
-    const dataAfter = event.data?.after.data();
+export const onTerritoryUpdateForHistory = functions.firestore.document("congregations/{congId}/territories/{terrId}").onUpdate(async (change, context) => {
+    const dataBefore = change.before.data();
+    const dataAfter = change.after.data();
 
     if (!dataBefore?.stats || !dataAfter?.stats) return null;
     
@@ -335,7 +291,7 @@ export const onTerritoryUpdateForHistory = onDocumentUpdated({ ...firestoreOptio
 
     if (JSON.stringify(statsBefore) === JSON.stringify(statsAfter)) return null;
 
-    const historyCollectionRef = event.data!.after.ref.collection("activityHistory");
+    const historyCollectionRef = change.after.ref.collection("activityHistory");
 
     if (statsBefore.casasFeitas === 0 && statsAfter.casasFeitas > 0) {
       return historyCollectionRef.add({
@@ -357,88 +313,93 @@ export const onTerritoryUpdateForHistory = onDocumentUpdated({ ...firestoreOptio
     return null;
 });
 
-export const onDeleteTerritory = onDocumentDeleted({ ...firestoreOptions, document: "congregations/{congregationId}/territories/{territoryId}"}, async (event) => {
-    if (event.data) {
-        await admin.firestore().recursiveDelete(event.data.ref);
+// ============================================================================
+//   FUNÇÕES DE PRESENÇA E PICO DE USUÁRIOS
+// ============================================================================
+
+export const resetPeakUsers = functions.https.onCall(async (data, context) => {
+    const uid = context.auth?.uid;
+    if (!uid) {
+        throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
-});
-
-export const onDeleteQuadra = onDocumentDeleted({ ...firestoreOptions, document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}"}, async (event) => {
-    if (event.data) {
-        await admin.firestore().recursiveDelete(event.data.ref);
+    const adminUserSnap = await db.collection("users").doc(uid).get();
+    if (adminUserSnap.data()?.role !== "Administrador") {
+        throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
     }
-});
-
-
-// ========================================================================
-//   FUNÇÕES DE PRESENÇA (RTDB) - SINTAXE V2
-// ========================================================================
-
-const rtdbOptions = { region: "southamerica-east1" as const };
-
-export const onUserOnline = onValueCreated({ ...rtdbOptions, ref: "/status/{uid}" }, async (event) => {
-    const uid = event.params.uid;
-    const firestoreUserRef = db.doc(`users/${uid}`);
-
+    
+    const { congregationId } = data;
+    if (!congregationId) {
+        throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário.");
+    }
     try {
-      await firestoreUserRef.update({ isOnline: true });
-    } catch (error: any) {
-      if (error.code !== 'not-found') logger.error(`[Presence] Falha ao marcar ONLINE para ${uid}:`, error);
+        const congregationRef = db.doc(`congregations/${congregationId}`);
+        await congregationRef.update({ peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
+        return { success: true };
+    } catch (error) {
+        console.error("Falha ao resetar o pico:", error);
+        throw new functions.https.HttpsError("internal", "Não foi possível resetar.");
     }
+});
 
-    const userDocSnap = await firestoreUserRef.get();
+export const handleUserPresence = functions.database.ref('/status/{uid}')
+    .onWrite(async (change, context) => {
+    
+    const eventStatus = change.after.val();
+    const firestoreUserRef = db.doc(`users/${context.params.uid}`);
+
+    const isOffline = !eventStatus || eventStatus.state === 'offline';
+    
+    try {
+        await firestoreUserRef.update({
+            isOnline: !isOffline,
+            lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    } catch (error: any) {
+        if (error.code !== 'not-found') {
+            console.error(`Falha ao atualizar presença para usuário ${context.params.uid}:`, error);
+        }
+    }
+    
+    if (isOffline) return; // Se ficou offline, termina aqui.
+
+    const userDocSnap = await db.doc(`users/${context.params.uid}`).get();
     if (!userDocSnap.exists()) return;
     
     const congregationId = userDocSnap.data()?.congregationId;
     if (!congregationId) return;
 
     const congregationRef = db.doc(`congregations/${congregationId}`);
-    const statusRef = event.data.ref.parent;
+    const statusRef = change.after.ref.parent;
 
     return db.runTransaction(async (transaction) => {
         const congDoc = await transaction.get(congregationRef);
         if (!congDoc.exists) return;
 
-        const onlineUsersSnapshot = await statusRef!.orderByChild('state').equalTo('online').once('value');
+        const onlineUsersSnapshot = await statusRef.orderByChild('state').equalTo('online').once('value');
         const currentOnlineCount = onlineUsersSnapshot.numChildren();
         
         const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
 
         if (currentOnlineCount > peakData.count) {
-            logger.info(`[PeakUsers] Novo pico de ${currentOnlineCount} na congregação ${congregationId}.`);
-            transaction.update(congregationRef, {
-                peakOnlineUsers: {
-                    count: currentOnlineCount,
-                    timestamp: admin.firestore.FieldValue.serverTimestamp()
-                }
-            });
+            transaction.update(congregationRef, { peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
         }
     });
 });
 
-export const onUserOffline = onValueDeleted({ ...rtdbOptions, ref: "/status/{uid}" }, async (event) => {
-    const uid = event.params.uid;
-    const firestoreUserRef = db.doc(`users/${uid}`);
 
-    try {
-      await firestoreUserRef.update({
-        isOnline: false,
-        lastSeen: admin.firestore.FieldValue.serverTimestamp()
-      });
-      logger.info(`[Presence] Usuário ${uid} ficou OFFLINE.`);
-    } catch (error: any) {
-      if (error.code !== 'not-found') logger.error(`[Presence] Falha ao marcar OFFLINE para ${uid}:`, error);
-    }
+// ============================================================================
+//   FUNÇÕES DE SISTEMA
+// ============================================================================
+
+export const onDeleteTerritory = functions.firestore.document("congregations/{congregationId}/territories/{territoryId}").onDelete(async (snap, context) => {
+    return admin.firestore().recursiveDelete(snap.ref);
 });
 
-// ============================================================================
-//   FUNÇÃO AGENDADA (Scheduler) - SINTAXE V2
-// ============================================================================
-export const scheduledFirestoreExport = onSchedule({
-    schedule: "every day 03:00",
-    timeZone: "America/Sao_Paulo",
-    region: "southamerica-east1"
-}, async (event) => {
+export const onDeleteQuadra = functions.firestore.document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}").onDelete(async (snap, context) => {
+    return admin.firestore().recursiveDelete(snap.ref);
+});
+
+export const scheduledFirestoreExport = functions.pubsub.schedule("every day 03:00").timeZone("America/Sao_Paulo").onRun(async (context) => {
     const firestore = require("@google-cloud/firestore");
     const client = new firestore.v1.FirestoreAdminClient();
     
@@ -448,7 +409,7 @@ export const scheduledFirestoreExport = onSchedule({
     }
 
     const databaseName = client.databasePath(projectId, "(default)");
-    const bucketName = `gs://${projectId}.appspot.com`; // Usa o bucket padrão do projeto
+    const bucketName = `gs://${projectId}.appspot.com`;
     const timestamp = new Date().toISOString().split('T')[0];
     const outputUriPrefix = `${bucketName}/backups/${timestamp}`;
 
@@ -458,10 +419,38 @@ export const scheduledFirestoreExport = onSchedule({
         outputUriPrefix: outputUriPrefix,
         collectionIds: [],
       });
-      logger.info(`Backup do Firestore concluído para ${outputUriPrefix}`);
+      console.log(`Backup do Firestore concluído para ${outputUriPrefix}`);
       return null;
     } catch (error: any) {
-      logger.error("[Backup] FALHA CRÍTICA:", error);
-      throw new https.HttpsError("internal", "A operação de exportação falhou.", error);
+      console.error("[Backup] FALHA CRÍTICA:", error);
+      throw new functions.https.HttpsError("internal", "A operação de exportação falhou.", error);
+    }
+});
+
+
+export const generateUploadUrl = functions.region("southamerica-east1")
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Ação não autorizada.');
+    }
+    
+    const filePath = data.filePath;
+    if (!filePath || typeof filePath !== 'string') {
+        throw new functions.https.HttpsError('invalid-argument', 'O nome do arquivo é necessário.');
+    }
+
+    const options: GetSignedUrlConfig = {
+        version: 'v4',
+        action: 'write',
+        expires: Date.now() + 15 * 60 * 1000,
+        contentType: data.contentType,
+    };
+
+    try {
+        const [url] = await admin.storage().bucket().file(filePath).getSignedUrl(options);
+        return { url };
+    } catch (error) {
+        console.error("Erro ao gerar a URL assinada:", error);
+        throw new functions.https.HttpsError('internal', 'Não foi possível criar a URL de upload.');
     }
 });

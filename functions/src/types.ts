@@ -7,7 +7,7 @@ export interface UserData {
   displayName: string;
   congregationId: string;
   role: 'Administrador' | 'Dirigente' | 'Publicador' | 'pendente';
-  status: 'ativo' | 'inativo' | 'pendente';
+  status: 'ativo' | 'inativo' | 'pendente' | 'rejeitado';
   fcmTokens?: string[];
 }
 
