@@ -150,35 +150,30 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
   }
 });
 
-// ============================================================================
-//   FUNÇÕES DE ESTATÍSTICAS, MANUTENÇÃO E HISTÓRICO
-// ============================================================================
-// ▼▼▼ FUNÇÃO onHouseWrite FINAL E ROBUSTA ▼▼▼
-// Acionada sempre que uma casa é criada, alterada ou deletada.
-export const onHouseWrite = functions.firestore
+// ========================================================================
+//   FUNÇÕES DE ESTATÍSTICAS (Versão Final e Corrigida)
+// ========================================================================
+
+// 1. Acionada quando uma CASA muda -> Atualiza a QUADRA pai.
+export const updateQuadraStats = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
   .onWrite(async (change, context) => {
     
-    // Pega a referência para a quadra "pai"
     const { congregationId, territoryId, quadraId } = context.params;
     const quadraRef = db.doc(`congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
     
-    // Recalcula as estatísticas da quadra
     try {
       const casasSnapshot = await quadraRef.collection("casas").get();
-      
       const totalHouses = casasSnapshot.size;
       const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
       
       console.log(`[Stats-Quadra] Atualizando quadra ${quadraId}: Total=${totalHouses}, Feitas=${housesDone}`);
       
-      // Atualiza a quadra com os novos totais. Esta escrita irá acionar a onQuadraWrite.
+      // Esta escrita irá acionar a função 'updateTerritoryStats'
       return quadraRef.update({
           totalHouses: totalHouses,
-          housesDone: housesDone,
-          lastUpdate: admin.firestore.FieldValue.serverTimestamp() 
+          housesDone: housesDone
       });
-
     } catch (error) {
       console.error(`[Stats-Quadra] FALHA ao atualizar quadra ${quadraId}:`, error);
       return null;
@@ -186,88 +181,86 @@ export const onHouseWrite = functions.firestore
 });
 
 
-// ▼▼▼ FUNÇÃO onQuadraWrite FINAL E ROBUSTA ▼▼▼
-// Esta função é acionada sempre que uma quadra é atualizada (ex: quando as stats dela mudam)
-export const onQuadraWrite = functions.firestore
+// 2. Acionada quando uma QUADRA muda -> Atualiza o TERRITÓRIO pai.
+export const updateTerritoryStats = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
   .onWrite(async (change, context) => {
+    const { congregationId, territoryId } = context.params;
+    const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
     
-    // Pega as referências necessárias do caminho do evento
-    const territoryRef = db.doc(`congregations/${context.params.congregationId}/territories/${context.params.territoryId}`);
-    
-    // É mais eficiente e seguro recalcular tudo a partir do zero
-    // para evitar inconsistências.
     try {
       const quadrasSnapshot = await territoryRef.collection("quadras").get();
       
       let totalHouses = 0;
       let housesDone = 0;
       
-      // Itera sobre TODAS as quadras do território
       quadrasSnapshot.forEach(doc => {
         totalHouses += doc.data().totalHouses || 0;
         housesDone += doc.data().housesDone || 0;
       });
 
-      // Calcula o progresso, com uma guarda para evitar divisão por zero
+      // ▼▼▼ A LÓGICA DE CÁLCULO E ATUALIZAÇÃO CORRIGIDA ▼▼▼
       const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
       
-      console.log(`[Stats-Territory] Atualizando ${context.params.territoryId}: Total=${totalHouses}, Feitas=${housesDone}, Progresso=${progress}`);
+      console.log(`[Stats-Territory] Atualizando ${territoryId}: Progresso=${progress * 100}%`);
       
-      // Atualiza o documento do território com as novas estatísticas completas
+      // Esta escrita irá acionar a função 'updateCongregationStats'
       return territoryRef.update({
-          // Salva os números dentro de um mapa 'stats' para organização
-          stats: {
-              totalHouses: totalHouses,
-              housesDone: housesDone,
-              casasPendentes: totalHouses - housesDone, // Calcula o pendente aqui
-              casasFeitas: housesDone,
-          },
-          // Salva a porcentagem de progresso separadamente para fácil acesso na UI
-          progress: progress,
-          quadraCount: quadrasSnapshot.size, // Atualiza a contagem de quadras
-          lastUpdate: admin.firestore.FieldValue.serverTimestamp() // Atualiza a data da última modificação
+          "stats.totalHouses": totalHouses,
+          "stats.housesDone": housesDone,
+          "stats.casasPendentes": totalHouses - housesDone,
+          "stats.casasFeitas": housesDone,
+          progress: progress, // Salva o valor decimal (ex: 0.58)
+          quadraCount: quadrasSnapshot.size,
+          lastUpdate: admin.firestore.FieldValue.serverTimestamp()
       });
 
     } catch (error) {
-      console.error(`[Stats-Territory] FALHA ao atualizar o território ${context.params.territoryId}: `, error);
+      console.error(`[Stats-Territory] FALHA ao atualizar território ${territoryId}: `, error);
       return null;
     }
 });
 
 
-export const onTerritoryWrite = functions.firestore
+// 3. Acionada quando um TERRITÓRIO muda -> Atualiza a CONGREGAÇÃO pai (para o seu Painel de Controle)
+export const updateCongregationStats = functions.firestore
     .document("congregations/{congregationId}/territories/{territoryId}")
     .onWrite(async (change, context) => {
         const { congregationId } = context.params;
-        const congregationRef = db.collection("congregations").doc(congregationId);
-        
+        const congregationRef = db.doc(`congregations/${congregationId}`);
         const territoriesRef = congregationRef.collection("territories");
-        const urbanTerritoriesSnapshot = await territoriesRef.where("type", "in", ["urban", null, ""]).get();
-        const ruralTerritoriesSnapshot = await territoriesRef.where("type", "==", "rural").get();
+        
+        try {
+            const urbanTerritoriesSnapshot = await territoriesRef.where("type", "in", ["urban", null, ""]).get();
+            const ruralTerritoriesSnapshot = await territoriesRef.where("type", "==", "rural").get();
 
-        const territoryCount = urbanTerritoriesSnapshot.size;
-        const ruralTerritoryCount = ruralTerritoriesSnapshot.size;
+            let totalHouses = 0;
+            let totalHousesDone = 0;
+            let totalQuadras = 0;
 
-        let totalQuadras = 0;
-        let totalHouses = 0;
-        let totalHousesDone = 0;
+            urbanTerritoriesSnapshot.forEach(doc => {
+                totalHouses += doc.data().stats?.totalHouses || 0;
+                totalHousesDone += doc.data().stats?.housesDone || 0;
+                totalQuadras += doc.data().quadraCount || 0;
+            });
+            
+            console.log(`[Stats-Congregation] Atualizando ${congregationId}: Total Mapeado=${totalHouses}, Total Visitado=${totalHousesDone}`);
 
-        urbanTerritoriesSnapshot.forEach(doc => {
-            totalQuadras += doc.data().quadraCount || 0;
-            totalHouses += doc.data().stats?.totalHouses || 0;
-            totalHousesDone += doc.data().stats?.housesDone || 0;
-        });
-
-        return congregationRef.update({
-            territoryCount,
-            ruralTerritoryCount,
-            totalQuadras,
-            totalHouses,
-            totalHousesDone,
-            lastUpdate: admin.firestore.FieldValue.serverTimestamp()
-        });
+            // Atualiza o documento principal da congregação
+            return congregationRef.update({
+                territoryCount: urbanTerritoriesSnapshot.size,
+                ruralTerritoryCount: ruralTerritoriesSnapshot.size,
+                totalQuadras: totalQuadras,
+                totalHouses: totalHouses,       // "Casas Mapeadas" no painel
+                totalHousesDone: totalHousesDone, // "Casas Visitadas" no painel
+                lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+            });
+        } catch(error) {
+            console.error(`[Stats-Congregation] FALHA ao atualizar congregação ${congregationId}:`, error);
+            return null;
+        }
     });
+
 
 export const resetTerritoryProgress = functions.https.onCall(async (data, context) => {
     const uid = context.auth?.uid;
@@ -512,3 +505,5 @@ export const generateUploadUrl = functions.region("southamerica-east1")
         throw new functions.https.HttpsError('internal', 'Não foi possível criar a URL de upload.');
     }
 });
+
+    
