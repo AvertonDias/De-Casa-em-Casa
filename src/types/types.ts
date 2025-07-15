@@ -28,6 +28,7 @@ export interface Territory {
   progress?: number;
   type: 'urban' | 'rural' | null;
   lastUpdate?: any; // Firestore Timestamp
+  lastWorkedTimestamp?: any; // Firestore Timestamp
 }
 
 export interface Congregation {
@@ -84,6 +85,7 @@ export interface RecentTerritory {
   number: string;
   progress?: number;
   lastUpdate?: { seconds: number };
+  lastWorkedTimestamp?: { seconds: number };
 }
 
 export interface RuralTerritory {

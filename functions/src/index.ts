@@ -1,3 +1,4 @@
+
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { GetSignedUrlConfig } from "firebase-admin/storage";
@@ -178,11 +179,19 @@ export const onHouseWrite = functions.firestore.document("congregations/{congreg
     const { congregationId, territoryId, quadraId } = context.params;
     const quadraRef = db.doc(`congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
     
+    // Atualiza estatísticas da quadra
     const casasSnapshot = await quadraRef.collection("casas").get();
     const totalHouses = casasSnapshot.size;
     const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
-    
-    return quadraRef.update({ totalHouses, housesDone, lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
+    await quadraRef.update({ totalHouses, housesDone, lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
+
+    // Se uma casa foi marcada como feita, atualiza o timestamp de trabalho do território
+    const casaAfter = change.after.data();
+    const casaBefore = change.before.data();
+    if (casaAfter?.status === true && casaBefore?.status === false) {
+      const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
+      await territoryRef.update({ lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp() });
+    }
 });
 
 export const onQuadraWrite = functions.firestore.document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}").onWrite(async (change, context) => {

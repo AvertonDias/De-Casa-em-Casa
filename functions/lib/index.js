@@ -1,8 +1,31 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateUploadUrl = exports.scheduledFirestoreExport = exports.onDeleteQuadra = exports.onDeleteTerritory = exports.handleUserPresence = exports.resetPeakUsers = exports.onTerritoryUpdateForHistory = exports.resetTerritoryProgress = exports.onTerritoryWrite = exports.onQuadraWrite = exports.onHouseWrite = exports.deleteUserAccount = exports.notifyAdminOfNewUser = exports.createCongregationAndAdmin = void 0;
-const functions = require("firebase-functions");
-const admin = require("firebase-admin");
+const functions = __importStar(require("firebase-functions"));
+const admin = __importStar(require("firebase-admin"));
 admin.initializeApp();
 const db = admin.firestore();
 // ============================================================================
@@ -15,18 +38,40 @@ exports.createCongregationAndAdmin = functions.https.onCall(async (data, context
     }
     let newUser;
     try {
-        newUser = await admin.auth().createUser({ email: adminEmail, password: adminPassword, displayName: adminName });
+        newUser = await admin.auth().createUser({
+            email: adminEmail,
+            password: adminPassword,
+            displayName: adminName,
+        });
         const batch = db.batch();
         const newCongregationRef = db.collection('congregations').doc();
-        batch.set(newCongregationRef, { name: congregationName, number: congregationNumber, territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0, createdAt: admin.firestore.FieldValue.serverTimestamp(), lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
+        batch.set(newCongregationRef, {
+            name: congregationName,
+            number: congregationNumber,
+            territoryCount: 0,
+            ruralTerritoryCount: 0,
+            totalQuadras: 0,
+            totalHouses: 0,
+            totalHousesDone: 0,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+        });
         const userDocRef = db.collection("users").doc(newUser.uid);
-        batch.set(userDocRef, { name: adminName, email: adminEmail, congregationId: newCongregationRef.id, role: "Administrador", status: "ativo" });
+        batch.set(userDocRef, {
+            name: adminName,
+            email: adminEmail,
+            congregationId: newCongregationRef.id,
+            role: "Administrador",
+            status: "ativo"
+        });
         await batch.commit();
         return { success: true, userId: newUser.uid };
     }
     catch (error) {
         if (newUser) {
-            await admin.auth().deleteUser(newUser.uid).catch(deleteError => { console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser.uid}':`, deleteError); });
+            await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
+                console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser.uid}':`, deleteError);
+            });
         }
         console.error("Erro ao criar congregação e admin:", error);
         if (error.code === 'auth/email-already-exists') {
@@ -37,22 +82,33 @@ exports.createCongregationAndAdmin = functions.https.onCall(async (data, context
 });
 exports.notifyAdminOfNewUser = functions.firestore.document("users/{userId}").onCreate(async (snapshot, context) => {
     const newUser = snapshot.data();
-    if (!newUser || newUser.status !== "pendente" || !newUser.congregationId)
+    if (!newUser || newUser.status !== "pendente" || !newUser.congregationId) {
         return null;
+    }
+    const adminsSnapshot = await db.collection("users")
+        .where("congregationId", "==", newUser.congregationId)
+        .where("role", "==", "Administrador")
+        .get();
+    if (adminsSnapshot.empty)
+        return null;
+    const tokens = [];
+    adminsSnapshot.forEach(adminDoc => {
+        const adminData = adminDoc.data();
+        if (adminData.fcmTokens && Array.isArray(adminData.fcmTokens)) {
+            tokens.push(...adminData.fcmTokens);
+        }
+    });
+    if (tokens.length === 0)
+        return null;
+    const payload = {
+        notification: {
+            title: "Novo Usuário Aguardando Aprovação!",
+            body: `O usuário "${newUser.displayName}" se cadastrou e precisa de sua aprovação.`,
+            icon: "/icon-192x192.png",
+            click_action: "/dashboard/usuarios",
+        },
+    };
     try {
-        const adminsSnapshot = await db.collection("users").where("congregationId", "==", newUser.congregationId).where("role", "==", "Administrador").get();
-        if (adminsSnapshot.empty)
-            return null;
-        const tokens = [];
-        adminsSnapshot.forEach(adminDoc => {
-            const adminData = adminDoc.data();
-            if (adminData.fcmTokens && Array.isArray(adminData.fcmTokens)) {
-                tokens.push(...adminData.fcmTokens);
-            }
-        });
-        if (tokens.length === 0)
-            return null;
-        const payload = { notification: { title: "Novo Usuário Aguardando Aprovação!", body: `O usuário "${newUser.displayName}" se cadastrou e precisa de sua aprovação.`, icon: "/icon-192x192.png", click_action: "/dashboard/usuarios" } };
         await admin.messaging().sendToDevice(tokens, payload);
         return { success: true };
     }
@@ -62,8 +118,7 @@ exports.notifyAdminOfNewUser = functions.firestore.document("users/{userId}").on
     }
 });
 exports.deleteUserAccount = functions.https.onCall(async (data, context) => {
-    var _a, _b;
-    const callingUserUid = (_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid;
+    const callingUserUid = context.auth?.uid;
     if (!callingUserUid) {
         throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
@@ -72,7 +127,7 @@ exports.deleteUserAccount = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError("invalid-argument", "ID inválido.");
     }
     const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-    const isAdmin = callingUserSnap.exists && ((_b = callingUserSnap.data()) === null || _b === void 0 ? void 0 : _b.role) === "Administrador";
+    const isAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
     if (!isAdmin && callingUserUid !== userIdToDelete) {
         throw new functions.https.HttpsError("permission-denied", "Sem permissão.");
     }
@@ -143,10 +198,9 @@ exports.onTerritoryWrite = functions.firestore.document("congregations/{congrega
     let totalHouses = 0;
     let totalHousesDone = 0;
     urbanTerritoriesSnapshot.forEach(doc => {
-        var _a, _b;
         totalQuadras += doc.data().quadraCount || 0;
-        totalHouses += ((_a = doc.data().stats) === null || _a === void 0 ? void 0 : _a.totalHouses) || 0;
-        totalHousesDone += ((_b = doc.data().stats) === null || _b === void 0 ? void 0 : _b.housesDone) || 0;
+        totalHouses += doc.data().stats?.totalHouses || 0;
+        totalHousesDone += doc.data().stats?.housesDone || 0;
     });
     return congregationRef.update({
         territoryCount, ruralTerritoryCount,
@@ -155,8 +209,7 @@ exports.onTerritoryWrite = functions.firestore.document("congregations/{congrega
     });
 });
 exports.resetTerritoryProgress = functions.https.onCall(async (data, context) => {
-    var _a;
-    const uid = (_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid;
+    const uid = context.auth?.uid;
     if (!uid) {
         throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
@@ -193,7 +246,6 @@ exports.resetTerritoryProgress = functions.https.onCall(async (data, context) =>
     }
 });
 exports.onTerritoryUpdateForHistory = functions.firestore.document("congregations/{congId}/territories/{terrId}").onUpdate(async (change, context) => {
-    var _a, _b;
     const dataBefore = change.before.data();
     const dataAfter = change.after.data();
     if (!dataBefore?.stats || !dataAfter?.stats)
@@ -203,7 +255,7 @@ exports.onTerritoryUpdateForHistory = functions.firestore.document("congregation
     if (JSON.stringify(statsBefore) === JSON.stringify(statsAfter))
         return null;
     const historyCollectionRef = change.after.ref.collection("activityHistory");
-    if (((_a = statsBefore.casasFeitas) !== null && _a !== void 0 ? _a : 0) === 0 && statsAfter.casasFeitas > 0) {
+    if (statsBefore.casasFeitas === 0 && statsAfter.casasFeitas > 0) {
         return historyCollectionRef.add({
             activityDate: admin.firestore.FieldValue.serverTimestamp(),
             notes: "O trabalho no território foi iniciado (registro automático).",
@@ -211,7 +263,7 @@ exports.onTerritoryUpdateForHistory = functions.firestore.document("congregation
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
     }
-    if (((_b = statsBefore.casasPendentes) !== null && _b !== void 0 ? _b : 0) > 0 && statsAfter.casasPendentes === 0) {
+    if (statsBefore.casasPendentes > 0 && statsAfter.casasPendentes === 0) {
         return historyCollectionRef.add({
             activityDate: admin.firestore.FieldValue.serverTimestamp(),
             notes: "Todas as casas do território foram trabalhadas (registro automático).",
@@ -225,13 +277,12 @@ exports.onTerritoryUpdateForHistory = functions.firestore.document("congregation
 //   FUNÇÕES DE PRESENÇA E PICO DE USUÁRIOS
 // ============================================================================
 exports.resetPeakUsers = functions.https.onCall(async (data, context) => {
-    var _a, _b;
-    const uid = (_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid;
+    const uid = context.auth?.uid;
     if (!uid) {
         throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
     const adminUserSnap = await db.collection("users").doc(uid).get();
-    if (((_b = adminUserSnap.data()) === null || _b === void 0 ? void 0 : _b.role) !== "Administrador") {
+    if (adminUserSnap.data()?.role !== "Administrador") {
         throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
     }
     const { congregationId } = data;
@@ -250,7 +301,6 @@ exports.resetPeakUsers = functions.https.onCall(async (data, context) => {
 });
 exports.handleUserPresence = functions.database.ref('/status/{uid}')
     .onWrite(async (change, context) => {
-    var _a;
     const eventStatus = change.after.val();
     const firestoreUserRef = db.doc(`users/${context.params.uid}`);
     const isOffline = !eventStatus || eventStatus.state === 'offline';
@@ -270,19 +320,18 @@ exports.handleUserPresence = functions.database.ref('/status/{uid}')
     const userDocSnap = await db.doc(`users/${context.params.uid}`).get();
     if (!userDocSnap.exists())
         return;
-    const congregationId = (_a = userDocSnap.data()) === null || _a === void 0 ? void 0 : _a.congregationId;
+    const congregationId = userDocSnap.data()?.congregationId;
     if (!congregationId)
         return;
     const congregationRef = db.doc(`congregations/${congregationId}`);
     const statusRef = change.after.ref.parent;
     return db.runTransaction(async (transaction) => {
-        var _a;
         const congDoc = await transaction.get(congregationRef);
         if (!congDoc.exists)
             return;
         const onlineUsersSnapshot = await statusRef.orderByChild('state').equalTo('online').once('value');
         const currentOnlineCount = onlineUsersSnapshot.numChildren();
-        const peakData = ((_a = congDoc.data()) === null || _a === void 0 ? void 0 : _a.peakOnlineUsers) || { count: 0 };
+        const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
         if (currentOnlineCount > peakData.count) {
             transaction.update(congregationRef, { peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
         }

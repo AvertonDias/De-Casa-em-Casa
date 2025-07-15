@@ -35,7 +35,7 @@ export default function DashboardPage() {
       const q = query(
         territoriesRef, 
         where("type", "in", ["urban", null]), 
-        orderBy("lastUpdate", "desc"), 
+        orderBy("lastWorkedTimestamp", "desc"), 
         limit(8)
       );
 
@@ -75,6 +75,7 @@ export default function DashboardPage() {
           <ul className="space-y-4">
             {recentTerritories.map((territory) => {
               const progress = Math.round((territory.progress || 0) * 100);
+              const lastWorkedTimestamp = territory.lastWorkedTimestamp || territory.lastUpdate;
               return (
                 <li 
                   key={territory.id} 
@@ -85,7 +86,7 @@ export default function DashboardPage() {
                     <div>
                       <h3 className="font-semibold text-gray-800 dark:text-white">{territory.number} - {territory.name}</h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Última atualização: {territory.lastUpdate ? new Date(territory.lastUpdate.seconds * 1000).toLocaleDateString() : 'N/A'}
+                        Última atualização: {lastWorkedTimestamp ? new Date(lastWorkedTimestamp.seconds * 1000).toLocaleDateString() : 'N/A'}
                       </p>
                     </div>
                     <p className="font-bold text-lg text-blue-600 dark:text-blue-400">{progress}%</p>
