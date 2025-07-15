@@ -286,9 +286,10 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
 export const onTerritoryUpdateForHistory = functions.firestore
   .document("congregations/{congId}/territories/{terrId}")
   .onUpdate(async (change, context) => {
+    
     const afterData = change.after.data();
 
-    // Se não há stats ou nenhuma casa foi feita, não há o que registrar.
+    // Sai se não houver stats ou se não houver casas feitas (indicando que não há trabalho em andamento).
     if (!afterData?.stats || afterData.stats.casasFeitas === 0) {
         return null;
     }
@@ -298,15 +299,13 @@ export const onTerritoryUpdateForHistory = functions.firestore
 
     const TIME_ZONE = "America/Sao_Paulo";
     const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
-
-    // Busca por um registro de histórico NO DIA DE HOJE.
-    const recentHistorySnapshot = await historyCollectionRef
-        .orderBy("activityDate", "desc")
-        .limit(1)
-        .get();
+    
+    // Busca o último registro de histórico para ver se já trabalhamos neste território hoje.
+    const recentHistorySnapshot = await historyCollectionRef.orderBy("activityDate", "desc").limit(1).get();
 
     if (!recentHistorySnapshot.empty) {
-        const lastRecordDate = (recentHistorySnapshot.docs[0].data().activityDate as admin.firestore.Timestamp).toDate();
+        const lastRecord = recentHistorySnapshot.docs[0].data();
+        const lastRecordDate = (lastRecord.activityDate as admin.firestore.Timestamp).toDate();
         // Se a data do último registro for a mesma de hoje, não fazemos nada.
         if (lastRecordDate.toLocaleDateString("en-CA", { timeZone: TIME_ZONE }) === todayString) {
             return null;
