@@ -123,7 +123,7 @@ export default function TerritoriosPage() {
     <>
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="flex justify-between items-center mb-6">
-          <div><h1 className="text-3xl font-bold">Territórios da Congregação</h1></div>
+          <div><h1 className="text-3xl font-bold">Territórios - {user.congregationName || 'Congregação'}</h1></div>
           {isAdmin && (
             <button onClick={() => setIsAddModalOpen(true)} className="bg-primary hover:bg-primary/80 text-white font-semibold py-2 px-4 rounded-md flex items-center">
               <Plus className="mr-2 h-4 w-4" /> Adicionar Território
