@@ -240,41 +240,34 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
     }
     
     try {
-        const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
-        const quadrasRef = territoryRef.collection("quadras");
+        const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
         const quadrasSnapshot = await quadrasRef.get();
+        
+        if (quadrasSnapshot.empty) {
+            return { success: true, message: "Nenhuma casa para limpar." };
+        }
         
         const batch = db.batch();
         let housesUpdatedCount = 0;
 
         for (const quadraDoc of quadrasSnapshot.docs) {
             const casasSnapshot = await quadraDoc.ref.collection("casas").where('status', '==', true).get();
-            if(casasSnapshot.empty) continue;
-            
             casasSnapshot.forEach(casaDoc => {
                 batch.update(casaDoc.ref, { status: false });
                 housesUpdatedCount++;
             });
         }
         
-        const territorySnap = await territoryRef.get();
-        const totalHouses = territorySnap.data()?.stats?.totalHouses || 0;
+        if (housesUpdatedCount > 0) {
+            await batch.commit();
 
-        batch.update(territoryRef, {
-            "stats.housesDone": 0,
-            "stats.casasFeitas": 0,
-            "stats.casasPendentes": totalHouses,
-            progress: 0,
-            lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-            lastWorkedTimestamp: null
-        });
-        
-        await batch.commit();
+            const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
+            await admin.firestore().recursiveDelete(db.collection(historyPath));
 
-        const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
-        await admin.firestore().recursiveDelete(db.collection(historyPath));
-
-        return { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` };
+            return { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` };
+        } else {
+            return { success: true, message: "Nenhuma alteração necessária." };
+        }
 
     } catch (error) {
         console.error(`[resetTerritory] FALHA CRÍTICA ao limpar o território ${territoryId}:`, error);
@@ -287,40 +280,42 @@ export const onTerritoryUpdateForHistory = functions.firestore
   .document("congregations/{congId}/territories/{terrId}")
   .onUpdate(async (change, context) => {
     
+    const beforeData = change.before.data();
     const afterData = change.after.data();
 
-    // Sai se não houver stats ou se não houver casas feitas (indicando que não há trabalho em andamento).
-    if (!afterData?.stats || afterData.stats.casasFeitas === 0) {
+    // Sai se não houver stats ou se o número de casas feitas não mudou de/para 0.
+    if (!beforeData?.stats || !afterData?.stats || JSON.stringify(beforeData.stats) === JSON.stringify(afterData.stats)) {
         return null;
     }
 
     const { congId, terrId } = context.params;
     const historyCollectionRef = db.collection(`congregations/${congId}/territories/${terrId}/activityHistory`);
 
-    const TIME_ZONE = "America/Sao_Paulo";
-    const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
-    
-    // Busca o último registro de histórico para ver se já trabalhamos neste território hoje.
-    const recentHistorySnapshot = await historyCollectionRef.orderBy("activityDate", "desc").limit(1).get();
-
-    if (!recentHistorySnapshot.empty) {
-        const lastRecord = recentHistorySnapshot.docs[0].data();
-        const lastRecordDate = (lastRecord.activityDate as admin.firestore.Timestamp).toDate();
-        // Se a data do último registro for a mesma de hoje, não fazemos nada.
-        if (lastRecordDate.toLocaleDateString("en-CA", { timeZone: TIME_ZONE }) === todayString) {
-            return null;
-        }
+    // Registra o INÍCIO do trabalho no território
+    if (beforeData.stats.casasFeitas === 0 && afterData.stats.casasFeitas > 0) {
+        console.info(`[History] Registrando INÍCIO do trabalho para o território ${terrId}.`);
+        return historyCollectionRef.add({
+            activityDate: admin.firestore.FieldValue.serverTimestamp(),
+            notes: `O trabalho no território foi iniciado (registro automático).`,
+            userName: "Sistema",
+            userId: "system",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
     }
-    
-    // Se chegou aqui, é o primeiro trabalho do dia neste território. Registra!
-    console.info(`[History] Registrando trabalho diário para o território ${terrId}.`);
-    return historyCollectionRef.add({
-        activityDate: admin.firestore.FieldValue.serverTimestamp(),
-        notes: `Trabalho registrado neste dia.`,
-        userName: "Sistema",
-        userId: "system",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+
+    // Registra a CONCLUSÃO do trabalho no território
+    if (beforeData.stats.casasPendentes > 0 && afterData.stats.casasPendentes === 0) {
+        console.info(`[History] Registrando TÉRMINO do trabalho para o território ${terrId}.`);
+        return historyCollectionRef.add({
+            activityDate: admin.firestore.FieldValue.serverTimestamp(),
+            notes: `Todas as casas do território foram trabalhadas (registro automático).`,
+            userName: "Sistema",
+            userId: "system",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    }
+
+    return null;
 });
 
 
@@ -377,17 +372,16 @@ export const handleUserPresence = functions.database.ref('/status/{uid}')
     if (!congregationId) return;
 
     const congregationRef = db.doc(`congregations/${congregationId}`);
+    const statusRef = change.after.ref.parent; // Referência a /status
     
     return db.runTransaction(async (transaction) => {
         const congDoc = await transaction.get(congregationRef);
         if (!congDoc.exists) return;
 
-        const usersSnapshot = await db.collection('users')
-            .where('congregationId', '==', congregationId)
-            .where('isOnline', '==', true)
-            .get();
+        // Query RTDB for online users
+        const onlineUsersSnapshot = await statusRef.orderByChild('state').equalTo('online').once('value');
+        const currentOnlineCount = onlineUsersSnapshot.numChildren();
         
-        const currentOnlineCount = usersSnapshot.size;
         const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
         
         if (currentOnlineCount > peakData.count) {
