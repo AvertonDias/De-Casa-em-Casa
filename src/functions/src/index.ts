@@ -11,8 +11,9 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { HttpsError } from "firebase-functions/v2/https";
 import type { UserData, CreateCongregationData } from "./types";
 
+
 // ============================================================================
-//   FUNÇÕES HTTPS (onCall) - SINTAXE V2
+//   FUNÇÕES HTTPS (onCall) - AGORA USANDO A SINTAXE V2
 // ============================================================================
 
 const regionalOnCall = (handler: (request: https.CallableRequest<any>) => any | Promise<any>) => {
@@ -300,7 +301,7 @@ export const onTerritoryWrite = onDocumentWritten({ ...firestoreOptions, documen
     const congregationRef = db.collection("congregations").doc(congregationId);
     const territoriesRef = congregationRef.collection("territories");
             
-    const urbanTerritoriesSnapshot = await territoriesRef.where("type", "in", ["urban", null]).get();
+    const urbanTerritoriesSnapshot = await territoriesRef.where("type", "in", ["urban", null, ""]).get();
     const ruralTerritoriesSnapshot = await territoriesRef.where("type", "==", "rural").get();
             
     const territoryCount = urbanTerritoriesSnapshot.size;
