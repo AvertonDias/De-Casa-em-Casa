@@ -4,7 +4,7 @@ admin.initializeApp();
 const db = admin.firestore();
 
 // --- IMPORTAÇÕES DA NOVA SINTAXE (V2) ---
-import { logger, region } from "firebase-functions/v2";
+import { https, logger, region } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentCreated, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -237,7 +237,7 @@ export const resetTerritoryProgress = regionalFunctions.https.onCall(async (requ
 
         batch.update(territoryRef, {
             "stats.housesDone": 0, "stats.casasFeitas": 0, "stats.casasPendentes": totalHouses,
-            progress: 0, lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+            progress: 0, lastWorkedTimestamp: null
         });
         
         await batch.commit();
@@ -308,7 +308,7 @@ export const onDeleteQuadra = onDocumentDeleted({ document: "congregations/{cong
     return admin.firestore().recursiveDelete(snap.ref);
 });
 
-export const handleUserPresence = onValueWritten("/status/{uid}", async (event) => {
+export const handleUserPresence = onValueWritten({ ref: "/status/{uid}", ...firestoreOptions }, async (event) => {
     const { uid } = event.params;
     const eventStatus = event.data.after.val();
     const firestoreUserRef = db.doc(`users/${uid}`);
@@ -332,8 +332,14 @@ export const handleUserPresence = onValueWritten("/status/{uid}", async (event) 
     return db.runTransaction(async (transaction) => {
         const congDoc = await transaction.get(congregationRef);
         if (!congDoc.exists) return;
-        const onlineUsersSnapshot = await statusRef.orderByChild('state').equalTo('online').once('value');
-        const currentOnlineCount = onlineUsersSnapshot.numChildren();
+        
+        // Contagem de usuários online na mesma congregação
+        const usersSnapshot = await db.collection('users')
+            .where('congregationId', '==', congregationId)
+            .where('isOnline', '==', true)
+            .get();
+        const currentOnlineCount = usersSnapshot.size;
+
         const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
         if (currentOnlineCount > peakData.count) {
             transaction.update(congregationRef, { peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
