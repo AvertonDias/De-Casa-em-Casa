@@ -18,5 +18,3 @@ export interface CreateCongregationData {
     congregationName: string;
     congregationNumber: string;
 }
-
-    

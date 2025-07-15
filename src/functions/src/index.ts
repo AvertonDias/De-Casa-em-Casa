@@ -1,22 +1,22 @@
+
 import * as admin from "firebase-admin";
 admin.initializeApp();
 const db = admin.firestore();
 
 // --- IMPORTAÇÕES DA NOVA SINTAXE (V2) ---
-import { https, logger } from "firebase-functions/v2";
+import { https, logger, region } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueCreated, onValueDeleted } from "firebase-functions/v2/database";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { HttpsError } from "firebase-functions/v2/https";
 import type { UserData, CreateCongregationData } from "./types";
 
-
 // ============================================================================
-//   FUNÇÕES HTTPS (onCall) - AGORA USANDO A SINTAXE V2
+//   FUNÇÕES HTTPS (onCall) - SINTAXE V2
 // ============================================================================
 
 const regionalOnCall = (handler: (request: https.CallableRequest<any>) => any | Promise<any>) => {
-    return https.onCall({ 
-        region: "southamerica-east1",
+    return region("southamerica-east1").https.onCall({ 
         cors: true // Habilita o CORS
     }, handler);
 };
@@ -25,7 +25,7 @@ export const createCongregationAndAdmin = regionalOnCall(async (request) => {
     const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = request.data as CreateCongregationData;
 
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
-        throw new https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
+        throw new HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
     }
 
     let newUser: admin.auth.UserRecord | undefined;
@@ -72,32 +72,32 @@ export const createCongregationAndAdmin = regionalOnCall(async (request) => {
         logger.error("Erro ao criar congregação e admin:", error);
         
         if (error.code === 'auth/email-already-exists') {
-             throw new https.HttpsError("already-exists", "Este e-mail já está em uso.");
+             throw new HttpsError("already-exists", "Este e-mail já está em uso.");
         }
-        throw new https.HttpsError("internal", "Ocorreu um erro interno.");
+        throw new HttpsError("internal", "Ocorreu um erro interno.");
     }
 });
 
 export const deleteUserAccount = regionalOnCall(async (request) => {
   const callingUserUid = request.auth?.uid;
   if (!callingUserUid) {
-    throw new https.HttpsError("unauthenticated", "Ação não autorizada. Requer autenticação.");
+    throw new HttpsError("unauthenticated", "Ação não autorizada. Requer autenticação.");
   }
 
   const userIdToDelete = request.data.uid;
   if (!userIdToDelete || typeof userIdToDelete !== 'string') {
-    throw new https.HttpsError("invalid-argument", "O ID do usuário a ser excluído não foi fornecido.");
+    throw new HttpsError("invalid-argument", "O ID do usuário a ser excluído não foi fornecido.");
   }
 
   const callingUserDoc = await db.collection("users").doc(callingUserUid).get();
   const callingUserData = callingUserDoc.data();
   
   if (!callingUserData || callingUserData.role !== "Administrador") {
-    throw new https.HttpsError("permission-denied", "Apenas administradores podem excluir usuários.");
+    throw new HttpsError("permission-denied", "Apenas administradores podem excluir usuários.");
   }
   
   if (callingUserUid === userIdToDelete) {
-    throw new https.HttpsError("permission-denied", "Um administrador não pode se autoexcluir.");
+    throw new HttpsError("permission-denied", "Um administrador não pode se autoexcluir.");
   }
 
   try {
@@ -115,20 +115,20 @@ export const deleteUserAccount = regionalOnCall(async (request) => {
       }
       return { success: true, message: "Usuário não encontrado na autenticação, mas documento do Firestore limpo." };
     }
-    throw new https.HttpsError("internal", `Falha na exclusão: ${error.message}`);
+    throw new HttpsError("internal", `Falha na exclusão: ${error.message}`);
   }
 });
 
 export const resetTerritoryProgress = regionalOnCall(async (request) => {
     const uid = request.auth?.uid;
-    if (!uid) { throw new https.HttpsError("unauthenticated", "Ação não autorizada."); }
+    if (!uid) { throw new HttpsError("unauthenticated", "Ação não autorizada."); }
     
     const { congregationId, territoryId } = request.data;
-    if (!congregationId || !territoryId) { throw new https.HttpsError("invalid-argument", "IDs faltando."); }
+    if (!congregationId || !territoryId) { throw new HttpsError("invalid-argument", "IDs faltando."); }
     
     const adminUserSnap = await db.collection("users").doc(uid).get();
     if (adminUserSnap.data()?.role !== "Administrador") {
-        throw new https.HttpsError("permission-denied", "Ação restrita a administradores.");
+        throw new HttpsError("permission-denied", "Ação restrita a administradores.");
     }
     
     const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
@@ -162,24 +162,24 @@ export const resetTerritoryProgress = regionalOnCall(async (request) => {
 export const resetPeakUsers = regionalOnCall(async (request) => {
     if (!request.auth) {
         logger.error("Chamada não autenticada para resetPeakUsersV2");
-        throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
+        throw new HttpsError('unauthenticated', 'Ação não autorizada.');
     }
 
     const uid = request.auth.uid;
     const { congregationId } = request.data;
     
     if (!congregationId) {
-        throw new https.HttpsError('invalid-argument', 'ID da congregação é necessário.');
+        throw new HttpsError('invalid-argument', 'ID da congregação é necessário.');
     }
 
     try {
         const adminUserSnap = await db.collection("users").doc(uid).get();
         if (adminUserSnap.data()?.role !== "Administrador") {
-            throw new https.HttpsError('permission-denied', 'Ação restrita a administradores.');
+            throw new HttpsError('permission-denied', 'Ação restrita a administradores.');
         }
     } catch(error) {
         logger.error("Erro ao verificar permissões:", error);
-        throw new https.HttpsError('internal', 'Falha ao verificar permissões.');
+        throw new HttpsError('internal', 'Falha ao verificar permissões.');
     }
     
     try {
@@ -191,18 +191,18 @@ export const resetPeakUsers = regionalOnCall(async (request) => {
         return { success: true };
     } catch (error) {
         logger.error(`Falha ao resetar pico para ${congregationId}:`, error);
-        throw new https.HttpsError('internal', 'Não foi possível resetar a estatística.');
+        throw new HttpsError('internal', 'Não foi possível resetar a estatística.');
     }
 });
 
 export const generateUploadUrl = regionalOnCall(async (request) => {
     if (!request.auth) {
-        throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
+        throw new HttpsError('unauthenticated', 'Ação não autorizada.');
     }
     
     const filePath = request.data.filePath;
     if (!filePath || typeof filePath !== 'string') {
-        throw new https.HttpsError('invalid-argument', 'O nome do arquivo é necessário.');
+        throw new HttpsError('invalid-argument', 'O nome do arquivo é necessário.');
     }
 
     const options: admin.storage.GetSignedUrlConfig = {
@@ -447,7 +447,7 @@ export const scheduledFirestoreExport = onSchedule({
     }
 
     const databaseName = client.databasePath(projectId, "(default)");
-    const bucketName = "gs://appterritorios-e5bb5.appspot.com"; 
+    const bucketName = `gs://${projectId}.appspot.com`; // Usa o bucket padrão do projeto
     const timestamp = new Date().toISOString().split('T')[0];
     const outputUriPrefix = `${bucketName}/backups/${timestamp}`;
 
@@ -457,11 +457,10 @@ export const scheduledFirestoreExport = onSchedule({
         outputUriPrefix: outputUriPrefix,
         collectionIds: [],
       });
+      logger.info(`Backup do Firestore concluído para ${outputUriPrefix}`);
       return null;
     } catch (error: any) {
       logger.error("[Backup] FALHA CRÍTICA:", error);
-      throw new https.HttpsError("internal", "A operação de exportação falhou.", error);
+      throw new HttpsError("internal", "A operação de exportação falhou.", error);
     }
 });
-
-    
