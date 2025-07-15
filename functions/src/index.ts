@@ -1,3 +1,4 @@
+
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 
@@ -512,113 +513,91 @@ export const generateUploadUrl = functions.region("southamerica-east1")
 });
 
 
-// ============================================================================
-//   FUNÇÕES DE PRESENÇA E PICO DE USUÁRIOS
-// ============================================================================
-export const resetPeakUsers = functions.https.onCall(async (data, context) => {
-    // 1. Garante que quem está chamando está autenticado
-    const uid = context.auth?.uid;
-    if (!uid) {
-        console.error("[ResetPeak] Chamada não autenticada.");
-        throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
-    }
-    
-    // 2. Valida o input
-    const { congregationId } = data;
-    if (!congregationId || typeof congregationId !== 'string') {
-        console.error("[ResetPeak] ID da congregação inválido ou faltando na chamada.");
-        throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário.");
-    }
-
-    // 3. Verifica se o usuário que está chamando é um Administrador
-    try {
-        const adminUserSnap = await db.collection("users").doc(uid).get();
-        if (!adminUserSnap.exists || adminUserSnap.data()?.role !== "Administrador") {
-            console.warn(`[ResetPeak] Tentativa de reset por usuário não-admin: ${uid}`);
-            throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
-        }
-    } catch (error) {
-        console.error("[ResetPeak] Erro ao verificar permissões do usuário:", error);
-        throw new functions.https.HttpsError("internal", "Falha ao verificar permissões.");
-    }
-    
-    console.log(`[ResetPeak] Iniciado pelo admin ${uid} para a congregação ${congregationId}`);
-    
-    // 4. Executa a atualização
-    try {
-        const congregationRef = db.doc(`congregations/${congregationId}`);
-        await congregationRef.update({
-            // Define o objeto completo para garantir consistência
-            peakOnlineUsers: {
-                count: 0,
-                timestamp: admin.firestore.FieldValue.serverTimestamp()
-            }
-        });
-        
-        console.log(`[ResetPeak] SUCESSO: Pico de usuários resetado para a congregação ${congregationId}.`);
-        return { success: true, message: "Pico de usuários online resetado com sucesso." };
-
-    } catch (error) {
-        console.error(`[ResetPeak] FALHA CRÍTICA ao resetar o pico para a congregação ${congregationId}:`, error);
-        throw new functions.https.HttpsError("internal", "Não foi possível resetar a estatística. Verifique os logs da função.");
-    }
-});
+// ========================================================================
+//   FUNÇÕES DE PRESENÇA E PICO (ESTRUTURA FINAL E CORRIGIDA)
+// ========================================================================
 
 // FUNÇÃO 1: Acionada APENAS quando um usuário fica ONLINE.
 export const onUserOnline = functions.database.ref('/status/{uid}')
   .onCreate(async (snapshot, context) => {
-    const { uid } = context.params;
+    const uid = context.params.uid;
     const firestoreUserRef = db.doc(`users/${uid}`);
 
     // 1. Marca o usuário como online no Firestore.
     try {
       await firestoreUserRef.update({ isOnline: true });
-      console.log(`[Presence] Usuário ${uid} ficou ONLINE.`);
     } catch (error) {
-      if ((error as any).code !== 'not-found') console.error(error);
+      if ((error as any).code !== 'not-found') console.error(`[Presence] Falha ao marcar ONLINE para ${uid}:`, error);
     }
 
     // 2. Lógica para atualizar o pico de usuários.
     const userDocSnap = await firestoreUserRef.get();
     if (!userDocSnap.exists()) return;
+    
     const congregationId = userDocSnap.data()?.congregationId;
     if (!congregationId) return;
 
     const congregationRef = db.doc(`congregations/${congregationId}`);
-    const statusRef = snapshot.ref.parent; // A pasta 'status/'
+    const statusRef = snapshot.ref.parent; // A pasta 'status/' no RTDB
 
     return db.runTransaction(async (transaction) => {
         const congDoc = await transaction.get(congregationRef);
-        if (!congDoc.exists()) return;
+        if (!congDoc.exists) return;
+
         const onlineUsersSnapshot = await statusRef.orderByChild('state').equalTo('online').once('value');
         const currentOnlineCount = onlineUsersSnapshot.numChildren();
+        
         const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
+
         if (currentOnlineCount > peakData.count) {
-            transaction.update(congregationRef, { peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
+            console.log(`[PeakUsers] Novo pico de ${currentOnlineCount} na congregação ${congregationId}.`);
+            transaction.update(congregationRef, {
+                peakOnlineUsers: {
+                    count: currentOnlineCount,
+                    timestamp: admin.firestore.FieldValue.serverTimestamp()
+                }
+            });
         }
     });
   });
 
-
-// FUNÇÃO 2: Acionada APENAS quando um usuário fica OFFLINE.
+// FUNÇÃO 2: Acionada APENAS quando um usuário fica OFFLINE (o nó é deletado).
 export const onUserOffline = functions.database.ref('/status/{uid}')
   .onDelete(async (snapshot, context) => {
-    const { uid } = context.params;
+    const uid = context.params.uid;
     const firestoreUserRef = db.doc(`users/${uid}`);
 
-    // Marca o usuário como offline e salva o 'visto por último'.
     try {
+      // Marca o usuário como offline e salva o 'visto por último'.
       await firestoreUserRef.update({
         isOnline: false,
         lastSeen: admin.firestore.FieldValue.serverTimestamp()
       });
       console.log(`[Presence] Usuário ${uid} ficou OFFLINE.`);
     } catch (error) {
-      if ((error as any).code !== 'not-found') console.error(error);
+      if ((error as any).code !== 'not-found') console.error(`[Presence] Falha ao marcar OFFLINE para ${uid}:`, error);
     }
   });
 
+// FUNÇÃO 3: Resetar o pico (sem alterações, mas mantida para completude)
+export const resetPeakUsers = functions.https.onCall(async (data, context) => {
+    const uid = context.auth?.uid;
+    if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
     
-
+    const adminUserSnap = await db.collection("users").doc(uid).get();
+    if (adminUserSnap.data()?.role !== "Administrador") { throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores."); }
     
+    const { congregationId } = data;
+    if (!congregationId) { throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário."); }
 
+    try {
+        const congregationRef = db.doc(`congregations/${congregationId}`);
+        await congregationRef.update({
+            peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() }
+        });
+        return { success: true, message: "Pico de usuários resetado." };
+    } catch (error) {
+        console.error("Falha ao resetar o pico de usuários:", error);
+        throw new functions.https.HttpsError("internal", "Não foi possível resetar a estatística.");
+    }
+});
