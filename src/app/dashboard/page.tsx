@@ -86,7 +86,7 @@ export default function DashboardPage() {
                     <div>
                       <h3 className="font-semibold text-gray-800 dark:text-white">{territory.number} - {territory.name}</h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Última atualização: {lastWorkedTimestamp ? new Date(lastWorkedTimestamp.seconds * 1000).toLocaleDateString() : 'N/A'}
+                        Último trabalho: {lastWorkedTimestamp ? new Date(lastWorkedTimestamp.seconds * 1000).toLocaleDateString() : 'N/A'}
                       </p>
                     </div>
                     <p className="font-bold text-lg text-blue-600 dark:text-blue-400">{progress}%</p>
