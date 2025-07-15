@@ -28,7 +28,7 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
           <h3 className="font-bold text-xl">{territory.number} - {territory.name}</h3>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div><p className="text-sm text-muted-foreground">Total Casas</p><p className="font-bold text-2xl">{totalCasas}</p></div>
+            <div><p className="text-sm text-muted-foreground">Total de Casas</p><p className="font-bold text-2xl">{totalCasas}</p></div>
             <div><p className="text-sm text-muted-foreground">Feitas</p><p className="font-bold text-2xl text-green-400">{casasFeitas}</p></div>
             <div><p className="text-sm text-muted-foreground">Pendentes</p><p className="font-bold text-2xl text-yellow-400">{totalCasas - casasFeitas}</p></div>
             <div><p className="text-sm text-muted-foreground">Progresso</p><p className="font-bold text-2xl text-blue-400">{progresso}%</p></div>
