@@ -134,7 +134,7 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
 });
 
 // ============================================================================
-//   FUNÇÕES DE ESTATÍSTICAS, MANUTENÇÃO E HISTÓRICO
+//   FUNÇÕES DE ESTATÍSTICAS E MANUTENÇÃO
 // ============================================================================
 
 export const onHouseWrite = functions.firestore
@@ -240,8 +240,7 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
     }
     
     try {
-        const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
-        const quadrasRef = territoryRef.collection("quadras");
+        const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
         const quadrasSnapshot = await quadrasRef.get();
         
         if (quadrasSnapshot.empty) {
@@ -276,7 +275,11 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
     }
 });
 
-// NOVA FUNÇÃO: Disparada quando uma casa é marcada, para registrar o trabalho diário.
+
+// ============================================================================
+//   FUNÇÕES DE HISTÓRICO
+// ============================================================================
+
 export const logDailyWorkAndUpdateTimestamp = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
   .onWrite(async (change, context) => {
@@ -284,9 +287,10 @@ export const logDailyWorkAndUpdateTimestamp = functions.firestore
 
     const dataAfter = change.after.data();
     const dataBefore = change.before.data();
+    
+    const wasJustWorked = dataAfter?.status === true && dataBefore?.status !== true;
 
-    // Condição de saída: a função só roda se o status mudou para 'true'
-    if (!dataAfter || dataAfter.status !== true || (dataBefore && dataBefore.status === true)) {
+    if (!wasJustWorked) {
       return null;
     }
     
@@ -297,31 +301,27 @@ export const logDailyWorkAndUpdateTimestamp = functions.firestore
     const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
     
     try {
-      const territorySnap = await territoryRef.get();
-      if (!territorySnap.exists) {
-        console.log(`[History] Território ${territoryId} não encontrado.`);
-        return null;
-      }
-      const lastWorkedTimestamp = territorySnap.data()?.lastWorkedTimestamp;
-      
-      let lastWorkedDateString = '';
-      if (lastWorkedTimestamp) {
-        lastWorkedDateString = lastWorkedTimestamp.toDate().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+      const q = historyCollectionRef.orderBy("activityDate", "desc").limit(1);
+      const lastHistorySnapshot = await q.get();
+
+      let lastWorkDateString = '';
+      if (!lastHistorySnapshot.empty) {
+        const lastLog = lastHistorySnapshot.docs[0].data();
+        if (lastLog.activityDate) {
+            lastWorkDateString = lastLog.activityDate.toDate().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+        }
       }
 
-      // Se a última data trabalhada for a mesma de hoje, apenas atualiza o timestamp e sai.
-      if (lastWorkedDateString === todayString) {
+      if (lastWorkDateString === todayString) {
         return territoryRef.update({
             lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp(),
         });
       }
       
-      // Se chegou aqui, é o primeiro trabalho do dia neste território. Registra!
       console.info(`[History] Registrando trabalho diário para o território ${territoryId}.`);
       
       const batch = db.batch();
       
-      // 1. Adiciona o novo registro no histórico
       const newHistoryRef = historyCollectionRef.doc();
       batch.set(newHistoryRef, {
         activityDate: admin.firestore.FieldValue.serverTimestamp(),
@@ -331,7 +331,6 @@ export const logDailyWorkAndUpdateTimestamp = functions.firestore
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       
-      // 2. Atualiza o timestamp no documento do território
       batch.update(territoryRef, {
         lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp(),
       });
