@@ -580,20 +580,32 @@ export const onUserOffline = functions.database.ref('/status/{uid}')
   });
 
 // FUNÇÃO 3: Resetar o pico (sem alterações, mas mantida para completude)
-export const resetPeakUsers = functions.https.onCall(async (data, context) => {
-    const uid = context.auth?.uid;
-    if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
+export const resetPeakUsers = functions
+  .region("southamerica-east1")
+  .https.onCall(async (data, context) => {
     
-    const adminUserSnap = await db.collection("users").doc(uid).get();
-    if (adminUserSnap.data()?.role !== "Administrador") { throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores."); }
+    const uid = context.auth?.uid;
+    if (!uid) {
+        throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
+    }
     
     const { congregationId } = data;
-    if (!congregationId) { throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário."); }
-
+    if (!congregationId) {
+        throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário.");
+    }
+    
+    const adminUserSnap = await db.collection("users").doc(uid).get();
+    if (adminUserSnap.data()?.role !== "Administrador") {
+        throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
+    }
+    
     try {
         const congregationRef = db.doc(`congregations/${congregationId}`);
         await congregationRef.update({
-            peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() }
+            peakOnlineUsers: {
+                count: 0,
+                timestamp: admin.firestore.FieldValue.serverTimestamp()
+            }
         });
         return { success: true, message: "Pico de usuários resetado." };
     } catch (error) {
