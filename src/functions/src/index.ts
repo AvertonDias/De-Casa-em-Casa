@@ -134,7 +134,7 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
 });
 
 // ============================================================================
-//   FUNÇÕES DE ESTATÍSTICAS E MANUTENÇÃO
+//   FUNÇÕES DE ESTATÍSTICAS, MANUTENÇÃO E HISTÓRICO
 // ============================================================================
 
 export const onHouseWrite = functions.firestore
@@ -275,73 +275,74 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
     }
 });
 
+export const onTerritoryUpdateForHistory = functions.firestore
+    .document("congregations/{congId}/territories/{terrId}")
+    .onUpdate(async (change, context) => {
+        const afterData = change.after.data();
+        const beforeData = change.before.data();
+        const historyCollectionRef = change.after.ref.collection("activityHistory");
 
-// ============================================================================
-//   FUNÇÕES DE HISTÓRICO
-// ============================================================================
-
-export const logDailyWorkAndUpdateTimestamp = functions.firestore
-  .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
-  .onWrite(async (change, context) => {
-    const { congregationId, territoryId } = context.params;
-
-    const dataAfter = change.after.data();
-    const dataBefore = change.before.data();
-    
-    const wasJustWorked = dataAfter?.status === true && dataBefore?.status !== true;
-
-    if (!wasJustWorked) {
-      return null;
-    }
-    
-    const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
-    const historyCollectionRef = territoryRef.collection("activityHistory");
-
-    const TIME_ZONE = "America/Sao_Paulo";
-    const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
-    
-    try {
-      const q = historyCollectionRef.orderBy("activityDate", "desc").limit(1);
-      const lastHistorySnapshot = await q.get();
-
-      let lastWorkDateString = '';
-      if (!lastHistorySnapshot.empty) {
-        const lastLog = lastHistorySnapshot.docs[0].data();
-        if (lastLog.activityDate) {
-            lastWorkDateString = lastLog.activityDate.toDate().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+        // Se não houver estatísticas, não faz nada
+        if (!afterData.stats || !beforeData.stats) {
+            return null;
         }
-      }
 
-      if (lastWorkDateString === todayString) {
-        return territoryRef.update({
-            lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      }
-      
-      console.info(`[History] Registrando trabalho diário para o território ${territoryId}.`);
-      
-      const batch = db.batch();
-      
-      const newHistoryRef = historyCollectionRef.doc();
-      batch.set(newHistoryRef, {
-        activityDate: admin.firestore.FieldValue.serverTimestamp(),
-        notes: `Trabalho registrado neste dia.`,
-        userName: "Sistema",
-        userId: "system",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      
-      batch.update(territoryRef, {
-        lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      
-      return batch.commit();
+        const casasFeitasDepois = afterData.stats.casasFeitas || 0;
+        const casasFeitasAntes = beforeData.stats.casasFeitas || 0;
 
-    } catch (error) {
-      console.error(`[History] FALHA CRÍTICA ao registrar trabalho para território ${territoryId}:`, error);
-      return null;
-    }
-});
+        // Condição para registrar:
+        // 1. O número de casas feitas aumentou.
+        // 2. Há pelo menos uma casa feita.
+        if (casasFeitasDepois <= casasFeitasAntes || casasFeitasDepois === 0) {
+            return null;
+        }
+
+        const TIME_ZONE = "America/Sao_Paulo";
+        const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+
+        try {
+            const lastHistorySnapshot = await historyCollectionRef
+                .orderBy("activityDate", "desc")
+                .limit(1)
+                .get();
+
+            let lastWorkDateString = '';
+            if (!lastHistorySnapshot.empty) {
+                const lastLog = lastHistorySnapshot.docs[0].data();
+                if (lastLog.activityDate) {
+                    lastWorkDateString = lastLog.activityDate.toDate().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+                }
+            }
+
+            // Se o último trabalho foi hoje, apenas atualiza o timestamp e sai.
+            if (lastWorkDateString === todayString) {
+                return change.after.ref.update({
+                    lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
+
+            // Se chegou aqui, é o primeiro trabalho do dia, então registra.
+            const batch = db.batch();
+            const newHistoryRef = historyCollectionRef.doc();
+            batch.set(newHistoryRef, {
+                activityDate: admin.firestore.FieldValue.serverTimestamp(),
+                notes: `Trabalho registrado neste dia.`,
+                userName: "Sistema",
+                userId: "system",
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            batch.update(change.after.ref, {
+                lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            return batch.commit();
+
+        } catch (error) {
+            console.error(`[History] FALHA ao registrar trabalho para território ${context.params.terrId}:`, error);
+            return null;
+        }
+    });
 
 
 // ============================================================================
