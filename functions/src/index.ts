@@ -286,64 +286,44 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
 export const onTerritoryUpdateForHistory = functions.firestore
   .document("congregations/{congId}/territories/{terrId}")
   .onUpdate(async (change, context) => {
-    
-    const statusBefore = change.before.data()?.stats?.status ?? false;
-    const statusAfter = change.after.data()?.stats?.status ?? false;
-    const statusBeforeHousesDone = change.before.data()?.stats?.housesDone ?? 0;
-    const statusAfterHousesDone = change.after.data()?.stats?.housesDone ?? 0;
+    const afterData = change.after.data();
 
-    // Roda apenas se uma casa MUDOU PARA "feita" (de não-feita para feita).
-    if (statusBefore === false && statusAfter === true) {
-        const { congId, terrId } = context.params;
-        const territoryRef = db.doc(`congregations/${congId}/territories/${terrId}`);
-        const historyCollectionRef = territoryRef.collection("activityHistory");
-        
-        // Atualiza a data do último trabalho (para a lista de "Recentemente Trabalhados")
-        await territoryRef.update({
-            lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp()
-        });
+    // Se não há stats ou nenhuma casa foi feita, não há o que registrar.
+    if (!afterData?.stats || afterData.stats.casasFeitas === 0) {
+        return null;
+    }
 
-        // Lógica para adicionar no histórico apenas uma vez por dia
-        const TIME_ZONE = "America/Sao_Paulo";
-        const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
-        const recentHistorySnapshot = await historyCollectionRef.orderBy("activityDate", "desc").limit(1).get();
+    const { congId, terrId } = context.params;
+    const historyCollectionRef = db.collection(`congregations/${congId}/territories/${terrId}/activityHistory`);
 
-        if (!recentHistorySnapshot.empty) {
-            const lastRecordDate = (recentHistorySnapshot.docs[0].data().activityDate as admin.firestore.Timestamp).toDate();
-            if (lastRecordDate.toLocaleDateString("en-CA", { timeZone: TIME_ZONE }) === todayString) {
-                return; // Já registrou hoje, não faz mais nada.
-            }
+    const TIME_ZONE = "America/Sao_Paulo";
+    const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+
+    // Busca por um registro de histórico NO DIA DE HOJE.
+    const recentHistorySnapshot = await historyCollectionRef
+        .orderBy("activityDate", "desc")
+        .limit(1)
+        .get();
+
+    if (!recentHistorySnapshot.empty) {
+        const lastRecordDate = (recentHistorySnapshot.docs[0].data().activityDate as admin.firestore.Timestamp).toDate();
+        // Se a data do último registro for a mesma de hoje, não fazemos nada.
+        if (lastRecordDate.toLocaleDateString("en-CA", { timeZone: TIME_ZONE }) === todayString) {
+            return null;
         }
-        
-        console.info(`[History] Registrando trabalho diário para o território ${terrId}.`);
-        await historyCollectionRef.add({
-            activityDate: admin.firestore.FieldValue.serverTimestamp(),
-            notes: `Primeiro trabalho do dia registrado.`,
-            userName: "Sistema",
-            userId: "system"
-        });
     }
-
-    if (statusBeforeHousesDone > 0 && statusAfterHousesDone === 0) {
-        return change.after.ref.collection("activityHistory").add({
-            activityDate: admin.firestore.FieldValue.serverTimestamp(),
-            notes: "O trabalho no território foi reiniciado (registro automático).",
-            userName: "Sistema", userId: "system",
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-    }
-
-    if (change.before.data()?.stats.casasPendentes > 0 && change.after.data()?.stats.casasPendentes === 0) {
-        return change.after.ref.collection("activityHistory").add({
-            activityDate: admin.firestore.FieldValue.serverTimestamp(),
-            notes: "Todas as casas do território foram trabalhadas (registro automático).",
-            userName: "Sistema", userId: "system",
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-    }
-
-    return null;
+    
+    // Se chegou aqui, é o primeiro trabalho do dia neste território. Registra!
+    console.info(`[History] Registrando trabalho diário para o território ${terrId}.`);
+    return historyCollectionRef.add({
+        activityDate: admin.firestore.FieldValue.serverTimestamp(),
+        notes: `Trabalho registrado neste dia.`,
+        userName: "Sistema",
+        userId: "system",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 });
+
 
 // ============================================================================
 //   FUNÇÕES DE PRESENÇA E PICO DE USUÁRIOS
