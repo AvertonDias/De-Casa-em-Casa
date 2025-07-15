@@ -16,9 +16,9 @@ import { RestrictedContent } from '@/components/RestrictedContent';
 // ========================================================================
 
 const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
-  const totalCasas = territory.totalHouses || 0;
-  const casasFeitas = territory.housesDone || 0;
-  const progresso = totalCasas > 0 ? Math.round((casasFeitas / totalCasas) * 100) : 0;
+  const totalCasas = territory.stats?.totalHouses || 0;
+  const casasFeitas = territory.stats?.housesDone || 0;
+  const progresso = territory.progress ? Math.round(territory.progress * 100) : 0;
 
   return (
     // O <Link> agora envolve todo o card
