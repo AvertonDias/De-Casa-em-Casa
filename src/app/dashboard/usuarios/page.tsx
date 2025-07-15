@@ -3,9 +3,9 @@
 
 import { useState, useEffect, Fragment, useMemo, useContext } from 'react';
 import { UserContext } from '@/contexts/UserContext';
-import { db, app, functions } from '@/lib/firebase'; // Importa a instância 'app' e 'functions'
+import { db, app } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, ChevronUp, SlidersHorizontal, Wifi, WifiOff, Users as UsersIcon, Zap, RefreshCw } from 'lucide-react';
 import { Menu, Transition, Disclosure } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
@@ -16,16 +16,17 @@ import { ptBR } from 'date-fns/locale';
 import type { AppUser, Congregation } from '@/types/types';
 import { usePresence } from '@/hooks/usePresence';
 
+// Inicialização correta e segura do serviço de funções
+const functions = getFunctions(app, 'southamerica-east1');
+const resetPeakUsersFunction = httpsCallable(functions, 'resetPeakUsers');
+const deleteUserFunction = httpsCallable(functions, 'deleteUserAccount');
+
 
 const UserListItem = ({ user, currentUser, onUpdate, onDelete, isUpdating }: { user: AppUser, currentUser: AppUser, onUpdate: (userId: string, data: object) => void, onDelete: (user: AppUser) => void, isUpdating: boolean }) => {
   const isOnline = user.isOnline === true;
   const isAdmin = currentUser.role === 'Administrador';
   const isDirigente = currentUser.role === 'Dirigente';
   
-  // Lógica para mostrar o menu:
-  // - Não mostra para o próprio usuário.
-  // - Admins sempre veem (exceto para eles mesmos).
-  // - Dirigentes só veem para usuários pendentes ou rejeitados.
   const canShowMenu = currentUser.uid !== user.uid && 
                       (isAdmin || (isDirigente && (user.status === 'pendente' || user.status === 'rejeitado')));
 
@@ -119,7 +120,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete, isUpdating }: { u
                                 </Menu.Item>
                             )}
                             
-                            {isAdmin && (user.role === 'Publicador' || user.role === 'Dirigente') && (
+                            {isAdmin && user.role !== 'Administrador' && (
                               <Menu.Item>
                                 {({ active }) => (
                                   <button onClick={() => onUpdate(user.uid, { role: 'Administrador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
@@ -175,6 +176,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete, isUpdating }: { u
     </li>
   );
 };
+
 
 export default function UsersPage() {
   const { user: currentUser, loading: userLoading } = useContext(UserContext); 
@@ -262,17 +264,17 @@ export default function UsersPage() {
 
     setUpdatingUserId(userToDelete.uid);
     try {
-        const deleteUser = httpsCallable(functions, 'deleteUserAccount');
-        await deleteUser({ uid: userToDelete.uid });
+        await deleteUserFunction({ uid: userToDelete.uid });
     } catch (error: any) {
         console.error("Erro ao chamar a função para excluir usuário:", error);
     } finally {
         setUpdatingUserId(null);
         setUserToDelete(null);
+        setIsConfirmModalOpen(false);
     }
   };
 
-  const handleResetPeak = () => {
+  const handleResetPeakClick = () => {
     if (!currentUser?.congregationId || currentUser.role !== 'Administrador') return;
     setConfirmAction({
         action: executeResetPeak,
@@ -284,16 +286,19 @@ export default function UsersPage() {
   };
 
   const executeResetPeak = async () => {
-    if (!currentUser?.congregationId) return;
-
+    if (!currentUser?.congregationId) {
+        alert("Erro: ID da congregação não encontrado.");
+        setIsConfirmModalOpen(false);
+        return;
+    }
+    
     try {
-        const resetFunction = httpsCallable(functions, 'resetPeakUsers');
-        await resetFunction({ congregationId: currentUser.congregationId });
+        await resetPeakUsersFunction({ congregationId: currentUser.congregationId });
     } catch (error) {
         console.error("Erro ao chamar a função de reset:", error);
         alert("Falha ao resetar o pico de usuários.");
     } finally {
-        setIsConfirmModalOpen(false); // Fecha o modal após a tentativa
+        setIsConfirmModalOpen(false);
     }
   };
 
@@ -402,7 +407,7 @@ export default function UsersPage() {
                 <p className="text-2xl font-bold">{congregation.peakOnlineUsers?.count || 0}</p>
             </div>
             {currentUser?.role === 'Administrador' && (
-                <button onClick={handleResetPeak} className="p-2 text-muted-foreground hover:text-white" title="Resetar pico">
+                <button onClick={handleResetPeakClick} className="p-2 text-muted-foreground hover:text-white" title="Resetar pico">
                     <RefreshCw size={16} />
                 </button>
             )}
@@ -492,7 +497,6 @@ export default function UsersPage() {
             onClose={() => setIsConfirmModalOpen(false)}
             onConfirm={() => {
                 confirmAction.action();
-                setIsConfirmModalOpen(false);
             }}
             isLoading={!!updatingUserId}
             title={confirmAction.title}
