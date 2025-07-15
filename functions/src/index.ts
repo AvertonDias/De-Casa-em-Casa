@@ -4,7 +4,7 @@ admin.initializeApp();
 const db = admin.firestore();
 
 // --- IMPORTAÇÕES DA NOVA SINTAXE (V2) ---
-import { https, logger } from "firebase-functions/v2";
+import { https, logger, region } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueCreated, onValueDeleted } from "firebase-functions/v2/database";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -259,78 +259,97 @@ export const notifyAdminOfNewUser = onDocumentCreated({ ...firestoreOptions, doc
     return { success: true };
 });
 
-export const onHouseWrite = onDocumentWritten({ ...firestoreOptions, document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}"}, async (event) => {
-    const { congregationId, territoryId, quadraId } = event.params;
-    const quadraRef = db.doc(`congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
+export const updateQuadraStats = onDocumentWritten({document: "congregations/{congId}/territories/{terrId}/quadras/{quadraId}/casas/{casaId}", ...firestoreOptions}, async (event) => {
+    const { congId, terrId, quadraId } = event.params;
+    const quadraRef = db.doc(`congregations/${congId}/territories/${terrId}/quadras/${quadraId}`);
     
-    const casasSnapshot = await quadraRef.collection("casas").get();
-    const totalHouses = casasSnapshot.size;
-    const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
-    await quadraRef.update({ totalHouses, housesDone, lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
-
-    const casaAfter = event.data?.after.data();
-    const casaBefore = event.data?.before.data();
-    if (casaAfter?.status === true && casaBefore?.status === false) {
-      const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
-      await territoryRef.update({ lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp() });
+    try {
+        const casasSnapshot = await quadraRef.collection("casas").get();
+        const totalHouses = casasSnapshot.size;
+        const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
+        
+        logger.info(`Atualizando quadra ${quadraId}: Total=${totalHouses}, Feitas=${housesDone}`);
+        return quadraRef.update({
+            totalHouses: totalHouses,
+            housesDone: housesDone,
+            lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (error) {
+        logger.error(`[Stats] FALHA ao atualizar quadra ${quadraId}:`, error);
+        return null;
     }
 });
 
-
-export const onQuadraWrite = onDocumentWritten({ ...firestoreOptions, document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}"}, async (event) => {
-    const territoryRef = db.doc(`congregations/${event.params.congregationId}/territories/${event.params.territoryId}`);
-    const quadrasSnapshot = await territoryRef.collection("quadras").get();
-      
-    const quadraCount = quadrasSnapshot.size;
-    let totalHouses = 0;
-    let housesDone = 0;
-      
-    quadrasSnapshot.forEach(doc => {
-        totalHouses += doc.data().totalHouses || 0;
-        housesDone += doc.data().housesDone || 0;
-    });
-
-    const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
-    const stats = {
-        totalHouses, housesDone,
-        casasPendentes: totalHouses - housesDone,
-        casasFeitas: housesDone,
-    };
-      
-    await territoryRef.update({ 
-        stats, progress, quadraCount, 
-        lastUpdate: admin.firestore.FieldValue.serverTimestamp() 
-    });
+// Acionada quando uma QUADRA muda -> Atualiza o TERRITÓRIO pai.
+export const updateTerritoryStats = onDocumentWritten({document: "congregations/{congId}/territories/{terrId}/quadras/{quadraId}", ...firestoreOptions}, async (event) => {
+    const { congId, terrId } = event.params;
+    const territoryRef = db.doc(`congregations/${congId}/territories/${terrId}`);
+    
+    try {
+        const quadrasSnapshot = await territoryRef.collection("quadras").get();
+        let totalHouses = 0;
+        let housesDone = 0;
+        
+        quadrasSnapshot.forEach(doc => {
+            totalHouses += doc.data().totalHouses || 0;
+            housesDone += doc.data().housesDone || 0;
+        });
+        const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
+        
+        logger.info(`Atualizando território ${terrId}: Total=${totalHouses}, Feitas=${housesDone}`);
+        return territoryRef.update({
+            // Salva as estatísticas dentro de um mapa 'stats' para consistência
+            stats: {
+                totalHouses: totalHouses,
+                housesDone: housesDone,
+                casasPendentes: totalHouses - housesDone,
+                casasFeitas: housesDone
+            },
+            progress: progress,
+            quadraCount: quadrasSnapshot.size,
+            lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (error) {
+        logger.error(`[Stats] FALHA ao atualizar território ${terrId}: `, error);
+        return null;
+    }
 });
 
-
-export const onTerritoryWrite = onDocumentWritten({ ...firestoreOptions, document: "congregations/{congregationId}/territories/{territoryId}"}, async (event) => {
-    const { congregationId } = event.params;
-    const congregationRef = db.collection("congregations").doc(congregationId);
+// Acionada quando um TERRITÓRIO muda -> Atualiza a CONGREGAÇÃO pai.
+export const updateCongregationStats = onDocumentWritten({document: "congregations/{congId}/territories/{terrId}", ...firestoreOptions}, async (event) => {
+    const { congId } = event.params;
+    const congregationRef = db.doc(`congregations/${congId}`);
     const territoriesRef = congregationRef.collection("territories");
-            
-    const urbanTerritoriesSnapshot = await territoriesRef.where("type", "in", ["urban", null, ""]).get();
-    const ruralTerritoriesSnapshot = await territoriesRef.where("type", "==", "rural").get();
-            
-    const territoryCount = urbanTerritoriesSnapshot.size;
-    const ruralTerritoryCount = ruralTerritoriesSnapshot.size;
+    
+    try {
+        const urbanSnapshot = await territoriesRef.where("type", "in", ["urban", null, ""]).get();
+        const ruralSnapshot = await territoriesRef.where("type", "==", "rural").get();
 
-    let totalQuadras = 0;
-    let totalHouses = 0;
-    let totalHousesDone = 0;
+        let totalHouses = 0;
+        let totalHousesDone = 0;
+        let totalQuadras = 0;
 
-    urbanTerritoriesSnapshot.forEach(doc => {
-        totalQuadras += doc.data().quadraCount || 0;
-        totalHouses += doc.data().stats?.totalHouses || 0;
-        totalHousesDone += doc.data().stats?.housesDone || 0;
-    });
-            
-    await congregationRef.update({ 
-        territoryCount, ruralTerritoryCount,
-        totalQuadras, totalHouses, totalHousesDone,
-        lastUpdate: admin.firestore.FieldValue.serverTimestamp()
-    });
+        urbanSnapshot.forEach(doc => {
+            totalQuadras += doc.data().quadraCount || 0;
+            totalHouses += doc.data().stats?.totalHouses || 0;
+            totalHousesDone += doc.data().stats?.housesDone || 0;
+        });
+
+        logger.info(`Atualizando congregação ${congId}: Casas Visitadas=${totalHousesDone}`);
+        return congregationRef.update({
+            territoryCount: urbanSnapshot.size,
+            ruralTerritoryCount: ruralSnapshot.size,
+            totalQuadras: totalQuadras,
+            totalHouses: totalHouses, // Casas Mapeadas (Total de Urbanas)
+            totalHousesDone: totalHousesDone, // Casas Visitadas (Total de Feitas)
+            lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+        });
+    } catch(error) {
+        logger.error(`[Stats] FALHA ao atualizar congregação ${congId}:`, error);
+        return null;
+    }
 });
+
 
 export const onTerritoryUpdateForHistory = onDocumentUpdated({ ...firestoreOptions, document: "congregations/{congId}/territories/{terrId}" }, async (event) => {
     const dataBefore = event.data?.before.data();
@@ -473,3 +492,5 @@ export const scheduledFirestoreExport = onSchedule({
       throw new HttpsError("internal", "A operação de exportação falhou.", error);
     }
 });
+
+    

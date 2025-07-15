@@ -1,1 +1,0 @@
-// This file is being moved. Its content will be placed in /src/app/(auth)/cadastro/page.tsx
