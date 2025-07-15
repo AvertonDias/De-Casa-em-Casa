@@ -1,4 +1,3 @@
-
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { GetSignedUrlConfig } from "firebase-admin/storage";
@@ -152,6 +151,9 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
 
         if (housesUpdatedCount > 0) {
             await batch.commit();
+            const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
+            // Deleta a subcoleção de histórico de forma recursiva.
+            await admin.firestore().recursiveDelete(db.collection(historyPath));
             return { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` };
         } else {
             return { success: true, message: "Nenhuma alteração necessária." };
@@ -164,31 +166,58 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
 });
 
 
-// ============================================================================
-//   FUNÇÕES DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO (ARQUITETURA CORRIGIDA)
-// ============================================================================
+// ========================================================================
+//   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO (VERSÃO CORRIGIDA)
+// ========================================================================
 
-// 1. Acionada quando uma CASA muda -> Atualiza a QUADRA pai.
+// FUNÇÃO 1: Acionada quando uma CASA muda.
 export const onHouseChange = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
   .onWrite(async (change, context) => {
-    const { congregationId, territoryId, quadraId } = context.params;
-    const quadraRef = db.doc(`congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
     
-    // Recalcula as stats da quadra
+    // ATUALIZA AS ESTATÍSTICAS DA QUADRA
+    const quadraRef = change.after.ref.parent.parent!;
     const casasSnapshot = await quadraRef.collection("casas").get();
-    const totalHouses = casasSnapshot.size;
-    const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
-    
-    // Atualiza a quadra. Esta escrita irá acionar a função onQuadraChange.
-    return quadraRef.update({
-        totalHouses: totalHouses,
-        housesDone: housesDone,
-        lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+    await quadraRef.update({
+        totalHouses: casasSnapshot.size,
+        housesDone: casasSnapshot.docs.filter(doc => doc.data().status === true).length
     });
+
+    // ▼▼▼ A LÓGICA DE HISTÓRICO COMEÇA AQUI ▼▼▼
+    const beforeData = change.before.data();
+    const afterData = change.after.data();
+
+    // Condição: Só continua se o status mudou de 'false' para 'true'.
+    if (beforeData?.status === false && afterData?.status === true) {
+        const { congregationId, territoryId } = context.params;
+        const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
+        const historyRef = territoryRef.collection("activityHistory");
+
+        // Atualiza a data do último trabalho (para a lista de "Recentemente Trabalhados")
+        await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
+
+        // Adiciona ao histórico apenas uma vez por dia
+        const TIME_ZONE = "America/Sao_Paulo";
+        const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+        
+        const lastHistorySnap = await historyRef.orderBy("activityDate", "desc").limit(1).get();
+        
+        // Se não há histórico ou o último registro não é de hoje, cria um novo.
+        if (lastHistorySnap.empty || lastHistorySnap.docs[0].data().activityDate.toDate().toLocaleDateString("en-CA", {timeZone: TIME_ZONE}) !== todayString) {
+            return historyRef.add({
+              activityDate: admin.firestore.FieldValue.serverTimestamp(),
+              notes: "Primeiro trabalho do dia registrado.",
+              userName: afterData.lastWorkedBy?.name || "Sistema", // Registra quem trabalhou
+              userId: afterData.lastWorkedBy?.uid || "system"
+            });
+        }
+    }
+    
+    return null; // Encerra a função se a condição não for atendida
 });
 
-// 2. Acionada quando uma QUADRA muda -> Atualiza o TERRITÓRIO pai.
+
+// FUNÇÃO 2: Acionada quando uma QUADRA muda (para atualizar o território)
 export const onQuadraChange = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
   .onWrite(async (change, context) => {
@@ -206,17 +235,16 @@ export const onQuadraChange = functions.firestore
 
     const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
     
-    // Esta escrita irá acionar a função onTerritoryChange.
+    // Esta escrita irá acionar a onTerritoryChange
     return territoryRef.update({
         stats: { totalHouses, housesDone },
-        progress: progress,
+        progress,
         quadraCount: quadrasSnapshot.size,
-        lastUpdate: admin.firestore.FieldValue.serverTimestamp()
     });
 });
 
 
-// 3. Acionada quando um TERRITÓRIO muda -> Atualiza a CONGREGAÇÃO pai e o HISTÓRICO.
+// FUNÇÃO 3: Acionada quando um TERRITÓRIO muda (para atualizar a congregação)
 export const onTerritoryChange = functions.firestore
     .document("congregations/{congregationId}/territories/{territoryId}")
     .onWrite(async (change, context) => {
@@ -224,27 +252,6 @@ export const onTerritoryChange = functions.firestore
         const congregationRef = db.doc(`congregations/${congregationId}`);
         const territoriesRef = congregationRef.collection("territories");
         
-        // --- Lógica do Histórico (e "Recentemente Trabalhados") ---
-        const beforeData = change.before.data();
-        const afterData = change.after.data();
-
-        // Se uma casa foi feita (progresso aumentou) e há casas trabalhadas
-        if (afterData?.stats?.housesDone > beforeData?.stats?.housesDone && afterData?.stats?.housesDone > 0) {
-            const historyRef = change.after.ref.collection("activityHistory");
-            const todayString = new Date().toLocaleDateString("en-CA", {timeZone: "America/Sao_Paulo"});
-            const snapshot = await historyRef.orderBy("activityDate", "desc").limit(1).get();
-            
-            // Registra apenas se não houver registro para o dia de hoje.
-            if (snapshot.empty || snapshot.docs[0].data().activityDate.toDate().toLocaleDateString("en-CA", {timeZone: "America/Sao_Paulo"}) !== todayString) {
-                await historyRef.add({
-                  activityDate: admin.firestore.FieldValue.serverTimestamp(),
-                  notes: "Trabalho registrado neste dia.",
-                  userName: "Sistema",
-                });
-            }
-        }
-        
-        // --- Lógica das Estatísticas da Congregação ---
         const territoriesSnapshot = await territoriesRef.get();
         let urbanCount = 0, ruralCount = 0, totalHouses = 0, totalHousesDone = 0, totalQuadras = 0;
         territoriesSnapshot.forEach(doc => {
@@ -265,7 +272,6 @@ export const onTerritoryChange = functions.firestore
             lastUpdate: admin.firestore.FieldValue.serverTimestamp()
         });
     });
-
 
 
 // ============================================================================
