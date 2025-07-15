@@ -76,13 +76,14 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete, isUpdating }: { u
       </div>
       
       <div className="flex items-center justify-end gap-3 shrink-0">
-          <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRoleClass(user.role)}`}>{user.role}</span>
-          
-          {user.status !== 'ativo' && (
-              <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusClass(user.status)}`}>
-                  {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-              </span>
-          )}
+          <div className="flex items-center justify-end gap-3 shrink-0">
+            <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRoleClass(user.role)}`}>{user.role}</span>
+            {user.status !== 'ativo' && (
+                <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusClass(user.status)}`}>
+                    {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+                </span>
+            )}
+          </div>
           
           {canShowMenu && (
               <Menu as="div" className="relative">
