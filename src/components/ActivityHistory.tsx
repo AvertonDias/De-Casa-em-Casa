@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -91,7 +92,7 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
         </button>
         
         {isOpen && (
-          <div className="mt-4 pt-4 border-t border-white/10">
+          <div className="mt-4 pt-4 border-t border-border">
             {canManage && (
               <div className="mb-4">
                 <button onClick={openAddModal} className="w-full flex items-center justify-center p-2 bg-primary/20 text-primary rounded-md hover:bg-primary/30 transition-colors">
@@ -111,7 +112,7 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
                       {activity.notes && <p className="text-sm mt-1 text-muted-foreground italic">"{activity.notes}"</p>}
                       <p className="text-xs text-muted-foreground mt-2">Registrado por: {activity.userName}</p>
                     </div>
-                    {canManage && (
+                    {canManage && activity.userId !== 'system' && (
                       <div className="flex space-x-2">
                         <button onClick={() => openEditModal(activity)} className="p-1 text-muted-foreground hover:text-white"><Edit size={16}/></button>
                         <button onClick={() => openConfirmModal(activity.id)} className="p-1 text-muted-foreground hover:text-red-500"><Trash2 size={16}/></button>

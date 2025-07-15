@@ -45,8 +45,8 @@ const ProgressSection = ({ territory }: { territory: Territory }) => {
     );
 };
 
-const HistorySection = ({ territory, history }: { territory: Territory, history: Activity[] }) => (
-  <ActivityHistory territoryId={territory.id} history={history} />
+const HistorySection = ({ territoryId, history }: { territoryId: string, history: Activity[] }) => (
+  <ActivityHistory territoryId={territoryId} history={history} />
 );
 
 const MapAndCardSection = ({ territory, onImageClick }: { territory: Territory, onImageClick: (url: string) => void }) => {
@@ -142,10 +142,13 @@ export default function TerritoryDetailPage({ params }: { params: { territoryId:
         setLoading(false); 
     });
 
-    const unsubHistory = onSnapshot(collection(territoryRef, 'activityHistory'), (snapshot) => { setActivityHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Activity)).sort((a, b) => b.activityDate.toMillis() - a.activityDate.toMillis())); });
+    const historyQuery = query(collection(territoryRef, 'activityHistory'), orderBy("activityDate", "desc"));
+    const unsubHistory = onSnapshot(historyQuery, (snapshot) => { 
+        setActivityHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Activity)));
+    });
     
-    const q = query(collection(territoryRef, 'quadras'), orderBy('name', 'asc'));
-    const unsubQuadras = onSnapshot(q, (snapshot) => { 
+    const quadrasQuery = query(collection(territoryRef, 'quadras'), orderBy('name', 'asc'));
+    const unsubQuadras = onSnapshot(quadrasQuery, (snapshot) => { 
         setQuadras(snapshot.docs.map(qDoc => ({...qDoc.data(), id: qDoc.id} as Quadra)));
     });
     
@@ -255,7 +258,7 @@ export default function TerritoryDetailPage({ params }: { params: { territoryId:
           {isManagerView ? (
             <>
               {isUrban && <ProgressSection territory={territory} />}
-              <HistorySection territory={territory} history={activityHistory} />
+              <HistorySection territoryId={territory.id} history={activityHistory} />
               <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
               {isUrban && 
                 <QuadrasSection 
@@ -279,7 +282,7 @@ export default function TerritoryDetailPage({ params }: { params: { territoryId:
                 />
               }
               <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
-              <HistorySection territory={territory} history={activityHistory} />
+              <HistorySection territoryId={territory.id} history={activityHistory} />
             </>
           )}
         </div>
@@ -309,4 +312,3 @@ export default function TerritoryDetailPage({ params }: { params: { territoryId:
     </>
   );
 }
-
