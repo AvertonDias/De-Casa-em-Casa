@@ -83,7 +83,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete, isUpdating }: { u
             )}
           </div>
           
-          {canShowMenu && (
+          {canShowMenu ? (
               <Menu as="div" className="relative">
                   <Menu.Button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:cursor-not-allowed" disabled={isUpdating}>
                     {isUpdating ? <Loader size={20} className="animate-spin"/> : <MoreVertical size={20} />}
@@ -170,6 +170,8 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete, isUpdating }: { u
                       </Menu.Items>
                   </Transition>
               </Menu>
+          ) : (
+            <div className="w-9 h-9" />
           )}
       </div>
     </li>
