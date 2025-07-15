@@ -1447,3 +1447,1049 @@
 [debug] [2025-07-15T16:26:49.220Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM [none]
 [debug] [2025-07-15T16:26:49.821Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM 200
 [debug] [2025-07-15T16:26:49.821Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM {"name":"operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM","metadata":{"@type":"type.googleapis.com/google.cloud.functions.v1.OperationMetadataV1","target":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","type":"UPDATE_FUNCTION","request":{"@type":"type.googleapis.com/google.cloud.functions.v1.CloudFunction","name":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","httpsTrigger":{"url":"https://us-central1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin","securityLevel":"SECURE_ALWAYS"},"status":"ACTIVE","entryPoint":"createCongregationAndAdmin","updateTime":"2025-07-15T15:49:24.613Z","versionId":"18","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-callable":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin"},"runtime":"nodejs20","buildId":"e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"buildName":"projects/83629039662/locations/us-central1/builds/e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","dockerRegistry":"ARTIFACT_REGISTRY","automaticUpdatePolicy":{},"buildServiceAccount":"projects/appterritorios-e5bb5/serviceAccounts/83629039662-compute@developer.gserviceaccount.com"},"versionId":"20","updateTime":"2025-07-15T16:26:30Z","buildId":"3d84ff97-d403-4748-8ca4-88ae65adf0c4","buildName":"projects/83629039662/locations/us-central1/builds/3d84ff97-d403-4748-8ca4-88ae65adf0c4"}}
+[debug] [2025-07-15T16:26:59.828Z] [update-default-us-central1-createCongregationAndAdmin] Retrying task index 0
+[debug] [2025-07-15T16:26:59.828Z] No OAuth tokens found
+[debug] [2025-07-15T16:26:59.829Z] No OAuth tokens found
+[debug] [2025-07-15T16:26:59.829Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:26:59.829Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:26:59.829Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM [none]
+[debug] [2025-07-15T16:27:00.187Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM 200
+[debug] [2025-07-15T16:27:00.188Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM {"name":"operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM","metadata":{"@type":"type.googleapis.com/google.cloud.functions.v1.OperationMetadataV1","target":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","type":"UPDATE_FUNCTION","request":{"@type":"type.googleapis.com/google.cloud.functions.v1.CloudFunction","name":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","httpsTrigger":{"url":"https://us-central1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin","securityLevel":"SECURE_ALWAYS"},"status":"ACTIVE","entryPoint":"createCongregationAndAdmin","updateTime":"2025-07-15T15:49:24.613Z","versionId":"18","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-callable":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin"},"runtime":"nodejs20","buildId":"e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"buildName":"projects/83629039662/locations/us-central1/builds/e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","dockerRegistry":"ARTIFACT_REGISTRY","automaticUpdatePolicy":{},"buildServiceAccount":"projects/appterritorios-e5bb5/serviceAccounts/83629039662-compute@developer.gserviceaccount.com"},"versionId":"20","updateTime":"2025-07-15T16:26:30Z","buildId":"3d84ff97-d403-4748-8ca4-88ae65adf0c4","buildName":"projects/83629039662/locations/us-central1/builds/3d84ff97-d403-4748-8ca4-88ae65adf0c4"}}
+[debug] [2025-07-15T16:27:10.193Z] [update-default-us-central1-createCongregationAndAdmin] Retrying task index 0
+[debug] [2025-07-15T16:27:10.200Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:10.201Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:10.201Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:10.201Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:10.201Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM [none]
+[debug] [2025-07-15T16:27:10.468Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM 200
+[debug] [2025-07-15T16:27:10.472Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM {"name":"operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM","metadata":{"@type":"type.googleapis.com/google.cloud.functions.v1.OperationMetadataV1","target":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","type":"UPDATE_FUNCTION","request":{"@type":"type.googleapis.com/google.cloud.functions.v1.CloudFunction","name":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","httpsTrigger":{"url":"https://us-central1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin","securityLevel":"SECURE_ALWAYS"},"status":"ACTIVE","entryPoint":"createCongregationAndAdmin","updateTime":"2025-07-15T15:49:24.613Z","versionId":"18","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-callable":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin"},"runtime":"nodejs20","buildId":"e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"buildName":"projects/83629039662/locations/us-central1/builds/e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","dockerRegistry":"ARTIFACT_REGISTRY","automaticUpdatePolicy":{},"buildServiceAccount":"projects/appterritorios-e5bb5/serviceAccounts/83629039662-compute@developer.gserviceaccount.com"},"versionId":"20","updateTime":"2025-07-15T16:26:30Z","buildId":"3d84ff97-d403-4748-8ca4-88ae65adf0c4","buildName":"projects/83629039662/locations/us-central1/builds/3d84ff97-d403-4748-8ca4-88ae65adf0c4"}}
+[debug] [2025-07-15T16:27:20.472Z] [update-default-us-central1-createCongregationAndAdmin] Retrying task index 0
+[debug] [2025-07-15T16:27:20.476Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:20.476Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:20.476Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:20.476Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:20.480Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM [none]
+[debug] [2025-07-15T16:27:21.042Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM 200
+[debug] [2025-07-15T16:27:21.043Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM {"name":"operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM","metadata":{"@type":"type.googleapis.com/google.cloud.functions.v1.OperationMetadataV1","target":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","type":"UPDATE_FUNCTION","request":{"@type":"type.googleapis.com/google.cloud.functions.v1.CloudFunction","name":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","httpsTrigger":{"url":"https://us-central1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin","securityLevel":"SECURE_ALWAYS"},"status":"ACTIVE","entryPoint":"createCongregationAndAdmin","updateTime":"2025-07-15T15:49:24.613Z","versionId":"18","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-callable":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin"},"runtime":"nodejs20","buildId":"e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"buildName":"projects/83629039662/locations/us-central1/builds/e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","dockerRegistry":"ARTIFACT_REGISTRY","automaticUpdatePolicy":{},"buildServiceAccount":"projects/appterritorios-e5bb5/serviceAccounts/83629039662-compute@developer.gserviceaccount.com"},"versionId":"20","updateTime":"2025-07-15T16:26:30Z","buildId":"3d84ff97-d403-4748-8ca4-88ae65adf0c4","sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildName":"projects/83629039662/locations/us-central1/builds/3d84ff97-d403-4748-8ca4-88ae65adf0c4"}}
+[debug] [2025-07-15T16:27:21.043Z] Got source token e5ebcb3e-aaca-40b4-82da-075f29c12bdf for region us-central1
+[debug] [2025-07-15T16:27:21.048Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.048Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.048Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:21.048Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:21.048Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.048Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.052Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:21.053Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:21.053Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.053Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.053Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:21.053Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:21.058Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.058Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.058Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:21.059Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:21.059Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.059Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.059Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:21.059Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:21.064Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.064Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.064Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:21.064Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:21.064Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.065Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.065Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:21.065Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:21.065Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.065Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.065Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:21.068Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:21.068Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.068Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.068Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:21.069Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:21.071Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.071Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.071Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:21.071Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:21.073Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.073Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.073Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:21.073Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:21.073Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.074Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:21.074Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:21.074Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:21.077Z] >>> [apiv2][query] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/notifyAdminOfNewUser updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables
+[debug] [2025-07-15T16:27:21.077Z] >>> [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/notifyAdminOfNewUser {"name":"projects/appterritorios-e5bb5/locations/us-central1/functions/notifyAdminOfNewUser","sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","entryPoint":"notifyAdminOfNewUser","runtime":"nodejs20","dockerRegistry":"ARTIFACT_REGISTRY","labels":{"deployment-tool":"cli-firebase--project-idx","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"eventTrigger":{"eventType":"providers/cloud.firestore/eventTypes/document.create","resource":"projects/appterritorios-e5bb5/databases/(default)/documents/users/{userId}"},"minInstances":null,"maxInstances":null,"ingressSettings":null,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/notifyAdminOfNewUser"},"serviceAccountEmail":null,"availableMemoryMb":null,"timeout":null,"vpcConnector":null,"vpcConnectorEgressSettings":null,"sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""}}
+[debug] [2025-07-15T16:27:21.078Z] >>> [apiv2][query] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/deleteUserAccount updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2ChttpsTrigger.securityLevel%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables
+[debug] [2025-07-15T16:27:21.078Z] >>> [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/deleteUserAccount {"name":"projects/appterritorios-e5bb5/locations/us-central1/functions/deleteUserAccount","sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","entryPoint":"deleteUserAccount","runtime":"nodejs20","dockerRegistry":"ARTIFACT_REGISTRY","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-callable":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"httpsTrigger":{"securityLevel":"SECURE_ALWAYS"},"minInstances":null,"maxInstances":null,"ingressSettings":null,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/deleteUserAccount"},"serviceAccountEmail":null,"availableMemoryMb":null,"timeout":null,"vpcConnector":null,"vpcConnectorEgressSettings":null,"sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""}}
+[debug] [2025-07-15T16:27:21.085Z] >>> [apiv2][query] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onHouseWrite updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables
+[debug] [2025-07-15T16:27:21.086Z] >>> [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onHouseWrite {"name":"projects/appterritorios-e5bb5/locations/us-central1/functions/onHouseWrite","sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","entryPoint":"onHouseWrite","runtime":"nodejs20","dockerRegistry":"ARTIFACT_REGISTRY","labels":{"deployment-tool":"cli-firebase--project-idx","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"eventTrigger":{"eventType":"providers/cloud.firestore/eventTypes/document.write","resource":"projects/appterritorios-e5bb5/databases/(default)/documents/congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}"},"minInstances":null,"maxInstances":null,"ingressSettings":null,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/onHouseWrite"},"serviceAccountEmail":null,"availableMemoryMb":null,"timeout":null,"vpcConnector":null,"vpcConnectorEgressSettings":null,"sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""}}
+[debug] [2025-07-15T16:27:21.092Z] >>> [apiv2][query] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onQuadraWrite updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables
+[debug] [2025-07-15T16:27:21.095Z] >>> [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onQuadraWrite {"name":"projects/appterritorios-e5bb5/locations/us-central1/functions/onQuadraWrite","sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","entryPoint":"onQuadraWrite","runtime":"nodejs20","dockerRegistry":"ARTIFACT_REGISTRY","labels":{"deployment-tool":"cli-firebase--project-idx","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"eventTrigger":{"eventType":"providers/cloud.firestore/eventTypes/document.write","resource":"projects/appterritorios-e5bb5/databases/(default)/documents/congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}"},"minInstances":null,"maxInstances":null,"ingressSettings":null,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/onQuadraWrite"},"serviceAccountEmail":null,"availableMemoryMb":null,"timeout":null,"vpcConnector":null,"vpcConnectorEgressSettings":null,"sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""}}
+[debug] [2025-07-15T16:27:21.100Z] >>> [apiv2][query] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryWrite updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables
+[debug] [2025-07-15T16:27:21.100Z] >>> [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryWrite {"name":"projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryWrite","sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","entryPoint":"onTerritoryWrite","runtime":"nodejs20","dockerRegistry":"ARTIFACT_REGISTRY","labels":{"deployment-tool":"cli-firebase--project-idx","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"eventTrigger":{"eventType":"providers/cloud.firestore/eventTypes/document.write","resource":"projects/appterritorios-e5bb5/databases/(default)/documents/congregations/{congregationId}/territories/{territoryId}"},"minInstances":null,"maxInstances":null,"ingressSettings":null,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryWrite"},"serviceAccountEmail":null,"availableMemoryMb":null,"timeout":null,"vpcConnector":null,"vpcConnectorEgressSettings":null,"sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""}}
+[debug] [2025-07-15T16:27:21.106Z] >>> [apiv2][query] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/resetTerritoryProgress updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2ChttpsTrigger.securityLevel%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables
+[debug] [2025-07-15T16:27:21.109Z] >>> [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/resetTerritoryProgress {"name":"projects/appterritorios-e5bb5/locations/us-central1/functions/resetTerritoryProgress","sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","entryPoint":"resetTerritoryProgress","runtime":"nodejs20","dockerRegistry":"ARTIFACT_REGISTRY","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-callable":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"httpsTrigger":{"securityLevel":"SECURE_ALWAYS"},"minInstances":null,"maxInstances":null,"ingressSettings":null,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/resetTerritoryProgress"},"serviceAccountEmail":null,"availableMemoryMb":null,"timeout":null,"vpcConnector":null,"vpcConnectorEgressSettings":null,"sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""}}
+[debug] [2025-07-15T16:27:21.113Z] >>> [apiv2][query] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryUpdateForHistory updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables
+[debug] [2025-07-15T16:27:21.113Z] >>> [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryUpdateForHistory {"name":"projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryUpdateForHistory","sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","entryPoint":"onTerritoryUpdateForHistory","runtime":"nodejs20","dockerRegistry":"ARTIFACT_REGISTRY","labels":{"deployment-tool":"cli-firebase--project-idx","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"eventTrigger":{"eventType":"providers/cloud.firestore/eventTypes/document.update","resource":"projects/appterritorios-e5bb5/databases/(default)/documents/congregations/{congId}/territories/{terrId}"},"minInstances":null,"maxInstances":null,"ingressSettings":null,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryUpdateForHistory"},"serviceAccountEmail":null,"availableMemoryMb":null,"timeout":null,"vpcConnector":null,"vpcConnectorEgressSettings":null,"sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""}}
+[debug] [2025-07-15T16:27:21.118Z] >>> [apiv2][query] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/resetPeakUsers updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2ChttpsTrigger.securityLevel%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables
+[debug] [2025-07-15T16:27:21.121Z] >>> [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/resetPeakUsers {"name":"projects/appterritorios-e5bb5/locations/us-central1/functions/resetPeakUsers","sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","entryPoint":"resetPeakUsers","runtime":"nodejs20","dockerRegistry":"ARTIFACT_REGISTRY","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-callable":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"httpsTrigger":{"securityLevel":"SECURE_ALWAYS"},"minInstances":null,"maxInstances":null,"ingressSettings":null,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/resetPeakUsers"},"serviceAccountEmail":null,"availableMemoryMb":null,"timeout":null,"vpcConnector":null,"vpcConnectorEgressSettings":null,"sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""}}
+[debug] [2025-07-15T16:27:21.125Z] >>> [apiv2][query] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/handleUserPresence updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables
+[debug] [2025-07-15T16:27:21.125Z] >>> [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/handleUserPresence {"name":"projects/appterritorios-e5bb5/locations/us-central1/functions/handleUserPresence","sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","entryPoint":"handleUserPresence","runtime":"nodejs20","dockerRegistry":"ARTIFACT_REGISTRY","labels":{"deployment-tool":"cli-firebase--project-idx","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"eventTrigger":{"eventType":"providers/google.firebase.database/eventTypes/ref.write","resource":"projects/_/instances/appterritorios-e5bb5-default-rtdb/refs/status/{uid}"},"minInstances":null,"maxInstances":null,"ingressSettings":null,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/handleUserPresence"},"serviceAccountEmail":null,"availableMemoryMb":null,"timeout":null,"vpcConnector":null,"vpcConnectorEgressSettings":null,"sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""}}
+[debug] [2025-07-15T16:27:21.130Z] >>> [apiv2][query] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteTerritory updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables
+[debug] [2025-07-15T16:27:21.131Z] >>> [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteTerritory {"name":"projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteTerritory","sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","entryPoint":"onDeleteTerritory","runtime":"nodejs20","dockerRegistry":"ARTIFACT_REGISTRY","labels":{"deployment-tool":"cli-firebase--project-idx","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"eventTrigger":{"eventType":"providers/cloud.firestore/eventTypes/document.delete","resource":"projects/appterritorios-e5bb5/databases/(default)/documents/congregations/{congregationId}/territories/{territoryId}"},"minInstances":null,"maxInstances":null,"ingressSettings":null,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteTerritory"},"serviceAccountEmail":null,"availableMemoryMb":null,"timeout":null,"vpcConnector":null,"vpcConnectorEgressSettings":null,"sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""}}
+[debug] [2025-07-15T16:27:21.138Z] >>> [apiv2][query] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteQuadra updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables
+[debug] [2025-07-15T16:27:21.138Z] >>> [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteQuadra {"name":"projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteQuadra","sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","entryPoint":"onDeleteQuadra","runtime":"nodejs20","dockerRegistry":"ARTIFACT_REGISTRY","labels":{"deployment-tool":"cli-firebase--project-idx","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"eventTrigger":{"eventType":"providers/cloud.firestore/eventTypes/document.delete","resource":"projects/appterritorios-e5bb5/databases/(default)/documents/congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}"},"minInstances":null,"maxInstances":null,"ingressSettings":null,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteQuadra"},"serviceAccountEmail":null,"availableMemoryMb":null,"timeout":null,"vpcConnector":null,"vpcConnectorEgressSettings":null,"sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""}}
+[debug] [2025-07-15T16:27:21.146Z] >>> [apiv2][query] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/scheduledFirestoreExport updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables
+[debug] [2025-07-15T16:27:21.147Z] >>> [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/scheduledFirestoreExport {"name":"projects/appterritorios-e5bb5/locations/us-central1/functions/scheduledFirestoreExport","sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","entryPoint":"scheduledFirestoreExport","runtime":"nodejs20","dockerRegistry":"ARTIFACT_REGISTRY","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-scheduled":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"eventTrigger":{"eventType":"google.pubsub.topic.publish","resource":"projects/appterritorios-e5bb5/topics/firebase-schedule-scheduledFirestoreExport-us-central1"},"minInstances":null,"maxInstances":null,"ingressSettings":null,"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/scheduledFirestoreExport"},"serviceAccountEmail":null,"availableMemoryMb":null,"timeout":null,"vpcConnector":null,"vpcConnectorEgressSettings":null,"sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""}}
+[debug] [2025-07-15T16:27:21.657Z] <<< [apiv2][status] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/notifyAdminOfNewUser 400
+[debug] [2025-07-15T16:27:21.658Z] <<< [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/notifyAdminOfNewUser {"error":{"code":400,"message":"An operation on function notifyAdminOfNewUser in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.","status":"FAILED_PRECONDITION"}}
+[warn] ⚠  functions: failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/notifyAdminOfNewUser 
+[error] Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/notifyAdminOfNewUser
+[debug] [2025-07-15T16:27:21.688Z] <<< [apiv2][status] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onQuadraWrite 400
+[debug] [2025-07-15T16:27:21.688Z] <<< [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onQuadraWrite {"error":{"code":400,"message":"An operation on function onQuadraWrite in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.","status":"FAILED_PRECONDITION"}}
+[warn] ⚠  functions: failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onQuadraWrite 
+[error] Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onQuadraWrite
+[debug] [2025-07-15T16:27:21.705Z] <<< [apiv2][status] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryWrite 400
+[debug] [2025-07-15T16:27:21.705Z] <<< [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryWrite {"error":{"code":400,"message":"An operation on function onTerritoryWrite in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.","status":"FAILED_PRECONDITION"}}
+[warn] ⚠  functions: failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryWrite 
+[error] Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryWrite
+[debug] [2025-07-15T16:27:21.712Z] <<< [apiv2][status] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteQuadra 400
+[debug] [2025-07-15T16:27:21.712Z] <<< [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteQuadra {"error":{"code":400,"message":"An operation on function onDeleteQuadra in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.","status":"FAILED_PRECONDITION"}}
+[warn] ⚠  functions: failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteQuadra 
+[error] Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteQuadra
+[debug] [2025-07-15T16:27:21.731Z] <<< [apiv2][status] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/deleteUserAccount 400
+[debug] [2025-07-15T16:27:21.732Z] <<< [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/deleteUserAccount {"error":{"code":400,"message":"An operation on function deleteUserAccount in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.","status":"FAILED_PRECONDITION"}}
+[warn] ⚠  functions: failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/deleteUserAccount 
+[error] Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/deleteUserAccount
+[debug] [2025-07-15T16:27:21.993Z] <<< [apiv2][status] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/handleUserPresence 400
+[debug] [2025-07-15T16:27:21.997Z] <<< [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/handleUserPresence {"error":{"code":400,"message":"An operation on function handleUserPresence in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.","status":"FAILED_PRECONDITION"}}
+[warn] ⚠  functions: failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/handleUserPresence 
+[error] Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/handleUserPresence
+[debug] [2025-07-15T16:27:22.039Z] <<< [apiv2][status] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/resetTerritoryProgress 400
+[debug] [2025-07-15T16:27:22.040Z] <<< [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/resetTerritoryProgress {"error":{"code":400,"message":"An operation on function resetTerritoryProgress in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.","status":"FAILED_PRECONDITION"}}
+[warn] ⚠  functions: failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/resetTerritoryProgress 
+[error] Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/resetTerritoryProgress
+[debug] [2025-07-15T16:27:22.055Z] <<< [apiv2][status] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/resetPeakUsers 400
+[debug] [2025-07-15T16:27:22.055Z] <<< [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/resetPeakUsers {"error":{"code":400,"message":"An operation on function resetPeakUsers in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.","status":"FAILED_PRECONDITION"}}
+[warn] ⚠  functions: failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/resetPeakUsers 
+[error] Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/resetPeakUsers
+[debug] [2025-07-15T16:27:22.070Z] <<< [apiv2][status] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/scheduledFirestoreExport 400
+[debug] [2025-07-15T16:27:22.070Z] <<< [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/scheduledFirestoreExport {"error":{"code":400,"message":"An operation on function scheduledFirestoreExport in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.","status":"FAILED_PRECONDITION"}}
+[warn] ⚠  functions: failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/scheduledFirestoreExport 
+[error] Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/scheduledFirestoreExport
+[debug] [2025-07-15T16:27:22.081Z] <<< [apiv2][status] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onHouseWrite 400
+[debug] [2025-07-15T16:27:22.085Z] <<< [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onHouseWrite {"error":{"code":400,"message":"An operation on function onHouseWrite in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.","status":"FAILED_PRECONDITION"}}
+[warn] ⚠  functions: failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onHouseWrite 
+[error] Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onHouseWrite
+[debug] [2025-07-15T16:27:22.392Z] <<< [apiv2][status] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryUpdateForHistory 400
+[debug] [2025-07-15T16:27:22.395Z] <<< [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryUpdateForHistory {"error":{"code":400,"message":"An operation on function onTerritoryUpdateForHistory in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.","status":"FAILED_PRECONDITION"}}
+[warn] ⚠  functions: failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryUpdateForHistory 
+[error] Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryUpdateForHistory
+[debug] [2025-07-15T16:27:22.434Z] <<< [apiv2][status] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteTerritory 400
+[debug] [2025-07-15T16:27:22.439Z] <<< [apiv2][body] PATCH https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteTerritory {"error":{"code":400,"message":"An operation on function onDeleteTerritory in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.","status":"FAILED_PRECONDITION"}}
+[warn] ⚠  functions: failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteTerritory 
+[error] Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteTerritory
+[debug] [2025-07-15T16:27:31.045Z] [update-default-us-central1-createCongregationAndAdmin] Retrying task index 0
+[debug] [2025-07-15T16:27:31.046Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:31.046Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:31.046Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:31.046Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:31.046Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM [none]
+[debug] [2025-07-15T16:27:31.442Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM 200
+[debug] [2025-07-15T16:27:31.444Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM {"name":"operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM","metadata":{"@type":"type.googleapis.com/google.cloud.functions.v1.OperationMetadataV1","target":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","type":"UPDATE_FUNCTION","request":{"@type":"type.googleapis.com/google.cloud.functions.v1.CloudFunction","name":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","httpsTrigger":{"url":"https://us-central1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin","securityLevel":"SECURE_ALWAYS"},"status":"ACTIVE","entryPoint":"createCongregationAndAdmin","updateTime":"2025-07-15T15:49:24.613Z","versionId":"18","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-callable":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin"},"runtime":"nodejs20","buildId":"e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"buildName":"projects/83629039662/locations/us-central1/builds/e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","dockerRegistry":"ARTIFACT_REGISTRY","automaticUpdatePolicy":{},"buildServiceAccount":"projects/appterritorios-e5bb5/serviceAccounts/83629039662-compute@developer.gserviceaccount.com"},"versionId":"20","updateTime":"2025-07-15T16:26:30Z","buildId":"3d84ff97-d403-4748-8ca4-88ae65adf0c4","sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildName":"projects/83629039662/locations/us-central1/builds/3d84ff97-d403-4748-8ca4-88ae65adf0c4"}}
+[debug] [2025-07-15T16:27:31.444Z] Got source token e5ebcb3e-aaca-40b4-82da-075f29c12bdf for region us-central1
+[debug] [2025-07-15T16:27:41.452Z] [update-default-us-central1-createCongregationAndAdmin] Retrying task index 0
+[debug] [2025-07-15T16:27:41.457Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:41.457Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:41.460Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:41.460Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:41.460Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM [none]
+[debug] [2025-07-15T16:27:41.724Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM 200
+[debug] [2025-07-15T16:27:41.725Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM {"name":"operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM","metadata":{"@type":"type.googleapis.com/google.cloud.functions.v1.OperationMetadataV1","target":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","type":"UPDATE_FUNCTION","request":{"@type":"type.googleapis.com/google.cloud.functions.v1.CloudFunction","name":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","httpsTrigger":{"url":"https://us-central1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin","securityLevel":"SECURE_ALWAYS"},"status":"ACTIVE","entryPoint":"createCongregationAndAdmin","updateTime":"2025-07-15T15:49:24.613Z","versionId":"18","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-callable":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin"},"runtime":"nodejs20","buildId":"e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"buildName":"projects/83629039662/locations/us-central1/builds/e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","dockerRegistry":"ARTIFACT_REGISTRY","automaticUpdatePolicy":{},"buildServiceAccount":"projects/appterritorios-e5bb5/serviceAccounts/83629039662-compute@developer.gserviceaccount.com"},"versionId":"20","updateTime":"2025-07-15T16:26:30Z","buildId":"3d84ff97-d403-4748-8ca4-88ae65adf0c4","sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildName":"projects/83629039662/locations/us-central1/builds/3d84ff97-d403-4748-8ca4-88ae65adf0c4"}}
+[debug] [2025-07-15T16:27:41.725Z] Got source token e5ebcb3e-aaca-40b4-82da-075f29c12bdf for region us-central1
+[debug] [2025-07-15T16:27:51.734Z] [update-default-us-central1-createCongregationAndAdmin] Retrying task index 0
+[debug] [2025-07-15T16:27:51.734Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:51.735Z] No OAuth tokens found
+[debug] [2025-07-15T16:27:51.735Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:27:51.735Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:27:51.735Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM [none]
+[debug] [2025-07-15T16:27:52.555Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM 200
+[debug] [2025-07-15T16:27:52.556Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM {"name":"operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM","metadata":{"@type":"type.googleapis.com/google.cloud.functions.v1.OperationMetadataV1","target":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","type":"UPDATE_FUNCTION","request":{"@type":"type.googleapis.com/google.cloud.functions.v1.CloudFunction","name":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","httpsTrigger":{"url":"https://us-central1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin","securityLevel":"SECURE_ALWAYS"},"status":"ACTIVE","entryPoint":"createCongregationAndAdmin","updateTime":"2025-07-15T15:49:24.613Z","versionId":"18","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-callable":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin"},"runtime":"nodejs20","buildId":"e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"buildName":"projects/83629039662/locations/us-central1/builds/e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","dockerRegistry":"ARTIFACT_REGISTRY","automaticUpdatePolicy":{},"buildServiceAccount":"projects/appterritorios-e5bb5/serviceAccounts/83629039662-compute@developer.gserviceaccount.com"},"versionId":"20","updateTime":"2025-07-15T16:26:30Z","buildId":"3d84ff97-d403-4748-8ca4-88ae65adf0c4","sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildName":"projects/83629039662/locations/us-central1/builds/3d84ff97-d403-4748-8ca4-88ae65adf0c4"}}
+[debug] [2025-07-15T16:27:52.556Z] Got source token e5ebcb3e-aaca-40b4-82da-075f29c12bdf for region us-central1
+[debug] [2025-07-15T16:28:02.557Z] [update-default-us-central1-createCongregationAndAdmin] Retrying task index 0
+[debug] [2025-07-15T16:28:02.565Z] No OAuth tokens found
+[debug] [2025-07-15T16:28:02.569Z] No OAuth tokens found
+[debug] [2025-07-15T16:28:02.569Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:28:02.569Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:28:02.570Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM [none]
+[debug] [2025-07-15T16:28:03.126Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM 200
+[debug] [2025-07-15T16:28:03.126Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM {"name":"operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM","metadata":{"@type":"type.googleapis.com/google.cloud.functions.v1.OperationMetadataV1","target":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","type":"UPDATE_FUNCTION","request":{"@type":"type.googleapis.com/google.cloud.functions.v1.CloudFunction","name":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","httpsTrigger":{"url":"https://us-central1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin","securityLevel":"SECURE_ALWAYS"},"status":"ACTIVE","entryPoint":"createCongregationAndAdmin","updateTime":"2025-07-15T15:49:24.613Z","versionId":"18","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-callable":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin"},"runtime":"nodejs20","buildId":"e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"buildName":"projects/83629039662/locations/us-central1/builds/e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","dockerRegistry":"ARTIFACT_REGISTRY","automaticUpdatePolicy":{},"buildServiceAccount":"projects/appterritorios-e5bb5/serviceAccounts/83629039662-compute@developer.gserviceaccount.com"},"versionId":"20","updateTime":"2025-07-15T16:26:30Z","buildId":"3d84ff97-d403-4748-8ca4-88ae65adf0c4","sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildName":"projects/83629039662/locations/us-central1/builds/3d84ff97-d403-4748-8ca4-88ae65adf0c4"}}
+[debug] [2025-07-15T16:28:03.126Z] Got source token e5ebcb3e-aaca-40b4-82da-075f29c12bdf for region us-central1
+[debug] [2025-07-15T16:28:13.136Z] [update-default-us-central1-createCongregationAndAdmin] Retrying task index 0
+[debug] [2025-07-15T16:28:13.139Z] No OAuth tokens found
+[debug] [2025-07-15T16:28:13.139Z] No OAuth tokens found
+[debug] [2025-07-15T16:28:13.139Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:28:13.143Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:28:13.143Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM [none]
+[debug] [2025-07-15T16:28:13.429Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM 200
+[debug] [2025-07-15T16:28:13.429Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM {"name":"operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM","metadata":{"@type":"type.googleapis.com/google.cloud.functions.v1.OperationMetadataV1","target":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","type":"UPDATE_FUNCTION","request":{"@type":"type.googleapis.com/google.cloud.functions.v1.CloudFunction","name":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","httpsTrigger":{"url":"https://us-central1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin","securityLevel":"SECURE_ALWAYS"},"status":"ACTIVE","entryPoint":"createCongregationAndAdmin","updateTime":"2025-07-15T15:49:24.613Z","versionId":"18","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-callable":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin"},"runtime":"nodejs20","buildId":"e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"buildName":"projects/83629039662/locations/us-central1/builds/e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","dockerRegistry":"ARTIFACT_REGISTRY","automaticUpdatePolicy":{},"buildServiceAccount":"projects/appterritorios-e5bb5/serviceAccounts/83629039662-compute@developer.gserviceaccount.com"},"versionId":"20","updateTime":"2025-07-15T16:26:30Z","buildId":"3d84ff97-d403-4748-8ca4-88ae65adf0c4","sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildName":"projects/83629039662/locations/us-central1/builds/3d84ff97-d403-4748-8ca4-88ae65adf0c4"}}
+[debug] [2025-07-15T16:28:13.430Z] Got source token e5ebcb3e-aaca-40b4-82da-075f29c12bdf for region us-central1
+[debug] [2025-07-15T16:28:23.438Z] [update-default-us-central1-createCongregationAndAdmin] Retrying task index 0
+[debug] [2025-07-15T16:28:23.439Z] No OAuth tokens found
+[debug] [2025-07-15T16:28:23.439Z] No OAuth tokens found
+[debug] [2025-07-15T16:28:23.439Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:28:23.454Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:28:23.454Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM [none]
+[debug] [2025-07-15T16:28:24.116Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM 200
+[debug] [2025-07-15T16:28:24.119Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM {"name":"operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM","metadata":{"@type":"type.googleapis.com/google.cloud.functions.v1.OperationMetadataV1","target":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","type":"UPDATE_FUNCTION","request":{"@type":"type.googleapis.com/google.cloud.functions.v1.CloudFunction","name":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","httpsTrigger":{"url":"https://us-central1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin","securityLevel":"SECURE_ALWAYS"},"status":"ACTIVE","entryPoint":"createCongregationAndAdmin","updateTime":"2025-07-15T15:49:24.613Z","versionId":"18","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-callable":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin"},"runtime":"nodejs20","buildId":"e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"buildName":"projects/83629039662/locations/us-central1/builds/e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","dockerRegistry":"ARTIFACT_REGISTRY","automaticUpdatePolicy":{},"buildServiceAccount":"projects/appterritorios-e5bb5/serviceAccounts/83629039662-compute@developer.gserviceaccount.com"},"versionId":"20","updateTime":"2025-07-15T16:26:30Z","buildId":"3d84ff97-d403-4748-8ca4-88ae65adf0c4","sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildName":"projects/83629039662/locations/us-central1/builds/3d84ff97-d403-4748-8ca4-88ae65adf0c4"}}
+[debug] [2025-07-15T16:28:24.119Z] Got source token e5ebcb3e-aaca-40b4-82da-075f29c12bdf for region us-central1
+[debug] [2025-07-15T16:28:34.126Z] [update-default-us-central1-createCongregationAndAdmin] Retrying task index 0
+[debug] [2025-07-15T16:28:34.127Z] No OAuth tokens found
+[debug] [2025-07-15T16:28:34.127Z] No OAuth tokens found
+[debug] [2025-07-15T16:28:34.127Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:28:34.127Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:28:34.134Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM [none]
+[debug] [2025-07-15T16:28:34.718Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM 200
+[debug] [2025-07-15T16:28:34.718Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM {"name":"operations/YXBwdGVycml0b3Jpb3MtZTViYjUvdXMtY2VudHJhbDEvY3JlYXRlQ29uZ3JlZ2F0aW9uQW5kQWRtaW4vZld3WFRtOVgyYnM","metadata":{"@type":"type.googleapis.com/google.cloud.functions.v1.OperationMetadataV1","target":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","type":"UPDATE_FUNCTION","request":{"@type":"type.googleapis.com/google.cloud.functions.v1.CloudFunction","name":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","httpsTrigger":{"url":"https://us-central1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin","securityLevel":"SECURE_ALWAYS"},"status":"ACTIVE","entryPoint":"createCongregationAndAdmin","updateTime":"2025-07-15T15:49:24.613Z","versionId":"18","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-callable":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip?GoogleAccessId=service-83629039662@gcf-admin-robot.iam.gserviceaccount.com&Expires=1752598589&Signature=ASsjaWcViUIWaZi5VQBKKViLpq0F6faiUbj93vH7mq3MWhNh9Rnlmbdj3svoGWHtk58SxH55b%2F5GZt2ThuQD9KL0QsLzWkLJwmiKxYEmp6mOzcc2wb9gVm2lUEiuHWTkM9I6NzrsPMNTD77Z8U3wUGByBOBIVjC68VfdKxsUrIXc2tWAS4m9Tzo8qLo9g7Y%2Bb0uxdzhSiAXIPFEeZU9sLj7UwpDAfSOQSGxBfaTBj0QpVbTqqDVx7dOLJGg%2Fs2MvYik%2BwFr9lt2KXMq1GV%2FI%2BNNSczKa8DU4S3tQuQiEaD951staOGz4mpqlj7CcccB0okfn33yx43XZnCCUnhDBiQ%3D%3D","environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin"},"runtime":"nodejs20","buildId":"e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"buildName":"projects/83629039662/locations/us-central1/builds/e2eb0e44-03a6-46fc-877f-2d7b8cbf1d72","dockerRegistry":"ARTIFACT_REGISTRY","automaticUpdatePolicy":{},"buildServiceAccount":"projects/appterritorios-e5bb5/serviceAccounts/83629039662-compute@developer.gserviceaccount.com"},"versionId":"20","updateTime":"2025-07-15T16:28:25Z","buildId":"3d84ff97-d403-4748-8ca4-88ae65adf0c4","sourceToken":"e5ebcb3e-aaca-40b4-82da-075f29c12bdf","buildName":"projects/83629039662/locations/us-central1/builds/3d84ff97-d403-4748-8ca4-88ae65adf0c4"},"done":true,"response":{"@type":"type.googleapis.com/google.cloud.functions.v1.CloudFunction","name":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin","httpsTrigger":{"url":"https://us-central1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin","securityLevel":"SECURE_ALWAYS"},"status":"ACTIVE","entryPoint":"createCongregationAndAdmin","timeout":"60s","availableMemoryMb":256,"serviceAccountEmail":"appterritorios-e5bb5@appspot.gserviceaccount.com","updateTime":"2025-07-15T16:28:24.974Z","versionId":"20","labels":{"deployment-tool":"cli-firebase--project-idx","deployment-callable":"true","firebase-functions-hash":"92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"},"sourceUploadUrl":"https://storage.googleapis.com/uploads-957651402395.us-central1.cloudfunctions.appspot.com/561d6ef1-7eab-442d-8aac-a4a783c015e3.zip","environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}","GCLOUD_PROJECT":"appterritorios-e5bb5","EVENTARC_CLOUD_EVENT_SOURCE":"projects/appterritorios-e5bb5/locations/us-central1/functions/createCongregationAndAdmin"},"runtime":"nodejs20","ingressSettings":"ALLOW_ALL","buildId":"3d84ff97-d403-4748-8ca4-88ae65adf0c4","buildEnvironmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""},"buildName":"projects/83629039662/locations/us-central1/builds/3d84ff97-d403-4748-8ca4-88ae65adf0c4","dockerRegistry":"ARTIFACT_REGISTRY","automaticUpdatePolicy":{},"buildServiceAccount":"projects/appterritorios-e5bb5/serviceAccounts/83629039662-compute@developer.gserviceaccount.com"}}
+[debug] [2025-07-15T16:28:34.719Z] Got source token e5ebcb3e-aaca-40b4-82da-075f29c12bdf for region us-central1
+[info] ✔  functions[createCongregationAndAdmin(us-central1)] Successful update operation. 
+[debug] [2025-07-15T16:28:34.738Z] Total Function Deployment time: 124461
+[debug] [2025-07-15T16:28:34.738Z] 13 Functions Deployed
+[debug] [2025-07-15T16:28:34.738Z] 12 Functions Errored
+[debug] [2025-07-15T16:28:34.738Z] 0 Function Deployments Aborted
+[debug] [2025-07-15T16:28:34.738Z] Average Function Deployment time: 57285
+[info] 
+[info] Functions deploy had errors with the following functions:
+	deleteUserAccount(us-central1)
+	handleUserPresence(us-central1)
+	notifyAdminOfNewUser(us-central1)
+	onDeleteQuadra(us-central1)
+	onDeleteTerritory(us-central1)
+	onHouseWrite(us-central1)
+	onQuadraWrite(us-central1)
+	onTerritoryUpdateForHistory(us-central1)
+	onTerritoryWrite(us-central1)
+	resetPeakUsers(us-central1)
+	resetTerritoryProgress(us-central1)
+	scheduledFirestoreExport(us-central1)
+[debug] [2025-07-15T16:28:34.757Z] No OAuth tokens found
+[debug] [2025-07-15T16:28:34.757Z] No OAuth tokens found
+[debug] [2025-07-15T16:28:34.757Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:28:34.757Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:28:34.762Z] No OAuth tokens found
+[debug] [2025-07-15T16:28:34.762Z] No OAuth tokens found
+[debug] [2025-07-15T16:28:34.762Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-15T16:28:34.762Z] > authorizing via signed-in user (verton3@gmail.com)
+[debug] [2025-07-15T16:28:34.763Z] >>> [apiv2][query] GET https://artifactregistry.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/repositories/gcf-artifacts [none]
+[debug] [2025-07-15T16:28:34.769Z] >>> [apiv2][query] GET https://artifactregistry.googleapis.com/v1/projects/appterritorios-e5bb5/locations/southamerica-east1/repositories/gcf-artifacts [none]
+[debug] [2025-07-15T16:28:35.265Z] <<< [apiv2][status] GET https://artifactregistry.googleapis.com/v1/projects/appterritorios-e5bb5/locations/southamerica-east1/repositories/gcf-artifacts 200
+[debug] [2025-07-15T16:28:35.266Z] <<< [apiv2][body] GET https://artifactregistry.googleapis.com/v1/projects/appterritorios-e5bb5/locations/southamerica-east1/repositories/gcf-artifacts {"name":"projects/appterritorios-e5bb5/locations/southamerica-east1/repositories/gcf-artifacts","format":"DOCKER","description":"This repository is created and used by Cloud Functions for storing function docker images.","labels":{"goog-managed-by":"cloudfunctions"},"createTime":"2025-07-12T18:24:15.149145Z","updateTime":"2025-07-15T16:24:29.413659Z","mode":"STANDARD_REPOSITORY","cleanupPolicies":{"firebase-functions-cleanup":{"id":"firebase-functions-cleanup","action":"DELETE","condition":{"tagState":"ANY","olderThan":"86400s"}}},"sizeBytes":"571749971","satisfiesPzs":true,"vulnerabilityScanningConfig":{"lastEnableTime":"2025-07-12T18:24:05.965873794Z","enablementState":"SCANNING_DISABLED","enablementStateReason":"API containerscanning.googleapis.com is not enabled."},"satisfiesPzi":true,"registryUri":"southamerica-east1-docker.pkg.dev/appterritorios-e5bb5/gcf-artifacts"}
+[debug] [2025-07-15T16:28:35.711Z] <<< [apiv2][status] GET https://artifactregistry.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/repositories/gcf-artifacts 200
+[debug] [2025-07-15T16:28:35.712Z] <<< [apiv2][body] GET https://artifactregistry.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/repositories/gcf-artifacts {"name":"projects/appterritorios-e5bb5/locations/us-central1/repositories/gcf-artifacts","format":"DOCKER","description":"This repository is created and used by Cloud Functions for storing function docker images.","labels":{"goog-managed-by":"cloudfunctions"},"createTime":"2025-06-30T17:34:12.273040Z","updateTime":"2025-07-15T16:28:25.103329Z","mode":"STANDARD_REPOSITORY","cleanupPolicies":{"firebase-functions-cleanup":{"id":"firebase-functions-cleanup","action":"DELETE","condition":{"tagState":"ANY","olderThan":"86400s"}}},"sizeBytes":"591073109","vulnerabilityScanningConfig":{"lastEnableTime":"2025-06-30T17:33:58.662245087Z","enablementState":"SCANNING_DISABLED","enablementStateReason":"API containerscanning.googleapis.com is not enabled."},"satisfiesPzi":true,"registryUri":"us-central1-docker.pkg.dev/appterritorios-e5bb5/gcf-artifacts"}
+[debug] [2025-07-15T16:28:35.712Z] Functions deploy failed.
+[debug] [2025-07-15T16:28:35.712Z] {
+  "endpoint": {
+    "id": "notifyAdminOfNewUser",
+    "project": "appterritorios-e5bb5",
+    "region": "us-central1",
+    "entryPoint": "notifyAdminOfNewUser",
+    "platform": "gcfv1",
+    "runtime": "nodejs20",
+    "eventTrigger": {
+      "eventType": "providers/cloud.firestore/eventTypes/document.create",
+      "retry": false,
+      "eventFilters": {
+        "resource": "projects/appterritorios-e5bb5/databases/(default)/documents/users/{userId}"
+      }
+    },
+    "labels": {
+      "deployment-tool": "cli-firebase--project-idx"
+    },
+    "serviceAccount": null,
+    "ingressSettings": null,
+    "availableMemoryMb": null,
+    "timeoutSeconds": null,
+    "maxInstances": null,
+    "minInstances": null,
+    "vpc": null,
+    "environmentVariables": {
+      "FIREBASE_CONFIG": "{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}",
+      "GCLOUD_PROJECT": "appterritorios-e5bb5",
+      "EVENTARC_CLOUD_EVENT_SOURCE": "projects/appterritorios-e5bb5/locations/us-central1/functions/notifyAdminOfNewUser"
+    },
+    "codebase": "default",
+    "securityLevel": "SECURE_ALWAYS",
+    "targetedByOnly": false,
+    "hash": "92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"
+  },
+  "op": "update",
+  "original": {
+    "name": "FirebaseError",
+    "children": [],
+    "context": {
+      "function": "projects/appterritorios-e5bb5/locations/us-central1/functions/notifyAdminOfNewUser"
+    },
+    "exit": 1,
+    "message": "Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/notifyAdminOfNewUser",
+    "original": {
+      "name": "FirebaseError",
+      "children": [],
+      "context": {
+        "body": {
+          "error": {
+            "code": 400,
+            "message": "An operation on function notifyAdminOfNewUser in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+            "status": "FAILED_PRECONDITION"
+          }
+        },
+        "response": {
+          "statusCode": 400
+        }
+      },
+      "exit": 1,
+      "message": "Request to https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/notifyAdminOfNewUser?updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables had HTTP Error: 400, An operation on function notifyAdminOfNewUser in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+      "status": 400
+    },
+    "status": 400,
+    "code": 400
+  }
+}
+[debug] [2025-07-15T16:28:35.719Z] {
+  "endpoint": {
+    "id": "onQuadraWrite",
+    "project": "appterritorios-e5bb5",
+    "region": "us-central1",
+    "entryPoint": "onQuadraWrite",
+    "platform": "gcfv1",
+    "runtime": "nodejs20",
+    "eventTrigger": {
+      "eventType": "providers/cloud.firestore/eventTypes/document.write",
+      "retry": false,
+      "eventFilters": {
+        "resource": "projects/appterritorios-e5bb5/databases/(default)/documents/congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}"
+      }
+    },
+    "labels": {
+      "deployment-tool": "cli-firebase--project-idx"
+    },
+    "serviceAccount": null,
+    "ingressSettings": null,
+    "availableMemoryMb": null,
+    "timeoutSeconds": null,
+    "maxInstances": null,
+    "minInstances": null,
+    "vpc": null,
+    "environmentVariables": {
+      "FIREBASE_CONFIG": "{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}",
+      "GCLOUD_PROJECT": "appterritorios-e5bb5",
+      "EVENTARC_CLOUD_EVENT_SOURCE": "projects/appterritorios-e5bb5/locations/us-central1/functions/onQuadraWrite"
+    },
+    "codebase": "default",
+    "securityLevel": "SECURE_ALWAYS",
+    "targetedByOnly": false,
+    "hash": "92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"
+  },
+  "op": "update",
+  "original": {
+    "name": "FirebaseError",
+    "children": [],
+    "context": {
+      "function": "projects/appterritorios-e5bb5/locations/us-central1/functions/onQuadraWrite"
+    },
+    "exit": 1,
+    "message": "Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onQuadraWrite",
+    "original": {
+      "name": "FirebaseError",
+      "children": [],
+      "context": {
+        "body": {
+          "error": {
+            "code": 400,
+            "message": "An operation on function onQuadraWrite in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+            "status": "FAILED_PRECONDITION"
+          }
+        },
+        "response": {
+          "statusCode": 400
+        }
+      },
+      "exit": 1,
+      "message": "Request to https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onQuadraWrite?updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables had HTTP Error: 400, An operation on function onQuadraWrite in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+      "status": 400
+    },
+    "status": 400,
+    "code": 400
+  }
+}
+[debug] [2025-07-15T16:28:35.719Z] {
+  "endpoint": {
+    "id": "onTerritoryWrite",
+    "project": "appterritorios-e5bb5",
+    "region": "us-central1",
+    "entryPoint": "onTerritoryWrite",
+    "platform": "gcfv1",
+    "runtime": "nodejs20",
+    "eventTrigger": {
+      "eventType": "providers/cloud.firestore/eventTypes/document.write",
+      "retry": false,
+      "eventFilters": {
+        "resource": "projects/appterritorios-e5bb5/databases/(default)/documents/congregations/{congregationId}/territories/{territoryId}"
+      }
+    },
+    "labels": {
+      "deployment-tool": "cli-firebase--project-idx"
+    },
+    "serviceAccount": null,
+    "ingressSettings": null,
+    "availableMemoryMb": null,
+    "timeoutSeconds": null,
+    "maxInstances": null,
+    "minInstances": null,
+    "vpc": null,
+    "environmentVariables": {
+      "FIREBASE_CONFIG": "{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}",
+      "GCLOUD_PROJECT": "appterritorios-e5bb5",
+      "EVENTARC_CLOUD_EVENT_SOURCE": "projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryWrite"
+    },
+    "codebase": "default",
+    "securityLevel": "SECURE_ALWAYS",
+    "targetedByOnly": false,
+    "hash": "92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"
+  },
+  "op": "update",
+  "original": {
+    "name": "FirebaseError",
+    "children": [],
+    "context": {
+      "function": "projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryWrite"
+    },
+    "exit": 1,
+    "message": "Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryWrite",
+    "original": {
+      "name": "FirebaseError",
+      "children": [],
+      "context": {
+        "body": {
+          "error": {
+            "code": 400,
+            "message": "An operation on function onTerritoryWrite in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+            "status": "FAILED_PRECONDITION"
+          }
+        },
+        "response": {
+          "statusCode": 400
+        }
+      },
+      "exit": 1,
+      "message": "Request to https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryWrite?updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables had HTTP Error: 400, An operation on function onTerritoryWrite in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+      "status": 400
+    },
+    "status": 400,
+    "code": 400
+  }
+}
+[debug] [2025-07-15T16:28:35.719Z] {
+  "endpoint": {
+    "id": "onDeleteQuadra",
+    "project": "appterritorios-e5bb5",
+    "region": "us-central1",
+    "entryPoint": "onDeleteQuadra",
+    "platform": "gcfv1",
+    "runtime": "nodejs20",
+    "eventTrigger": {
+      "eventType": "providers/cloud.firestore/eventTypes/document.delete",
+      "retry": false,
+      "eventFilters": {
+        "resource": "projects/appterritorios-e5bb5/databases/(default)/documents/congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}"
+      }
+    },
+    "labels": {
+      "deployment-tool": "cli-firebase--project-idx"
+    },
+    "serviceAccount": null,
+    "ingressSettings": null,
+    "availableMemoryMb": null,
+    "timeoutSeconds": null,
+    "maxInstances": null,
+    "minInstances": null,
+    "vpc": null,
+    "environmentVariables": {
+      "FIREBASE_CONFIG": "{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}",
+      "GCLOUD_PROJECT": "appterritorios-e5bb5",
+      "EVENTARC_CLOUD_EVENT_SOURCE": "projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteQuadra"
+    },
+    "codebase": "default",
+    "securityLevel": "SECURE_ALWAYS",
+    "targetedByOnly": false,
+    "hash": "92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"
+  },
+  "op": "update",
+  "original": {
+    "name": "FirebaseError",
+    "children": [],
+    "context": {
+      "function": "projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteQuadra"
+    },
+    "exit": 1,
+    "message": "Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteQuadra",
+    "original": {
+      "name": "FirebaseError",
+      "children": [],
+      "context": {
+        "body": {
+          "error": {
+            "code": 400,
+            "message": "An operation on function onDeleteQuadra in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+            "status": "FAILED_PRECONDITION"
+          }
+        },
+        "response": {
+          "statusCode": 400
+        }
+      },
+      "exit": 1,
+      "message": "Request to https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteQuadra?updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables had HTTP Error: 400, An operation on function onDeleteQuadra in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+      "status": 400
+    },
+    "status": 400,
+    "code": 400
+  }
+}
+[debug] [2025-07-15T16:28:35.720Z] {
+  "endpoint": {
+    "id": "deleteUserAccount",
+    "project": "appterritorios-e5bb5",
+    "region": "us-central1",
+    "entryPoint": "deleteUserAccount",
+    "platform": "gcfv1",
+    "runtime": "nodejs20",
+    "callableTrigger": {},
+    "labels": {
+      "deployment-tool": "cli-firebase--project-idx"
+    },
+    "serviceAccount": null,
+    "ingressSettings": null,
+    "availableMemoryMb": null,
+    "timeoutSeconds": null,
+    "maxInstances": null,
+    "minInstances": null,
+    "vpc": null,
+    "environmentVariables": {
+      "FIREBASE_CONFIG": "{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}",
+      "GCLOUD_PROJECT": "appterritorios-e5bb5",
+      "EVENTARC_CLOUD_EVENT_SOURCE": "projects/appterritorios-e5bb5/locations/us-central1/functions/deleteUserAccount"
+    },
+    "codebase": "default",
+    "securityLevel": "SECURE_ALWAYS",
+    "targetedByOnly": false,
+    "hash": "92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"
+  },
+  "op": "update",
+  "original": {
+    "name": "FirebaseError",
+    "children": [],
+    "context": {
+      "function": "projects/appterritorios-e5bb5/locations/us-central1/functions/deleteUserAccount"
+    },
+    "exit": 1,
+    "message": "Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/deleteUserAccount",
+    "original": {
+      "name": "FirebaseError",
+      "children": [],
+      "context": {
+        "body": {
+          "error": {
+            "code": 400,
+            "message": "An operation on function deleteUserAccount in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+            "status": "FAILED_PRECONDITION"
+          }
+        },
+        "response": {
+          "statusCode": 400
+        }
+      },
+      "exit": 1,
+      "message": "Request to https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/deleteUserAccount?updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2ChttpsTrigger.securityLevel%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables had HTTP Error: 400, An operation on function deleteUserAccount in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+      "status": 400
+    },
+    "status": 400,
+    "code": 400
+  }
+}
+[debug] [2025-07-15T16:28:35.720Z] {
+  "endpoint": {
+    "id": "handleUserPresence",
+    "project": "appterritorios-e5bb5",
+    "region": "us-central1",
+    "entryPoint": "handleUserPresence",
+    "platform": "gcfv1",
+    "runtime": "nodejs20",
+    "eventTrigger": {
+      "eventType": "providers/google.firebase.database/eventTypes/ref.write",
+      "retry": false,
+      "eventFilters": {
+        "resource": "projects/_/instances/appterritorios-e5bb5-default-rtdb/refs/status/{uid}"
+      }
+    },
+    "labels": {
+      "deployment-tool": "cli-firebase--project-idx"
+    },
+    "serviceAccount": null,
+    "ingressSettings": null,
+    "availableMemoryMb": null,
+    "timeoutSeconds": null,
+    "maxInstances": null,
+    "minInstances": null,
+    "vpc": null,
+    "environmentVariables": {
+      "FIREBASE_CONFIG": "{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}",
+      "GCLOUD_PROJECT": "appterritorios-e5bb5",
+      "EVENTARC_CLOUD_EVENT_SOURCE": "projects/appterritorios-e5bb5/locations/us-central1/functions/handleUserPresence"
+    },
+    "codebase": "default",
+    "securityLevel": "SECURE_ALWAYS",
+    "targetedByOnly": false,
+    "hash": "92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"
+  },
+  "op": "update",
+  "original": {
+    "name": "FirebaseError",
+    "children": [],
+    "context": {
+      "function": "projects/appterritorios-e5bb5/locations/us-central1/functions/handleUserPresence"
+    },
+    "exit": 1,
+    "message": "Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/handleUserPresence",
+    "original": {
+      "name": "FirebaseError",
+      "children": [],
+      "context": {
+        "body": {
+          "error": {
+            "code": 400,
+            "message": "An operation on function handleUserPresence in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+            "status": "FAILED_PRECONDITION"
+          }
+        },
+        "response": {
+          "statusCode": 400
+        }
+      },
+      "exit": 1,
+      "message": "Request to https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/handleUserPresence?updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables had HTTP Error: 400, An operation on function handleUserPresence in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+      "status": 400
+    },
+    "status": 400,
+    "code": 400
+  }
+}
+[debug] [2025-07-15T16:28:35.720Z] {
+  "endpoint": {
+    "id": "resetTerritoryProgress",
+    "project": "appterritorios-e5bb5",
+    "region": "us-central1",
+    "entryPoint": "resetTerritoryProgress",
+    "platform": "gcfv1",
+    "runtime": "nodejs20",
+    "callableTrigger": {},
+    "labels": {
+      "deployment-tool": "cli-firebase--project-idx"
+    },
+    "serviceAccount": null,
+    "ingressSettings": null,
+    "availableMemoryMb": null,
+    "timeoutSeconds": null,
+    "maxInstances": null,
+    "minInstances": null,
+    "vpc": null,
+    "environmentVariables": {
+      "FIREBASE_CONFIG": "{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}",
+      "GCLOUD_PROJECT": "appterritorios-e5bb5",
+      "EVENTARC_CLOUD_EVENT_SOURCE": "projects/appterritorios-e5bb5/locations/us-central1/functions/resetTerritoryProgress"
+    },
+    "codebase": "default",
+    "securityLevel": "SECURE_ALWAYS",
+    "targetedByOnly": false,
+    "hash": "92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"
+  },
+  "op": "update",
+  "original": {
+    "name": "FirebaseError",
+    "children": [],
+    "context": {
+      "function": "projects/appterritorios-e5bb5/locations/us-central1/functions/resetTerritoryProgress"
+    },
+    "exit": 1,
+    "message": "Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/resetTerritoryProgress",
+    "original": {
+      "name": "FirebaseError",
+      "children": [],
+      "context": {
+        "body": {
+          "error": {
+            "code": 400,
+            "message": "An operation on function resetTerritoryProgress in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+            "status": "FAILED_PRECONDITION"
+          }
+        },
+        "response": {
+          "statusCode": 400
+        }
+      },
+      "exit": 1,
+      "message": "Request to https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/resetTerritoryProgress?updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2ChttpsTrigger.securityLevel%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables had HTTP Error: 400, An operation on function resetTerritoryProgress in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+      "status": 400
+    },
+    "status": 400,
+    "code": 400
+  }
+}
+[debug] [2025-07-15T16:28:35.720Z] {
+  "endpoint": {
+    "id": "resetPeakUsers",
+    "project": "appterritorios-e5bb5",
+    "region": "us-central1",
+    "entryPoint": "resetPeakUsers",
+    "platform": "gcfv1",
+    "runtime": "nodejs20",
+    "callableTrigger": {},
+    "labels": {
+      "deployment-tool": "cli-firebase--project-idx"
+    },
+    "serviceAccount": null,
+    "ingressSettings": null,
+    "availableMemoryMb": null,
+    "timeoutSeconds": null,
+    "maxInstances": null,
+    "minInstances": null,
+    "vpc": null,
+    "environmentVariables": {
+      "FIREBASE_CONFIG": "{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}",
+      "GCLOUD_PROJECT": "appterritorios-e5bb5",
+      "EVENTARC_CLOUD_EVENT_SOURCE": "projects/appterritorios-e5bb5/locations/us-central1/functions/resetPeakUsers"
+    },
+    "codebase": "default",
+    "securityLevel": "SECURE_ALWAYS",
+    "targetedByOnly": false,
+    "hash": "92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"
+  },
+  "op": "update",
+  "original": {
+    "name": "FirebaseError",
+    "children": [],
+    "context": {
+      "function": "projects/appterritorios-e5bb5/locations/us-central1/functions/resetPeakUsers"
+    },
+    "exit": 1,
+    "message": "Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/resetPeakUsers",
+    "original": {
+      "name": "FirebaseError",
+      "children": [],
+      "context": {
+        "body": {
+          "error": {
+            "code": 400,
+            "message": "An operation on function resetPeakUsers in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+            "status": "FAILED_PRECONDITION"
+          }
+        },
+        "response": {
+          "statusCode": 400
+        }
+      },
+      "exit": 1,
+      "message": "Request to https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/resetPeakUsers?updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2ChttpsTrigger.securityLevel%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables had HTTP Error: 400, An operation on function resetPeakUsers in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+      "status": 400
+    },
+    "status": 400,
+    "code": 400
+  }
+}
+[debug] [2025-07-15T16:28:35.720Z] {
+  "endpoint": {
+    "id": "scheduledFirestoreExport",
+    "project": "appterritorios-e5bb5",
+    "region": "us-central1",
+    "entryPoint": "scheduledFirestoreExport",
+    "platform": "gcfv1",
+    "runtime": "nodejs20",
+    "scheduleTrigger": {
+      "schedule": "every day 03:00",
+      "timeZone": "America/Sao_Paulo",
+      "retryConfig": {
+        "maxBackoffSeconds": null,
+        "minBackoffSeconds": null,
+        "maxRetrySeconds": null,
+        "retryCount": null,
+        "maxDoublings": null
+      }
+    },
+    "labels": {
+      "deployment-tool": "cli-firebase--project-idx"
+    },
+    "serviceAccount": null,
+    "ingressSettings": null,
+    "availableMemoryMb": null,
+    "timeoutSeconds": null,
+    "maxInstances": null,
+    "minInstances": null,
+    "vpc": null,
+    "environmentVariables": {
+      "FIREBASE_CONFIG": "{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}",
+      "GCLOUD_PROJECT": "appterritorios-e5bb5",
+      "EVENTARC_CLOUD_EVENT_SOURCE": "projects/appterritorios-e5bb5/locations/us-central1/functions/scheduledFirestoreExport"
+    },
+    "codebase": "default",
+    "securityLevel": "SECURE_ALWAYS",
+    "targetedByOnly": false,
+    "hash": "92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"
+  },
+  "op": "update",
+  "original": {
+    "name": "FirebaseError",
+    "children": [],
+    "context": {
+      "function": "projects/appterritorios-e5bb5/locations/us-central1/functions/scheduledFirestoreExport"
+    },
+    "exit": 1,
+    "message": "Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/scheduledFirestoreExport",
+    "original": {
+      "name": "FirebaseError",
+      "children": [],
+      "context": {
+        "body": {
+          "error": {
+            "code": 400,
+            "message": "An operation on function scheduledFirestoreExport in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+            "status": "FAILED_PRECONDITION"
+          }
+        },
+        "response": {
+          "statusCode": 400
+        }
+      },
+      "exit": 1,
+      "message": "Request to https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/scheduledFirestoreExport?updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables had HTTP Error: 400, An operation on function scheduledFirestoreExport in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+      "status": 400
+    },
+    "status": 400,
+    "code": 400
+  }
+}
+[debug] [2025-07-15T16:28:35.724Z] {
+  "endpoint": {
+    "id": "onHouseWrite",
+    "project": "appterritorios-e5bb5",
+    "region": "us-central1",
+    "entryPoint": "onHouseWrite",
+    "platform": "gcfv1",
+    "runtime": "nodejs20",
+    "eventTrigger": {
+      "eventType": "providers/cloud.firestore/eventTypes/document.write",
+      "retry": false,
+      "eventFilters": {
+        "resource": "projects/appterritorios-e5bb5/databases/(default)/documents/congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}"
+      }
+    },
+    "labels": {
+      "deployment-tool": "cli-firebase--project-idx"
+    },
+    "serviceAccount": null,
+    "ingressSettings": null,
+    "availableMemoryMb": null,
+    "timeoutSeconds": null,
+    "maxInstances": null,
+    "minInstances": null,
+    "vpc": null,
+    "environmentVariables": {
+      "FIREBASE_CONFIG": "{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}",
+      "GCLOUD_PROJECT": "appterritorios-e5bb5",
+      "EVENTARC_CLOUD_EVENT_SOURCE": "projects/appterritorios-e5bb5/locations/us-central1/functions/onHouseWrite"
+    },
+    "codebase": "default",
+    "securityLevel": "SECURE_ALWAYS",
+    "targetedByOnly": false,
+    "hash": "92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"
+  },
+  "op": "update",
+  "original": {
+    "name": "FirebaseError",
+    "children": [],
+    "context": {
+      "function": "projects/appterritorios-e5bb5/locations/us-central1/functions/onHouseWrite"
+    },
+    "exit": 1,
+    "message": "Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onHouseWrite",
+    "original": {
+      "name": "FirebaseError",
+      "children": [],
+      "context": {
+        "body": {
+          "error": {
+            "code": 400,
+            "message": "An operation on function onHouseWrite in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+            "status": "FAILED_PRECONDITION"
+          }
+        },
+        "response": {
+          "statusCode": 400
+        }
+      },
+      "exit": 1,
+      "message": "Request to https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onHouseWrite?updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables had HTTP Error: 400, An operation on function onHouseWrite in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+      "status": 400
+    },
+    "status": 400,
+    "code": 400
+  }
+}
+[debug] [2025-07-15T16:28:35.724Z] {
+  "endpoint": {
+    "id": "onTerritoryUpdateForHistory",
+    "project": "appterritorios-e5bb5",
+    "region": "us-central1",
+    "entryPoint": "onTerritoryUpdateForHistory",
+    "platform": "gcfv1",
+    "runtime": "nodejs20",
+    "eventTrigger": {
+      "eventType": "providers/cloud.firestore/eventTypes/document.update",
+      "retry": false,
+      "eventFilters": {
+        "resource": "projects/appterritorios-e5bb5/databases/(default)/documents/congregations/{congId}/territories/{terrId}"
+      }
+    },
+    "labels": {
+      "deployment-tool": "cli-firebase--project-idx"
+    },
+    "serviceAccount": null,
+    "ingressSettings": null,
+    "availableMemoryMb": null,
+    "timeoutSeconds": null,
+    "maxInstances": null,
+    "minInstances": null,
+    "vpc": null,
+    "environmentVariables": {
+      "FIREBASE_CONFIG": "{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}",
+      "GCLOUD_PROJECT": "appterritorios-e5bb5",
+      "EVENTARC_CLOUD_EVENT_SOURCE": "projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryUpdateForHistory"
+    },
+    "codebase": "default",
+    "securityLevel": "SECURE_ALWAYS",
+    "targetedByOnly": false,
+    "hash": "92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"
+  },
+  "op": "update",
+  "original": {
+    "name": "FirebaseError",
+    "children": [],
+    "context": {
+      "function": "projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryUpdateForHistory"
+    },
+    "exit": 1,
+    "message": "Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryUpdateForHistory",
+    "original": {
+      "name": "FirebaseError",
+      "children": [],
+      "context": {
+        "body": {
+          "error": {
+            "code": 400,
+            "message": "An operation on function onTerritoryUpdateForHistory in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+            "status": "FAILED_PRECONDITION"
+          }
+        },
+        "response": {
+          "statusCode": 400
+        }
+      },
+      "exit": 1,
+      "message": "Request to https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onTerritoryUpdateForHistory?updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables had HTTP Error: 400, An operation on function onTerritoryUpdateForHistory in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+      "status": 400
+    },
+    "status": 400,
+    "code": 400
+  }
+}
+[debug] [2025-07-15T16:28:35.724Z] {
+  "endpoint": {
+    "id": "onDeleteTerritory",
+    "project": "appterritorios-e5bb5",
+    "region": "us-central1",
+    "entryPoint": "onDeleteTerritory",
+    "platform": "gcfv1",
+    "runtime": "nodejs20",
+    "eventTrigger": {
+      "eventType": "providers/cloud.firestore/eventTypes/document.delete",
+      "retry": false,
+      "eventFilters": {
+        "resource": "projects/appterritorios-e5bb5/databases/(default)/documents/congregations/{congregationId}/territories/{territoryId}"
+      }
+    },
+    "labels": {
+      "deployment-tool": "cli-firebase--project-idx"
+    },
+    "serviceAccount": null,
+    "ingressSettings": null,
+    "availableMemoryMb": null,
+    "timeoutSeconds": null,
+    "maxInstances": null,
+    "minInstances": null,
+    "vpc": null,
+    "environmentVariables": {
+      "FIREBASE_CONFIG": "{\"projectId\":\"appterritorios-e5bb5\",\"databaseURL\":\"https://appterritorios-e5bb5-default-rtdb.firebaseio.com\",\"storageBucket\":\"appterritorios-e5bb5.firebasestorage.app\"}",
+      "GCLOUD_PROJECT": "appterritorios-e5bb5",
+      "EVENTARC_CLOUD_EVENT_SOURCE": "projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteTerritory"
+    },
+    "codebase": "default",
+    "securityLevel": "SECURE_ALWAYS",
+    "targetedByOnly": false,
+    "hash": "92c6e70dd79e8d2996e5ccea8e77291d7f9b248b"
+  },
+  "op": "update",
+  "original": {
+    "name": "FirebaseError",
+    "children": [],
+    "context": {
+      "function": "projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteTerritory"
+    },
+    "exit": 1,
+    "message": "Failed to update function projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteTerritory",
+    "original": {
+      "name": "FirebaseError",
+      "children": [],
+      "context": {
+        "body": {
+          "error": {
+            "code": 400,
+            "message": "An operation on function onDeleteTerritory in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+            "status": "FAILED_PRECONDITION"
+          }
+        },
+        "response": {
+          "statusCode": 400
+        }
+      },
+      "exit": 1,
+      "message": "Request to https://cloudfunctions.googleapis.com/v1/projects/appterritorios-e5bb5/locations/us-central1/functions/onDeleteTerritory?updateMask=name%2CsourceUploadUrl%2CentryPoint%2Cruntime%2CdockerRegistry%2Clabels%2CeventTrigger.eventType%2CeventTrigger.resource%2CeventTrigger.failurePolicy%2CminInstances%2CmaxInstances%2CingressSettings%2CenvironmentVariables%2CserviceAccountEmail%2CavailableMemoryMb%2Ctimeout%2CvpcConnector%2CvpcConnectorEgressSettings%2CsourceToken%2CbuildEnvironmentVariables had HTTP Error: 400, An operation on function onDeleteTerritory in region us-central1 in project appterritorios-e5bb5 is already in progress. Please try again later.",
+      "status": 400
+    },
+    "status": 400,
+    "code": 400
+  }
+}
+[error] Error: There was an error deploying functions:
+[error] - Error Failed to update function notifyAdminOfNewUser in region us-central1
+[error] - Error Failed to update function onQuadraWrite in region us-central1
+[error] - Error Failed to update function onTerritoryWrite in region us-central1
+[error] - Error Failed to update function onDeleteQuadra in region us-central1
+[error] - Error Failed to update function deleteUserAccount in region us-central1
+[error] - Error Failed to update function handleUserPresence in region us-central1
+[error] - Error Failed to update function resetTerritoryProgress in region us-central1
+[error] - Error Failed to update function resetPeakUsers in region us-central1
+[error] - Error Failed to update function scheduledFirestoreExport in region us-central1
+[error] - Error Failed to update function onHouseWrite in region us-central1
+[error] - Error Failed to update function onTerritoryUpdateForHistory in region us-central1
+[error] - Error Failed to update function onDeleteTerritory in region us-central1

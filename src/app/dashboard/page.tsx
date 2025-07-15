@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -57,7 +58,7 @@ export default function DashboardPage() {
     <div>
       <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Painel de Controle</h1>
       <p className="text-gray-500 dark:text-gray-400 mb-8">
-        {user ? `Bem-vindo, ${user.name}!` : "Carregando informações do usuário..."}
+        {user ? `Boas-vindas, ${user.name}!` : "Carregando informações do usuário..."}
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
