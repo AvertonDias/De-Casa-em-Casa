@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { collection, doc, writeBatch } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+
+// Aponta para a função 'createCongregationAndAdmin' no backend
+const createCongregationAndAdminFunction = httpsCallable(functions, 'createCongregationAndAdmin');
 
 export default function NewCongregationPage() {
   const [adminName, setAdminName] = useState('');
@@ -27,72 +29,50 @@ export default function NewCongregationPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
 
     if (adminPassword !== confirmPassword) {
       setError("As senhas não coincidem.");
-      setLoading(false);
       return;
     }
+    if (adminPassword.length < 6) {
+        setError("A senha precisa ter pelo menos 6 caracteres.");
+        return;
+    }
 
-    const auth = getAuth();
+    setLoading(true);
     
     try {
-      console.log("Iniciando processo de criação...");
-
-      console.log("Passo 1: Criando usuário no Auth...");
-      const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
-      const adminUser = userCredential.user;
-      console.log("Sucesso! Usuário criado com UID:", adminUser.uid);
-      
-      const batch = writeBatch(db);
-
-      const newCongregationRef = doc(collection(db, "congregations")); 
-      console.log("Passo 2: Preparando criação da congregação com ID:", newCongregationRef.id);
-      batch.set(newCongregationRef, {
-        name: congregationName,
-        number: congregationNumber,
-        inviteCode: `${congregationName.substring(0, 3).toUpperCase().replace(/\s/g, '')}${congregationNumber}`,
-        territoryCount: 0,
-        ruralTerritoryCount: 0,
-        totalQuadras: 0,
-        totalHouses: 0,
-        totalHousesDone: 0,
-        createdAt: new Date(),
-        lastUpdate: new Date(),
+      // Chama a Cloud Function com os dados do formulário
+      await createCongregationAndAdminFunction({
+        adminName,
+        adminEmail,
+        adminPassword,
+        congregationName,
+        congregationNumber
       });
-
-      const adminUserRef = doc(db, "users", adminUser.uid);
-      console.log("Passo 3: Preparando criação do perfil do admin.");
-      batch.set(adminUserRef, {
-        name: adminName,
-        email: adminEmail,
-        congregationId: newCongregationRef.id,
-        role: "Administrador",
-        status: "ativo",
-      });
-
-      console.log("Passo 4: Executando o lote no Firestore...");
-      await batch.commit();
-      console.log("Sucesso! Congregação e perfil do admin criados.");
       
       toast({
           title: "Congregação criada com sucesso!",
           description: "Você será redirecionado para o painel."
       });
-
+      
+      // Força um recarregamento para que o contexto de autenticação seja atualizado
       window.location.href = '/dashboard';
 
     } catch (err: any) {
       console.error("ERRO DETALHADO NA CRIAÇÃO:", err);
-      if (err.code === 'auth/email-already-exists' || err.code === 'auth/email-already-in-use') {
+      // Trata erros específicos da Cloud Function
+      if (err.code === 'functions/already-exists') {
         setError("Este e-mail de administrador já está em uso.");
+      } else if (err.code === 'functions/invalid-argument') {
+        setError("Todos os campos são obrigatórios. Verifique o preenchimento.");
       } else {
-        setError("Ocorreu um erro. Verifique os logs do console para mais detalhes.");
+        setError("Ocorreu um erro ao criar a congregação. Tente novamente.");
       }
-      setLoading(false);
-    } 
+    } finally {
+        setLoading(false);
+    }
   };
   
   return (
@@ -118,7 +98,7 @@ export default function NewCongregationPage() {
                     <input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="Seu E-mail" required className="w-full px-4 py-2 bg-background border border-input rounded-md" />
 
                     <div className="relative">
-                        <input type={showPassword ? 'text' : 'password'} value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="Sua Senha" required className="w-full px-4 py-2 bg-background border border-input rounded-md pr-10"/>
+                        <input type={showPassword ? 'text' : 'password'} value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="Sua Senha (mín. 6 caracteres)" required className="w-full px-4 py-2 bg-background border border-input rounded-md pr-10"/>
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 text-muted-foreground">
                            {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
                         </button>

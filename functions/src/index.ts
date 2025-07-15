@@ -1,4 +1,3 @@
-
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { GetSignedUrlConfig } from "firebase-admin/storage";
