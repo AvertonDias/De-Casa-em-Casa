@@ -275,68 +275,73 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
     }
 });
 
-export const logDailyWorkAndUpdateTimestamp = functions.firestore
-  .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
-  .onUpdate(async (change, context) => {
-    const { congregationId, territoryId } = context.params;
+export const onTerritoryUpdateForHistory = functions.firestore
+    .document("congregations/{congId}/territories/{terrId}")
+    .onUpdate(async (change, context) => {
+        const dataAfter = change.after.data();
+        const historyCollectionRef = change.after.ref.collection("activityHistory");
 
-    const dataAfter = change.after.data();
-    const dataBefore = change.before.data();
-    
-    // Roda SOMENTE se o status mudou de 'não feito' para 'feito'.
-    if (dataBefore?.status === true || dataAfter?.status === false) {
-      return null;
-    }
-    
-    const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
-    const historyCollectionRef = territoryRef.collection("activityHistory");
-
-    const TIME_ZONE = "America/Sao_Paulo";
-    const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
-    
-    try {
-      const q = historyCollectionRef.orderBy("activityDate", "desc").limit(1);
-      const lastHistorySnapshot = await q.get();
-
-      let lastWorkDateString = '';
-      if (!lastHistorySnapshot.empty) {
-        const lastLog = lastHistorySnapshot.docs[0].data();
-        if (lastLog.activityDate) {
-            lastWorkDateString = lastLog.activityDate.toDate().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+        // 1. Verifica se há atividade (casas feitas > 0)
+        const casasFeitas = dataAfter.stats?.casasFeitas || 0;
+        if (casasFeitas === 0) {
+            // Se não há casas feitas, não há o que registrar.
+            // Apenas atualiza o timestamp para refletir a edição e sai.
+            return change.after.ref.update({
+                lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+            });
         }
-      }
 
-      // Se o último trabalho foi hoje, apenas atualiza o timestamp do território e sai.
-      if (lastWorkDateString === todayString) {
-        return territoryRef.update({
-            lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      }
-      
-      console.info(`[History] Registrando trabalho diário para o território ${territoryId}.`);
-      
-      const batch = db.batch();
-      
-      const newHistoryRef = historyCollectionRef.doc();
-      batch.set(newHistoryRef, {
-        activityDate: admin.firestore.FieldValue.serverTimestamp(),
-        notes: `Trabalho registrado neste dia.`,
-        userName: "Sistema",
-        userId: "system",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      
-      batch.update(territoryRef, {
-        lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      
-      return batch.commit();
+        // 2. Define a data de hoje para comparação
+        const TIME_ZONE = "America/Sao_Paulo";
+        const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+        
+        try {
+            // 3. Busca o último registro de atividade
+            const lastHistorySnapshot = await historyCollectionRef
+                .orderBy("activityDate", "desc")
+                .limit(1)
+                .get();
+            
+            let lastWorkDateString = '';
+            if (!lastHistorySnapshot.empty) {
+                const lastLog = lastHistorySnapshot.docs[0].data();
+                if (lastLog.activityDate) {
+                    lastWorkDateString = lastLog.activityDate.toDate().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+                }
+            }
 
-    } catch (error) {
-      console.error(`[History] FALHA CRÍTICA ao registrar trabalho para território ${territoryId}:`, error);
-      return null;
-    }
-});
+            // 4. Compara as datas. Se o último trabalho não foi hoje, registra um novo.
+            if (lastWorkDateString !== todayString) {
+                console.info(`[History] Registrando primeiro trabalho do dia para o território ${context.params.terrId}.`);
+                
+                const batch = db.batch();
+                
+                const newHistoryRef = historyCollectionRef.doc();
+                batch.set(newHistoryRef, {
+                    activityDate: admin.firestore.FieldValue.serverTimestamp(),
+                    notes: `Trabalho registrado neste dia.`,
+                    userName: "Sistema",
+                    userId: "system",
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                
+                batch.update(change.after.ref, {
+                    lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                
+                return batch.commit();
+            } else {
+                 // Se já houve registro hoje, apenas atualiza o timestamp de "último trabalho"
+                 return change.after.ref.update({
+                    lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
+
+        } catch (error) {
+            console.error(`[History] FALHA CRÍTICA ao registrar trabalho para território ${context.params.terrId}:`, error);
+            return null;
+        }
+    });
 
 
 // ============================================================================
