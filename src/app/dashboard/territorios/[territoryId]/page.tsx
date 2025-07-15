@@ -27,17 +27,23 @@ const resetTerritoryFunction = httpsCallable(functions, 'resetTerritoryProgress'
 //   Componentes Modulares
 // ========================================================================
 
-const ProgressSection = ({ territory }: { territory: Territory }) => (
-  <div className="bg-card p-6 rounded-lg shadow-md">
-    <h2 className="text-xl font-bold mb-4 flex items-center"><BarChart className="mr-3 text-primary" />Progresso Geral</h2>
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-        <div><p className="text-sm text-muted-foreground">Total de Casas</p><p className="text-2xl font-bold">{territory.totalHouses || 0}</p></div>
-        <div><p className="text-sm text-muted-foreground">Casas Feitas</p><p className="text-2xl font-bold text-green-400">{territory.housesDone || 0}</p></div>
-        <div><p className="text-sm text-muted-foreground">Pendentes</p><p className="text-2xl font-bold text-yellow-400">{(territory.totalHouses || 0) - (territory.housesDone || 0)}</p></div>
-        <div><p className="text-sm text-muted-foreground">Progresso</p><p className="text-2xl font-bold text-blue-400">{Math.round((territory.progress || 0) * 100)}%</p></div>
-    </div>
-  </div>
-);
+const ProgressSection = ({ territory }: { territory: Territory }) => {
+    const totalHouses = territory.stats?.totalHouses || 0;
+    const housesDone = territory.stats?.housesDone || 0;
+    const progress = territory.progress || 0;
+
+    return (
+        <div className="bg-card p-6 rounded-lg shadow-md">
+            <h2 className="text-xl font-bold mb-4 flex items-center"><BarChart className="mr-3 text-primary" />Progresso Geral</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div><p className="text-sm text-muted-foreground">Total de Casas</p><p className="text-2xl font-bold">{totalHouses}</p></div>
+                <div><p className="text-sm text-muted-foreground">Casas Feitas</p><p className="text-2xl font-bold text-green-400">{housesDone}</p></div>
+                <div><p className="text-sm text-muted-foreground">Pendentes</p><p className="text-2xl font-bold text-yellow-400">{totalHouses - housesDone}</p></div>
+                <div><p className="text-sm text-muted-foreground">Progresso</p><p className="text-2xl font-bold text-blue-400">{Math.round(progress * 100)}%</p></div>
+            </div>
+        </div>
+    );
+};
 
 const HistorySection = ({ territory, history }: { territory: Territory, history: Activity[] }) => (
   <ActivityHistory territoryId={territory.id} history={history} />
@@ -303,3 +309,4 @@ export default function TerritoryDetailPage({ params }: { params: { territoryId:
     </>
   );
 }
+
