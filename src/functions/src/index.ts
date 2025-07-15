@@ -137,7 +137,7 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
 //   FUNÇÕES DE ESTATÍSTICAS, MANUTENÇÃO E HISTÓRICO
 // ============================================================================
 
-export const updateQuadraStats = functions.firestore
+export const onHouseWrite = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
   .onWrite(async (change, context) => {
     const { congregationId, territoryId, quadraId } = context.params;
@@ -149,25 +149,24 @@ export const updateQuadraStats = functions.firestore
         
         return quadraRef.update({
             totalHouses: totalHouses,
-            housesDone: housesDone
+            housesDone: housesDone,
+            lastUpdate: admin.firestore.FieldValue.serverTimestamp()
         });
+
     } catch (error) {
       console.error(`[Stats-Quadra] FALHA ao atualizar quadra ${quadraId}:`, error);
       return null;
     }
 });
 
-export const updateTerritoryStats = functions.firestore
+export const onQuadraWrite = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
   .onWrite(async (change, context) => {
-    const { congregationId, territoryId } = context.params;
-    const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
-    
+    const territoryRef = db.doc(`congregations/${context.params.congregationId}/territories/${context.params.territoryId}`);
     try {
       const quadrasSnapshot = await territoryRef.collection("quadras").get();
       let totalHouses = 0;
       let housesDone = 0;
-      
       quadrasSnapshot.forEach(doc => {
         totalHouses += doc.data().totalHouses || 0;
         housesDone += doc.data().housesDone || 0;
@@ -176,22 +175,24 @@ export const updateTerritoryStats = functions.firestore
       const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
       
       return territoryRef.update({
-          "stats.totalHouses": totalHouses,
-          "stats.housesDone": housesDone,
-          "stats.casasPendentes": totalHouses - housesDone,
-          "stats.casasFeitas": housesDone,
+          stats: {
+              totalHouses: totalHouses,
+              housesDone: housesDone,
+              casasPendentes: totalHouses - housesDone,
+              casasFeitas: housesDone,
+          },
           progress: progress,
           quadraCount: quadrasSnapshot.size,
           lastUpdate: admin.firestore.FieldValue.serverTimestamp()
       });
 
     } catch (error) {
-      console.error(`[Stats-Territory] FALHA ao atualizar o território ${territoryId}: `, error);
+      console.error(`[Stats-Territory] FALHA ao atualizar o território ${context.params.territoryId}: `, error);
       return null;
     }
 });
 
-export const updateCongregationStats = functions.firestore
+export const onTerritoryWrite = functions.firestore
     .document("congregations/{congregationId}/territories/{territoryId}")
     .onWrite(async (change, context) => {
         const { congregationId } = context.params;
@@ -281,61 +282,45 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
     }
 });
 
-
 export const onTerritoryUpdateForHistory = functions.firestore
   .document("congregations/{congId}/territories/{terrId}")
   .onUpdate(async (change, context) => {
+    
     const beforeData = change.before.data();
     const afterData = change.after.data();
 
-    // Se os dados não existirem, não faz nada
-    if (!beforeData?.stats || !afterData?.stats) {
+    // Sai se não houver dados ou se o número de casas feitas não aumentou.
+    if (!beforeData?.stats || !afterData?.stats || (afterData.stats.casasFeitas <= beforeData.stats.casasFeitas)) {
         return null;
     }
 
-    const casasFeitasAntes = beforeData.stats.casasFeitas || 0;
-    const casasFeitasDepois = afterData.stats.casasFeitas || 0;
-    const casasPendentesDepois = afterData.stats.casasPendentes;
+    const { congId, terrId } = context.params;
+    const historyCollectionRef = db.collection(`congregations/${congId}/territories/${terrId}/activityHistory`);
 
-    const historyRef = change.after.ref.collection("activityHistory");
+    const TIME_ZONE = "America/Sao_Paulo";
+    const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+    
+    // Busca o último registro de histórico para ver se já trabalhamos neste território hoje.
+    const recentHistorySnapshot = await historyCollectionRef.orderBy("activityDate", "desc").limit(1).get();
 
-    // Gatilho para quando o trabalho no território começa
-    if (casasFeitasAntes === 0 && casasFeitasDepois > 0) {
-        console.log(`[History] Trabalho iniciado no território ${context.params.terrId}.`);
-        return historyRef.add({
-            activityDate: admin.firestore.FieldValue.serverTimestamp(),
-            notes: "O trabalho no território foi iniciado (registro automático).",
-            userName: "Sistema",
-            userId: "system",
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-    }
-
-    // Gatilho para quando o trabalho no território é concluído
-    if (casasPendentesDepois === 0 && casasFeitasDepois > 0) {
-        console.log(`[History] Território ${context.params.terrId} concluído.`);
-        return historyRef.add({
-            activityDate: admin.firestore.FieldValue.serverTimestamp(),
-            notes: "Todas as casas do território foram trabalhadas (registro automático).",
-            userName: "Sistema",
-            userId: "system",
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+    if (!recentHistorySnapshot.empty) {
+        const lastRecord = recentHistorySnapshot.docs[0].data();
+        const lastRecordDate = (lastRecord.activityDate as admin.firestore.Timestamp).toDate();
+        // Se a data do último registro for a mesma de hoje, não fazemos nada.
+        if (lastRecordDate.toLocaleDateString("en-CA", { timeZone: TIME_ZONE }) === todayString) {
+            return null;
+        }
     }
     
-    // Gatilho para quando o território é resetado
-    if (casasFeitasAntes > 0 && casasFeitasDepois === 0) {
-         console.log(`[History] Progresso do território ${context.params.terrId} foi reiniciado.`);
-         return historyRef.add({
-            activityDate: admin.firestore.FieldValue.serverTimestamp(),
-            notes: "O progresso do território foi reiniciado.",
-            userName: "Sistema",
-            userId: "system",
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-    }
-
-    return null;
+    // Se chegou aqui, é o primeiro trabalho do dia neste território. Registra!
+    console.info(`[History] Registrando trabalho diário para o território ${terrId}.`);
+    return historyCollectionRef.add({
+        activityDate: admin.firestore.FieldValue.serverTimestamp(),
+        notes: `Trabalho registrado neste dia.`,
+        userName: "Sistema",
+        userId: "system",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 });
 
 // ============================================================================
