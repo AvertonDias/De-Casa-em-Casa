@@ -5,11 +5,11 @@ const db = admin.firestore();
 
 // --- IMPORTAÇÕES DA NOVA SINTAXE (V2) ---
 import { https, logger, region } from "firebase-functions/v2";
-import { onDocumentWritten, onDocumentCreated, onDocumentDeleted } from "firebase-functions/v2/firestore";
+import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { HttpsError } from "firebase-functions/v2/https";
-import { GetSignedUrlConfig } from "firebase-admin/storage";
+import { type GetSignedUrlConfig } from "firebase-admin/storage";
 
 
 // Opções padrão para as funções
