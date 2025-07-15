@@ -5,7 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from "next/navigation";
 import { signOut } from "firebase/auth";
-import { auth, db, messaging } from "@/lib/firebase";
+import { auth, db, messaging, app } from "@/lib/firebase"; // Import app
+import { getDatabase, ref, set, serverTimestamp } from "firebase/database"; // Import RTDB functions
 import { useUser } from '@/contexts/UserContext';
 import { useTheme } from 'next-themes';
 import { doc, arrayUnion, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -28,6 +29,7 @@ import { FeedbackModal } from "@/components/FeedbackModal";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
 
+const rtdb = getDatabase(app); // Initialize RTDB
 
 // Componente para trocar o tema (agora mais robusto)
 function ThemeSwitcher() {
@@ -90,7 +92,23 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
     }
   }, [user]);
 
-  const handleLogout = async () => { await signOut(auth); };
+  const handleLogout = async () => {
+    if (user) {
+      const userStatusDatabaseRef = ref(rtdb, `/status/${user.uid}`);
+      const isOfflineForDatabase = {
+        state: 'offline',
+        last_changed: serverTimestamp(),
+      };
+      try {
+        await set(userStatusDatabaseRef, isOfflineForDatabase);
+        await signOut(auth);
+      } catch (error) {
+        console.error("Erro ao tentar fazer logout e atualizar status:", error);
+        // Fallback para garantir o logout mesmo se o RTDB falhar
+        await signOut(auth);
+      }
+    }
+  };
 
   const getInstructionsMessage = () => {
     if (deviceInfo.isIOS) {
