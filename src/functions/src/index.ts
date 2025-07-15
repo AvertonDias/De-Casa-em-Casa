@@ -4,7 +4,7 @@ admin.initializeApp();
 const db = admin.firestore();
 
 // --- IMPORTAÇÕES DA NOVA SINTAXE (V2) ---
-import { https, logger, region } from "firebase-functions/v2";
+import { https, logger } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentCreated, onDocumentUpdated, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueCreated, onValueDeleted } from "firebase-functions/v2/database";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -17,7 +17,8 @@ import type { UserData, CreateCongregationData } from "./types";
 // ============================================================================
 
 const regionalOnCall = (handler: (request: https.CallableRequest<any>) => any | Promise<any>) => {
-    return region("southamerica-east1").https.onCall({ 
+    return https.onCall({ 
+        region: "southamerica-east1",
         cors: true // Habilita o CORS
     }, handler);
 };
