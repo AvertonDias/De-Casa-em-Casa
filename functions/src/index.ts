@@ -105,14 +105,18 @@ export const updateCongregationStats = onDocumentWritten({ document: "congregati
 //   4. REGISTRO DE HISTÓRICO E "TRABALHADO RECENTEMENTE"
 // ========================================================================
 export const logDailyWorkAndUpdateTimestamp = onDocumentWritten({ document: "congregations/{congId}/territories/{terrId}/quadras/{quadraId}/casas/{casaId}", ...firestoreOptions }, async (event) => {
-    // Ignora criações e exclusões, focando apenas em atualizações
-    if (!event.data?.before || !event.data?.after) return;
+    // A função onDocumentWritten é acionada na criação, atualização e exclusão.
+    // event.data.before existe em atualizações e exclusões.
+    // event.data.after existe em criações e atualizações.
     
-    const beforeData = event.data.before.data();
-    const afterData = event.data.after.data();
+    // Pega o status antes e depois. Se não existir, considera-se 'false'.
+    const statusBefore = event.data?.before?.data()?.status ?? false;
+    const statusAfter = event.data?.after?.data()?.status ?? false;
 
-    // Roda apenas se uma casa mudou de "não feita" para "feita"
-    if (beforeData.status === false && afterData.status === true) {
+    // Roda apenas se uma casa MUDOU PARA "feita" (de não-feita para feita).
+    // Isso cobre tanto a criação de uma casa já como 'true' (before é false)
+    // quanto a atualização de uma casa existente de false para true.
+    if (!statusBefore && statusAfter) {
         const { congId, terrId } = event.params;
         const territoryRef = db.doc(`congregations/${congId}/territories/${terrId}`);
         const historyCollectionRef = territoryRef.collection("activityHistory");
