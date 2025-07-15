@@ -31,6 +31,7 @@ const ProgressSection = ({ territory }: { territory: Territory }) => {
     const totalHouses = territory.stats?.totalHouses || 0;
     const housesDone = territory.stats?.housesDone || 0;
     const progress = territory.progress || 0;
+    const progressPercentage = Math.round(progress * 100);
 
     return (
         <div className="bg-card p-6 rounded-lg shadow-md">
@@ -39,7 +40,10 @@ const ProgressSection = ({ territory }: { territory: Territory }) => {
                 <div><p className="text-sm text-muted-foreground">Total de Casas</p><p className="text-2xl font-bold">{totalHouses}</p></div>
                 <div><p className="text-sm text-muted-foreground">Casas Feitas</p><p className="text-2xl font-bold text-green-400">{housesDone}</p></div>
                 <div><p className="text-sm text-muted-foreground">Pendentes</p><p className="text-2xl font-bold text-yellow-400">{totalHouses - housesDone}</p></div>
-                <div><p className="text-sm text-muted-foreground">Progresso</p><p className="text-2xl font-bold text-blue-400">{Math.round(progress * 100)}%</p></div>
+                <div><p className="text-sm text-muted-foreground">Progresso</p><p className="text-2xl font-bold text-blue-400">{progressPercentage}%</p></div>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-4">
+              <div className="bg-blue-600 dark:bg-blue-400 h-2.5 rounded-full" style={{ width: `${progressPercentage}%` }}></div>
             </div>
         </div>
     );
@@ -312,3 +316,5 @@ export default function TerritoryDetailPage({ params }: { params: { territoryId:
     </>
   );
 }
+
+    
