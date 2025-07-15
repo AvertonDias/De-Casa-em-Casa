@@ -1,14 +1,16 @@
 
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+
+// Importamos o tipo que estava faltando diretamente do local correto.
 import { GetSignedUrlConfig } from "firebase-admin/storage";
 
 admin.initializeApp();
 const db = admin.firestore();
 
-// ============================================================================
+// ========================================================================
 //   FUNÇÕES DE CRIAÇÃO E GERENCIAMENTO DE USUÁRIOS
-// ============================================================================
+// ========================================================================
 
 export const createCongregationAndAdmin = functions.https.onCall(async (data, context) => {
     const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = data;
@@ -262,49 +264,60 @@ export const updateCongregationStats = functions.firestore
     });
 
 
+// ▼▼▼ FUNÇÃO DE LIMPEZA FINAL E ROBUSTA (Versão Revisada) ▼▼▼
 export const resetTerritoryProgress = functions.https.onCall(async (data, context) => {
     const uid = context.auth?.uid;
-    if (!uid) {
-        throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
-    }
+    if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
     
     const { congregationId, territoryId } = data;
-    if (!congregationId || !territoryId) {
-        throw new functions.https.HttpsError("invalid-argument", "IDs faltando.");
-    }
+    if (!congregationId || !territoryId) { throw new functions.https.HttpsError("invalid-argument", "IDs faltando."); }
     
     const adminUserSnap = await db.collection("users").doc(uid).get();
     if (adminUserSnap.data()?.role !== "Administrador") {
         throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
     }
     
-    const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
-    const quadrasSnapshot = await quadrasRef.get();
-    
-    if (quadrasSnapshot.empty) {
-        return { success: true, message: "Nenhuma casa para limpar." };
-    }
-    
-    const batch = db.batch();
-    let housesUpdatedCount = 0;
+    try {
+        const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
+        const quadrasRef = territoryRef.collection("quadras");
+        const quadrasSnapshot = await quadrasRef.get();
+        
+        const batch = db.batch();
+        let housesUpdatedCount = 0;
 
-    for (const quadraDoc of quadrasSnapshot.docs) {
-        const casasSnapshot = await quadraDoc.ref.collection("casas").where('status', '==', true).get();
-        casasSnapshot.forEach(casaDoc => {
-            batch.update(casaDoc.ref, { status: false });
-            housesUpdatedCount++;
+        for (const quadraDoc of quadrasSnapshot.docs) {
+            const casasSnapshot = await quadraDoc.ref.collection("casas").where('status', '==', true).get();
+            if(casasSnapshot.empty) continue;
+            
+            casasSnapshot.forEach(casaDoc => {
+                batch.update(casaDoc.ref, { status: false });
+                housesUpdatedCount++;
+            });
+        }
+        
+        const territorySnap = await territoryRef.get();
+        const totalHouses = territorySnap.data()?.stats?.totalHouses || 0;
+
+        // ▼▼▼ MUDANÇA CRUCIAL AQUI ▼▼▼
+        // Zera o progresso e as casas feitas, e recalcula as pendentes.
+        batch.update(territoryRef, {
+            "stats.housesDone": 0,
+            "stats.casasFeitas": 0,
+            "stats.casasPendentes": totalHouses,
+            progress: 0,
+            lastUpdate: admin.firestore.FieldValue.serverTimestamp()
         });
-    }
-    
-    if (housesUpdatedCount > 0) {
+        
         await batch.commit();
-        // Limpa o histórico também
+
         const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
         await admin.firestore().recursiveDelete(db.collection(historyPath));
-        
+
         return { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` };
-    } else {
-        return { success: true, message: "Nenhuma alteração necessária." };
+
+    } catch (error) {
+        console.error(`[resetTerritory] FALHA CRÍTICA ao limpar o território ${territoryId}:`, error);
+        throw new functions.https.HttpsError("internal", "Falha ao processar a limpeza.");
     }
 });
 
