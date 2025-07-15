@@ -20,6 +20,15 @@ import { usePresence } from '@/hooks/usePresence';
 const UserListItem = ({ user, currentUser, onUpdate, onDelete, isUpdating }: { user: AppUser, currentUser: AppUser, onUpdate: (userId: string, data: object) => void, onDelete: (user: AppUser) => void, isUpdating: boolean }) => {
   const isOnline = user.isOnline === true;
   const isAdmin = currentUser.role === 'Administrador';
+  const isDirigente = currentUser.role === 'Dirigente';
+  
+  // Lógica para mostrar o menu:
+  // - Não mostra para o próprio usuário.
+  // - Admins sempre veem (exceto para eles mesmos).
+  // - Dirigentes só veem para usuários pendentes ou rejeitados.
+  const canShowMenu = currentUser.uid !== user.uid && 
+                      (isAdmin || (isDirigente && (user.status === 'pendente' || user.status === 'rejeitado')));
+
 
   const getStatusClass = (status: AppUser['status']) => {
     switch (status) {
@@ -74,7 +83,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete, isUpdating }: { u
               </span>
           )}
           
-          {currentUser.uid !== user.uid && (
+          {canShowMenu && (
               <Menu as="div" className="relative">
                   <Menu.Button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:cursor-not-allowed" disabled={isUpdating}>
                     {isUpdating ? <Loader size={20} className="animate-spin"/> : <MoreVertical size={20} />}
@@ -495,5 +504,3 @@ export default function UsersPage() {
     </>
   );
 }
-
-
