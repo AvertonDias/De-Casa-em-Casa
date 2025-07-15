@@ -92,12 +92,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (loading) return;
 
-    const publicPages = ['/', '/login', '/cadastro', '/solicitar-acesso', '/recuperar-senha', '/nova-congregacao'];
-    const isPublicPage = publicPages.includes(pathname);
-
+    const publicPages = ['/', '/nova-congregacao'];
+    const authPages = ['/cadastro', '/recuperar-senha'];
+    const isPublicPage = publicPages.includes(pathname) || authPages.some(p => pathname.startsWith(p));
+    
+    // Se não está logado e a página não é pública
     if (!user && !isPublicPage) {
       router.replace('/');
-    } else if (user && isPublicPage) {
+    } 
+    // Se está logado e tentando acessar a página de login ou páginas de autenticação
+    else if (user && (pathname === '/' || authPages.some(p => pathname.startsWith(p)))) {
         if (user.role === 'Publicador') {
           router.replace('/dashboard/territorios');
         } else {
