@@ -22,13 +22,10 @@ const firestoreOptions = { region: "southamerica-east1" as const };
 export const updateQuadraStats = onDocumentWritten({ document: "congregations/{congId}/territories/{terrId}/quadras/{quadraId}/casas/{casaId}", ...firestoreOptions }, async (event) => {
     const { congId, terrId, quadraId } = event.params;
     const quadraRef = db.doc(`congregations/${congId}/territories/${terrId}/quadras/${quadraId}`);
-    
     try {
         const casasSnapshot = await quadraRef.collection("casas").get();
         const totalHouses = casasSnapshot.size;
         const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
-        
-        logger.info(`[Stats-Quadra] Atualizando ${quadraId}: Total=${totalHouses}, Feitas=${housesDone}`);
         // Esta escrita irá acionar a função 'updateTerritoryStats'
         return quadraRef.update({ totalHouses, housesDone });
     } catch (error) {
@@ -38,14 +35,16 @@ export const updateQuadraStats = onDocumentWritten({ document: "congregations/{c
 });
 
 // ========================================================================
-//   2. ATUALIZAÇÃO DO TERRITÓRIO (QUANDO UMA QUADRA MUDA)
+//   2. ATUALIZAÇÃO DO TERRITÓRIO (QUANDO UMA QUADRA MUDA) - CORRIGIDA
 // ========================================================================
 export const updateTerritoryStats = onDocumentWritten({ document: "congregations/{congId}/territories/{terrId}/quadras/{quadraId}", ...firestoreOptions }, async (event) => {
     const { congId, terrId } = event.params;
     const territoryRef = db.doc(`congregations/${congId}/territories/${terrId}`);
     
-    try {
-        const quadrasSnapshot = await territoryRef.collection("quadras").get();
+    // Usamos uma transação para garantir a consistência dos dados
+    return db.runTransaction(async (transaction) => {
+        const quadrasSnapshot = await transaction.get(territoryRef.collection("quadras"));
+        
         let totalHouses = 0;
         let housesDone = 0;
         
@@ -56,24 +55,19 @@ export const updateTerritoryStats = onDocumentWritten({ document: "congregations
 
         const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
         
-        logger.info(`[Stats-Territory] Atualizando ${terrId}: Total=${totalHouses}, Feitas=${housesDone}`);
+        logger.info(`[Stats-Territory] Atualizando ${terrId}: Progresso=${progress * 100}%`);
         
         // Esta escrita irá acionar a função 'updateCongregationStats'
-        return territoryRef.update({
+        transaction.update(territoryRef, {
             "stats.totalHouses": totalHouses,
             "stats.housesDone": housesDone,
             "stats.casasPendentes": totalHouses - housesDone,
             "stats.casasFeitas": housesDone,
-            progress: progress,                 // Salva a porcentagem
+            progress: progress,
             quadraCount: quadrasSnapshot.size,
-            // NÃO atualizamos lastUpdate aqui. Apenas quando uma casa é trabalhada.
         });
-    } catch (error) {
-        logger.error(`[Stats-Territory] FALHA ao atualizar ${terrId}:`, error);
-        return null;
-    }
+    });
 });
-
 
 // ========================================================================
 //   3. ATUALIZAÇÃO DA CONGREGAÇÃO (QUANDO UM TERRITÓRIO MUDA)
@@ -83,21 +77,15 @@ export const updateCongregationStats = onDocumentWritten({ document: "congregati
     const congregationRef = db.doc(`congregations/${congId}`);
     const territoriesRef = congregationRef.collection("territories");
     
-    try {
-        // Obter ambos os tipos de territórios de uma vez
-        const territoriesSnapshot = await territoriesRef.get();
-
-        let urbanCount = 0;
-        let ruralCount = 0;
-        let totalHouses = 0;
-        let totalHousesDone = 0;
-        let totalQuadras = 0;
+    return db.runTransaction(async (transaction) => {
+        const territoriesSnapshot = await transaction.get(territoriesRef);
+        let urbanCount = 0, ruralCount = 0, totalHouses = 0, totalHousesDone = 0, totalQuadras = 0;
 
         territoriesSnapshot.forEach(doc => {
             const data = doc.data();
             if (data.type === 'rural') {
                 ruralCount++;
-            } else { // 'urban' ou nulo/indefinido
+            } else {
                 urbanCount++;
                 totalHouses += data.stats?.totalHouses || 0;
                 totalHousesDone += data.stats?.housesDone || 0;
@@ -105,19 +93,12 @@ export const updateCongregationStats = onDocumentWritten({ document: "congregati
             }
         });
         
-        logger.info(`[Stats-Congregation] Atualizando ${congId}: Mapeadas=${totalHouses}, Visitadas=${totalHousesDone}`);
-        
-        return congregationRef.update({
+        transaction.update(congregationRef, {
             territoryCount: urbanCount,
             ruralTerritoryCount: ruralCount,
-            totalQuadras: totalQuadras,
-            totalHouses: totalHouses,       // "Casas Mapeadas" no seu painel
-            totalHousesDone: totalHousesDone, // "Casas Visitadas" no seu painel
+            totalQuadras, totalHouses, totalHousesDone,
         });
-    } catch (error) {
-        logger.error(`[Stats-Congregation] FALHA ao atualizar ${congId}:`, error);
-        return null;
-    }
+    });
 });
 
 // ========================================================================
@@ -162,6 +143,7 @@ export const logDailyWorkAndUpdateTimestamp = onDocumentWritten({ document: "con
         });
     }
 });
+
 
 // ============================================================================
 //   FUNÇÕES HTTPS (onCall) - V2
@@ -327,7 +309,6 @@ export const handleUserPresence = onValueWritten({ ref: "/status/{uid}", ...fire
     
     const congregationId = userDocSnap.data()!.congregationId;
     const congregationRef = db.doc(`congregations/${congregationId}`);
-    const statusRef = event.data.after.ref.parent; // Referência para /status
 
     return db.runTransaction(async (transaction) => {
         const congDoc = await transaction.get(congregationRef);
