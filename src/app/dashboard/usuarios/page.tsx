@@ -17,8 +17,9 @@ import type { AppUser, Congregation } from '@/types/types';
 import { usePresence } from '@/hooks/usePresence';
 
 
-const UserListItem = ({ user, currentUserUid, onUpdate, onDelete, isUpdating }: { user: AppUser, currentUserUid: string, onUpdate: (userId: string, data: object) => void, onDelete: (user: AppUser) => void, isUpdating: boolean }) => {
+const UserListItem = ({ user, currentUser, onUpdate, onDelete, isUpdating }: { user: AppUser, currentUser: AppUser, onUpdate: (userId: string, data: object) => void, onDelete: (user: AppUser) => void, isUpdating: boolean }) => {
   const isOnline = user.isOnline === true;
+  const isAdmin = currentUser.role === 'Administrador';
 
   const getStatusClass = (status: AppUser['status']) => {
     switch (status) {
@@ -56,7 +57,7 @@ const UserListItem = ({ user, currentUserUid, onUpdate, onDelete, isUpdating }: 
           <div className="min-w-0">
               <p className="font-semibold text-gray-900 dark:text-white truncate">
                 {user.name}
-                {user.uid === currentUserUid && <span className="text-purple-400 font-normal ml-2">(Você)</span>}
+                {user.uid === currentUser.uid && <span className="text-purple-400 font-normal ml-2">(Você)</span>}
               </p>
               <p className={`text-sm ${isOnline ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
                 {isOnline ? 'Online' : (user.lastSeen ? `Visto ${formatDistanceToNow(user.lastSeen.toDate(), { addSuffix: true, locale: ptBR })}` : 'Offline')}
@@ -73,7 +74,7 @@ const UserListItem = ({ user, currentUserUid, onUpdate, onDelete, isUpdating }: 
               </span>
           )}
           
-          {currentUserUid !== user.uid && (
+          {currentUser.uid !== user.uid && (
               <Menu as="div" className="relative">
                   <Menu.Button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:cursor-not-allowed" disabled={isUpdating}>
                     {isUpdating ? <Loader size={20} className="animate-spin"/> : <MoreVertical size={20} />}
@@ -109,7 +110,7 @@ const UserListItem = ({ user, currentUserUid, onUpdate, onDelete, isUpdating }: 
                                 </Menu.Item>
                             )}
                             
-                            {(user.role === 'Publicador' || user.role === 'Dirigente') && (
+                            {isAdmin && (user.role === 'Publicador' || user.role === 'Dirigente') && (
                               <Menu.Item>
                                 {({ active }) => (
                                   <button onClick={() => onUpdate(user.uid, { role: 'Administrador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
@@ -118,7 +119,7 @@ const UserListItem = ({ user, currentUserUid, onUpdate, onDelete, isUpdating }: 
                                 )}
                               </Menu.Item>
                             )}
-                            {user.role === 'Publicador' && (
+                            {isAdmin && user.role === 'Publicador' && (
                                 <Menu.Item>
                                   {({ active }) => (
                                     <button onClick={() => onUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
@@ -127,7 +128,7 @@ const UserListItem = ({ user, currentUserUid, onUpdate, onDelete, isUpdating }: 
                                   )}
                                 </Menu.Item>
                             )}
-                            {user.role === 'Dirigente' && (
+                            {isAdmin && user.role === 'Dirigente' && (
                                 <Menu.Item>
                                   {({ active }) => (
                                     <button onClick={() => onUpdate(user.uid, { role: 'Publicador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
@@ -136,7 +137,7 @@ const UserListItem = ({ user, currentUserUid, onUpdate, onDelete, isUpdating }: 
                                   )}
                                 </Menu.Item>
                             )}
-                            {user.role === 'Administrador' && (
+                            {isAdmin && user.role === 'Administrador' && (
                               <Menu.Item>
                                 {({ active }) => (
                                   <button onClick={() => onUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
@@ -146,15 +147,17 @@ const UserListItem = ({ user, currentUserUid, onUpdate, onDelete, isUpdating }: 
                               </Menu.Item>
                             )}
                          </div>
-                         <div className="p-1">
-                            <Menu.Item>
-                              {({ active }) => (
-                                <button onClick={() => onDelete(user)} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                  <Trash2 className="mr-2 h-4 w-4"/>Excluir Usuário
-                                </button>
-                              )}
-                            </Menu.Item>
-                         </div>
+                         {isAdmin && (
+                           <div className="p-1">
+                              <Menu.Item>
+                                {({ active }) => (
+                                  <button onClick={() => onDelete(user)} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                    <Trash2 className="mr-2 h-4 w-4"/>Excluir Usuário
+                                  </button>
+                                )}
+                              </Menu.Item>
+                           </div>
+                         )}
                       </Menu.Items>
                   </Transition>
               </Menu>
@@ -262,6 +265,12 @@ export default function UsersPage() {
 
   const handleResetPeak = () => {
     if (!currentUser?.congregationId || currentUser.role !== 'Administrador') return;
+    setConfirmAction({
+        action: executeResetPeak,
+        title: "Confirmar Reset",
+        message: "Você tem certeza que deseja zerar a estatística de pico de usuários online?",
+        confirmText: "Sim, resetar"
+    });
     setIsConfirmModalOpen(true);
   };
 
@@ -453,7 +462,7 @@ export default function UsersPage() {
                 <UserListItem 
                     key={user.uid} 
                     user={user} 
-                    currentUserUid={currentUser!.uid} 
+                    currentUser={currentUser!} 
                     onUpdate={handleUserUpdate}
                     onDelete={openDeleteConfirm}
                     isUpdating={updatingUserId === user.uid}
@@ -468,25 +477,23 @@ export default function UsersPage() {
       </div>
     </div>
     
-      {isConfirmModalOpen && (
+      {isConfirmModalOpen && confirmAction && (
           <ConfirmationModal
             isOpen={isConfirmModalOpen}
             onClose={() => setIsConfirmModalOpen(false)}
             onConfirm={() => {
-              if (userToDelete) {
-                confirmDeleteUser();
-              } else {
-                executeResetPeak();
-              }
+                confirmAction.action();
+                setIsConfirmModalOpen(false);
             }}
             isLoading={!!updatingUserId}
-            title={userToDelete ? "Excluir Usuário" : "Confirmar Reset"}
-            message={userToDelete ? `Você tem certeza que deseja excluir permanentemente o usuário ${userToDelete.name}?` : "Você tem certeza que deseja zerar a estatística de pico de usuários online?"}
-            confirmText={userToDelete ? "Sim, excluir" : "Sim, resetar"}
+            title={confirmAction.title}
+            message={confirmAction.message}
+            confirmText={confirmAction.confirmText}
             cancelText="Cancelar"
           />
       )}
     </>
   );
 }
+
 
