@@ -153,28 +153,37 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
 // ============================================================================
 //   FUNÇÕES DE ESTATÍSTICAS, MANUTENÇÃO E HISTÓRICO
 // ============================================================================
+// ▼▼▼ FUNÇÃO onHouseWrite FINAL E ROBUSTA ▼▼▼
+// Acionada sempre que uma casa é criada, alterada ou deletada.
 export const onHouseWrite = functions.firestore
-    .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
-    .onWrite(async (change, context) => {
-        const { congregationId, territoryId, quadraId } = context.params;
-        const quadraRef = db.doc(`congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
+  .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
+  .onWrite(async (change, context) => {
+    
+    // Pega a referência para a quadra "pai"
+    const { congregationId, territoryId, quadraId } = context.params;
+    const quadraRef = db.doc(`congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
+    
+    // Recalcula as estatísticas da quadra
+    try {
+      const casasSnapshot = await quadraRef.collection("casas").get();
+      
+      const totalHouses = casasSnapshot.size;
+      const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
+      
+      console.log(`[Stats-Quadra] Atualizando quadra ${quadraId}: Total=${totalHouses}, Feitas=${housesDone}`);
+      
+      // Atualiza a quadra com os novos totais. Esta escrita irá acionar a onQuadraWrite.
+      return quadraRef.update({
+          totalHouses: totalHouses,
+          housesDone: housesDone,
+          lastUpdate: admin.firestore.FieldValue.serverTimestamp() 
+      });
 
-        const casasSnapshot = await quadraRef.collection("casas").get();
-        const totalHouses = casasSnapshot.size;
-        const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
-        
-        // Adiciona o timestamp de trabalho no território quando uma casa é marcada
-        if (change.before.data()?.status === false && change.after.data()?.status === true) {
-            const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
-            await territoryRef.update({ lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp() });
-        }
-
-        return quadraRef.update({ 
-            totalHouses, 
-            housesDone, 
-            lastUpdate: admin.firestore.FieldValue.serverTimestamp() 
-        });
-    });
+    } catch (error) {
+      console.error(`[Stats-Quadra] FALHA ao atualizar quadra ${quadraId}:`, error);
+      return null;
+    }
+});
 
 
 // ▼▼▼ FUNÇÃO onQuadraWrite FINAL E ROBUSTA ▼▼▼
