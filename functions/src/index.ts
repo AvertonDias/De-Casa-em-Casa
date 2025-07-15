@@ -1,16 +1,31 @@
 
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import { GetSignedUrlConfig } from "firebase-admin/storage";
 
 admin.initializeApp();
 const db = admin.firestore();
 
 // ========================================================================
-//   FUNÇÕES HTTPS (onCall)
+//   DEFINIÇÃO DE TIPOS
 // ========================================================================
+interface UserData {
+  uid: string; email: string; displayName: string; congregationId: string;
+  role: 'Administrador' | 'Dirigente' | 'Publicador' | 'pendente';
+  status: 'ativo' | 'inativo' | 'pendente'; fcmTokens?: string[];
+  isOnline?: boolean; lastSeen?: admin.firestore.Timestamp;
+}
+interface CreateCongregationData {
+  adminName: string; adminEmail: string; adminPassword: string;
+  congregationName: string; congregationNumber: string;
+}
+
+// ============================================================================
+//   FUNÇÕES HTTPS (onCall)
+// ============================================================================
 
 export const createCongregationAndAdmin = functions.https.onCall(async (data, context) => {
-    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = data;
+    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = data as CreateCongregationData;
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
         throw new functions.https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
     }
@@ -19,7 +34,7 @@ export const createCongregationAndAdmin = functions.https.onCall(async (data, co
         newUser = await admin.auth().createUser({ email: adminEmail, password: adminPassword, displayName: adminName });
         const batch = db.batch();
         const newCongregationRef = db.collection('congregations').doc();
-        batch.set(newCongregationRef, { name: congregationName, number: congregationNumber, territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0, peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() }, createdAt: admin.firestore.FieldValue.serverTimestamp(), lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
+        batch.set(newCongregationRef, { name: congregationName, number: congregationNumber, territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0, createdAt: admin.firestore.FieldValue.serverTimestamp(), lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
         const userDocRef = db.collection("users").doc(newUser.uid);
         batch.set(userDocRef, { name: adminName, email: adminEmail, congregationId: newCongregationRef.id, role: "Administrador", status: "ativo" });
         await batch.commit();
@@ -53,7 +68,7 @@ export const notifyAdminOfNewUser = functions.firestore.document("users/{userId}
     const payload = {
         notification: {
             title: "Novo Usuário Aguardando Aprovação!",
-            body: `O usuário "${newUser.name || newUser.displayName}" se cadastrou e precisa de sua aprovação.`,
+            body: `O usuário "${newUser.name}" se cadastrou e precisa de sua aprovação.`,
             icon: "/icon-192x192.png",
             click_action: "/dashboard/usuarios",
         },
@@ -150,17 +165,22 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
 
 
 // ============================================================================
-//   FUNÇÕES DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO
+//   FUNÇÕES DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO (ARQUITETURA CORRIGIDA)
 // ============================================================================
 
+// 1. Acionada quando uma CASA muda -> Atualiza a QUADRA pai.
 export const onHouseChange = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
   .onWrite(async (change, context) => {
     const { congregationId, territoryId, quadraId } = context.params;
     const quadraRef = db.doc(`congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
+    
+    // Recalcula as stats da quadra
     const casasSnapshot = await quadraRef.collection("casas").get();
     const totalHouses = casasSnapshot.size;
     const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
+    
+    // Atualiza a quadra. Esta escrita irá acionar a função onQuadraChange.
     return quadraRef.update({
         totalHouses: totalHouses,
         housesDone: housesDone,
@@ -168,19 +188,25 @@ export const onHouseChange = functions.firestore
     });
 });
 
+// 2. Acionada quando uma QUADRA muda -> Atualiza o TERRITÓRIO pai.
 export const onQuadraChange = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
   .onWrite(async (change, context) => {
     const { congregationId, territoryId } = context.params;
     const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
+    
     const quadrasSnapshot = await territoryRef.collection("quadras").get();
+    
     let totalHouses = 0;
     let housesDone = 0;
     quadrasSnapshot.forEach(doc => {
       totalHouses += doc.data().totalHouses || 0;
       housesDone += doc.data().housesDone || 0;
     });
+
     const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
+    
+    // Esta escrita irá acionar a função onTerritoryChange.
     return territoryRef.update({
         stats: { totalHouses, housesDone },
         progress: progress,
@@ -189,25 +215,26 @@ export const onQuadraChange = functions.firestore
     });
 });
 
+
+// 3. Acionada quando um TERRITÓRIO muda -> Atualiza a CONGREGAÇÃO pai e o HISTÓRICO.
 export const onTerritoryChange = functions.firestore
     .document("congregations/{congregationId}/territories/{territoryId}")
     .onWrite(async (change, context) => {
         const { congregationId } = context.params;
         const congregationRef = db.doc(`congregations/${congregationId}`);
-
+        const territoriesRef = congregationRef.collection("territories");
+        
+        // --- Lógica do Histórico (e "Recentemente Trabalhados") ---
         const beforeData = change.before.data();
         const afterData = change.after.data();
-        
-        const wasWorkedBefore = (beforeData?.stats?.housesDone || 0) > 0;
-        const isWorkedNow = (afterData?.stats?.housesDone || 0) > 0;
-        const workJustStarted = !wasWorkedBefore && isWorkedNow;
-        const workContinued = wasWorkedBefore && isWorkedNow && beforeData?.stats?.housesDone !== afterData?.stats?.housesDone;
 
-        if (workJustStarted || workContinued) {
+        // Se uma casa foi feita (progresso aumentou) e há casas trabalhadas
+        if (afterData?.stats?.housesDone > beforeData?.stats?.housesDone && afterData?.stats?.housesDone > 0) {
             const historyRef = change.after.ref.collection("activityHistory");
             const todayString = new Date().toLocaleDateString("en-CA", {timeZone: "America/Sao_Paulo"});
             const snapshot = await historyRef.orderBy("activityDate", "desc").limit(1).get();
-
+            
+            // Registra apenas se não houver registro para o dia de hoje.
             if (snapshot.empty || snapshot.docs[0].data().activityDate.toDate().toLocaleDateString("en-CA", {timeZone: "America/Sao_Paulo"}) !== todayString) {
                 await historyRef.add({
                   activityDate: admin.firestore.FieldValue.serverTimestamp(),
@@ -215,10 +242,10 @@ export const onTerritoryChange = functions.firestore
                   userName: "Sistema",
                 });
             }
-             await change.after.ref.update({ lastWorkedTimestamp: admin.firestore.FieldValue.serverTimestamp() });
         }
         
-        const territoriesSnapshot = await db.collection(`congregations/${congregationId}/territories`).get();
+        // --- Lógica das Estatísticas da Congregação ---
+        const territoriesSnapshot = await territoriesRef.get();
         let urbanCount = 0, ruralCount = 0, totalHouses = 0, totalHousesDone = 0, totalQuadras = 0;
         territoriesSnapshot.forEach(doc => {
             const data = doc.data();
@@ -238,6 +265,8 @@ export const onTerritoryChange = functions.firestore
             lastUpdate: admin.firestore.FieldValue.serverTimestamp()
         });
     });
+
+
 
 // ============================================================================
 //   FUNÇÕES DE PRESENÇA E PICO DE USUÁRIOS
@@ -328,7 +357,7 @@ export const generateUploadUrl = functions.region("southamerica-east1").https.on
     if (!context.auth) { throw new functions.https.HttpsError('unauthenticated', 'Ação não autorizada.'); }
     const filePath = data.filePath;
     if (!filePath || typeof filePath !== 'string') { throw new functions.https.HttpsError('invalid-argument', 'O nome do arquivo é necessário.'); }
-    const options: admin.storage.GetSignedUrlConfig = { version: 'v4', action: 'write', expires: Date.now() + 15 * 60 * 1000, contentType: data.contentType, };
+    const options: GetSignedUrlConfig = { version: 'v4', action: 'write', expires: Date.now() + 15 * 60 * 1000, contentType: data.contentType, };
     try {
         const [url] = await admin.storage().bucket().file(filePath).getSignedUrl(options);
         return { url };

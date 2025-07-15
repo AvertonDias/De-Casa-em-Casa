@@ -21,7 +21,6 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user?.status === 'ativo' && user.congregationId) {
       
-      // Listener 1: Ouve o documento da congregação para estatísticas GERAIS
       const congregationRef = doc(db, 'congregations', user.congregationId);
       const unsubscribeStats = onSnapshot(congregationRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -30,12 +29,13 @@ export default function DashboardPage() {
         setLoading(false);
       });
 
-      // Listener 2: Ouve os territórios para a lista de "recentemente trabalhados", filtrando rurais.
       const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
       const q = query(
         territoriesRef, 
         where("type", "in", ["urban", null, ""]), 
-        orderBy("lastWorkedTimestamp", "desc"), 
+        where("stats.housesDone", ">", 0), // Apenas territórios que já foram trabalhados
+        orderBy("stats.housesDone"),
+        orderBy("lastUpdate", "desc"), // Ordena pela data que a casa foi marcada
         limit(8)
       );
 
@@ -44,7 +44,6 @@ export default function DashboardPage() {
         setRecentTerritories(territoriesData);
       });
 
-      // Limpa os dois listeners quando o componente é desmontado
       return () => {
         unsubscribeStats();
         unsubscribeRecent();
@@ -75,7 +74,7 @@ export default function DashboardPage() {
           <ul className="space-y-4">
             {recentTerritories.map((territory) => {
               const progress = Math.round((territory.progress || 0) * 100);
-              const lastWorkedTimestamp = territory.lastWorkedTimestamp;
+              const lastWorkedTimestamp = territory.lastUpdate;
               return (
                 <li 
                   key={territory.id} 
