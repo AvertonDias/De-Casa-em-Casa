@@ -199,9 +199,10 @@ export const onHouseChange = functions.firestore
         if (lastHistorySnap.empty || lastHistorySnap.docs[0].data().activityDate.toDate().toLocaleDateString("en-CA", {timeZone: TIME_ZONE}) !== todayString) {
             return historyRef.add({
               activityDate: admin.firestore.FieldValue.serverTimestamp(),
-              notes: "Primeiro trabalho do dia registrado (Registro automático)",
-              userName: "Sistema",
-              userId: "system"
+              notes: "Primeiro trabalho do dia registrado. (Registro Automático)",
+              userName: "Sistema", // Autor é sempre o Sistema
+              userId: "system",    // ID do sistema
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });
         }
     }
