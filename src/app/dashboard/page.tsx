@@ -5,7 +5,7 @@ import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, limit, onSnapshot, doc } from 'firebase/firestore';
 import type { Territory, Congregation } from '@/types/types';
-import { Book, CheckSquare, Home as HomeIcon, MapPin, Loader } from 'lucide-react';
+import { Book, CheckSquare, Home as HomeIcon, Map, Loader } from 'lucide-react';
 import RecentTerritoryCard from '@/components/dashboard/RecentTerritoryCard'; 
 import { StatCard } from '@/components/StatCard';
 
@@ -64,7 +64,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard icon={MapPin} title="Territórios" value={congregation?.territoryCount || 0} loading={loading} />
+        <StatCard icon={Map} title="Territórios" value={congregation?.territoryCount || 0} loading={loading} />
         <StatCard icon={Book} title="Quadras" value={congregation?.totalQuadras || 0} loading={loading} />
         <StatCard icon={HomeIcon} title="Casas Mapeadas" value={congregation?.totalHouses || 0} loading={loading} />
         <StatCard icon={CheckSquare} title="Casas Visitadas" value={congregation?.totalHousesDone || 0} loading={loading} />
