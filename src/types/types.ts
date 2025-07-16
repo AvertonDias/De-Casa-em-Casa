@@ -32,15 +32,27 @@ export interface Territory {
 }
 
 export interface Congregation {
-  id: string;
-  name: string;
-  number: string;
-  peakOnlineUsers?: {
-    count: number;
-    timestamp: Timestamp;
-  };
-  // ... outros campos que você possa ter
+    id: string;
+    name: string;
+    number: string;
+    
+    // As estatísticas que estavam faltando
+    territoryCount?: number;
+    ruralTerritoryCount?: number;
+    totalQuadras?: number;
+    totalHouses?: number;
+    totalHousesDone?: number;
+    
+    // A estatística de pico que adicionamos
+    peakOnlineUsers?: {
+        count: number;
+        timestamp: Timestamp;
+    };
+
+    createdAt?: Timestamp;
+    lastUpdate?: Timestamp;
 }
+
 
 // Definição para uma Quadra
 export interface Quadra {
