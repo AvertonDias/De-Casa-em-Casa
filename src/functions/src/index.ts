@@ -1,7 +1,9 @@
+// functions/src/index.ts
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 
-// Importa o tipo da biblioteca correta para resolver o erro
+// A CORREÇÃO FINAL E ÚNICA ESTÁ AQUI
+// Importamos o tipo que estava faltando diretamente da biblioteca correta.
 import type { GetSignedUrlConfig } from "@google-cloud/storage";
 
 admin.initializeApp();
@@ -197,9 +199,9 @@ export const onHouseChange = functions.firestore
         if (lastHistorySnap.empty || lastHistorySnap.docs[0].data().activityDate.toDate().toLocaleDateString("en-CA", {timeZone: TIME_ZONE}) !== todayString) {
             return historyRef.add({
               activityDate: admin.firestore.FieldValue.serverTimestamp(),
-              notes: "Primeiro trabalho do dia registrado.",
-              userName: afterData.lastWorkedBy?.name || "Sistema", // Registra quem trabalhou
-              userId: afterData.lastWorkedBy?.uid || "system"
+              notes: "Primeiro trabalho do dia registrado (Registro automático)",
+              userName: "Sistema",
+              userId: "system"
             });
         }
     }
@@ -375,5 +377,3 @@ export const scheduledFirestoreExport = functions.pubsub.schedule("every day 03:
         throw new functions.https.HttpsError("internal", "A operação de exportação falhou.", error);
     }
 });
-
-    
