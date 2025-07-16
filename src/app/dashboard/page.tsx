@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, limit, onSnapshot, doc } from 'firebase/firestore';
@@ -33,7 +33,7 @@ export default function DashboardPage() {
       territoriesRef, 
       where("type", "in", ["urban", null, ""]),
       orderBy("lastUpdate", "desc"), 
-      limit(4)
+      limit(8) // Aumentado de 4 para 8
     );
     
     const unsubTerritories = onSnapshot(q, (snapshot) => {
