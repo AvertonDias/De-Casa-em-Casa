@@ -33,7 +33,7 @@ export default function DashboardPage() {
       territoriesRef, 
       where("type", "in", ["urban", null, ""]),
       orderBy("lastUpdate", "desc"), 
-      limit(8) // Aumentado de 4 para 8
+      limit(8)
     );
     
     const unsubTerritories = onSnapshot(q, (snapshot) => {
@@ -73,7 +73,7 @@ export default function DashboardPage() {
       <div>
         <h2 className="text-2xl font-bold mb-4">Territórios Recentemente Trabalhados</h2>
         {recentTerritories.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             {recentTerritories.map(territory => (
               <RecentTerritoryCard key={territory.id} territory={territory} />
             ))}
