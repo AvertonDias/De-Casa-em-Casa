@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.scheduledFirestoreExport = exports.onDeleteQuadra = exports.onDeleteTerritory = exports.handleUserPresence = exports.notifyAdminOfNewUser = exports.onTerritoryChange = exports.onQuadraChange = exports.onHouseChange = exports.generateUploadUrl = exports.resetPeakUsers = exports.resetTerritoryProgress = exports.deleteUserAccount = exports.createCongregationAndAdmin = void 0;
+// functions/src/index.ts
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 admin.initializeApp();
@@ -228,9 +229,10 @@ exports.onHouseChange = functions.firestore
         if (lastHistorySnap.empty || lastHistorySnap.docs[0].data().activityDate.toDate().toLocaleDateString("en-CA", { timeZone: TIME_ZONE }) !== todayString) {
             return historyRef.add({
                 activityDate: admin.firestore.FieldValue.serverTimestamp(),
-                notes: "Primeiro trabalho do dia registrado.",
-                userName: afterData.lastWorkedBy?.name || "Sistema", // Registra quem trabalhou
-                userId: afterData.lastWorkedBy?.uid || "system"
+                notes: "Primeiro trabalho do dia registrado. (Registro Automático)",
+                userName: "Sistema",
+                userId: "system",
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });
         }
     }
