@@ -378,3 +378,5 @@ export const scheduledFirestoreExport = functions.pubsub.schedule("every day 03:
         throw new functions.https.HttpsError("internal", "A operação de exportação falhou.", error);
     }
 });
+
+    
