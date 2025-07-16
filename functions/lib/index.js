@@ -33,14 +33,14 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateUploadUrl = exports.scheduledFirestoreExport = exports.onDeleteQuadra = exports.onDeleteTerritory = exports.handleUserPresence = exports.resetPeakUsers = exports.onTerritoryChange = exports.onQuadraChange = exports.onHouseChange = exports.resetTerritoryProgress = exports.deleteUserAccount = exports.notifyAdminOfNewUser = exports.createCongregationAndAdmin = void 0;
+exports.scheduledFirestoreExport = exports.onDeleteQuadra = exports.onDeleteTerritory = exports.handleUserPresence = exports.notifyAdminOfNewUser = exports.onTerritoryChange = exports.onQuadraChange = exports.onHouseChange = exports.generateUploadUrl = exports.resetPeakUsers = exports.resetTerritoryProgress = exports.deleteUserAccount = exports.createCongregationAndAdmin = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 admin.initializeApp();
 const db = admin.firestore();
-// ============================================================================
+// ========================================================================
 //   FUNÇÕES HTTPS (onCall)
-// ============================================================================
+// ========================================================================
 exports.createCongregationAndAdmin = functions.https.onCall(async (data, context) => {
     const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = data;
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
@@ -66,43 +66,6 @@ exports.createCongregationAndAdmin = functions.https.onCall(async (data, context
             throw new functions.https.HttpsError("already-exists", "Este e-mail já está em uso.");
         }
         throw new functions.https.HttpsError("internal", "Ocorreu um erro interno.");
-    }
-});
-exports.notifyAdminOfNewUser = functions.firestore.document("users/{userId}").onCreate(async (snapshot, context) => {
-    const newUser = snapshot.data();
-    if (!newUser || newUser.status !== "pendente" || !newUser.congregationId) {
-        return null;
-    }
-    const adminsSnapshot = await db.collection("users")
-        .where("congregationId", "==", newUser.congregationId)
-        .where("role", "==", "Administrador")
-        .get();
-    if (adminsSnapshot.empty)
-        return null;
-    const tokens = [];
-    adminsSnapshot.forEach(adminDoc => {
-        const adminData = adminDoc.data();
-        if (adminData.fcmTokens && Array.isArray(adminData.fcmTokens)) {
-            tokens.push(...adminData.fcmTokens);
-        }
-    });
-    if (tokens.length === 0)
-        return null;
-    const payload = {
-        notification: {
-            title: "Novo Usuário Aguardando Aprovação!",
-            body: `O usuário "${newUser.name}" se cadastrou e precisa de sua aprovação.`,
-            icon: "/icon-192x192.png",
-            click_action: "/dashboard/usuarios",
-        },
-    };
-    try {
-        await admin.messaging().sendToDevice(tokens, payload);
-        return { success: true };
-    }
-    catch (error) {
-        console.error("[notifyAdmin] FALHA CRÍTICA:", error);
-        return null;
     }
 });
 exports.deleteUserAccount = functions.https.onCall(async (data, context) => {
@@ -186,8 +149,55 @@ exports.resetTerritoryProgress = functions.https.onCall(async (data, context) =>
         throw new functions.https.HttpsError("internal", "Falha ao processar a limpeza.");
     }
 });
+exports.resetPeakUsers = functions.https.onCall(async (data, context) => {
+    const uid = context.auth?.uid;
+    if (!uid) {
+        throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
+    }
+    const adminUserSnap = await db.collection("users").doc(uid).get();
+    if (adminUserSnap.data()?.role !== "Administrador") {
+        throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
+    }
+    const { congregationId } = data;
+    if (!congregationId) {
+        throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário.");
+    }
+    try {
+        const congregationRef = db.doc(`congregations/${congregationId}`);
+        await congregationRef.update({ peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
+        return { success: true };
+    }
+    catch (error) {
+        console.error("Falha ao resetar o pico:", error);
+        throw new functions.https.HttpsError("internal", "Não foi possível resetar.");
+    }
+});
+exports.generateUploadUrl = functions.region("southamerica-east1").https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Ação não autorizada.');
+    }
+    const filePath = data.filePath;
+    if (!filePath || typeof filePath !== 'string') {
+        throw new functions.https.HttpsError('invalid-argument', 'O nome do arquivo é necessário.');
+    }
+    // A tipagem correta agora vem da importação no topo do arquivo.
+    const options = {
+        version: 'v4',
+        action: 'write',
+        expires: Date.now() + 15 * 60 * 1000,
+        contentType: data.contentType,
+    };
+    try {
+        const [url] = await admin.storage().bucket().file(filePath).getSignedUrl(options);
+        return { url };
+    }
+    catch (error) {
+        console.error("Erro ao gerar URL assinada:", error);
+        throw new functions.https.HttpsError('internal', 'Falha ao criar URL.');
+    }
+});
 // ========================================================================
-//   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO (VERSÃO CORRIGIDA)
+//   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO
 // ========================================================================
 // FUNÇÃO 1: Acionada quando uma CASA muda.
 exports.onHouseChange = functions.firestore
@@ -276,32 +286,47 @@ exports.onTerritoryChange = functions.firestore
     });
 });
 // ============================================================================
-//   FUNÇÕES DE PRESENÇA E PICO DE USUÁRIOS
+//   OUTROS GATILHOS (Notificação, Presença, Exclusão)
 // ============================================================================
-exports.resetPeakUsers = functions.https.onCall(async (data, context) => {
-    const uid = context.auth?.uid;
-    if (!uid) {
-        throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
+exports.notifyAdminOfNewUser = functions.firestore.document("users/{userId}").onCreate(async (snapshot, context) => {
+    const newUser = snapshot.data();
+    if (!newUser || newUser.status !== "pendente" || !newUser.congregationId) {
+        return null;
     }
-    const adminUserSnap = await db.collection("users").doc(uid).get();
-    if (adminUserSnap.data()?.role !== "Administrador") {
-        throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
-    }
-    const { congregationId } = data;
-    if (!congregationId) {
-        throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário.");
-    }
+    const adminsSnapshot = await db.collection("users")
+        .where("congregationId", "==", newUser.congregationId)
+        .where("role", "==", "Administrador")
+        .get();
+    if (adminsSnapshot.empty)
+        return null;
+    const tokens = [];
+    adminsSnapshot.forEach(adminDoc => {
+        const adminData = adminDoc.data();
+        if (adminData.fcmTokens && Array.isArray(adminData.fcmTokens)) {
+            tokens.push(...adminData.fcmTokens);
+        }
+    });
+    if (tokens.length === 0)
+        return null;
+    const payload = {
+        notification: {
+            title: "Novo Usuário Aguardando Aprovação!",
+            body: `O usuário "${newUser.name}" se cadastrou e precisa de sua aprovação.`,
+            icon: "/icon-192x192.png",
+            click_action: "/dashboard/usuarios",
+        },
+    };
     try {
-        const congregationRef = db.doc(`congregations/${congregationId}`);
-        await congregationRef.update({ peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
+        await admin.messaging().sendToDevice(tokens, payload);
         return { success: true };
     }
     catch (error) {
-        console.error("Falha ao resetar o pico:", error);
-        throw new functions.https.HttpsError("internal", "Não foi possível resetar.");
+        console.error("[notifyAdmin] FALHA CRÍTICA:", error);
+        return null;
     }
 });
-exports.handleUserPresence = functions.database.ref('/status/{uid}').onWrite(async (change, context) => {
+exports.handleUserPresence = functions.database.ref('/status/{uid}')
+    .onWrite(async (change, context) => {
     const eventStatus = change.after.val();
     const firestoreUserRef = db.doc(`users/${context.params.uid}`);
     const isOffline = !eventStatus || eventStatus.state === 'offline';
@@ -340,9 +365,6 @@ exports.handleUserPresence = functions.database.ref('/status/{uid}').onWrite(asy
         }
     });
 });
-// ============================================================================
-//   FUNÇÕES DE SISTEMA
-// ============================================================================
 exports.onDeleteTerritory = functions.firestore.document("congregations/{congregationId}/territories/{territoryId}").onDelete((snap) => {
     return admin.firestore().recursiveDelete(snap.ref);
 });
@@ -372,24 +394,6 @@ exports.scheduledFirestoreExport = functions.pubsub.schedule("every day 03:00").
     catch (error) {
         console.error("[Backup] FALHA CRÍTICA:", error);
         throw new functions.https.HttpsError("internal", "A operação de exportação falhou.", error);
-    }
-});
-exports.generateUploadUrl = functions.region("southamerica-east1").https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'Ação não autorizada.');
-    }
-    const filePath = data.filePath;
-    if (!filePath || typeof filePath !== 'string') {
-        throw new functions.https.HttpsError('invalid-argument', 'O nome do arquivo é necessário.');
-    }
-    const options = { version: 'v4', action: 'write', expires: Date.now() + 15 * 60 * 1000, contentType: data.contentType, };
-    try {
-        const [url] = await admin.storage().bucket().file(filePath).getSignedUrl(options);
-        return { url };
-    }
-    catch (error) {
-        console.error("Erro ao gerar a URL assinada:", error);
-        throw new functions.https.HttpsError('internal', 'Não foi possível criar a URL de upload.');
     }
 });
 //# sourceMappingURL=index.js.map

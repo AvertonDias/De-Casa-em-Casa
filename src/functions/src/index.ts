@@ -1,11 +1,14 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 
+// Importa o tipo da biblioteca correta para resolver o erro
+import type { GetSignedUrlConfig } from "@google-cloud/storage";
+
 admin.initializeApp();
 const db = admin.firestore();
 
 // ========================================================================
-//   FUNÇÕES HTTPS (onCall) e Lógica de Negócio
+//   FUNÇÕES HTTPS (onCall)
 // ========================================================================
 
 export const createCongregationAndAdmin = functions.https.onCall(async (data, context) => {
@@ -102,6 +105,7 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
         if (housesUpdatedCount > 0) {
             await batch.commit();
             const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
+            // Deleta a subcoleção de histórico de forma recursiva.
             await admin.firestore().recursiveDelete(db.collection(historyPath));
             return { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` };
         } else {
@@ -135,26 +139,34 @@ export const generateUploadUrl = functions.region("southamerica-east1").https.on
     if (!context.auth) { throw new functions.https.HttpsError('unauthenticated', 'Ação não autorizada.'); }
     const filePath = data.filePath;
     if (!filePath || typeof filePath !== 'string') { throw new functions.https.HttpsError('invalid-argument', 'O nome do arquivo é necessário.'); }
-
-    const options: admin.storage.GetSignedUrlConfig = {
-        version: 'v4', action: 'write', expires: Date.now() + 15 * 60 * 1000, contentType: data.contentType,
+    
+    // A tipagem correta agora vem da importação no topo do arquivo.
+    const options: GetSignedUrlConfig = {
+        version: 'v4',
+        action: 'write',
+        expires: Date.now() + 15 * 60 * 1000,
+        contentType: data.contentType,
     };
     try {
         const [url] = await admin.storage().bucket().file(filePath).getSignedUrl(options);
         return { url };
-    } catch (error) { 
-        console.error("Erro ao gerar URL assinada:", error); 
-        throw new functions.https.HttpsError('internal', 'Falha ao criar URL.'); 
+    } catch (error) {
+        console.error("Erro ao gerar URL assinada:", error);
+        throw new functions.https.HttpsError('internal', 'Falha ao criar URL.');
     }
 });
 
+
 // ========================================================================
-//   FUNÇÕES DE GATILHO (Firestore & RTDB)
+//   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO
 // ========================================================================
 
+// FUNÇÃO 1: Acionada quando uma CASA muda.
 export const onHouseChange = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
   .onWrite(async (change, context) => {
+    
+    // ATUALIZA AS ESTATÍSTICAS DA QUADRA
     const quadraRef = change.after.ref.parent.parent!;
     const casasSnapshot = await quadraRef.collection("casas").get();
     await quadraRef.update({
@@ -162,34 +174,41 @@ export const onHouseChange = functions.firestore
         housesDone: casasSnapshot.docs.filter(doc => doc.data().status === true).length
     });
 
+    // ▼▼▼ A LÓGICA DE HISTÓRICO COMEÇA AQUI ▼▼▼
     const beforeData = change.before.data();
     const afterData = change.after.data();
 
+    // Condição: Só continua se o status mudou de 'false' para 'true'.
     if (beforeData?.status === false && afterData?.status === true) {
         const { congregationId, territoryId } = context.params;
         const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
         const historyRef = territoryRef.collection("activityHistory");
 
+        // Atualiza a data do último trabalho (para a lista de "Recentemente Trabalhados")
         await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
 
+        // Adiciona ao histórico apenas uma vez por dia
         const TIME_ZONE = "America/Sao_Paulo";
         const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
         
         const lastHistorySnap = await historyRef.orderBy("activityDate", "desc").limit(1).get();
         
+        // Se não há histórico ou o último registro não é de hoje, cria um novo.
         if (lastHistorySnap.empty || lastHistorySnap.docs[0].data().activityDate.toDate().toLocaleDateString("en-CA", {timeZone: TIME_ZONE}) !== todayString) {
             return historyRef.add({
               activityDate: admin.firestore.FieldValue.serverTimestamp(),
               notes: "Primeiro trabalho do dia registrado.",
-              userName: afterData.lastWorkedBy?.name || "Sistema",
+              userName: afterData.lastWorkedBy?.name || "Sistema", // Registra quem trabalhou
               userId: afterData.lastWorkedBy?.uid || "system"
             });
         }
     }
     
-    return null;
+    return null; // Encerra a função se a condição não for atendida
 });
 
+
+// FUNÇÃO 2: Acionada quando uma QUADRA muda (para atualizar o território)
 export const onQuadraChange = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
   .onWrite(async (change, context) => {
@@ -207,6 +226,7 @@ export const onQuadraChange = functions.firestore
 
     const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
     
+    // Esta escrita irá acionar a onTerritoryChange
     return territoryRef.update({
         stats: { totalHouses, housesDone },
         progress,
@@ -214,6 +234,8 @@ export const onQuadraChange = functions.firestore
     });
 });
 
+
+// FUNÇÃO 3: Acionada quando um TERRITÓRIO muda (para atualizar a congregação)
 export const onTerritoryChange = functions.firestore
     .document("congregations/{congregationId}/territories/{territoryId}")
     .onWrite(async (change, context) => {
@@ -241,6 +263,11 @@ export const onTerritoryChange = functions.firestore
             lastUpdate: admin.firestore.FieldValue.serverTimestamp()
         });
     });
+
+
+// ============================================================================
+//   OUTROS GATILHOS (Notificação, Presença, Exclusão)
+// ============================================================================
 
 export const notifyAdminOfNewUser = functions.firestore.document("users/{userId}").onCreate(async (snapshot, context) => {
     const newUser = snapshot.data();
@@ -277,6 +304,47 @@ export const notifyAdminOfNewUser = functions.firestore.document("users/{userId}
     }
 });
 
+
+export const handleUserPresence = functions.database.ref('/status/{uid}')
+    .onWrite(async (change, context) => {
+    const eventStatus = change.after.val();
+    const firestoreUserRef = db.doc(`users/${context.params.uid}`);
+    const isOffline = !eventStatus || eventStatus.state === 'offline';
+    try {
+        await firestoreUserRef.update({
+            isOnline: !isOffline,
+            lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    } catch (error) {
+        if ((error as any).code !== 'not-found') { console.error(`Falha ao atualizar presença para usuário ${context.params.uid}:`, error); }
+    }
+    if (isOffline) return; 
+
+    const userDocSnap = await db.doc(`users/${context.params.uid}`).get();
+    if (!userDocSnap.exists) return;
+
+    const congregationId = userDocSnap.data()?.congregationId;
+    if (!congregationId) return;
+
+    const congregationRef = db.doc(`congregations/${congregationId}`);
+    const statusRef = change.after.ref.parent;
+    if (!statusRef) return;
+    
+    return db.runTransaction(async (transaction) => {
+        const congDoc = await transaction.get(congregationRef);
+        if (!congDoc.exists) return;
+
+        const onlineUsersSnapshot = await statusRef.orderByChild('state').equalTo('online').once('value');
+        const currentOnlineCount = onlineUsersSnapshot.numChildren();
+        const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
+        
+        if (currentOnlineCount > peakData.count) {
+            transaction.update(congregationRef, { peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
+        }
+    });
+});
+
+
 export const onDeleteTerritory = functions.firestore.document("congregations/{congregationId}/territories/{territoryId}").onDelete((snap) => {
     return admin.firestore().recursiveDelete(snap.ref);
 });
@@ -285,42 +353,6 @@ export const onDeleteQuadra = functions.firestore.document("congregations/{congr
     return admin.firestore().recursiveDelete(snap.ref);
 });
 
-export const handleUserPresence = functions.database.ref('/status/{uid}').onWrite(async (change, context) => {
-    const eventStatus = change.after.val();
-    const firestoreUserRef = db.doc(`users/${context.params.uid}`);
-    const isOffline = !eventStatus || eventStatus.state === 'offline';
-    try {
-        await firestoreUserRef.update({ isOnline: !isOffline, lastSeen: admin.firestore.FieldValue.serverTimestamp() });
-    } catch (error: any) { 
-        if (error.code !== 'not-found') console.error(error); 
-    }
-    if (isOffline) return;
-    const userDocSnap = await firestoreUserRef.get();
-    
-    if (!userDocSnap.exists) return; 
-
-    const congregationId = userDocSnap.data()?.congregationId;
-    if (!congregationId) return;
-    const congregationRef = db.doc(`congregations/${congregationId}`);
-    const statusRef = change.after.ref.parent; 
-
-    if (!statusRef) return;
-    
-    return db.runTransaction(async (transaction) => {
-        const congDoc = await transaction.get(congregationRef);
-        if (!congDoc.exists) return;
-        const onlineUsersSnapshot = await statusRef.orderByChild('state').equalTo('online').once('value');
-        const currentOnlineCount = onlineUsersSnapshot.numChildren();
-        const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
-        if (currentOnlineCount > peakData.count) {
-            transaction.update(congregationRef, { peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
-        }
-    });
-});
-
-// ========================================================================
-//   FUNÇÃO AGENDADA (Scheduler)
-// ========================================================================
 export const scheduledFirestoreExport = functions.pubsub.schedule("every day 03:00").timeZone("America/Sao_Paulo").onRun(async () => {
     const firestore = require("@google-cloud/firestore");
     const client = new firestore.v1.FirestoreAdminClient();
@@ -343,3 +375,5 @@ export const scheduledFirestoreExport = functions.pubsub.schedule("every day 03:
         throw new functions.https.HttpsError("internal", "A operação de exportação falhou.", error);
     }
 });
+
+    
