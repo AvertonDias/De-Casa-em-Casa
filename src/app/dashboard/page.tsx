@@ -1,109 +1,87 @@
-
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { doc, onSnapshot, collection, query, where, orderBy, limit } from 'firebase/firestore';
-import { Map, CheckSquare, Loader, LandPlot, HousePlus } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { collection, query, where, orderBy, limit, onSnapshot, doc } from 'firebase/firestore';
+import type { Territory, Congregation } from '@/types/types';
+import { Book, CheckSquare, Home as HomeIcon, MapPin, Loader } from 'lucide-react';
+import RecentTerritoryCard from '@/components/dashboard/RecentTerritoryCard'; 
 import { StatCard } from '@/components/StatCard';
-import type { CongregationStats, RecentTerritory } from '@/types/types';
 
 export default function DashboardPage() {
   const { user, loading: userLoading } = useUser();
-  const router = useRouter();
-
-  const [stats, setStats] = useState<CongregationStats>({});
-  const [recentTerritories, setRecentTerritories] = useState<RecentTerritory[]>([]);
+  const [congregation, setCongregation] = useState<Congregation | null>(null);
+  const [recentTerritories, setRecentTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user?.status === 'ativo' && user.congregationId) {
-      
-      const congregationRef = doc(db, 'congregations', user.congregationId);
-      const unsubscribeStats = onSnapshot(congregationRef, (docSnap) => {
-        if (docSnap.exists()) {
-          setStats(docSnap.data() as CongregationStats);
-        }
-        setLoading(false);
-      });
-
-      const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-      const q = query(
-        territoriesRef, 
-        where("type", "in", ["urban", null, ""]), 
-        where("stats.housesDone", ">", 0), // Apenas territórios que já foram trabalhados
-        orderBy("stats.housesDone"),
-        orderBy("lastUpdate", "desc"), // Ordena pela data que a casa foi marcada
-        limit(8)
-      );
-
-      const unsubscribeRecent = onSnapshot(q, (snapshot) => {
-        const territoriesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as RecentTerritory[];
-        setRecentTerritories(territoriesData);
-      });
-
-      return () => {
-        unsubscribeStats();
-        unsubscribeRecent();
-      };
-    } else if (!userLoading) {
-      setLoading(false);
+    if (!user?.congregationId) {
+      if (!userLoading) setLoading(false);
+      return;
     }
+
+    // Listener para as estatísticas gerais da congregação
+    const congRef = doc(db, 'congregations', user.congregationId);
+    const unsubCong = onSnapshot(congRef, (docSnap) => {
+      setCongregation(docSnap.exists() ? docSnap.data() as Congregation : null);
+    });
+
+    // Listener para os territórios recentemente trabalhados
+    const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
+    const q = query(
+      territoriesRef, 
+      where("type", "in", ["urban", null, ""]),
+      orderBy("lastUpdate", "desc"), 
+      limit(4)
+    );
+    
+    const unsubTerritories = onSnapshot(q, (snapshot) => {
+      const territoriesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
+      setRecentTerritories(territoriesData);
+      if (loading) setLoading(false);
+    });
+
+    return () => { 
+      unsubCong();
+      unsubTerritories();
+    };
   }, [user, userLoading]);
 
-  return (
-    <div>
-      <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Painel de Controle</h1>
-      <p className="text-gray-500 dark:text-gray-400 mb-8">
-        {user ? `Boas-vindas, ${user.name}!` : "Carregando informações do usuário..."}
-      </p>
+  if (userLoading || loading) {
+    return (
+        <div className="flex justify-center items-center h-full">
+            <Loader className="animate-spin text-primary" size={32}/>
+        </div>
+    );
+  }
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard icon={Map} title="Territórios" value={stats.territoryCount || 0} loading={loading} />
-        <StatCard icon={LandPlot} title="Quadras Registradas" value={stats.totalQuadras || 0} loading={loading} />
-        <StatCard icon={HousePlus} title="Casas Mapeadas" value={stats.totalHouses || 0} loading={loading} />
-        <StatCard icon={CheckSquare} title="Casas Visitadas" value={stats.totalHousesDone || 0} loading={loading} />
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold">Painel de Controle</h1>
+        <p className="text-muted-foreground">Boas-vindas, {user?.name || 'usuário'}!</p>
       </div>
 
-      <div className="bg-white dark:bg-[#2a2736] p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Territórios Recentemente Trabalhados</h2>
-        {loading ? ( <div className="text-center p-4"><Loader className="animate-spin mx-auto text-purple-500"/></div> ) 
-         : recentTerritories.length > 0 ? (
-          <ul className="space-y-4">
-            {recentTerritories.map((territory) => {
-              const progress = Math.round((territory.progress || 0) * 100);
-              const lastWorkedTimestamp = territory.lastUpdate;
-              return (
-                <li 
-                  key={territory.id} 
-                  className="group p-4 rounded-lg bg-gray-50 dark:bg-gray-900/40 hover:bg-gray-100 dark:hover:bg-gray-900/80 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
-                  onClick={() => router.push(`/dashboard/territorios/${territory.id}`)}
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-semibold text-gray-800 dark:text-white">{territory.number} - {territory.name}</h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Último trabalho: {lastWorkedTimestamp ? new Date(lastWorkedTimestamp.seconds * 1000).toLocaleDateString() : 'N/A'}
-                      </p>
-                    </div>
-                    <p className="font-bold text-lg text-blue-600 dark:text-blue-400">{progress}%</p>
-                  </div>
-                  <div className="mt-3">
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${progress}%` }}></div>
-                    </div>
-                  </div>
-                  <div className="text-right mt-2 text-sm font-semibold text-purple-600 dark:text-purple-400 group-hover:underline">
-                    Ver Território →
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard icon={MapPin} title="Territórios" value={congregation?.territoryCount || 0} loading={loading} />
+        <StatCard icon={Book} title="Quadras" value={congregation?.totalQuadras || 0} loading={loading} />
+        <StatCard icon={HomeIcon} title="Casas Mapeadas" value={congregation?.totalHouses || 0} loading={loading} />
+        <StatCard icon={CheckSquare} title="Casas Visitadas" value={congregation?.totalHousesDone || 0} loading={loading} />
+      </div>
+      
+      <div>
+        <h2 className="text-2xl font-bold mb-4">Territórios Recentemente Trabalhados</h2>
+        {recentTerritories.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {recentTerritories.map(territory => (
+              <RecentTerritoryCard key={territory.id} territory={territory} />
+            ))}
+          </div>
         ) : (
-          <p className="text-gray-500 dark:text-gray-400 text-center py-4">Nenhum território foi trabalhado ainda.</p>
+          <div className="text-center p-8 bg-card rounded-lg">
+            <p className="text-muted-foreground">Nenhum território foi trabalhado recentemente.</p>
+          </div>
         )}
       </div>
     </div>
