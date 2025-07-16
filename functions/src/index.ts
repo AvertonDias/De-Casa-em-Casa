@@ -1,29 +1,18 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 
+// Importa o tipo da biblioteca correta para resolver o erro
+import type { GetSignedUrlConfig } from "@google-cloud/storage";
+
 admin.initializeApp();
 const db = admin.firestore();
 
 // ========================================================================
-//   DEFINIÇÃO DE TIPOS
-// ========================================================================
-interface UserData {
-  uid: string; email: string; displayName: string; congregationId: string;
-  role: 'Administrador' | 'Dirigente' | 'Publicador' | 'pendente';
-  status: 'ativo' | 'inativo' | 'pendente'; fcmTokens?: string[];
-  isOnline?: boolean; lastSeen?: admin.firestore.Timestamp;
-}
-interface CreateCongregationData {
-  adminName: string; adminEmail: string; adminPassword: string;
-  congregationName: string; congregationNumber: string;
-}
-
-// ============================================================================
 //   FUNÇÕES HTTPS (onCall)
-// ============================================================================
+// ========================================================================
 
 export const createCongregationAndAdmin = functions.https.onCall(async (data, context) => {
-    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = data as CreateCongregationData;
+    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = data;
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
         throw new functions.https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
     }
@@ -42,41 +31,6 @@ export const createCongregationAndAdmin = functions.https.onCall(async (data, co
         console.error("Erro ao criar congregação e admin:", error);
         if (error.code === 'auth/email-already-exists') { throw new functions.https.HttpsError("already-exists", "Este e-mail já está em uso."); }
         throw new functions.https.HttpsError("internal", "Ocorreu um erro interno.");
-    }
-});
-
-export const notifyAdminOfNewUser = functions.firestore.document("users/{userId}").onCreate(async (snapshot, context) => {
-    const newUser = snapshot.data();
-    if (!newUser || newUser.status !== "pendente" || !newUser.congregationId) {
-        return null;
-    }
-    const adminsSnapshot = await db.collection("users")
-        .where("congregationId", "==", newUser.congregationId)
-        .where("role", "==", "Administrador")
-        .get();
-    if (adminsSnapshot.empty) return null;
-    const tokens: string[] = [];
-    adminsSnapshot.forEach(adminDoc => {
-        const adminData = adminDoc.data();
-        if (adminData.fcmTokens && Array.isArray(adminData.fcmTokens)) {
-            tokens.push(...adminData.fcmTokens);
-        }
-    });
-    if (tokens.length === 0) return null;
-    const payload = {
-        notification: {
-            title: "Novo Usuário Aguardando Aprovação!",
-            body: `O usuário "${newUser.name}" se cadastrou e precisa de sua aprovação.`,
-            icon: "/icon-192x192.png",
-            click_action: "/dashboard/usuarios",
-        },
-    };
-    try {
-        await admin.messaging().sendToDevice(tokens, payload);
-        return { success: true };
-    } catch (error) {
-        console.error("[notifyAdmin] FALHA CRÍTICA:", error);
-        return null;
     }
 });
 
@@ -164,9 +118,47 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
     }
 });
 
+export const resetPeakUsers = functions.https.onCall(async (data, context) => {
+    const uid = context.auth?.uid;
+    if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
+    const adminUserSnap = await db.collection("users").doc(uid).get();
+    if (adminUserSnap.data()?.role !== "Administrador") { throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores."); }
+    const { congregationId } = data;
+    if (!congregationId) { throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário."); }
+    try {
+        const congregationRef = db.doc(`congregations/${congregationId}`);
+        await congregationRef.update({ peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
+        return { success: true };
+    } catch (error) {
+        console.error("Falha ao resetar o pico:", error);
+        throw new functions.https.HttpsError("internal", "Não foi possível resetar.");
+    }
+});
+
+export const generateUploadUrl = functions.region("southamerica-east1").https.onCall(async (data, context) => {
+    if (!context.auth) { throw new functions.https.HttpsError('unauthenticated', 'Ação não autorizada.'); }
+    const filePath = data.filePath;
+    if (!filePath || typeof filePath !== 'string') { throw new functions.https.HttpsError('invalid-argument', 'O nome do arquivo é necessário.'); }
+    
+    // A tipagem correta agora vem da importação no topo do arquivo.
+    const options: GetSignedUrlConfig = {
+        version: 'v4',
+        action: 'write',
+        expires: Date.now() + 15 * 60 * 1000,
+        contentType: data.contentType,
+    };
+    try {
+        const [url] = await admin.storage().bucket().file(filePath).getSignedUrl(options);
+        return { url };
+    } catch (error) {
+        console.error("Erro ao gerar URL assinada:", error);
+        throw new functions.https.HttpsError('internal', 'Falha ao criar URL.');
+    }
+});
+
 
 // ========================================================================
-//   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO (VERSÃO CORRIGIDA)
+//   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO
 // ========================================================================
 
 // FUNÇÃO 1: Acionada quando uma CASA muda.
@@ -274,26 +266,47 @@ export const onTerritoryChange = functions.firestore
 
 
 // ============================================================================
-//   FUNÇÕES DE PRESENÇA E PICO DE USUÁRIOS
+//   OUTROS GATILHOS (Notificação, Presença, Exclusão)
 // ============================================================================
-export const resetPeakUsers = functions.https.onCall(async (data, context) => {
-    const uid = context.auth?.uid;
-    if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
-    const adminUserSnap = await db.collection("users").doc(uid).get();
-    if (adminUserSnap.data()?.role !== "Administrador") { throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores."); }
-    const { congregationId } = data;
-    if (!congregationId) { throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário."); }
+
+export const notifyAdminOfNewUser = functions.firestore.document("users/{userId}").onCreate(async (snapshot, context) => {
+    const newUser = snapshot.data();
+    if (!newUser || newUser.status !== "pendente" || !newUser.congregationId) {
+        return null;
+    }
+    const adminsSnapshot = await db.collection("users")
+        .where("congregationId", "==", newUser.congregationId)
+        .where("role", "==", "Administrador")
+        .get();
+    if (adminsSnapshot.empty) return null;
+    const tokens: string[] = [];
+    adminsSnapshot.forEach(adminDoc => {
+        const adminData = adminDoc.data();
+        if (adminData.fcmTokens && Array.isArray(adminData.fcmTokens)) {
+            tokens.push(...adminData.fcmTokens);
+        }
+    });
+    if (tokens.length === 0) return null;
+    const payload = {
+        notification: {
+            title: "Novo Usuário Aguardando Aprovação!",
+            body: `O usuário "${newUser.name}" se cadastrou e precisa de sua aprovação.`,
+            icon: "/icon-192x192.png",
+            click_action: "/dashboard/usuarios",
+        },
+    };
     try {
-        const congregationRef = db.doc(`congregations/${congregationId}`);
-        await congregationRef.update({ peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
+        await admin.messaging().sendToDevice(tokens, payload);
         return { success: true };
     } catch (error) {
-        console.error("Falha ao resetar o pico:", error);
-        throw new functions.https.HttpsError("internal", "Não foi possível resetar.");
+        console.error("[notifyAdmin] FALHA CRÍTICA:", error);
+        return null;
     }
 });
 
-export const handleUserPresence = functions.database.ref('/status/{uid}').onWrite(async (change, context) => {
+
+export const handleUserPresence = functions.database.ref('/status/{uid}')
+    .onWrite(async (change, context) => {
     const eventStatus = change.after.val();
     const firestoreUserRef = db.doc(`users/${context.params.uid}`);
     const isOffline = !eventStatus || eventStatus.state === 'offline';
@@ -302,34 +315,36 @@ export const handleUserPresence = functions.database.ref('/status/{uid}').onWrit
             isOnline: !isOffline,
             lastSeen: admin.firestore.FieldValue.serverTimestamp(),
         });
-    } catch (error: any) {
-        if (error.code !== 'not-found') { console.error(`Falha ao atualizar presença para usuário ${context.params.uid}:`, error); }
+    } catch (error) {
+        if ((error as any).code !== 'not-found') { console.error(`Falha ao atualizar presença para usuário ${context.params.uid}:`, error); }
     }
-    if (isOffline) return;
+    if (isOffline) return; 
+
     const userDocSnap = await db.doc(`users/${context.params.uid}`).get();
     if (!userDocSnap.exists) return;
+
     const congregationId = userDocSnap.data()?.congregationId;
     if (!congregationId) return;
+
     const congregationRef = db.doc(`congregations/${congregationId}`);
     const statusRef = change.after.ref.parent;
-
     if (!statusRef) return;
-
+    
     return db.runTransaction(async (transaction) => {
         const congDoc = await transaction.get(congregationRef);
         if (!congDoc.exists) return;
+
         const onlineUsersSnapshot = await statusRef.orderByChild('state').equalTo('online').once('value');
         const currentOnlineCount = onlineUsersSnapshot.numChildren();
         const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
+        
         if (currentOnlineCount > peakData.count) {
             transaction.update(congregationRef, { peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
         }
     });
 });
 
-// ============================================================================
-//   FUNÇÕES DE SISTEMA
-// ============================================================================
+
 export const onDeleteTerritory = functions.firestore.document("congregations/{congregationId}/territories/{territoryId}").onDelete((snap) => {
     return admin.firestore().recursiveDelete(snap.ref);
 });
@@ -358,19 +373,5 @@ export const scheduledFirestoreExport = functions.pubsub.schedule("every day 03:
     } catch (error) {
         console.error("[Backup] FALHA CRÍTICA:", error);
         throw new functions.https.HttpsError("internal", "A operação de exportação falhou.", error);
-    }
-});
-
-export const generateUploadUrl = functions.region("southamerica-east1").https.onCall(async (data, context) => {
-    if (!context.auth) { throw new functions.https.HttpsError('unauthenticated', 'Ação não autorizada.'); }
-    const filePath = data.filePath;
-    if (!filePath || typeof filePath !== 'string') { throw new functions.https.HttpsError('invalid-argument', 'O nome do arquivo é necessário.'); }
-    const options: admin.storage.GetSignedUrlConfig = { version: 'v4', action: 'write', expires: Date.now() + 15 * 60 * 1000, contentType: data.contentType, };
-    try {
-        const [url] = await admin.storage().bucket().file(filePath).getSignedUrl(options);
-        return { url };
-    } catch (error) {
-        console.error("Erro ao gerar a URL assinada:", error);
-        throw new functions.https.HttpsError('internal', 'Não foi possível criar a URL de upload.');
     }
 });

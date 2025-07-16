@@ -319,13 +319,15 @@ exports.handleUserPresence = functions.database.ref('/status/{uid}').onWrite(asy
     if (isOffline)
         return;
     const userDocSnap = await db.doc(`users/${context.params.uid}`).get();
-    if (!userDocSnap.exists())
+    if (!userDocSnap.exists)
         return;
     const congregationId = userDocSnap.data()?.congregationId;
     if (!congregationId)
         return;
     const congregationRef = db.doc(`congregations/${congregationId}`);
     const statusRef = change.after.ref.parent;
+    if (!statusRef)
+        return;
     return db.runTransaction(async (transaction) => {
         const congDoc = await transaction.get(congregationRef);
         if (!congDoc.exists)
