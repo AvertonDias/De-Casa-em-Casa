@@ -13,10 +13,9 @@ interface RecentTerritoryCardProps {
 export default function RecentTerritoryCard({ territory }: RecentTerritoryCardProps) {
   const progresso = territory.progress ? Math.round(territory.progress * 100) : 0;
   
-  // ▼▼▼ MUDANÇA: O texto da data agora é mais simples ▼▼▼
   const lastUpdateFormatted = territory.lastUpdate 
-    ? format(territory.lastUpdate.toDate(), "dd/MM/yyyy")
-    : 'Nunca';
+    ? format(territory.lastUpdate.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+    : 'Nunca trabalhado';
 
   return (
     // O card inteiro agora é um link clicável
