@@ -1,6 +1,5 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import { GetSignedUrlConfig } from "firebase-admin/storage";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -308,11 +307,14 @@ export const handleUserPresence = functions.database.ref('/status/{uid}').onWrit
     }
     if (isOffline) return;
     const userDocSnap = await db.doc(`users/${context.params.uid}`).get();
-    if (!userDocSnap.exists()) return;
+    if (!userDocSnap.exists) return;
     const congregationId = userDocSnap.data()?.congregationId;
     if (!congregationId) return;
     const congregationRef = db.doc(`congregations/${congregationId}`);
     const statusRef = change.after.ref.parent;
+
+    if (!statusRef) return;
+
     return db.runTransaction(async (transaction) => {
         const congDoc = await transaction.get(congregationRef);
         if (!congDoc.exists) return;
@@ -363,7 +365,7 @@ export const generateUploadUrl = functions.region("southamerica-east1").https.on
     if (!context.auth) { throw new functions.https.HttpsError('unauthenticated', 'Ação não autorizada.'); }
     const filePath = data.filePath;
     if (!filePath || typeof filePath !== 'string') { throw new functions.https.HttpsError('invalid-argument', 'O nome do arquivo é necessário.'); }
-    const options: GetSignedUrlConfig = { version: 'v4', action: 'write', expires: Date.now() + 15 * 60 * 1000, contentType: data.contentType, };
+    const options: admin.storage.GetSignedUrlConfig = { version: 'v4', action: 'write', expires: Date.now() + 15 * 60 * 1000, contentType: data.contentType, };
     try {
         const [url] = await admin.storage().bucket().file(filePath).getSignedUrl(options);
         return { url };
