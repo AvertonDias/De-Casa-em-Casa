@@ -1,7 +1,9 @@
+// functions/src/index.ts
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 
-// Importa o tipo da biblioteca correta para resolver o erro
+// A CORREÇÃO FINAL E ÚNICA ESTÁ AQUI
+// Importamos o tipo que estava faltando diretamente da biblioteca correta.
 import type { GetSignedUrlConfig } from "@google-cloud/storage";
 
 admin.initializeApp();
