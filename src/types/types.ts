@@ -20,15 +20,23 @@ export interface Territory {
   id: string;
   number: string;
   name: string;
+  type: 'urban' | 'rural'; 
+  
   description?: string;
   mapLink?: string;
   cardUrl?: string;
+  progress?: number;
+  lastUpdate?: Timestamp;
+  quadraCount?: number;
+
+  stats?: {
+    totalHouses: number;
+    housesDone: number;
+  };
+
+  // Mantemos estes para compatibilidade ou uso direto, se necessário
   totalHouses?: number;
   housesDone?: number;
-  progress?: number;
-  type: 'urban' | 'rural' | null;
-  lastUpdate?: any; // Firestore Timestamp
-  lastWorkedTimestamp?: any; // Firestore Timestamp
 }
 
 export interface Congregation {
@@ -107,6 +115,3 @@ export interface RuralTerritory {
   description?: string;
   mapLink?: string;
 }
-
-
-    
