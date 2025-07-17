@@ -1,0 +1,134 @@
+// src/app/dashboard/rural/[territoryId]/page.tsx
+"use client";
+
+import { useState, useEffect, useContext } from 'react';
+import { doc, onSnapshot, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { UserContext } from '@/contexts/UserContext';
+import { RuralTerritory, RuralWorkLog } from '@/types/types';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
+import { ArrowLeft, Calendar, Link as LinkIcon, Loader, Edit } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
+
+export default function RuralTerritoryDetailPage() {
+  const { user } = useContext(UserContext);
+  const params = useParams<{ territoryId: string }>();
+  const [territory, setTerritory] = useState<RuralTerritory | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  const [workNote, setWorkNote] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user?.congregationId || !params.territoryId) {
+        if (user) setLoading(false);
+        return;
+    }
+    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', params.territoryId);
+    const unsubscribe = onSnapshot(territoryRef, (docSnap) => {
+      if (docSnap.exists() && docSnap.data().type === 'rural') {
+        setTerritory({ id: docSnap.id, ...docSnap.data() } as RuralTerritory);
+      } else {
+        setTerritory(null);
+      }
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, [user, params.territoryId]);
+
+  const handleAddWorkLog = async () => {
+    if (!workNote.trim() || !user || !territory) return;
+    setIsSaving(true);
+    const newLog: RuralWorkLog = {
+      id: crypto.randomUUID(),
+      date: Timestamp.now(),
+      notes: workNote.trim(),
+      userName: user.name,
+    };
+    const territoryRef = doc(db, 'congregations', user.congregationId!, 'territories', territory.id);
+    try {
+      await updateDoc(territoryRef, {
+        workLogs: arrayUnion(newLog)
+      });
+      setWorkNote('');
+    } catch (error) {
+      console.error("Erro ao adicionar registro de trabalho:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const sortedWorkLogs = territory?.workLogs?.sort((a, b) => b.date.seconds - a.date.seconds) || [];
+
+  if (loading) return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" size={32} /></div>;
+  if (!territory) return <p className="text-center mt-10">Território não encontrado ou não é um território rural.</p>;
+
+  return (
+    <div className="p-4 md:p-8 space-y-8">
+      <div>
+        <Link href="/dashboard/rural" className="flex items-center text-sm text-muted-foreground hover:text-white mb-2">
+          <ArrowLeft size={16} className="mr-2" /> Voltar para Territórios Rurais
+        </Link>
+        <div className="flex justify-between items-start">
+            <div>
+                <h1 className="text-3xl font-bold">{territory.number} - {territory.name}</h1>
+                <p className="text-lg text-muted-foreground mt-1">{territory.description}</p>
+            </div>
+            {user?.role === 'Administrador' && user.congregationId && (
+                <EditRuralTerritoryModal territory={territory} congregationId={user.congregationId} onTerritoryUpdated={() => {}}/>
+            )}
+        </div>
+      </div>
+
+      <div className="bg-card p-6 rounded-lg">
+        <h2 className="font-semibold text-xl mb-4 flex items-center"><Calendar size={20} className="mr-3 text-primary" />Registrar Trabalho</h2>
+        <textarea 
+          value={workNote}
+          onChange={(e) => setWorkNote(e.target.value)}
+          placeholder="Digite uma observação sobre o trabalho de hoje... (Ex: Visitamos o setor leste, muitos não estavam em casa.)"
+          rows={3}
+          className="w-full bg-input p-2 rounded-md mb-3"
+        />
+        <button onClick={handleAddWorkLog} disabled={isSaving || !workNote.trim()} className="bg-primary text-primary-foreground px-4 py-2 rounded-md w-full disabled:opacity-50">
+          {isSaving ? "Salvando..." : "Salvar Registro de Hoje"}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-card p-6 rounded-lg">
+            <h2 className="font-semibold text-xl mb-4 flex items-center"><LinkIcon size={20} className="mr-3 text-primary" />Links Específicos</h2>
+            <div className="space-y-3">
+            {territory.links && territory.links.length > 0 ? (
+                territory.links.map(link => (
+                <a href={link.url} key={link.id} target="_blank" rel="noopener noreferrer" className="block text-blue-400 hover:underline">
+                    {link.description}
+                </a>
+                ))
+            ) : (
+                <p className="text-muted-foreground italic text-sm">Nenhum link específico para este território.</p>
+            )}
+            </div>
+        </div>
+        <div className="bg-card p-6 rounded-lg">
+          <h2 className="font-semibold text-xl mb-4">Histórico de Trabalho</h2>
+          <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+            {sortedWorkLogs.length > 0 ? (
+                sortedWorkLogs.map(log => (
+                    <div key={log.id} className="border-l-2 border-primary/50 pl-4">
+                        <p className="font-semibold text-sm">{format(log.date.toDate(), "dd 'de' MMMM, yyyy", { locale: ptBR })}</p>
+                        <p className="text-muted-foreground text-sm my-1">"{log.notes}"</p>
+                        <p className="text-xs text-muted-foreground/80">por: {log.userName}</p>
+                    </div>
+                ))
+            ) : (
+              <p className="text-muted-foreground italic text-sm">Nenhum registro de trabalho encontrado.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

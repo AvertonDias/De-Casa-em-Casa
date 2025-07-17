@@ -39,23 +39,29 @@ export interface Territory {
   housesDone?: number;
 }
 
+export interface RuralLink {
+  id: string; 
+  url: string;
+  description: string;
+}
+
 export interface Congregation {
     id: string;
     name: string;
     number: string;
     
-    // As estatísticas que estavam faltando
     territoryCount?: number;
     ruralTerritoryCount?: number;
     totalQuadras?: number;
     totalHouses?: number;
     totalHousesDone?: number;
     
-    // A estatística de pico que adicionamos
     peakOnlineUsers?: {
         count: number;
         timestamp: Timestamp;
     };
+
+    globalRuralLinks?: RuralLink[];
 
     createdAt?: Timestamp;
     lastUpdate?: Timestamp;
@@ -108,10 +114,20 @@ export interface RecentTerritory {
   lastWorkedTimestamp?: { seconds: number };
 }
 
+export interface RuralWorkLog {
+  id: string;
+  date: Timestamp;
+  notes: string;
+  userName: string;
+}
+
 export interface RuralTerritory {
   id: string;
   number: string;
   name: string;
   description?: string;
   mapLink?: string;
+  links?: RuralLink[];
+  workLogs?: RuralWorkLog[];
+  type: 'rural'; 
 }
