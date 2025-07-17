@@ -3,41 +3,10 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import type { GetSignedUrlConfig } from "@google-cloud/storage";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const cors = require('cors')({origin: true}); // Importa e configura o cors
+const cors = require('cors')({origin: true}); 
 
 admin.initializeApp();
 const db = admin.firestore();
-
-// ========================================================================
-//   FUNÇÃO HTTP PARA PRESENÇA (BEACON)
-// ========================================================================
-export const setUserOffline = functions.region("southamerica-east1").https.onRequest(async (req, res) => {
-    cors(req, res, async () => {
-        if (req.method !== 'POST') {
-            res.status(405).send('Method Not Allowed');
-            return;
-        }
-
-        const { uid } = req.body;
-        if (!uid) {
-            res.status(400).send('UID do usuário não fornecido.');
-            return;
-        }
-
-        try {
-            const userRef = db.doc(`users/${uid}`);
-            await userRef.update({
-                isOnline: false,
-                lastSeen: admin.firestore.FieldValue.serverTimestamp()
-            });
-            res.status(200).send({success: true, message: 'Status atualizado para offline.'});
-        } catch (error) {
-            console.error(`[setUserOffline] Falha ao marcar ${uid} como offline:`, error);
-            res.status(500).send('Erro interno do servidor.');
-        }
-    });
-});
-
 
 // ========================================================================
 //   FUNÇÕES HTTPS (onCall e onRequest)
@@ -149,52 +118,30 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
     }
 });
 
-export const resetPeakUsers = functions.https.onRequest((req, res) => {
-  // Envolve a função com o middleware do cors
-  cors(req, res, async () => {
-    // 1. Valida o método da requisição
-    if (req.method !== 'POST') {
-      res.status(405).send('Método não permitido');
-      return;
+export const resetPeakUsers = functions.https.onCall(async (data, context) => {
+    const uid = context.auth?.uid;
+    if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
+    
+    const adminUserSnap = await db.collection("users").doc(uid).get();
+    if (adminUserSnap.data()?.role !== "Administrador") {
+        throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
+    }
+    
+    const { congregationId } = data;
+    if (!congregationId) {
+        throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário.");
     }
 
     try {
-      // 2. Valida a autenticação do usuário pelo token
-      const idToken = req.headers.authorization?.split('Bearer ')[1];
-      if (!idToken) {
-        res.status(401).send('Não autenticado');
-        return;
-      }
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const uid = decodedToken.uid;
-      
-      // 3. Verifica se o usuário é Admin
-      const adminUserSnap = await db.collection("users").doc(uid).get();
-      if (adminUserSnap.data()?.role !== "Administrador") {
-        res.status(403).send('Permissão negada');
-        return;
-      }
-      
-      // 4. Valida os dados recebidos
-      const { congregationId } = req.body;
-      if (!congregationId) {
-        res.status(400).send('ID da congregação é necessário.');
-        return;
-      }
-
-      // 5. Executa a lógica
-      const congregationRef = db.doc(`congregations/${congregationId}`);
-      await congregationRef.update({
-          peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() }
-      });
-      
-      res.status(200).send({ success: true, message: "Pico de usuários resetado." });
-
+        const congregationRef = db.doc(`congregations/${congregationId}`);
+        await congregationRef.update({
+            peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() }
+        });
+        return { success: true, message: "Pico de usuários resetado." };
     } catch (error) {
-      console.error("Falha ao resetar o pico de usuários:", error);
-      res.status(500).send({ success: false, error: 'Erro interno do servidor.' });
+        console.error("Falha ao resetar o pico de usuários:", error);
+        throw new functions.https.HttpsError("internal", "Não foi possível resetar a estatística.");
     }
-  });
 });
 
 
@@ -316,6 +263,56 @@ export const onTerritoryChange = functions.firestore
             lastUpdate: admin.firestore.FieldValue.serverTimestamp()
         });
     });
+
+
+// ============================================================================
+//   SISTEMA DE PRESENÇA (NOVA VERSÃO)
+// ============================================================================
+export const onUserOnline = functions.database.ref('/status/{uid}')
+  .onCreate(async (snapshot, context) => {
+    const uid = context.params.uid;
+    const firestoreUserRef = db.doc(`users/${uid}`);
+
+    try {
+      await firestoreUserRef.update({ isOnline: true });
+    } catch (error) {
+      if ((error as any).code !== 'not-found') console.error(`[Presence] Falha ao marcar ONLINE para ${uid}:`, error);
+    }
+
+    const userDocSnap = await firestoreUserRef.get();
+    if (!userDocSnap.exists()) return;
+    const congregationId = userDocSnap.data()?.congregationId;
+    if (!congregationId) return;
+
+    const congregationRef = db.doc(`congregations/${congregationId}`);
+    const statusRef = snapshot.ref.parent; 
+
+    return db.runTransaction(async (transaction) => {
+        const congDoc = await transaction.get(congregationRef);
+        if (!congDoc.exists) return;
+        const onlineUsersSnapshot = await statusRef.orderByChild('state').equalTo('online').once('value');
+        const currentOnlineCount = onlineUsersSnapshot.numChildren();
+        const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
+        if (currentOnlineCount > peakData.count) {
+            transaction.update(congregationRef, { peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
+        }
+    });
+  });
+
+export const onUserOffline = functions.database.ref('/status/{uid}')
+  .onDelete(async (snapshot, context) => {
+    const uid = context.params.uid;
+    const firestoreUserRef = db.doc(`users/${uid}`);
+
+    try {
+      await firestoreUserRef.update({
+        isOnline: false,
+        lastSeen: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (error) {
+      if ((error as any).code !== 'not-found') console.error(`[Presence] Falha ao marcar OFFLINE para ${uid}:`, error);
+    }
+  });
 
 
 // ============================================================================
