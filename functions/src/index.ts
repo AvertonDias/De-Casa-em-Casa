@@ -158,19 +158,37 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
 });
 
 export const resetPeakUsers = functions.https.onCall(async (data, context) => {
+    // 1. Verifica se quem está chamando está autenticado
     const uid = context.auth?.uid;
-    if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
-    const adminUserSnap = await db.collection("users").doc(uid).get();
-    if (adminUserSnap.data()?.role !== "Administrador") { throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores."); }
+    if (!uid) {
+        throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
+    }
+
+    // 2. Valida o input
     const { congregationId } = data;
-    if (!congregationId) { throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário."); }
+    if (!congregationId) {
+        throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário.");
+    }
+
+    // 3. Verifica se o usuário é um Administrador
+    const adminUserSnap = await db.collection("users").doc(uid).get();
+    if (adminUserSnap.data()?.role !== "Administrador") {
+        throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
+    }
+    
+    // 4. Executa a atualização
     try {
         const congregationRef = db.doc(`congregations/${congregationId}`);
-        await congregationRef.update({ peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
-        return { success: true };
+        await congregationRef.update({
+            peakOnlineUsers: {
+                count: 0,
+                timestamp: admin.firestore.FieldValue.serverTimestamp()
+            }
+        });
+        return { success: true, message: "Pico de usuários resetado." };
     } catch (error) {
-        console.error("Falha ao resetar o pico:", error);
-        throw new functions.https.HttpsError("internal", "Não foi possível resetar.");
+        console.error("Falha ao resetar o pico de usuários:", error);
+        throw new functions.https.HttpsError("internal", "Não foi possível resetar a estatística.");
     }
 });
 
