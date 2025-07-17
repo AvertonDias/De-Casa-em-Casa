@@ -10,6 +10,43 @@ admin.initializeApp();
 const db = admin.firestore();
 
 // ========================================================================
+//   FUNÇÃO HTTP PARA PRESENÇA (BEACON)
+// ========================================================================
+export const setUserOffline = functions.region("southamerica-east1").https.onRequest(async (req, res) => {
+    // Usamos 'cors' para permitir que o navegador envie a requisição
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const cors = require('cors')({origin: true});
+    
+    cors(req, res, async () => {
+        // A função espera receber o UID do usuário no corpo da requisição
+        const { uid } = req.body;
+
+        if (req.method !== 'POST') {
+            res.status(405).send('Method Not Allowed');
+            return;
+        }
+
+        if (!uid) {
+            res.status(400).send('UID do usuário não fornecido.');
+            return;
+        }
+
+        try {
+            const userRef = db.doc(`users/${uid}`);
+            await userRef.update({
+                isOnline: false,
+                lastSeen: admin.firestore.FieldValue.serverTimestamp()
+            });
+            res.status(200).send({success: true, message: 'Status atualizado para offline.'});
+        } catch (error) {
+            console.error(`[setUserOffline] Falha ao marcar ${uid} como offline:`, error);
+            res.status(500).send('Erro interno do servidor.');
+        }
+    });
+});
+
+
+// ========================================================================
 //   FUNÇÕES HTTPS (onCall)
 // ========================================================================
 
@@ -307,46 +344,8 @@ export const notifyAdminOfNewUser = functions.firestore.document("users/{userId}
     }
 });
 
-
-export const handleUserPresence = functions.database.ref('/status/{uid}')
-    .onWrite(async (change, context) => {
-    const eventStatus = change.after.val();
-    const firestoreUserRef = db.doc(`users/${context.params.uid}`);
-    const isOffline = !eventStatus || eventStatus.state === 'offline';
-    try {
-        await firestoreUserRef.update({
-            isOnline: !isOffline,
-            lastSeen: admin.firestore.FieldValue.serverTimestamp(),
-        });
-    } catch (error) {
-        if ((error as any).code !== 'not-found') { console.error(`Falha ao atualizar presença para usuário ${context.params.uid}:`, error); }
-    }
-    if (isOffline) return; 
-
-    const userDocSnap = await db.doc(`users/${context.params.uid}`).get();
-    if (!userDocSnap.exists) return;
-
-    const congregationId = userDocSnap.data()?.congregationId;
-    if (!congregationId) return;
-
-    const congregationRef = db.doc(`congregations/${congregationId}`);
-    const statusRef = change.after.ref.parent;
-    if (!statusRef) return;
-    
-    return db.runTransaction(async (transaction) => {
-        const congDoc = await transaction.get(congregationRef);
-        if (!congDoc.exists) return;
-
-        const onlineUsersSnapshot = await statusRef.orderByChild('state').equalTo('online').once('value');
-        const currentOnlineCount = onlineUsersSnapshot.numChildren();
-        const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
-        
-        if (currentOnlineCount > peakData.count) {
-            transaction.update(congregationRef, { peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
-        }
-    });
-});
-
+// A função handleUserPresence que usava o Realtime Database foi removida
+// pois será substituída pelo novo sistema de beacon.
 
 export const onDeleteTerritory = functions.firestore.document("congregations/{congregationId}/territories/{territoryId}").onDelete((snap) => {
     return admin.firestore().recursiveDelete(snap.ref);
@@ -357,6 +356,7 @@ export const onDeleteQuadra = functions.firestore.document("congregations/{congr
 });
 
 export const scheduledFirestoreExport = functions.pubsub.schedule("every day 03:00").timeZone("America/Sao_Paulo").onRun(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const firestore = require("@google-cloud/firestore");
     const client = new firestore.v1.FirestoreAdminClient();
     const projectId = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT;
