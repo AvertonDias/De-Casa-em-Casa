@@ -137,7 +137,6 @@ export function EditRuralTerritoryModal({ onTerritoryUpdated, congregationId, te
               <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="mapLink">Link do Mapa Principal</Label>
               <Input id="mapLink" type="url" value={mapLink} onChange={(e) => setMapLink(e.target.value)} />
             </div>
 
