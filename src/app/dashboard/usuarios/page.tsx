@@ -344,7 +344,7 @@ export default function UsersPage() {
 
   }, [users, currentUser, searchTerm, presenceFilter, roleFilter, statusFilter]);
 
-  if (userLoading || loading || !congregation) {
+  if (userLoading || loading) {
     return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
   }
   
@@ -405,7 +405,7 @@ export default function UsersPage() {
             </div>
             <div className="flex-1">
                 <p className="text-muted-foreground text-sm">Pico de Usuários</p>
-                <p className="text-2xl font-bold">{congregation.peakOnlineUsers?.count || 0}</p>
+                <p className="text-2xl font-bold">{congregation?.peakOnlineUsers?.count || 0}</p>
             </div>
             {currentUser?.role === 'Administrador' && (
                 <button onClick={handleResetPeakClick} className="p-2 text-muted-foreground hover:text-white" title="Resetar pico">
