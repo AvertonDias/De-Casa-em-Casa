@@ -1,10 +1,9 @@
 // functions/src/index.ts
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-
-// A CORREÇÃO FINAL E ÚNICA ESTÁ AQUI
-// Importamos o tipo que estava faltando diretamente da biblioteca correta.
 import type { GetSignedUrlConfig } from "@google-cloud/storage";
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const cors = require('cors')({origin: true}); // Importa e configura o cors
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -13,19 +12,13 @@ const db = admin.firestore();
 //   FUNÇÃO HTTP PARA PRESENÇA (BEACON)
 // ========================================================================
 export const setUserOffline = functions.region("southamerica-east1").https.onRequest(async (req, res) => {
-    // Usamos 'cors' para permitir que o navegador envie a requisição
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const cors = require('cors')({origin: true});
-    
     cors(req, res, async () => {
-        // A função espera receber o UID do usuário no corpo da requisição
-        const { uid } = req.body;
-
         if (req.method !== 'POST') {
             res.status(405).send('Method Not Allowed');
             return;
         }
 
+        const { uid } = req.body;
         if (!uid) {
             res.status(400).send('UID do usuário não fornecido.');
             return;
@@ -47,7 +40,7 @@ export const setUserOffline = functions.region("southamerica-east1").https.onReq
 
 
 // ========================================================================
-//   FUNÇÕES HTTPS (onCall)
+//   FUNÇÕES HTTPS (onCall e onRequest)
 // ========================================================================
 
 export const createCongregationAndAdmin = functions.https.onCall(async (data, context) => {
@@ -144,7 +137,6 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
         if (housesUpdatedCount > 0) {
             await batch.commit();
             const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
-            // Deleta a subcoleção de histórico de forma recursiva.
             await admin.firestore().recursiveDelete(db.collection(historyPath));
             return { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` };
         } else {
@@ -157,47 +149,60 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
     }
 });
 
-export const resetPeakUsers = functions.https.onCall(async (data, context) => {
-    // 1. Verifica se quem está chamando está autenticado
-    const uid = context.auth?.uid;
-    if (!uid) {
-        throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
+export const resetPeakUsers = functions.https.onRequest((req, res) => {
+  // Envolve a função com o middleware do cors
+  cors(req, res, async () => {
+    // 1. Valida o método da requisição
+    if (req.method !== 'POST') {
+      res.status(405).send('Método não permitido');
+      return;
     }
 
-    // 2. Valida o input
-    const { congregationId } = data;
-    if (!congregationId) {
-        throw new functions.https.HttpsError("invalid-argument", "ID da congregação é necessário.");
-    }
-
-    // 3. Verifica se o usuário é um Administrador
-    const adminUserSnap = await db.collection("users").doc(uid).get();
-    if (adminUserSnap.data()?.role !== "Administrador") {
-        throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
-    }
-    
-    // 4. Executa a atualização
     try {
-        const congregationRef = db.doc(`congregations/${congregationId}`);
-        await congregationRef.update({
-            peakOnlineUsers: {
-                count: 0,
-                timestamp: admin.firestore.FieldValue.serverTimestamp()
-            }
-        });
-        return { success: true, message: "Pico de usuários resetado." };
+      // 2. Valida a autenticação do usuário pelo token
+      const idToken = req.headers.authorization?.split('Bearer ')[1];
+      if (!idToken) {
+        res.status(401).send('Não autenticado');
+        return;
+      }
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const uid = decodedToken.uid;
+      
+      // 3. Verifica se o usuário é Admin
+      const adminUserSnap = await db.collection("users").doc(uid).get();
+      if (adminUserSnap.data()?.role !== "Administrador") {
+        res.status(403).send('Permissão negada');
+        return;
+      }
+      
+      // 4. Valida os dados recebidos
+      const { congregationId } = req.body;
+      if (!congregationId) {
+        res.status(400).send('ID da congregação é necessário.');
+        return;
+      }
+
+      // 5. Executa a lógica
+      const congregationRef = db.doc(`congregations/${congregationId}`);
+      await congregationRef.update({
+          peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() }
+      });
+      
+      res.status(200).send({ success: true, message: "Pico de usuários resetado." });
+
     } catch (error) {
-        console.error("Falha ao resetar o pico de usuários:", error);
-        throw new functions.https.HttpsError("internal", "Não foi possível resetar a estatística.");
+      console.error("Falha ao resetar o pico de usuários:", error);
+      res.status(500).send({ success: false, error: 'Erro interno do servidor.' });
     }
+  });
 });
+
 
 export const generateUploadUrl = functions.region("southamerica-east1").https.onCall(async (data, context) => {
     if (!context.auth) { throw new functions.https.HttpsError('unauthenticated', 'Ação não autorizada.'); }
     const filePath = data.filePath;
     if (!filePath || typeof filePath !== 'string') { throw new functions.https.HttpsError('invalid-argument', 'O nome do arquivo é necessário.'); }
     
-    // A tipagem correta agora vem da importação no topo do arquivo.
     const options: GetSignedUrlConfig = {
         version: 'v4',
         action: 'write',
@@ -218,12 +223,10 @@ export const generateUploadUrl = functions.region("southamerica-east1").https.on
 //   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO
 // ========================================================================
 
-// FUNÇÃO 1: Acionada quando uma CASA muda.
 export const onHouseChange = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
   .onWrite(async (change, context) => {
     
-    // ATUALIZA AS ESTATÍSTICAS DA QUADRA
     const quadraRef = change.after.ref.parent.parent!;
     const casasSnapshot = await quadraRef.collection("casas").get();
     await quadraRef.update({
@@ -231,26 +234,21 @@ export const onHouseChange = functions.firestore
         housesDone: casasSnapshot.docs.filter(doc => doc.data().status === true).length
     });
 
-    // ▼▼▼ A LÓGICA DE HISTÓRICO COMEÇA AQUI ▼▼▼
     const beforeData = change.before.data();
     const afterData = change.after.data();
 
-    // Condição: Só continua se o status mudou de 'false' para 'true'.
     if (beforeData?.status === false && afterData?.status === true) {
         const { congregationId, territoryId } = context.params;
         const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
         const historyRef = territoryRef.collection("activityHistory");
 
-        // Atualiza a data do último trabalho (para a lista de "Recentemente Trabalhados")
         await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
 
-        // Adiciona ao histórico apenas uma vez por dia
         const TIME_ZONE = "America/Sao_Paulo";
         const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
         
         const lastHistorySnap = await historyRef.orderBy("activityDate", "desc").limit(1).get();
         
-        // Se não há histórico ou o último registro não é de hoje, cria um novo.
         if (lastHistorySnap.empty || lastHistorySnap.docs[0].data().activityDate.toDate().toLocaleDateString("en-CA", {timeZone: TIME_ZONE}) !== todayString) {
             return historyRef.add({
               activityDate: admin.firestore.FieldValue.serverTimestamp(),
@@ -262,11 +260,10 @@ export const onHouseChange = functions.firestore
         }
     }
     
-    return null; // Encerra a função se a condição não for atendida
+    return null;
 });
 
 
-// FUNÇÃO 2: Acionada quando uma QUADRA muda (para atualizar o território)
 export const onQuadraChange = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
   .onWrite(async (change, context) => {
@@ -284,7 +281,6 @@ export const onQuadraChange = functions.firestore
 
     const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
     
-    // Esta escrita irá acionar a onTerritoryChange
     return territoryRef.update({
         stats: { totalHouses, housesDone },
         progress,
@@ -293,7 +289,6 @@ export const onQuadraChange = functions.firestore
 });
 
 
-// FUNÇÃO 3: Acionada quando um TERRITÓRIO muda (para atualizar a congregação)
 export const onTerritoryChange = functions.firestore
     .document("congregations/{congregationId}/territories/{territoryId}")
     .onWrite(async (change, context) => {
@@ -324,7 +319,7 @@ export const onTerritoryChange = functions.firestore
 
 
 // ============================================================================
-//   OUTROS GATILHOS (Notificação, Presença, Exclusão)
+//   OUTROS GATILHOS (Notificação, Exclusão)
 // ============================================================================
 
 export const notifyAdminOfNewUser = functions.firestore.document("users/{userId}").onCreate(async (snapshot, context) => {
@@ -362,8 +357,6 @@ export const notifyAdminOfNewUser = functions.firestore.document("users/{userId}
     }
 });
 
-// A função handleUserPresence que usava o Realtime Database foi removida
-// pois será substituída pelo novo sistema de beacon.
 
 export const onDeleteTerritory = functions.firestore.document("congregations/{congregationId}/territories/{territoryId}").onDelete((snap) => {
     return admin.firestore().recursiveDelete(snap.ref);

@@ -5,6 +5,7 @@ import { useUser } from '@/contexts/UserContext';
 import { db, app } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getAuth } from "firebase/auth";
 import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, Wifi, WifiOff, Users as UsersIcon, Zap, RefreshCw, SlidersHorizontal, ChevronUp } from 'lucide-react';
 import { Menu, Transition, Disclosure } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
@@ -16,7 +17,6 @@ import type { AppUser, Congregation } from '@/types/types';
 import { usePresence } from '@/hooks/usePresence';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const resetPeakUsersFunction = httpsCallable(functions, 'resetPeakUsers');
 const deleteUserFunction = httpsCallable(functions, 'deleteUserAccount');
 
 
@@ -201,7 +201,6 @@ export default function UsersPage() {
   useEffect(() => {
     if (currentUser?.congregationId) {
       setLoading(true);
-      // Listener para os usuários
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where("congregationId", "==", currentUser.congregationId));
       const unsubUsers = onSnapshot(q, (snapshot) => {
@@ -212,7 +211,6 @@ export default function UsersPage() {
         setLoading(false);
       });
 
-      // Listener para a congregação
       const congRef = doc(db, 'congregations', currentUser.congregationId);
       const unsubCong = onSnapshot(congRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -288,18 +286,42 @@ export default function UsersPage() {
 
   const executeResetPeak = async () => {
     if (!currentUser?.congregationId) {
-        alert("Erro: ID da congregação não encontrado.");
-        setIsConfirmModalOpen(false);
-        return;
+      alert("Erro: ID da congregação não encontrado.");
+      setIsConfirmModalOpen(false);
+      return;
     }
-    
+
     try {
-        await resetPeakUsersFunction({ congregationId: currentUser.congregationId });
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+
+      if (!token) {
+        throw new Error("Não foi possível obter o token de autenticação.");
+      }
+
+      const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/resetPeakUsers";
+
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ congregationId: currentUser.congregationId })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Erro do servidor: ${response.statusText} - ${errorData}`);
+      }
+      
+      console.log("Pico de usuários resetado com sucesso!");
+
     } catch (error) {
-        console.error("Erro ao chamar a função de reset:", error);
-        alert("Falha ao resetar o pico de usuários.");
+      console.error("Erro detalhado ao chamar a função de reset:", error);
+      alert("Falha ao resetar o pico de usuários. Verifique o console.");
     } finally {
-        setIsConfirmModalOpen(false);
+      setIsConfirmModalOpen(false);
     }
   };
 
