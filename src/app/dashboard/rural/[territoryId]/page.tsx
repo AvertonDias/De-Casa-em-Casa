@@ -15,6 +15,7 @@ import { ptBR } from 'date-fns/locale';
 import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
 import AddEditWorkLogModal from '@/components/AddEditWorkLogModal';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
+import { Button } from '@/components/ui/button';
 
 export default function RuralTerritoryDetailPage() {
   const { user } = useContext(UserContext);
@@ -133,9 +134,9 @@ export default function RuralTerritoryDetailPage() {
             rows={3}
             className="w-full bg-input p-2 rounded-md mb-3"
           />
-          <button onClick={handleAddWorkLog} disabled={isSaving || !workNote.trim()} className="bg-primary text-primary-foreground px-4 py-2 rounded-md w-full disabled:opacity-50">
+          <Button onClick={handleAddWorkLog} disabled={isSaving || !workNote.trim()} className="w-full">
             {isSaving ? "Salvando..." : "Salvar Registro de Hoje"}
-          </button>
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -165,7 +166,7 @@ export default function RuralTerritoryDetailPage() {
                               <p className="text-muted-foreground text-sm my-1">"{log.notes}"</p>
                               <p className="text-xs text-muted-foreground/80">por: {log.userName}</p>
                            </div>
-                           <div className="flex items-center gap-2 transition-opacity">
+                           <div className="flex items-center gap-2">
                               <button onClick={() => openEditWorkLogModal(log)} className="text-muted-foreground hover:text-white"><Edit size={14} /></button>
                               <button onClick={() => openDeleteConfirmModal(log)} className="text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
                            </div>
