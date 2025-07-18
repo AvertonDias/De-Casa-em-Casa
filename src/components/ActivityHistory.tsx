@@ -27,12 +27,15 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
 
   const canManage = user?.role === 'Administrador' || user?.role === 'Dirigente';
   const historyCollectionRef = user?.congregationId ? collection(db, `congregations/${user.congregationId}/territories/${territoryId}/activityHistory`) : null;
+  const territoryDocRef = user?.congregationId ? doc(db, `congregations/${user.congregationId}/territories/${territoryId}`) : null;
 
   const handleSaveActivity = async (
     activityData: { activityDate: Date, notes: string }, 
     activityId?: string
   ) => {
-    if (!user || !historyCollectionRef) return;
+    if (!user || !historyCollectionRef || !territoryDocRef) return;
+    
+    const now = serverTimestamp();
 
     try {
       if (activityId) {
@@ -47,9 +50,12 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
           notes: activityData.notes,
           userName: user.name,
           userId: user.uid,
-          createdAt: serverTimestamp(),
+          createdAt: now,
         });
       }
+      // Garante que a data principal do território seja atualizada
+      await updateDoc(territoryDocRef, { lastUpdate: now });
+
     } catch (error) {
       console.error("Erro ao salvar atividade:", error);
     }
