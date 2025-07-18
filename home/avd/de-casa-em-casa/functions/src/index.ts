@@ -1,4 +1,4 @@
-// functions/src/index.ts
+{// functions/src/index.ts
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import type { GetSignedUrlConfig } from "@google-cloud/storage";
@@ -106,6 +106,7 @@ export const resetTerritoryProgress = functions.https.onCall(async (data, contex
         if (housesUpdatedCount > 0) {
             await batch.commit();
             const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
+            // Deleta a subcoleção de histórico de forma recursiva.
             await admin.firestore().recursiveDelete(db.collection(historyPath));
             return { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` };
         } else {
@@ -134,13 +135,11 @@ export const resetPeakUsers = functions.https.onCall(async (data, context) => {
 
     try {
         const congregationRef = db.doc(`congregations/${congregationId}`);
-        await congregationRef.update({
-            peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() }
-        });
-        return { success: true, message: "Pico de usuários resetado." };
+        await congregationRef.update({ peakOnlineUsers: { count: 0, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
+        return { success: true };
     } catch (error) {
-        console.error("Falha ao resetar o pico de usuários:", error);
-        throw new functions.https.HttpsError("internal", "Não foi possível resetar a estatística.");
+        console.error("Falha ao resetar o pico:", error);
+        throw new functions.https.HttpsError("internal", "Não foi possível resetar.");
     }
 });
 
@@ -150,10 +149,11 @@ export const generateUploadUrl = functions.region("southamerica-east1").https.on
     const filePath = data.filePath;
     if (!filePath || typeof filePath !== 'string') { throw new functions.https.HttpsError('invalid-argument', 'O nome do arquivo é necessário.'); }
     
+    // A tipagem correta agora vem da importação no topo do arquivo.
     const options: GetSignedUrlConfig = {
         version: 'v4',
         action: 'write',
-        expires: Date.now() + 15 * 60 * 1000,
+        expires: Date.now() + 15 * 60 * 1000, // 15 minutos
         contentType: data.contentType,
     };
     try {
@@ -165,91 +165,93 @@ export const generateUploadUrl = functions.region("southamerica-east1").https.on
     }
 });
 
-export const updateTerritoryLastUpdate = functions.https.onCall(async (data, context) => {
-    if (!context.auth) { throw new functions.https.HttpsError('unauthenticated', 'Ação não autorizada.'); }
-    
-    const { congregationId, territoryId } = data;
-    if (!congregationId || !territoryId) { throw new functions.https.HttpsError('invalid-argument', 'IDs faltando.'); }
-
-    const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
-    const territorySnap = await territoryRef.get();
-    if (!territorySnap.exists()) { throw new functions.https.HttpsError('not-found', 'Território não encontrado.'); }
-    
-    const territoryData = territorySnap.data()!;
-    const history = [...(territoryData.activityHistory || []), ...(territoryData.workLogs || [])];
-    
-    let latestTimestamp = territoryData.createdAt; // Começa com a data de criação
-    if (history.length > 0) {
-      history.sort((a, b) => (b.date || b.activityDate).toMillis() - (a.date || a.activityDate).toMillis());
-      latestTimestamp = history[0].date || history[0].activityDate;
-    }
-
-    return territoryRef.update({ lastUpdate: latestTimestamp });
-});
-
 
 // ========================================================================
-//   CASCATA DE ESTATÍSTICAS (COM A CORREÇÃO)
+//   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO
 // ========================================================================
 
-export const onHouseWrite = functions.firestore
-  .document("congregations/{congId}/territories/{terrId}/quadras/{quadraId}/casas/{casaId}")
+// FUNÇÃO 1: Acionada quando uma CASA muda.
+export const onHouseChange = functions.firestore
+  .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
   .onWrite(async (change, context) => {
-    const { congId, terrId, quadraId } = context.params;
-    const quadraRef = db.doc(`congregations/${congId}/territories/${terrId}/quadras/${quadraId}`);
-    try {
-      const casasSnapshot = await quadraRef.collection("casas").get();
-      const totalHouses = casasSnapshot.size;
-      const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
-      await quadraRef.update({ totalHouses, housesDone }); 
-    } catch (error) {
-      console.error(`[Stats] FALHA ao atualizar quadra ${quadraId}:`, error);
+    
+    // ATUALIZA AS ESTATÍSTICAS DA QUADRA
+    const quadraRef = change.after.ref.parent.parent!;
+    const casasSnapshot = await quadraRef.collection("casas").get();
+    await quadraRef.update({
+        totalHouses: casasSnapshot.size,
+        housesDone: casasSnapshot.docs.filter(doc => doc.data().status === true).length
+    });
+
+    // ▼▼▼ A LÓGICA DE HISTÓRICO COMEÇA AQUI ▼▼▼
+    const beforeData = change.before.data();
+    const afterData = change.after.data();
+
+    // Condição: Só continua se o status mudou de 'false' para 'true'.
+    if (beforeData?.status === false && afterData?.status === true) {
+        const { congregationId, territoryId } = context.params;
+        const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
+        const historyRef = territoryRef.collection("activityHistory");
+
+        // Atualiza a data do último trabalho (para a lista de "Recentemente Trabalhados")
+        await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
+        
+        // Adiciona ao histórico apenas uma vez por dia
+        const TIME_ZONE = "America/Sao_Paulo";
+        const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+        
+        const lastHistorySnap = await historyRef.orderBy("activityDate", "desc").limit(1).get();
+        
+        // Se não há histórico ou o último registro não é de hoje, cria um novo.
+        if (lastHistorySnap.empty || lastHistorySnap.docs[0].data().activityDate.toDate().toLocaleDateString("en-CA", {timeZone: TIME_ZONE}) !== todayString) {
+            return historyRef.add({
+              activityDate: admin.firestore.FieldValue.serverTimestamp(),
+              notes: "Primeiro trabalho do dia registrado. (Registro Automático)",
+              userName: "Sistema",
+              userId: "system",
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
     }
+    
+    return null; // Encerra a função se a condição não for atendida
 });
 
-export const onQuadraWrite = functions.firestore
+// FUNÇÃO 2: Acionada quando uma QUADRA muda (para atualizar o território)
+export const onQuadraChange = functions.firestore
   .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
   .onWrite(async (change, context) => {
-    const territoryRef = db.doc(`congregations/${context.params.congregationId}/territories/${context.params.territoryId}`);
-    try {
-      const quadrasSnapshot = await territoryRef.collection("quadras").get();
-      
-      const quadraCount = quadrasSnapshot.size;
-      let totalHouses = 0;
-      let housesDone = 0;
-      
-      quadrasSnapshot.forEach(doc => {
-        totalHouses += doc.data().totalHouses || 0;
-        housesDone += doc.data().housesDone || 0;
-      });
+    const { congregationId, territoryId } = context.params;
+    const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
+    
+    const quadrasSnapshot = await territoryRef.collection("quadras").get();
+    
+    let totalHouses = 0;
+    let housesDone = 0;
+    quadrasSnapshot.forEach(doc => {
+      totalHouses += doc.data().totalHouses || 0;
+      housesDone += doc.data().housesDone || 0;
+    });
 
-      const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
-      const stats = {
-          totalHouses,
-          housesDone,
-          casasPendentes: totalHouses - housesDone,
-          casasFeitas: housesDone,
-      };
-      
-      await territoryRef.update({ 
-          stats,
-          progress, 
-          quadraCount, 
-      });
-
-    } catch (error) {
-      console.error(`[onQuadraWrite] FALHA ao atualizar território ${territoryRef.id}: `, error);
-    }
+    const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
+    
+    // Esta escrita irá acionar a onTerritoryChange
+    return territoryRef.update({
+        stats: { totalHouses, housesDone },
+        progress,
+        quadraCount: quadrasSnapshot.size,
+    });
 });
 
-
-export const onTerritoryWrite = functions.firestore
-    .document("congregations/{congId}/territories/{terrId}")
+// FUNÇÃO 3: Acionada quando um TERRITÓRIO muda (para atualizar a congregação)
+export const onTerritoryChange = functions.firestore
+    .document("congregations/{congregationId}/territories/{territoryId}")
     .onWrite(async (change, context) => {
-        const { congId } = context.params;
-        const congregationRef = db.doc(`congregations/${congId}`);
+        const { congregationId } = context.params;
+        const congregationRef = db.doc(`congregations/${congregationId}`);
+        const territoriesRef = congregationRef.collection("territories");
         
-        const territoriesSnapshot = await congregationRef.collection("territories").get();
+        const territoriesSnapshot = await territoriesRef.get();
         let urbanCount = 0, ruralCount = 0, totalHouses = 0, totalHousesDone = 0, totalQuadras = 0;
         territoriesSnapshot.forEach(doc => {
             const data = doc.data();
@@ -270,53 +272,56 @@ export const onTerritoryWrite = functions.firestore
         });
     });
 
-
 // ============================================================================
-//   SISTEMA DE PRESENÇA (NOVA VERSÃO)
+//   SISTEMA DE PRESENÇA UNIFICADO
 // ============================================================================
-export const onUserOnline = functions.database.ref('/status/{uid}')
-  .onCreate(async (snapshot, context) => {
-    const uid = context.params.uid;
-    const firestoreUserRef = db.doc(`users/${uid}`);
+export const handleUserPresence = functions.database.ref('/status/{uid}')
+  .onWrite(async (change, context) => {
+    
+    const firestoreUserRef = db.doc(`users/${context.params.uid}`);
+    
+    const eventStatus = change.after.val();
 
-    try {
-      await firestoreUserRef.update({ isOnline: true });
-    } catch (error) {
-      if ((error as any).code !== 'not-found') console.error(`[Presence] Falha ao marcar ONLINE para ${uid}:`, error);
+    if (!eventStatus) {
+      try {
+        await firestoreUserRef.update({
+          isOnline: false,
+          lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (error) {
+        if ((error as any).code !== 'not-found') console.error(error);
+      }
+      return;
     }
 
-    const userDocSnap = await firestoreUserRef.get();
-    if (!userDocSnap.exists()) return;
-    const congregationId = userDocSnap.data()?.congregationId;
-    if (!congregationId) return;
-
-    const congregationRef = db.doc(`congregations/${congregationId}`);
-    const statusRef = snapshot.ref.parent; 
-
-    return db.runTransaction(async (transaction) => {
-        const congDoc = await transaction.get(congregationRef);
-        if (!congDoc.exists) return;
-        const onlineUsersSnapshot = await statusRef.orderByChild('state').equalTo('online').once('value');
-        const currentOnlineCount = onlineUsersSnapshot.numChildren();
-        const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
-        if (currentOnlineCount > peakData.count) {
-            transaction.update(congregationRef, { peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
+    if (eventStatus.state === 'online') {
+        try {
+            await firestoreUserRef.update({
+                isOnline: true,
+                lastSeen: eventStatus.last_changed,
+            });
+        } catch (error) {
+            if ((error as any).code !== 'not-found') console.error(error);
         }
-    });
-  });
+    
+        const userDocSnap = await firestoreUserRef.get();
+        if (!userDocSnap.exists()) return;
+        const congregationId = userDocSnap.data()?.congregationId;
+        if (!congregationId) return;
 
-export const onUserOffline = functions.database.ref('/status/{uid}')
-  .onDelete(async (snapshot, context) => {
-    const uid = context.params.uid;
-    const firestoreUserRef = db.doc(`users/${uid}`);
+        const congregationRef = db.doc(`congregations/${congregationId}`);
+        const statusRef = change.after.ref.parent; 
 
-    try {
-      await firestoreUserRef.update({
-        isOnline: false,
-        lastSeen: admin.firestore.FieldValue.serverTimestamp()
-      });
-    } catch (error) {
-      if ((error as any).code !== 'not-found') console.error(`[Presence] Falha ao marcar OFFLINE para ${uid}:`, error);
+        await db.runTransaction(async (transaction) => {
+            const congDoc = await transaction.get(congregationRef);
+            if (!congDoc.exists()) return;
+            const onlineUsersSnapshot = await statusRef!.orderByChild('state').equalTo('online').once('value');
+            const currentOnlineCount = onlineUsersSnapshot.numChildren();
+            const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
+            if (currentOnlineCount > peakData.count) {
+                transaction.update(congregationRef, { peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
+            }
+        });
     }
   });
 
@@ -393,44 +398,45 @@ export const scheduledFirestoreExport = functions.pubsub.schedule("every day 03:
     }
 });
 
-// ========================================================================
-//   O GERENTE DE DATAS (A ÚNICA FONTE DE VERDADE)
-// ========================================================================
+// ▼▼▼ FUNÇÃO FINAL PARA SINCRONIZAR A ÚLTIMA ATUALIZAÇÃO ▼▼▼
 
 export const syncLastUpdateFromHistory = functions.firestore
   .document("congregations/{congId}/territories/{terrId}")
   .onUpdate(async (change, context) => {
+    
+    // Pega os dados do território ANTES e DEPOIS da mudança
     const dataBefore = change.before.data();
     const dataAfter = change.after.data();
 
-    // Padroniza os nomes dos arrays de histórico
+    // Combina os históricos urbano (activityHistory) e rural (workLogs)
     const historyBefore = [...(dataBefore.activityHistory || []), ...(dataBefore.workLogs || [])];
     const historyAfter = [...(dataAfter.activityHistory || []), ...(dataAfter.workLogs || [])];
 
-    // Se o histórico não mudou, não fazemos nada.
-    if (JSON.stringify(historyBefore) === JSON.stringify(historyAfter)) {
+    // Se o histórico não mudou, não faz nada.
+    if (historyBefore.length === historyAfter.length && JSON.stringify(historyBefore) === JSON.stringify(historyAfter)) {
         return null;
     }
 
-    let latestTimestamp: admin.firestore.Timestamp | null = null;
-
+    // Encontra a data mais recente no novo histórico
     if (historyAfter.length > 0) {
-      // Ordena o histórico pela data (usando 'date' ou 'activityDate')
-      historyAfter.sort((a, b) => {
-        const dateA = a.date || a.activityDate;
-        const dateB = b.date || b.activityDate;
-        return dateB.toMillis() - dateA.toMillis();
-      });
-      latestTimestamp = historyAfter[0].date || historyAfter[0].activityDate;
-    } else {
-      // Se o histórico ficou vazio, a última atualização é a data de criação.
-      latestTimestamp = dataAfter.createdAt;
-    }
+      // Ordena o histórico pela data, do mais novo para o mais antigo
+      historyAfter.sort((a, b) => (b.date || b.activityDate).toMillis() - (a.date || a.activityDate).toMillis());
+      const latestTimestamp = historyAfter[0].date || historyAfter[0].activityDate;
 
-    // Se a 'lastUpdate' do território for diferente do timestamp que calculamos, corrige.
-    if (dataAfter.lastUpdate && latestTimestamp && dataAfter.lastUpdate.toMillis() !== latestTimestamp.toMillis()) {
-      return change.after.ref.update({ lastUpdate: latestTimestamp });
+      // Se a 'lastUpdate' do território for diferente do timestamp mais recente, corrige.
+      if (dataAfter.lastUpdate.toMillis() !== latestTimestamp.toMillis()) {
+        console.log(`[Sync] Corrigindo lastUpdate para o território ${context.params.terrId}`);
+        return change.after.ref.update({ lastUpdate: latestTimestamp });
+      }
+    } else {
+      // Se o histórico ficou vazio (todos os registros foram excluídos),
+      // podemos resetar a lastUpdate para a data de criação do território.
+      if (dataAfter.lastUpdate.toMillis() !== dataAfter.createdAt.toMillis()) {
+          return change.after.ref.update({ lastUpdate: dataAfter.createdAt });
+      }
     }
 
     return null;
   });
+
+    
