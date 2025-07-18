@@ -8,44 +8,50 @@ import { app } from '@/lib/firebase';
 const rtdb = getDatabase(app);
 
 export const usePresence = () => {
-  const userContext = useContext(UserContext);
-  const user = userContext?.user;
+  const { user } = useContext(UserContext);
 
   useEffect(() => {
-    if (!user?.uid) {
-      return; // Garante que temos um UID para trabalhar
+    // A dependência é apenas no UID do usuário, o que quebra o loop de renderização.
+    const uid = user?.uid;
+    if (!uid) {
+      return; // Só roda se tivermos um UID.
     }
 
-    const uid = user.uid;
     const userStatusDatabaseRef = ref(rtdb, `/status/${uid}`);
 
-    const isOnlineForDatabase = { state: 'online', last_changed: serverTimestamp() };
-    const isOfflineForDatabase = { state: 'offline', last_changed: serverTimestamp() };
+    // Objeto que será salvo quando o usuário estiver online
+    const isOnlineForDatabase = {
+      state: 'online',
+      last_changed: serverTimestamp(),
+    };
+    
+    // ▼▼▼ O "TESTAMENTO" CORRIGIDO E EXPLÍCITO ▼▼▼
+    // Objeto que será salvo quando a conexão cair
+    const isOfflineForDatabase = {
+      state: 'offline',
+      last_changed: serverTimestamp(),
+    };
 
     const connectedRef = ref(rtdb, '.info/connected');
     
     const listener = onValue(connectedRef, (snap) => {
-      // Executa apenas quando a conexão é estabelecida
-      if (snap.val() === false) {
-        return;
+      // O 'snap.val()' será 'true' quando o cliente estiver conectado.
+      if (snap.val() === true) {
+        // Se a conexão for estabelecida:
+        // 1. Define o testamento: se a conexão cair, o Firebase salvará 'isOfflineForDatabase'.
+        onDisconnect(userStatusDatabaseRef).set(isOfflineForDatabase);
+        
+        // 2. E então, se marca como online.
+        set(userStatusDatabaseRef, isOnlineForDatabase);
       }
-
-      // Em vez de apagar o nó ao desconectar, nós explicitamente ESCREVEMOS o estado offline.
-      // Isso evita a condição de corrida.
-      onDisconnect(userStatusDatabaseRef).set(isOfflineForDatabase)
-        .then(() => {
-          // Apenas DEPOIS que o "testamento" for registrado com sucesso,
-          // nós nos marcamos como online.
-          set(userStatusDatabaseRef, isOnlineForDatabase);
-        });
     });
 
-    // Função de limpeza que roda quando o usuário faz logout ou o componente é desmontado
+    // Função de limpeza que roda quando o componente é desmontado (ex: logout)
     return () => {
-        listener(); // Remove o listener da conexão
-        // Ao sair de forma limpa, também nos marcamos como offline.
-        set(userStatusDatabaseRef, isOfflineForDatabase); 
+      listener(); // Remove o listener da conexão
+      // Ao deslogar, força o status para offline no RTDB
+      set(userStatusDatabaseRef, isOfflineForDatabase); 
     };
 
-  }, [user?.uid]); // A dependência continua sendo apenas no ID do usuário.
+  }, [user?.uid]);
 };
