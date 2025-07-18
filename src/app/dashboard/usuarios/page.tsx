@@ -10,7 +10,7 @@ import { Menu, Transition, Disclosure } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { AppUser, Congregation } from '@/types/types';
 import { usePresence } from '@/hooks/usePresence';
@@ -356,6 +356,8 @@ export default function UsersPage() {
     </button>
   );
 
+  const peakDate = congregation?.peakOnlineUsers?.timestamp?.toDate();
+
   return (
     <>
     <div className="p-4 md:p-8 space-y-6">
@@ -392,19 +394,26 @@ export default function UsersPage() {
                 <p className="text-2xl font-bold">{stats.offline}</p>
             </div>
         </div>
-         <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4">
+        <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4">
             <div className="bg-orange-500/20 text-orange-400 p-3 rounded-lg">
                 <Zap size={28} />
             </div>
-            <div className="flex-1">
-                <p className="text-muted-foreground text-sm">Pico de Usuários</p>
+            <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-baseline">
+                    <p className="text-muted-foreground text-sm">Pico de Usuários</p>
+                    {currentUser?.role === 'Administrador' && (
+                        <button onClick={handleResetPeakClick} className="p-1 text-muted-foreground hover:text-white" title="Resetar pico">
+                            <RefreshCw size={14} />
+                        </button>
+                    )}
+                </div>
                 <p className="text-2xl font-bold">{congregation?.peakOnlineUsers?.count || 0}</p>
+                {peakDate && (congregation?.peakOnlineUsers?.count || 0) > 0 && (
+                  <p className="text-xs text-muted-foreground truncate" title={format(peakDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}>
+                      Em {format(peakDate, "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
+                  </p>
+                )}
             </div>
-            {currentUser?.role === 'Administrador' && (
-                <button onClick={handleResetPeakClick} className="p-2 text-muted-foreground hover:text-white" title="Resetar pico">
-                    <RefreshCw size={16} />
-                </button>
-            )}
         </div>
       </div>
 
