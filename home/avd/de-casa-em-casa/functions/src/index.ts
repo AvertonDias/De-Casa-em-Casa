@@ -167,82 +167,52 @@ export const generateUploadUrl = functions.region("southamerica-east1").https.on
 
 
 // ========================================================================
-//   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO
+//   CASCATA DE ESTATÍSTICAS (COM A CORREÇÃO)
 // ========================================================================
 
-export const onHouseChange = functions.firestore
-  .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
+export const onHouseWrite = functions.firestore
+  .document("congregations/{congId}/territories/{terrId}/quadras/{quadraId}/casas/{casaId}")
   .onWrite(async (change, context) => {
-    
-    const quadraRef = change.after.ref.parent.parent!;
-    const casasSnapshot = await quadraRef.collection("casas").get();
-    await quadraRef.update({
-        totalHouses: casasSnapshot.size,
-        housesDone: casasSnapshot.docs.filter(doc => doc.data().status === true).length
-    });
-
-    const beforeData = change.before.data();
-    const afterData = change.after.data();
-
-    if (beforeData?.status === false && afterData?.status === true) {
-        const { congregationId, territoryId } = context.params;
-        const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
-        const historyRef = territoryRef.collection("activityHistory");
-
-        const now = admin.firestore.FieldValue.serverTimestamp();
-        await territoryRef.update({ lastUpdate: now });
-
-        const TIME_ZONE = "America/Sao_Paulo";
-        const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
-        
-        const lastHistorySnap = await historyRef.orderBy("activityDate", "desc").limit(1).get();
-        
-        if (lastHistorySnap.empty || lastHistorySnap.docs[0].data().activityDate.toDate().toLocaleDateString("en-CA", {timeZone: TIME_ZONE}) !== todayString) {
-            return historyRef.add({
-              activityDate: now,
-              notes: "Primeiro trabalho do dia registrado. (Registro Automático)",
-              userName: "Sistema",
-              userId: "system",
-              createdAt: now,
-            });
-        }
+    const { congId, terrId, quadraId } = context.params;
+    const quadraRef = db.doc(`congregations/${congId}/territories/${terrId}/quadras/${quadraId}`);
+    try {
+      const casasSnapshot = await quadraRef.collection("casas").get();
+      const totalHouses = casasSnapshot.size;
+      const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
+      await quadraRef.update({ totalHouses, housesDone }); 
+    } catch (error) {
+      console.error(`[Stats] FALHA ao atualizar quadra ${quadraId}:`, error);
     }
-    
-    return null;
 });
 
-
-export const onQuadraChange = functions.firestore
-  .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
+export const onQuadraWrite = functions.firestore
+  .document("congregations/{congId}/territories/{terrId}/quadras/{quadraId}")
   .onWrite(async (change, context) => {
-    const { congregationId, territoryId } = context.params;
-    const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
-    
-    const quadrasSnapshot = await territoryRef.collection("quadras").get();
-    
-    let totalHouses = 0;
-    let housesDone = 0;
-    quadrasSnapshot.forEach(doc => {
-      totalHouses += doc.data().totalHouses || 0;
-      housesDone += doc.data().housesDone || 0;
-    });
-
-    const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
-    
-    return territoryRef.update({
-        stats: { totalHouses, housesDone },
-        progress,
-        quadraCount: quadrasSnapshot.size,
-        lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    const { congId, terrId } = context.params;
+    const territoryRef = db.doc(`congregations/${congId}/territories/${terrId}`);
+    try {
+      const quadrasSnapshot = await territoryRef.collection("quadras").get();
+      const quadraCount = quadrasSnapshot.size;
+      let totalHouses = 0;
+      let housesDone = 0;
+      quadrasSnapshot.forEach(doc => {
+        totalHouses += doc.data().totalHouses || 0;
+        housesDone += doc.data().housesDone || 0;
+      });
+      const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
+      const stats = { totalHouses, housesDone };
+      await territoryRef.update({ stats, progress, quadraCount });
+    } catch (error) {
+      console.error(`[onQuadraWrite] FALHA ao atualizar território ${territoryRef.id}: `, error);
+    }
 });
 
 
-export const onTerritoryChange = functions.firestore
-    .document("congregations/{congregationId}/territories/{territoryId}")
+export const onTerritoryWrite = functions.firestore
+    .document("congregations/{congId}/territories/{terrId}")
     .onWrite(async (change, context) => {
-        const { congregationId } = context.params;
-        const congregationRef = db.doc(`congregations/${congregationId}`);
+        const { congId } = context.params;
+        const congregationRef = db.doc(`congregations/${congId}`);
         const territoriesRef = congregationRef.collection("territories");
         
         const territoriesSnapshot = await territoriesRef.get();
@@ -365,33 +335,6 @@ export const onDeleteQuadra = functions.firestore.document("congregations/{congr
     return admin.firestore().recursiveDelete(snap.ref);
 });
 
-export const handleDeleteActivity = functions.firestore.document("congregations/{congregationId}/territories/{territoryId}/activityHistory/{activityId}")
-    .onDelete(async (snap, context) => {
-        const { congregationId, territoryId } = context.params;
-        const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
-
-        try {
-            const historySnapshot = await territoryRef.collection("activityHistory")
-                .orderBy("activityDate", "desc")
-                .limit(1)
-                .get();
-            
-            if (!historySnapshot.empty) {
-                const latestActivity = historySnapshot.docs[0].data();
-                await territoryRef.update({ lastUpdate: latestActivity.activityDate });
-            } else {
-                const territoryDoc = await territoryRef.get();
-                if(territoryDoc.exists()){
-                    await territoryRef.update({ lastUpdate: territoryDoc.data()?.createdAt || admin.firestore.FieldValue.serverTimestamp() });
-                }
-            }
-        } catch (error) {
-            console.error(`Erro ao atualizar lastUpdate para território ${territoryId}:`, error);
-        }
-        
-        return null;
-    });
-
 export const scheduledFirestoreExport = functions.pubsub.schedule("every day 03:00").timeZone("America/Sao_Paulo").onRun(async () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const firestore = require("@google-cloud/firestore");
@@ -415,3 +358,45 @@ export const scheduledFirestoreExport = functions.pubsub.schedule("every day 03:
         throw new functions.https.HttpsError("internal", "A operação de exportação falhou.", error);
     }
 });
+
+// ========================================================================
+//   O GERENTE DE DATAS (A ÚNICA FONTE DE VERDADE)
+// ========================================================================
+
+export const syncLastUpdateFromHistory = functions.firestore
+  .document("congregations/{congId}/territories/{terrId}")
+  .onUpdate(async (change, context) => {
+    const dataBefore = change.before.data();
+    const dataAfter = change.after.data();
+
+    // Padroniza os nomes dos arrays de histórico
+    const historyBefore = [...(dataBefore.activityHistory || []), ...(dataBefore.workLogs || [])];
+    const historyAfter = [...(dataAfter.activityHistory || []), ...(dataAfter.workLogs || [])];
+
+    // Se o histórico não mudou, não fazemos nada.
+    if (JSON.stringify(historyBefore) === JSON.stringify(historyAfter)) {
+        return null;
+    }
+
+    let latestTimestamp: admin.firestore.Timestamp | null = null;
+
+    if (historyAfter.length > 0) {
+      // Ordena o histórico pela data (usando 'date' ou 'activityDate')
+      historyAfter.sort((a, b) => {
+        const dateA = a.date || a.activityDate;
+        const dateB = b.date || b.activityDate;
+        return dateB.toMillis() - dateA.toMillis();
+      });
+      latestTimestamp = historyAfter[0].date || historyAfter[0].activityDate;
+    } else {
+      // Se o histórico ficou vazio, a última atualização é a data de criação.
+      latestTimestamp = dataAfter.createdAt;
+    }
+
+    // Se a 'lastUpdate' do território for diferente do timestamp que calculamos, corrige.
+    if (dataAfter.lastUpdate && latestTimestamp && dataAfter.lastUpdate.toMillis() !== latestTimestamp.toMillis()) {
+      return change.after.ref.update({ lastUpdate: latestTimestamp });
+    }
+
+    return null;
+  });
