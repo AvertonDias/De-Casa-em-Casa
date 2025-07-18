@@ -5,7 +5,7 @@ import { doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 import { cn } from '@/lib/utils';
-import { Trash2, Edit, Loader, Plus, Link as LinkIcon } from 'lucide-react';
+import { Trash2, Edit, Loader, Plus, Link as LinkIcon, Save } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -15,24 +15,28 @@ import { Textarea } from '@/components/ui/textarea';
 import type { RuralTerritory, RuralLink } from '@/types/types';
 
 interface EditRuralTerritoryModalProps {
+  isOpen: boolean;
+  onClose: () => void;
   onTerritoryUpdated: () => void;
   congregationId: string;
   territory: RuralTerritory; 
 }
 
-export function EditRuralTerritoryModal({ onTerritoryUpdated, congregationId, territory }: EditRuralTerritoryModalProps) {
+export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, congregationId, territory }: EditRuralTerritoryModalProps) {
   const { user } = useUser();
-  const [isOpen, setIsOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   
+  // States for territory data
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [mapLink, setMapLink] = useState('');
   const [links, setLinks] = useState<RuralLink[]>([]);
   
+  // States for link editing
   const [linkDesc, setLinkDesc] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
 
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -45,15 +49,39 @@ export function EditRuralTerritoryModal({ onTerritoryUpdated, congregationId, te
       setMapLink(territory.mapLink || '');
       setLinks(territory.links || []);
       setError('');
+      // Reset link form as well
+      setLinkDesc('');
+      setLinkUrl('');
+      setEditingLinkId(null);
     }
   }, [territory, isOpen]);
 
-  const handleAddLinkToList = () => {
+  const handleAddOrUpdateLink = () => {
     if (!linkDesc.trim() || !linkUrl.trim()) return;
-    const newLink: RuralLink = { id: crypto.randomUUID(), description: linkDesc, url: linkUrl };
-    setLinks([...links, newLink]);
+
+    if (editingLinkId) {
+      // Update existing link
+      setLinks(links.map(link => 
+        link.id === editingLinkId 
+          ? { ...link, description: linkDesc, url: linkUrl } 
+          : link
+      ));
+    } else {
+      // Add new link
+      const newLink: RuralLink = { id: crypto.randomUUID(), description: linkDesc, url: linkUrl };
+      setLinks([...links, newLink]);
+    }
+    
+    // Reset form
     setLinkDesc('');
     setLinkUrl('');
+    setEditingLinkId(null);
+  };
+  
+  const handleStartEditLink = (linkToEdit: RuralLink) => {
+    setEditingLinkId(linkToEdit.id);
+    setLinkDesc(linkToEdit.description);
+    setLinkUrl(linkToEdit.url);
   };
 
   const handleRemoveLinkFromList = (idToRemove: string) => {
@@ -75,7 +103,7 @@ export function EditRuralTerritoryModal({ onTerritoryUpdated, congregationId, te
       });
       
       onTerritoryUpdated();
-      setIsOpen(false);
+      onClose();
 
     } catch (err) {
       console.error("Erro ao atualizar território rural:", err);
@@ -99,7 +127,7 @@ export function EditRuralTerritoryModal({ onTerritoryUpdated, congregationId, te
       await deleteDoc(territoryRef);
       onTerritoryUpdated();
       setIsConfirmOpen(false);
-      setIsOpen(false);
+      onClose();
     } catch (err) {
       console.error("Erro ao excluir território rural:", err);
       setError("Falha ao excluir o território.");
@@ -110,10 +138,7 @@ export function EditRuralTerritoryModal({ onTerritoryUpdated, congregationId, te
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger asChild>
-          <button className="flex items-center px-3 py-1 text-sm font-semibold text-blue-500 bg-blue-500/10 rounded-md hover:bg-blue-500/20"><Edit size={14} className="mr-1"/> Editar</button>
-        </DialogTrigger>
+      <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Editar Território Rural</DialogTitle>
@@ -143,7 +168,10 @@ export function EditRuralTerritoryModal({ onTerritoryUpdated, congregationId, te
                 {links.map((link) => (
                   <div key={link.id} className="flex items-center justify-between bg-input/50 p-2 rounded-md">
                     <div className="min-w-0"><p className="font-medium text-sm truncate">{link.description}</p><p className="text-xs text-muted-foreground truncate">{link.url}</p></div>
-                    <button onClick={() => handleRemoveLinkFromList(link.id)} type="button" className="p-1 text-red-500 hover:bg-red-500/10 rounded-full"><Trash2 size={16} /></button>
+                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                      <button onClick={() => handleStartEditLink(link)} type="button" className="p-1 text-blue-500 hover:bg-blue-500/10 rounded-full"><Edit size={16} /></button>
+                      <button onClick={() => handleRemoveLinkFromList(link.id)} type="button" className="p-1 text-red-500 hover:bg-red-500/10 rounded-full"><Trash2 size={16} /></button>
+                    </div>
                   </div>
                 ))}
                 {links.length === 0 && <p className="text-xs text-center text-muted-foreground py-2">Nenhum link adicionado.</p>}
@@ -151,7 +179,9 @@ export function EditRuralTerritoryModal({ onTerritoryUpdated, congregationId, te
               <div className="flex items-end gap-2 border-t border-border pt-3">
                 <div className="flex-grow"><Label className="text-xs">Descrição do Link</Label><Input value={linkDesc} onChange={(e) => setLinkDesc(e.target.value)} placeholder="Ex: Mapa da Estrada" className="w-full h-9 text-sm"/></div>
                 <div className="flex-grow"><Label className="text-xs">URL</Label><Input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://" className="w-full h-9 text-sm"/></div>
-                <Button onClick={handleAddLinkToList} type="button" size="icon" variant="outline" className="h-9 w-9 flex-shrink-0"><Plus size={16}/></Button>
+                <Button onClick={handleAddOrUpdateLink} type="button" size="icon" variant="outline" className="h-9 w-9 flex-shrink-0">
+                  {editingLinkId ? <Save size={16} /> : <Plus size={16}/>}
+                </Button>
               </div>
             </div>
 
@@ -165,7 +195,7 @@ export function EditRuralTerritoryModal({ onTerritoryUpdated, congregationId, te
             ) : <div />}
             <div className="flex gap-2">
               <DialogClose asChild>
-                <Button type="button" variant="secondary">Cancelar</Button>
+                <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
               </DialogClose>
               <Button type="submit" form="edit-rural-form" disabled={isLoading}>
                 {isLoading ? <><Loader className="animate-spin mr-2" /> Salvando...</> : 'Salvar Alterações'}
