@@ -1,3 +1,4 @@
+
 // src/app/dashboard/rural/[territoryId]/page.tsx
 "use client";
 
@@ -164,7 +165,7 @@ export default function RuralTerritoryDetailPage() {
                               <p className="text-muted-foreground text-sm my-1">"{log.notes}"</p>
                               <p className="text-xs text-muted-foreground/80">por: {log.userName}</p>
                            </div>
-                           <div className="flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                           <div className="flex items-center gap-2 transition-opacity">
                               <button onClick={() => openEditWorkLogModal(log)} className="text-muted-foreground hover:text-white"><Edit size={14} /></button>
                               <button onClick={() => openDeleteConfirmModal(log)} className="text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
                            </div>
