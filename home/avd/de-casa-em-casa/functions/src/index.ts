@@ -165,6 +165,28 @@ export const generateUploadUrl = functions.region("southamerica-east1").https.on
     }
 });
 
+export const updateTerritoryLastUpdate = functions.https.onCall(async (data, context) => {
+    if (!context.auth) { throw new functions.https.HttpsError('unauthenticated', 'Ação não autorizada.'); }
+    
+    const { congregationId, territoryId } = data;
+    if (!congregationId || !territoryId) { throw new functions.https.HttpsError('invalid-argument', 'IDs faltando.'); }
+
+    const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
+    const territorySnap = await territoryRef.get();
+    if (!territorySnap.exists()) { throw new functions.https.HttpsError('not-found', 'Território não encontrado.'); }
+    
+    const territoryData = territorySnap.data()!;
+    const history = [...(territoryData.activityHistory || []), ...(territoryData.workLogs || [])];
+    
+    let latestTimestamp = territoryData.createdAt; // Começa com a data de criação
+    if (history.length > 0) {
+      history.sort((a, b) => (b.date || b.activityDate).toMillis() - (a.date || a.activityDate).toMillis());
+      latestTimestamp = history[0].date || history[0].activityDate;
+    }
+
+    return territoryRef.update({ lastUpdate: latestTimestamp });
+});
+
 
 // ========================================================================
 //   CASCATA DE ESTATÍSTICAS (COM A CORREÇÃO)
@@ -186,22 +208,35 @@ export const onHouseWrite = functions.firestore
 });
 
 export const onQuadraWrite = functions.firestore
-  .document("congregations/{congId}/territories/{terrId}/quadras/{quadraId}")
+  .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
   .onWrite(async (change, context) => {
-    const { congId, terrId } = context.params;
-    const territoryRef = db.doc(`congregations/${congId}/territories/${terrId}`);
+    const territoryRef = db.doc(`congregations/${context.params.congregationId}/territories/${context.params.territoryId}`);
     try {
       const quadrasSnapshot = await territoryRef.collection("quadras").get();
+      
       const quadraCount = quadrasSnapshot.size;
       let totalHouses = 0;
       let housesDone = 0;
+      
       quadrasSnapshot.forEach(doc => {
         totalHouses += doc.data().totalHouses || 0;
         housesDone += doc.data().housesDone || 0;
       });
+
       const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
-      const stats = { totalHouses, housesDone };
-      await territoryRef.update({ stats, progress, quadraCount });
+      const stats = {
+          totalHouses,
+          housesDone,
+          casasPendentes: totalHouses - housesDone,
+          casasFeitas: housesDone,
+      };
+      
+      await territoryRef.update({ 
+          stats,
+          progress, 
+          quadraCount, 
+      });
+
     } catch (error) {
       console.error(`[onQuadraWrite] FALHA ao atualizar território ${territoryRef.id}: `, error);
     }
@@ -213,9 +248,8 @@ export const onTerritoryWrite = functions.firestore
     .onWrite(async (change, context) => {
         const { congId } = context.params;
         const congregationRef = db.doc(`congregations/${congId}`);
-        const territoriesRef = congregationRef.collection("territories");
         
-        const territoriesSnapshot = await territoriesRef.get();
+        const territoriesSnapshot = await congregationRef.collection("territories").get();
         let urbanCount = 0, ruralCount = 0, totalHouses = 0, totalHousesDone = 0, totalQuadras = 0;
         territoriesSnapshot.forEach(doc => {
             const data = doc.data();
