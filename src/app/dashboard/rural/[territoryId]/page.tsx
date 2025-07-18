@@ -159,7 +159,7 @@ export default function RuralTerritoryDetailPage() {
             <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
               {sortedWorkLogs.length > 0 ? (
                   sortedWorkLogs.map(log => (
-                      <div key={log.id} className="border-l-2 border-primary/50 pl-4 group">
+                      <div key={log.id} className="border-l-2 border-primary/50 pl-4">
                         <div className="flex justify-between items-start">
                            <div>
                               <p className="font-semibold text-sm">{format(log.date.toDate(), "dd 'de' MMMM, yyyy", { locale: ptBR })}</p>
