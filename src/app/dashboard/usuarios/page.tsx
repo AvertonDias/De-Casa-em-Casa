@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useContext, Fragment } from 'react';
@@ -19,7 +20,7 @@ const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserFunction = httpsCallable(functions, 'deleteUserAccount');
 
 
-const UserListItem = ({ user, currentUser, onUpdate, onDelete, isUpdating }: { user: AppUser, currentUser: AppUser, onUpdate: (userId: string, data: object) => void, onDelete: (user: AppUser) => void, isUpdating: boolean }) => {
+const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser, currentUser: AppUser, onUpdate: (userId: string, data: object) => void, onDelete: (user: AppUser) => void }) => {
   const isOnline = user.isOnline === true;
   const isAdmin = currentUser.role === 'Administrador';
   const isDirigente = currentUser.role === 'Dirigente';
@@ -84,8 +85,8 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete, isUpdating }: { u
           
           {canShowMenu ? (
               <Menu as="div" className="relative">
-                  <Menu.Button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:cursor-not-allowed" disabled={isUpdating}>
-                    {isUpdating ? <Loader size={20} className="animate-spin"/> : <MoreVertical size={20} />}
+                  <Menu.Button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <MoreVertical size={20} />
                   </Menu.Button>
                   <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
                       <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right bg-white dark:bg-gray-800 divide-y dark:divide-gray-700 rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5 focus:outline-none">
@@ -191,7 +192,6 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Publicador'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pendente'>('all');
 
-  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ action: () => void, title: string, message: string, confirmText: string } | null>(null);
@@ -227,7 +227,6 @@ export default function UsersPage() {
   }, [currentUser, userLoading]);
   
   const handleUserUpdate = async (userId: string, dataToUpdate: object) => {
-    setUpdatingUserId(userId);
     try {
       if (currentUser?.role !== 'Administrador') {
         const permissions = dataToUpdate as Partial<AppUser>;
@@ -240,8 +239,6 @@ export default function UsersPage() {
       await updateDoc(userRef, dataToUpdate);
     } catch (error) {
       console.error("Erro ao atualizar usuário:", error);
-    } finally {
-      setUpdatingUserId(null);
     }
   };
   
@@ -259,16 +256,14 @@ export default function UsersPage() {
 
   const confirmDeleteUser = async () => {
     if (!userToDelete || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
-
-    setUpdatingUserId(userToDelete.uid);
+    
+    setIsConfirmModalOpen(false);
     try {
         await deleteUserFunction({ uid: userToDelete.uid });
     } catch (error: any) {
         console.error("Erro ao chamar a função para excluir usuário:", error);
     } finally {
-        setUpdatingUserId(null);
         setUserToDelete(null);
-        setIsConfirmModalOpen(false);
     }
   };
 
@@ -482,7 +477,6 @@ export default function UsersPage() {
                     currentUser={currentUser!} 
                     onUpdate={handleUserUpdate}
                     onDelete={openDeleteConfirm}
-                    isUpdating={updatingUserId === user.uid}
                 />
             )}
           </ul>
@@ -501,7 +495,7 @@ export default function UsersPage() {
             onConfirm={() => {
                 confirmAction.action();
             }}
-            isLoading={!!updatingUserId}
+            isLoading={false}
             title={confirmAction.title}
             message={confirmAction.message}
             confirmText={confirmAction.confirmText}
@@ -511,3 +505,5 @@ export default function UsersPage() {
     </>
   );
 }
+
+    
