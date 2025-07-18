@@ -109,7 +109,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       router.replace('/');
     } 
     else if (user && (pathname === '/' || authPages.some(p => pathname.startsWith(p)))) {
-        router.replace('/dashboard');
+        // Redireciona o usuário para a página correta com base no seu perfil
+        if (user.role === 'Publicador') {
+          router.replace('/dashboard/territorios');
+        } else {
+          router.replace('/dashboard');
+        }
     }
   }, [user, loading, router, pathname]);
 
