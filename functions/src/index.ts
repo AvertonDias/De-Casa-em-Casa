@@ -189,7 +189,8 @@ export const onHouseChange = functions.firestore
         const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
         const historyRef = territoryRef.collection("activityHistory");
 
-        await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
+        const now = admin.firestore.FieldValue.serverTimestamp();
+        await territoryRef.update({ lastUpdate: now });
 
         const TIME_ZONE = "America/Sao_Paulo";
         const todayString = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
@@ -198,11 +199,11 @@ export const onHouseChange = functions.firestore
         
         if (lastHistorySnap.empty || lastHistorySnap.docs[0].data().activityDate.toDate().toLocaleDateString("en-CA", {timeZone: TIME_ZONE}) !== todayString) {
             return historyRef.add({
-              activityDate: admin.firestore.FieldValue.serverTimestamp(),
+              activityDate: now,
               notes: "Primeiro trabalho do dia registrado. (Registro Automático)",
               userName: "Sistema",
               userId: "system",
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              createdAt: now,
             });
         }
     }
@@ -232,6 +233,7 @@ export const onQuadraChange = functions.firestore
         stats: { totalHouses, housesDone },
         progress,
         quadraCount: quadrasSnapshot.size,
+        lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
     });
 });
 
