@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useContext } from 'react';
@@ -101,12 +102,14 @@ export default function RuralPage() {
     return <div className="flex items-center justify-center h-full"><Loader className="animate-spin text-primary" size={48} /></div>;
   }
 
+  const isAdmin = user?.role === 'Administrador';
+
   return (
     <>
       <div className="p-4 md:p-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Territórios Rurais</h1>
-          {user?.role === 'Administrador' && user.congregationId && (
+          {isAdmin && user.congregationId && (
             <>
               <button onClick={() => setIsAddModalOpen(true)} className="flex items-center px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90">
                   <PlusCircle size={20} className="mr-2" /> Novo Território Rural
@@ -121,31 +124,33 @@ export default function RuralPage() {
           )}
         </div>
 
-        {user?.role === 'Administrador' && (
-          <div className="bg-card p-4 rounded-lg mb-6">
-            <div className="flex justify-between items-center">
-              <h2 className="font-semibold flex items-center"><LinkIcon size={16} className="mr-2"/> Links Gerais da Página</h2>
+        <div className="bg-card p-4 rounded-lg mb-6">
+          <div className="flex justify-between items-center">
+            <h2 className="font-semibold flex items-center"><LinkIcon size={16} className="mr-2"/> Links Gerais da Página</h2>
+            {isAdmin && (
               <button onClick={handleOpenAddLinkModal} className="text-sm text-primary hover:underline font-semibold">+ Adicionar Link</button>
-            </div>
-            <div className="mt-2 text-sm space-y-2">
-              {congregation?.globalRuralLinks && congregation.globalRuralLinks.length > 0 ? (
-                congregation.globalRuralLinks.map(link => (
-                  <div key={link.id} className="flex items-center justify-between group">
-                    <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate pr-2">
-                      {link.description}
-                    </a>
+            )}
+          </div>
+          <div className="mt-2 text-sm space-y-2">
+            {congregation?.globalRuralLinks && congregation.globalRuralLinks.length > 0 ? (
+              congregation.globalRuralLinks.map(link => (
+                <div key={link.id} className="flex items-center justify-between group">
+                  <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate pr-2">
+                    {link.description}
+                  </a>
+                  {isAdmin && (
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => handleOpenEditLinkModal(link)} className="text-muted-foreground hover:text-white"><Edit2 size={14} /></button>
                       <button onClick={() => handleDeleteLink(link)} className="text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
                     </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-muted-foreground text-xs italic">Nenhum link geral adicionado.</p>
-              )}
-            </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p className="text-muted-foreground text-xs italic">Nenhum link geral adicionado.</p>
+            )}
           </div>
-        )}
+        </div>
 
         <div className="mb-6 relative">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3">
@@ -173,7 +178,7 @@ export default function RuralPage() {
               {searchTerm ? "Nenhum resultado encontrado" : "Nenhum território rural encontrado"}
             </h2>
             <p className="mt-2 text-muted-foreground">
-              {searchTerm ? "Tente buscar por um termo diferente." : (user?.role === 'Administrador' ? "Clique no botão acima para adicionar o primeiro." : "Peça a um administrador para adicionar territórios rurais.")}
+              {searchTerm ? "Tente buscar por um termo diferente." : (isAdmin ? "Clique no botão acima para adicionar o primeiro." : "Peça a um administrador para adicionar territórios rurais.")}
             </p>
           </div>
         )}
