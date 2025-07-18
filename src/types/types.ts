@@ -119,6 +119,7 @@ export interface RuralWorkLog {
   date: Timestamp;
   notes: string;
   userName: string;
+  userId: string; // Adicionado para rastreamento
 }
 
 export interface RuralTerritory {

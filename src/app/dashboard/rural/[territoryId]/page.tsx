@@ -2,16 +2,18 @@
 "use client";
 
 import { useState, useEffect, useContext } from 'react';
-import { doc, onSnapshot, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { UserContext } from '@/contexts/UserContext';
 import { RuralTerritory, RuralWorkLog } from '@/types/types';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, Link as LinkIcon, Loader, Edit } from 'lucide-react';
+import { ArrowLeft, Calendar, Link as LinkIcon, Loader, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
+import AddEditWorkLogModal from '@/components/AddEditWorkLogModal';
+import { ConfirmationModal } from '@/components/ConfirmationModal';
 
 export default function RuralTerritoryDetailPage() {
   const { user } = useContext(UserContext);
@@ -21,6 +23,12 @@ export default function RuralTerritoryDetailPage() {
   
   const [workNote, setWorkNote] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Estados para modais de edição e exclusão de histórico
+  const [isWorkLogModalOpen, setIsWorkLogModalOpen] = useState(false);
+  const [workLogToEdit, setWorkLogToEdit] = useState<RuralWorkLog | null>(null);
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [workLogToDelete, setWorkLogToDelete] = useState<RuralWorkLog | null>(null);
 
   useEffect(() => {
     if (!user?.congregationId || !params.territoryId) {
@@ -47,6 +55,7 @@ export default function RuralTerritoryDetailPage() {
       date: Timestamp.now(),
       notes: workNote.trim(),
       userName: user.name,
+      userId: user.uid,
     };
     const territoryRef = doc(db, 'congregations', user.congregationId!, 'territories', territory.id);
     try {
@@ -61,74 +70,130 @@ export default function RuralTerritoryDetailPage() {
     }
   };
 
+  const handleSaveWorkLog = async (logData: { notes: string }, logId?: string) => {
+    if (!user?.congregationId || !territory) return;
+    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
+    const existingLog = territory.workLogs?.find(log => log.id === logId);
+
+    if (existingLog) {
+      const updatedLog = { ...existingLog, notes: logData.notes };
+      await updateDoc(territoryRef, { workLogs: arrayRemove(existingLog) });
+      await updateDoc(territoryRef, { workLogs: arrayUnion(updatedLog) });
+    }
+  };
+
+  const handleDeleteWorkLog = async () => {
+    if (!workLogToDelete || !user?.congregationId || !territory) return;
+    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
+    await updateDoc(territoryRef, { workLogs: arrayRemove(workLogToDelete) });
+    setIsConfirmDeleteOpen(false);
+    setWorkLogToDelete(null);
+  };
+  
+  const openEditWorkLogModal = (log: RuralWorkLog) => {
+    setWorkLogToEdit(log);
+    setIsWorkLogModalOpen(true);
+  };
+
+  const openDeleteConfirmModal = (log: RuralWorkLog) => {
+    setWorkLogToDelete(log);
+    setIsConfirmDeleteOpen(true);
+  };
+
   const sortedWorkLogs = territory?.workLogs?.sort((a, b) => b.date.seconds - a.date.seconds) || [];
 
   if (loading) return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" size={32} /></div>;
   if (!territory) return <p className="text-center mt-10">Território não encontrado ou não é um território rural.</p>;
 
   return (
-    <div className="p-4 md:p-8 space-y-8">
-      <div>
-        <Link href="/dashboard/rural" className="flex items-center text-sm text-muted-foreground hover:text-white mb-2">
-          <ArrowLeft size={16} className="mr-2" /> Voltar para Territórios Rurais
-        </Link>
-        <div className="flex justify-between items-start">
-            <div>
-                <h1 className="text-3xl font-bold">{territory.number} - {territory.name}</h1>
-                <p className="text-lg text-muted-foreground mt-1">{territory.description}</p>
-            </div>
-            {user?.role === 'Administrador' && user.congregationId && (
-                <EditRuralTerritoryModal territory={territory} congregationId={user.congregationId} onTerritoryUpdated={() => {}}/>
-            )}
+    <>
+      <div className="p-4 md:p-8 space-y-8">
+        <div>
+          <Link href="/dashboard/rural" className="flex items-center text-sm text-muted-foreground hover:text-white mb-2">
+            <ArrowLeft size={16} className="mr-2" /> Voltar para Territórios Rurais
+          </Link>
+          <div className="flex justify-between items-start">
+              <div>
+                  <h1 className="text-3xl font-bold">{territory.number} - {territory.name}</h1>
+                  <p className="text-lg text-muted-foreground mt-1">{territory.description}</p>
+              </div>
+              {user?.role === 'Administrador' && user.congregationId && (
+                  <EditRuralTerritoryModal territory={territory} congregationId={user.congregationId} onTerritoryUpdated={() => {}}/>
+              )}
+          </div>
         </div>
-      </div>
 
-      <div className="bg-card p-6 rounded-lg">
-        <h2 className="font-semibold text-xl mb-4 flex items-center"><Calendar size={20} className="mr-3 text-primary" />Registrar Trabalho</h2>
-        <textarea 
-          value={workNote}
-          onChange={(e) => setWorkNote(e.target.value)}
-          placeholder="Digite uma observação sobre o trabalho de hoje... (Ex: Visitamos o setor leste, muitos não estavam em casa.)"
-          rows={3}
-          className="w-full bg-input p-2 rounded-md mb-3"
-        />
-        <button onClick={handleAddWorkLog} disabled={isSaving || !workNote.trim()} className="bg-primary text-primary-foreground px-4 py-2 rounded-md w-full disabled:opacity-50">
-          {isSaving ? "Salvando..." : "Salvar Registro de Hoje"}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-card p-6 rounded-lg">
-            <h2 className="font-semibold text-xl mb-4 flex items-center"><LinkIcon size={20} className="mr-3 text-primary" />Links Específicos</h2>
-            <div className="space-y-3">
-            {territory.links && territory.links.length > 0 ? (
-                territory.links.map(link => (
-                <a href={link.url} key={link.id} target="_blank" rel="noopener noreferrer" className="block text-blue-400 hover:underline">
-                    {link.description}
-                </a>
-                ))
-            ) : (
-                <p className="text-muted-foreground italic text-sm">Nenhum link específico para este território.</p>
-            )}
-            </div>
+          <h2 className="font-semibold text-xl mb-4 flex items-center"><Calendar size={20} className="mr-3 text-primary" />Registrar Trabalho</h2>
+          <textarea 
+            value={workNote}
+            onChange={(e) => setWorkNote(e.target.value)}
+            placeholder="Digite uma observação sobre o trabalho de hoje... (Ex: Visitamos o setor leste, muitos não estavam em casa.)"
+            rows={3}
+            className="w-full bg-input p-2 rounded-md mb-3"
+          />
+          <button onClick={handleAddWorkLog} disabled={isSaving || !workNote.trim()} className="bg-primary text-primary-foreground px-4 py-2 rounded-md w-full disabled:opacity-50">
+            {isSaving ? "Salvando..." : "Salvar Registro de Hoje"}
+          </button>
         </div>
-        <div className="bg-card p-6 rounded-lg">
-          <h2 className="font-semibold text-xl mb-4">Histórico de Trabalho</h2>
-          <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-            {sortedWorkLogs.length > 0 ? (
-                sortedWorkLogs.map(log => (
-                    <div key={log.id} className="border-l-2 border-primary/50 pl-4">
-                        <p className="font-semibold text-sm">{format(log.date.toDate(), "dd 'de' MMMM, yyyy", { locale: ptBR })}</p>
-                        <p className="text-muted-foreground text-sm my-1">"{log.notes}"</p>
-                        <p className="text-xs text-muted-foreground/80">por: {log.userName}</p>
-                    </div>
-                ))
-            ) : (
-              <p className="text-muted-foreground italic text-sm">Nenhum registro de trabalho encontrado.</p>
-            )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="bg-card p-6 rounded-lg">
+              <h2 className="font-semibold text-xl mb-4 flex items-center"><LinkIcon size={20} className="mr-3 text-primary" />Links Específicos</h2>
+              <div className="space-y-3">
+              {territory.links && territory.links.length > 0 ? (
+                  territory.links.map(link => (
+                  <a href={link.url} key={link.id} target="_blank" rel="noopener noreferrer" className="block text-blue-400 hover:underline">
+                      {link.description}
+                  </a>
+                  ))
+              ) : (
+                  <p className="text-muted-foreground italic text-sm">Nenhum link específico para este território.</p>
+              )}
+              </div>
+          </div>
+          <div className="bg-card p-6 rounded-lg">
+            <h2 className="font-semibold text-xl mb-4">Histórico de Trabalho</h2>
+            <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+              {sortedWorkLogs.length > 0 ? (
+                  sortedWorkLogs.map(log => (
+                      <div key={log.id} className="border-l-2 border-primary/50 pl-4 group">
+                        <div className="flex justify-between items-start">
+                           <div>
+                              <p className="font-semibold text-sm">{format(log.date.toDate(), "dd 'de' MMMM, yyyy", { locale: ptBR })}</p>
+                              <p className="text-muted-foreground text-sm my-1">"{log.notes}"</p>
+                              <p className="text-xs text-muted-foreground/80">por: {log.userName}</p>
+                           </div>
+                           <div className="flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => openEditWorkLogModal(log)} className="text-muted-foreground hover:text-white"><Edit size={14} /></button>
+                              <button onClick={() => openDeleteConfirmModal(log)} className="text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
+                           </div>
+                        </div>
+                      </div>
+                  ))
+              ) : (
+                <p className="text-muted-foreground italic text-sm">Nenhum registro de trabalho encontrado.</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      <AddEditWorkLogModal
+        isOpen={isWorkLogModalOpen}
+        onClose={() => setIsWorkLogModalOpen(false)}
+        onSave={handleSaveWorkLog}
+        workLogToEdit={workLogToEdit}
+      />
+
+      <ConfirmationModal
+        isOpen={isConfirmDeleteOpen}
+        onClose={() => setIsConfirmDeleteOpen(false)}
+        onConfirm={handleDeleteWorkLog}
+        title="Confirmar Exclusão"
+        message={`Tem certeza que deseja excluir o registro: "${workLogToDelete?.notes}"?`}
+        confirmText="Sim, Excluir"
+      />
+    </>
   );
 }
