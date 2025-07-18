@@ -11,10 +11,10 @@ import Link from 'next/link';
 import { ArrowLeft, Calendar, Link as LinkIcon, Loader, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
 import AddEditWorkLogModal from '@/components/AddEditWorkLogModal';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Button } from '@/components/ui/button';
+import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
 
 export default function RuralTerritoryDetailPage() {
   const { user } = useContext(UserContext);
@@ -69,7 +69,7 @@ export default function RuralTerritoryDetailPage() {
           userId: user.uid,
         };
         const newLogsArray = [...currentLogs, newLog];
-        transaction.update(territoryRef, { workLogs: newLogsArray });
+        transaction.update(territoryRef, { workLogs: newLogsArray, lastUpdate: Timestamp.now() });
       });
       setWorkNote('');
     } catch (error) {
@@ -158,6 +158,21 @@ export default function RuralTerritoryDetailPage() {
         </div>
 
         <div className="bg-card p-6 rounded-lg">
+          <h2 className="font-semibold text-xl mb-4 flex items-center"><LinkIcon size={20} className="mr-3 text-primary" />Links Específicos</h2>
+          <div className="space-y-3">
+          {territory.links && territory.links.length > 0 ? (
+              territory.links.map(link => (
+              <a href={link.url} key={link.id} target="_blank" rel="noopener noreferrer" className="block text-blue-400 hover:underline">
+                  {link.description}
+              </a>
+              ))
+          ) : (
+              <p className="text-muted-foreground italic text-sm">Nenhum link específico para este território.</p>
+          )}
+          </div>
+        </div>
+        
+        <div className="bg-card p-6 rounded-lg">
           <h2 className="font-semibold text-xl mb-4 flex items-center"><Calendar size={20} className="mr-3 text-primary" />Registrar Trabalho</h2>
           <textarea 
             value={workNote}
@@ -172,20 +187,6 @@ export default function RuralTerritoryDetailPage() {
         </div>
 
         <div className="space-y-8">
-          <div className="bg-card p-6 rounded-lg">
-              <h2 className="font-semibold text-xl mb-4 flex items-center"><LinkIcon size={20} className="mr-3 text-primary" />Links Específicos</h2>
-              <div className="space-y-3">
-              {territory.links && territory.links.length > 0 ? (
-                  territory.links.map(link => (
-                  <a href={link.url} key={link.id} target="_blank" rel="noopener noreferrer" className="block text-blue-400 hover:underline">
-                      {link.description}
-                  </a>
-                  ))
-              ) : (
-                  <p className="text-muted-foreground italic text-sm">Nenhum link específico para este território.</p>
-              )}
-              </div>
-          </div>
           <div className="bg-card p-6 rounded-lg">
             <h2 className="font-semibold text-xl mb-4">Histórico de Trabalho</h2>
             <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
