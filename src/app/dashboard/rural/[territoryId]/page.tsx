@@ -1,5 +1,4 @@
 
-// src/app/dashboard/rural/[territoryId]/page.tsx
 "use client";
 
 import { useState, useEffect, useContext } from 'react';
@@ -26,7 +25,8 @@ export default function RuralTerritoryDetailPage() {
   const [workNote, setWorkNote] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Estados para modais de edição e exclusão de histórico
+  // Estados para modais
+  const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
   const [isWorkLogModalOpen, setIsWorkLogModalOpen] = useState(false);
   const [workLogToEdit, setWorkLogToEdit] = useState<RuralWorkLog | null>(null);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
@@ -104,8 +104,10 @@ export default function RuralTerritoryDetailPage() {
 
   const sortedWorkLogs = territory?.workLogs?.sort((a, b) => b.date.seconds - a.date.seconds) || [];
 
-  if (loading) return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" size={32} /></div>;
+  if (loading || !user) return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" size={32} /></div>;
   if (!territory) return <p className="text-center mt-10">Território não encontrado ou não é um território rural.</p>;
+
+  const isAdmin = user.role === 'Administrador';
 
   return (
     <>
@@ -119,8 +121,10 @@ export default function RuralTerritoryDetailPage() {
                   <h1 className="text-3xl font-bold">{territory.number} - {territory.name}</h1>
                   <p className="text-lg text-muted-foreground mt-1">{territory.description}</p>
               </div>
-              {user?.role === 'Administrador' && user.congregationId && (
-                  <EditRuralTerritoryModal territory={territory} congregationId={user.congregationId} onTerritoryUpdated={() => {}}/>
+              {isAdmin && user.congregationId && (
+                <button onClick={() => setIsEditTerritoryModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md flex items-center">
+                  <Edit size={16} className="mr-2"/> Editar
+                </button>
               )}
           </div>
         </div>
@@ -158,7 +162,10 @@ export default function RuralTerritoryDetailPage() {
             <h2 className="font-semibold text-xl mb-4">Histórico de Trabalho</h2>
             <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
               {sortedWorkLogs.length > 0 ? (
-                  sortedWorkLogs.map(log => (
+                  sortedWorkLogs.map(log => {
+                      const canManageLog = user.uid === log.userId || isAdmin;
+
+                      return (
                       <div key={log.id} className="border-l-2 border-primary/50 pl-4">
                         <div className="flex justify-between items-start">
                            <div>
@@ -166,13 +173,16 @@ export default function RuralTerritoryDetailPage() {
                               <p className="text-muted-foreground text-sm my-1">"{log.notes}"</p>
                               <p className="text-xs text-muted-foreground/80">por: {log.userName}</p>
                            </div>
-                           <div className="flex items-center gap-2">
-                              <button onClick={() => openEditWorkLogModal(log)} className="text-muted-foreground hover:text-white"><Edit size={14} /></button>
-                              <button onClick={() => openDeleteConfirmModal(log)} className="text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
-                           </div>
+                           {canManageLog && (
+                             <div className="flex items-center gap-2">
+                                <button onClick={() => openEditWorkLogModal(log)} className="text-muted-foreground hover:text-white"><Edit size={14} /></button>
+                                <button onClick={() => openDeleteConfirmModal(log)} className="text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
+                             </div>
+                           )}
                         </div>
                       </div>
-                  ))
+                    );
+                  })
               ) : (
                 <p className="text-muted-foreground italic text-sm">Nenhum registro de trabalho encontrado.</p>
               )}
@@ -180,6 +190,16 @@ export default function RuralTerritoryDetailPage() {
           </div>
         </div>
       </div>
+
+      {isAdmin && user.congregationId && (
+        <EditRuralTerritoryModal
+          isOpen={isEditTerritoryModalOpen}
+          onClose={() => setIsEditTerritoryModalOpen(false)}
+          territory={territory} 
+          congregationId={user.congregationId} 
+          onTerritoryUpdated={() => setIsEditTerritoryModalOpen(false)}
+        />
+      )}
 
       <AddEditWorkLogModal
         isOpen={isWorkLogModalOpen}
