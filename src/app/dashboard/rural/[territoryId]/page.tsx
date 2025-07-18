@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useContext } from 'react';
-import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
+import { doc, onSnapshot, Timestamp, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { UserContext } from '@/contexts/UserContext';
 import { RuralTerritory, RuralWorkLog } from '@/types/types';
@@ -52,44 +52,72 @@ export default function RuralTerritoryDetailPage() {
   const handleAddWorkLog = async () => {
     if (!workNote.trim() || !user || !territory) return;
     setIsSaving(true);
-    const newLog: RuralWorkLog = {
-      id: crypto.randomUUID(),
-      date: Timestamp.now(),
-      notes: workNote.trim(),
-      userName: user.name,
-      userId: user.uid,
-    };
+    
     const territoryRef = doc(db, 'congregations', user.congregationId!, 'territories', territory.id);
+    
     try {
-      await updateDoc(territoryRef, {
-        workLogs: arrayUnion(newLog)
+      await runTransaction(db, async (transaction) => {
+        const territoryDoc = await transaction.get(territoryRef);
+        if (!territoryDoc.exists()) { throw "Território não encontrado!"; }
+
+        const currentLogs = territoryDoc.data().workLogs || [];
+        const newLog: RuralWorkLog = {
+          id: crypto.randomUUID(),
+          date: Timestamp.now(),
+          notes: workNote.trim(),
+          userName: user.name,
+          userId: user.uid,
+        };
+        const newLogsArray = [...currentLogs, newLog];
+        transaction.update(territoryRef, { workLogs: newLogsArray });
       });
       setWorkNote('');
     } catch (error) {
-      console.error("Erro ao adicionar registro de trabalho:", error);
+      console.error("Erro na transação de adicionar registro:", error);
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleSaveWorkLog = async (logData: { notes: string }, logId?: string) => {
-    if (!user?.congregationId || !territory) return;
+    if (!logId || !user?.congregationId || !territory) return;
     const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
-    const existingLog = territory.workLogs?.find(log => log.id === logId);
+    
+    try {
+        await runTransaction(db, async (transaction) => {
+            const territoryDoc = await transaction.get(territoryRef);
+            if (!territoryDoc.exists()) { throw "Território não encontrado!"; }
 
-    if (existingLog) {
-      const updatedLog = { ...existingLog, notes: logData.notes };
-      await updateDoc(territoryRef, { workLogs: arrayRemove(existingLog) });
-      await updateDoc(territoryRef, { workLogs: arrayUnion(updatedLog) });
+            const currentLogs: RuralWorkLog[] = territoryDoc.data().workLogs || [];
+            const newLogsArray = currentLogs.map(log => 
+                log.id === logId ? { ...log, notes: logData.notes } : log
+            );
+            transaction.update(territoryRef, { workLogs: newLogsArray });
+        });
+    } catch (error) {
+        console.error("Erro na transação de editar registro:", error);
     }
   };
 
   const handleDeleteWorkLog = async () => {
     if (!workLogToDelete || !user?.congregationId || !territory) return;
     const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
-    await updateDoc(territoryRef, { workLogs: arrayRemove(workLogToDelete) });
-    setIsConfirmDeleteOpen(false);
-    setWorkLogToDelete(null);
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const territoryDoc = await transaction.get(territoryRef);
+            if (!territoryDoc.exists()) { throw "Território não encontrado!"; }
+            
+            const currentLogs: RuralWorkLog[] = territoryDoc.data().workLogs || [];
+            const newLogsArray = currentLogs.filter(log => log.id !== workLogToDelete.id);
+            transaction.update(territoryRef, { workLogs: newLogsArray });
+        });
+    } catch (error) {
+        console.error("Erro na transação de excluir registro:", error);
+    } finally {
+        setIsConfirmDeleteOpen(false);
+        setWorkLogToDelete(null);
+    }
   };
   
   const openEditWorkLogModal = (log: RuralWorkLog) => {
