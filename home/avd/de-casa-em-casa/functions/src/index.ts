@@ -1,4 +1,4 @@
-{// functions/src/index.ts
+// functions/src/index.ts
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import type { GetSignedUrlConfig } from "@google-cloud/storage";
@@ -272,59 +272,6 @@ export const onTerritoryChange = functions.firestore
         });
     });
 
-// ============================================================================
-//   SISTEMA DE PRESENÇA UNIFICADO
-// ============================================================================
-export const handleUserPresence = functions.database.ref('/status/{uid}')
-  .onWrite(async (change, context) => {
-    
-    const firestoreUserRef = db.doc(`users/${context.params.uid}`);
-    
-    const eventStatus = change.after.val();
-
-    if (!eventStatus) {
-      try {
-        await firestoreUserRef.update({
-          isOnline: false,
-          lastSeen: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      } catch (error) {
-        if ((error as any).code !== 'not-found') console.error(error);
-      }
-      return;
-    }
-
-    if (eventStatus.state === 'online') {
-        try {
-            await firestoreUserRef.update({
-                isOnline: true,
-                lastSeen: eventStatus.last_changed,
-            });
-        } catch (error) {
-            if ((error as any).code !== 'not-found') console.error(error);
-        }
-    
-        const userDocSnap = await firestoreUserRef.get();
-        if (!userDocSnap.exists()) return;
-        const congregationId = userDocSnap.data()?.congregationId;
-        if (!congregationId) return;
-
-        const congregationRef = db.doc(`congregations/${congregationId}`);
-        const statusRef = change.after.ref.parent; 
-
-        await db.runTransaction(async (transaction) => {
-            const congDoc = await transaction.get(congregationRef);
-            if (!congDoc.exists()) return;
-            const onlineUsersSnapshot = await statusRef!.orderByChild('state').equalTo('online').once('value');
-            const currentOnlineCount = onlineUsersSnapshot.numChildren();
-            const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
-            if (currentOnlineCount > peakData.count) {
-                transaction.update(congregationRef, { peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
-            }
-        });
-    }
-  });
-
 
 // ============================================================================
 //   OUTROS GATILHOS (Notificação, Exclusão)
@@ -439,4 +386,95 @@ export const syncLastUpdateFromHistory = functions.firestore
     return null;
   });
 
+// ========================================================================
+//   FUNÇÕES DE PRESENÇA E PICO (ESTRUTURA FINAL E À PROVA DE FALHAS)
+// ========================================================================
+
+// FUNÇÃO 1: Acionada quando um usuário FICA ONLINE.
+export const onUserOnline = functions.database.ref('/status/{uid}')
+  .onCreate(async (snapshot, context) => {
+    const uid = context.params.uid;
+    const firestoreUserRef = db.doc(`users/${uid}`);
+    try {
+      // 1. Marca o usuário como online no Firestore.
+      await firestoreUserRef.update({ isOnline: true, lastSeen: admin.firestore.FieldValue.serverTimestamp() });
+    } catch (error) {
+      if ((error as any).code !== 'not-found') console.error(`[Presence] Falha ao marcar ONLINE para ${uid}:`, error);
+    }
     
+    // 2. Lógica para atualizar o pico de usuários.
+    const userDocSnap = await firestoreUserRef.get();
+    if (!userDocSnap.exists()) return;
+    const congregationId = userDocSnap.data()?.congregationId;
+    if (!congregationId) return;
+
+    const congregationRef = db.doc(`congregations/${congregationId}`);
+    const statusRef = snapshot.ref.parent; 
+
+    return db.runTransaction(async (transaction) => {
+        const congDoc = await transaction.get(congregationRef);
+        if (!congDoc.exists) return;
+        const onlineUsersSnapshot = await statusRef!.orderByChild('state').equalTo('online').once('value');
+        const currentOnlineCount = onlineUsersSnapshot.numChildren();
+        const peakData = congDoc.data()?.peakOnlineUsers || { count: 0 };
+        if (currentOnlineCount > peakData.count) {
+            transaction.update(congregationRef, { peakOnlineUsers: { count: currentOnlineCount, timestamp: admin.firestore.FieldValue.serverTimestamp() } });
+        }
+    });
+  });
+
+// FUNÇÃO 2: Acionada quando um usuário FICA OFFLINE (o nó é deletado).
+export const onUserOffline = functions.database.ref('/status/{uid}')
+  .onDelete(async (snapshot, context) => {
+    const uid = context.params.uid;
+    const firestoreUserRef = db.doc(`users/${uid}`);
+    try {
+      await firestoreUserRef.update({
+        isOnline: false,
+        lastSeen: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (error) {
+      if ((error as any).code !== 'not-found') console.error(`[Presence] Falha ao marcar OFFLINE para ${uid}:`, error);
+    }
+  });
+
+// ▼▼▼ FUNÇÃO 3: A "FAXINEIRA" (O TIMER QUE VOCÊ SUGERIU) ▼▼▼
+// Esta função roda a cada 10 minutos.
+export const cleanupZombieUsers = functions.pubsub.schedule('every 10 minutes')
+  .onRun(async (context) => {
+    console.log('[Cleanup] Iniciando a limpeza de usuários "zumbis".');
+    const now = admin.firestore.Timestamp.now();
+    const tenMinutesAgo = admin.firestore.Timestamp.fromMillis(now.toMillis() - (10 * 60 * 1000));
+
+    // 1. Encontra todos os usuários que estão 'isOnline: true'
+    const zombieUsersQuery = db.collection('users').where('isOnline', '==', true);
+    const zombieSnapshot = await zombieUsersQuery.get();
+
+    if (zombieSnapshot.empty) {
+      console.log('[Cleanup] Nenhum usuário online encontrado. Limpeza concluída.');
+      return null;
+    }
+
+    const batch = db.batch();
+    let cleanedCount = 0;
+
+    zombieSnapshot.forEach(doc => {
+      const userData = doc.data();
+      // 2. Verifica se o 'lastSeen' deles é mais antigo que 10 minutos atrás.
+      // Isso significa que o 'onDisconnect' falhou para eles.
+      if (userData.lastSeen && userData.lastSeen < tenMinutesAgo) {
+        console.log(`[Cleanup] Encontrado usuário zumbi: ${doc.id}. Marcando como offline.`);
+        batch.update(doc.ref, { isOnline: false });
+        cleanedCount++;
+      }
+    });
+
+    if (cleanedCount > 0) {
+      await batch.commit();
+      console.log(`[Cleanup] SUCESSO: ${cleanedCount} usuários zumbis foram marcados como offline.`);
+    } else {
+      console.log('[Cleanup] Nenhum usuário zumbi precisou ser limpo.');
+    }
+    
+    return null;
+  });
