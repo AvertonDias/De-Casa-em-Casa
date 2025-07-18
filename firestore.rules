@@ -3,69 +3,85 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Funções de Ajuda ---
+    // --- Funções de Ajuda (Helper Functions) ---
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-    
     function isMemberActive(congregationId) {
       let userData = getUserData();
-      return request.auth != null &&
-             userData.congregationId == congregationId &&
-             userData.status == 'ativo';
+      return request.auth != null && userData.congregationId == congregationId && userData.status == 'ativo';
     }
-
     function isAdmin(congregationId) {
-      let userData = getUserData();
-      return isMemberActive(congregationId) &&
-             userData.role == 'Administrador';
+      return isMemberActive(congregationId) && getUserData().role == 'Administrador';
     }
-
     function isAtLeastDirigente(congregationId) {
-      let userData = getUserData();
-      return isMemberActive(congregationId) &&
-             (userData.role == 'Administrador' || userData.role == 'Dirigente');
+      return isMemberActive(congregationId) && getUserData().role in ['Administrador', 'Dirigente'];
     }
 
-    // --- Regras para Coleções ---
+    // --- Regras para Coleções Principais ---
+
     match /congregations/{congregationId} {
-      allow get: if isMemberActive(congregationId);
-      allow list: if request.auth != null; // Permite buscar congregações no cadastro/login
-      allow create, update: if isAdmin(congregationId);
+      allow list: if true; 
+      allow create: if request.auth != null;
+      allow get: if isMemberActive(congregationId); 
+      allow update: if isAdmin(congregationId);
+      allow delete: if false;
     }
 
     match /users/{userId} {
       allow create: if true; 
-      allow get: if request.auth.uid == userId || isAtLeastDirigente(getUserData().congregationId);
+      allow get: if request.auth.uid == userId;
       allow list: if isAtLeastDirigente(getUserData().congregationId);
       allow delete: if isAdmin(getUserData().congregationId);
+
+      // ▼▼▼ A REGRA CORRIGIDA E MAIS SEGURA ESTÁ AQUI ▼▼▼
       allow update: if 
-          // 1. Um admin pode atualizar qualquer campo de qualquer usuário da sua congregação.
+          // 1. Um admin pode atualizar qualquer campo.
           isAdmin(getUserData().congregationId) ||
-          // 2. Um dirigente pode atualizar o status de um usuário de 'pendente' ou 'rejeitado' para 'ativo'.
-          (
-            isAtLeastDirigente(getUserData().congregationId) && 
-            (resource.data.status == 'pendente' || resource.data.status == 'rejeitado') && 
-            request.resource.data.status == 'ativo'
+          // 2. Um dirigente pode aprovar um usuário pendente.
+          (isAtLeastDirigente(getUserData().congregationId) && 
+            resource.data.status == 'pendente' && 
+            request.resource.data.status == 'ativo' &&
+            // Garante que o dirigente não está mudando o perfil ao mesmo tempo
+            request.resource.data.role == resource.data.role
           ) ||
-          // 3. O próprio usuário pode atualizar apenas seus dados não-críticos.
-          (
-            request.auth.uid == userId &&
-            // Garante que APENAS os campos listados estão sendo alterados. Nada mais.
+          // 3. O próprio usuário pode atualizar apenas seus dados não-críticos (como o status de presença).
+          (request.auth.uid == userId && 
+            // Lista de todos os campos permitidos no documento.
             request.resource.data.keys().hasOnly(['name', 'email', 'congregationId', 'role', 'status', 'isOnline', 'lastSeen', 'fcmTokens']) &&
-            // Garante que o usuário não pode mudar seus próprios dados críticos.
+            // A regra principal: o usuário NÃO PODE mudar seu próprio perfil, status ou congregação.
             request.resource.data.role == resource.data.role &&
             request.resource.data.status == resource.data.status &&
             request.resource.data.congregationId == resource.data.congregationId
           );
     }
     
+    // --- Regras para Subcoleções de Territórios ---
+    
     match /congregations/{congregationId}/territories/{territoryId} {
-      allow read, create, delete, update: if isMemberActive(congregationId);
+      allow read: if isMemberActive(congregationId);
+      allow create, delete: if isAdmin(congregationId);
+      allow update: if isAdmin(congregationId) || 
+                      (isMemberActive(congregationId) &&
+                       request.resource.data.number == resource.data.number &&
+                       request.resource.data.name == resource.data.name &&
+                       request.resource.data.description == resource.data.description &&
+                       request.resource.data.type == resource.data.type
+                      );
+      
+      match /activityHistory/{activityId} {
+        allow read: if isMemberActive(congregationId);
+        allow write: if isAtLeastDirigente(congregationId);
+      }
     }
     
-    match /congregations/{congregationId}/territories/{territoryId}/{collection}/{docId} {
-      allow read, create, delete, update: if isMemberActive(congregationId);
+    match /congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId} {
+      allow read: if isMemberActive(congregationId);
+      allow create, update, delete: if isAdmin(congregationId);
+    }
+    
+    match /congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId} {
+      allow read, write: if isMemberActive(congregationId);
     }
   }
 }
