@@ -171,7 +171,7 @@ export default function RuralTerritoryDetailPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-8">
           <div className="bg-card p-6 rounded-lg">
               <h2 className="font-semibold text-xl mb-4 flex items-center"><LinkIcon size={20} className="mr-3 text-primary" />Links Específicos</h2>
               <div className="space-y-3">
