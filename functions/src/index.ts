@@ -388,3 +388,44 @@ export const scheduledFirestoreExport = functions.pubsub.schedule("every day 03:
         throw new functions.https.HttpsError("internal", "A operação de exportação falhou.", error);
     }
 });
+
+// ▼▼▼ FUNÇÃO FINAL PARA SINCRONIZAR A ÚLTIMA ATUALIZAÇÃO ▼▼▼
+
+export const syncLastUpdateFromHistory = functions.firestore
+  .document("congregations/{congId}/territories/{terrId}")
+  .onUpdate(async (change, context) => {
+    
+    // Pega os dados do território ANTES e DEPOIS da mudança
+    const dataBefore = change.before.data();
+    const dataAfter = change.after.data();
+
+    // Combina os históricos urbano (activityHistory) e rural (workLogs)
+    const historyBefore = [...(dataBefore.activityHistory || []), ...(dataBefore.workLogs || [])];
+    const historyAfter = [...(dataAfter.activityHistory || []), ...(dataAfter.workLogs || [])];
+
+    // Se o histórico não mudou, não faz nada.
+    if (historyBefore.length === historyAfter.length && JSON.stringify(historyBefore) === JSON.stringify(historyAfter)) {
+        return null;
+    }
+
+    // Encontra a data mais recente no novo histórico
+    if (historyAfter.length > 0) {
+      // Ordena o histórico pela data, do mais novo para o mais antigo
+      historyAfter.sort((a, b) => b.date.toMillis() - a.date.toMillis());
+      const latestTimestamp = historyAfter[0].date;
+
+      // Se a 'lastUpdate' do território for diferente do timestamp mais recente, corrige.
+      if (dataAfter.lastUpdate.toMillis() !== latestTimestamp.toMillis()) {
+        console.log(`[Sync] Corrigindo lastUpdate para o território ${context.params.terrId}`);
+        return change.after.ref.update({ lastUpdate: latestTimestamp });
+      }
+    } else {
+      // Se o histórico ficou vazio (todos os registros foram excluídos),
+      // podemos resetar a lastUpdate para a data de criação do território.
+      if (dataAfter.lastUpdate.toMillis() !== dataAfter.createdAt.toMillis()) {
+          return change.after.ref.update({ lastUpdate: dataAfter.createdAt });
+      }
+    }
+
+    return null;
+  });
