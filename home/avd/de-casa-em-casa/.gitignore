@@ -1,0 +1,7 @@
+# Ignorar arquivos de log e de ambiente
+*.log
+.env.local
+.env*.local
+
+# Pasta do Script de Migração (mesmo que apagada)
+migration-script/

@@ -1,0 +1,56 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Funções de Ajuda ---
+    function getUserData() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function isMemberActive(congregationId) { let userData = getUserData(); return request.auth != null && userData.congregationId == congregationId && userData.status == 'ativo'; }
+    function isAdmin(congregationId) { return isMemberActive(congregationId) && getUserData().role == 'Administrador'; }
+    function isAtLeastDirigente(congregationId) { return isMemberActive(congregationId) && getUserData().role in ['Administrador', 'Dirigente']; }
+
+    // --- Regras de Coleções ---
+    match /congregations/{congregationId} {
+      allow list: if true; 
+      allow create: if request.auth != null;
+      allow get: if isMemberActive(congregationId); 
+      allow update: if isAdmin(congregationId);
+      allow delete: if false;
+    }
+
+    match /users/{userId} {
+      allow create: if true; 
+      allow get: if request.auth.uid == userId;
+      allow list: if isAtLeastDirigente(getUserData().congregationId);
+      allow delete: if isAdmin(getUserData().congregationId);
+
+      // ▼▼▼ A REGRA FUNDAMENTAL E CORRIGIDA ▼▼▼
+      allow update: if 
+          // 1. Admins e Dirigentes podem gerenciar usuários.
+          isAtLeastDirigente(getUserData().congregationId) ||
+          // 2. O próprio usuário pode atualizar seu documento, DESDE QUE não mude seus próprios privilégios.
+          (request.auth.uid == userId &&
+           request.resource.data.role == resource.data.role &&
+           request.resource.data.status == resource.data.status);
+    }
+    
+    match /congregations/{congregationId}/territories/{territoryId} {
+      allow read: if isMemberActive(congregationId);
+      allow create, delete: if isAdmin(congregationId);
+      allow update: if isAdmin(congregationId) || (isMemberActive(congregationId) && request.resource.data.number == resource.data.number && request.resource.data.name == resource.data.name && request.resource.data.description == resource.data.description && request.resource.data.type == resource.data.type);
+      match /activityHistory/{activityId} {
+        allow read: if isMemberActive(congregationId);
+        allow write: if isAtLeastDirigente(congregationId);
+      }
+    }
+    
+    match /congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId} {
+      allow read: if isMemberActive(congregationId);
+      allow create, update, delete: if isAdmin(congregationId);
+    }
+    
+    match /congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId} {
+      allow read, write: if isMemberActive(congregationId);
+    }
+  }
+}

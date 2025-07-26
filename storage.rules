@@ -1,0 +1,12 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // A leitura continua pública para as imagens aparecerem no app
+    match /territory_cards/{allPaths=**} {
+      allow read;
+    }
+    
+    // NINGUÉM pode escrever diretamente. Apenas através de uma URL Assinada.
+    allow write: if false;
+  }
+}
