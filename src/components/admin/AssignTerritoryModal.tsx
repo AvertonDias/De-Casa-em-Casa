@@ -95,7 +95,15 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
               <option value="1">Em 1 Mês</option>
               <option value="2">Em 2 Meses</option>
               <option value="3">Em 3 Meses</option>
-              <option value="4">Em 4 Meses</option>
+              <option value="4">Em 4 Meses (Padrão)</option>
+              <option value="5">Em 5 Meses</option>
+              <option value="6">Em 6 Meses</option>
+              <option value="7">Em 7 Meses</option>
+              <option value="8">Em 8 Meses</option>
+              <option value="9">Em 9 Meses</option>
+              <option value="10">Em 10 Meses</option>
+              <option value="11">Em 11 Meses</option>
+              <option value="12">Em 1 Ano</option>
             </select>
           </div>
 
