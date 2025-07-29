@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useContext } from 'react';
-import { useUser } from '@/contexts/UserContext';
+// ▼▼▼ A CORREÇÃO ESTÁ AQUI ▼▼▼
+import { UserContext } from '@/contexts/UserContext'; // Importa o contexto
 import { AssignmentHistoryLog } from '@/types/types';
 import { BookUser, ChevronDown, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -14,16 +15,16 @@ interface AssignmentHistoryProps {
 }
 
 export default function AssignmentHistory({ history, onEdit, onDelete }: AssignmentHistoryProps) {
+  // Agora 'useContext(UserContext)' funcionará porque o UserContext foi importado.
   const { user } = useContext(UserContext);
   const isAdmin = user?.role === 'Administrador';
   const [isOpen, setIsOpen] = useState(false);
   const validHistory = history || [];
 
+  // A regra de visibilidade já estava correta.
   if (!isAdmin) {
     return null;
   }
-  
-  const sortedHistory = [...validHistory].sort((a, b) => b.completedAt.toDate().getTime() - a.completedAt.toDate().getTime());
 
   return (
     <div className="bg-card p-4 rounded-lg shadow-md">
@@ -36,21 +37,19 @@ export default function AssignmentHistory({ history, onEdit, onDelete }: Assignm
       </button>
       {isOpen && (
         <div className="mt-4 pt-4 border-t border-border">
-          {sortedHistory.length > 0 ? (
+          {validHistory.length > 0 ? (
             <ul className="space-y-4">
-              {sortedHistory.map((log, index) => (
+              {validHistory.map((log, index) => (
                 <li key={index} className="flex justify-between items-start pl-4 border-l-2 border-primary/30">
                   <div>
                     <p className="font-semibold">{log.name}</p>
-                    <p className="text-sm text-muted-foreground">Designado: {format(log.assignedAt.toDate(), "dd/MM/yy", { locale: ptBR })}</p>
-                    <p className="text-sm text-muted-foreground">Devolvido: {format(log.completedAt.toDate(), "dd/MM/yy", { locale: ptBR })}</p>
+                    <p className="text-sm text-muted-foreground">Designado: {format(log.assignedAt.toDate(), "dd/MM/yy")}</p>
+                    <p className="text-sm text-muted-foreground">Devolvido: {format(log.completedAt.toDate(), "dd/MM/yy")}</p>
                   </div>
-                  {isAdmin && (
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => onEdit(log)} className="text-muted-foreground hover:text-white"><Edit size={14} /></button>
-                      <button onClick={() => onDelete(log)} className="text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => onEdit(log)} className="text-muted-foreground hover:text-white"><Edit size={14} /></button>
+                    <button onClick={() => onDelete(log)} className="text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
+                  </div>
                 </li>
               ))}
             </ul>
