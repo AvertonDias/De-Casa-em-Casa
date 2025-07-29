@@ -1,53 +1,60 @@
 "use client";
 
-import { useState } from 'react';
-import { AssignmentHistoryLog } from '@/types/types'; // Importa a tipagem
-import { BookUser, ChevronDown } from 'lucide-react';
+import { useState, useContext } from 'react';
+import { useUser } from '@/contexts/UserContext';
+import { AssignmentHistoryLog } from '@/types/types';
+import { BookUser, ChevronDown, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface AssignmentHistoryProps {
   history: AssignmentHistoryLog[];
+  onEdit: (log: AssignmentHistoryLog) => void;
+  onDelete: (log: AssignmentHistoryLog) => void;
 }
 
-export default function AssignmentHistory({ history }: AssignmentHistoryProps) {
+export default function AssignmentHistory({ history, onEdit, onDelete }: AssignmentHistoryProps) {
+  const { user } = useContext(UserContext);
+  const isAdmin = user?.role === 'Administrador';
   const [isOpen, setIsOpen] = useState(false);
-
-  // Garante que o histórico passado seja um array para evitar erros
   const validHistory = history || [];
+
+  if (!isAdmin) {
+    return null;
+  }
+  
+  const sortedHistory = [...validHistory].sort((a, b) => b.completedAt.toDate().getTime() - a.completedAt.toDate().getTime());
 
   return (
     <div className="bg-card p-4 rounded-lg shadow-md">
-      <button 
-        onClick={() => setIsOpen(!isOpen)} 
-        className="w-full flex justify-between items-center font-semibold text-lg"
-      >
+      <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center font-semibold text-lg">
         <div className="flex items-center">
           <BookUser className="mr-3 text-primary" />
           Histórico de Designações ({validHistory.length})
         </div>
         <ChevronDown className={`transform transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
-      
       {isOpen && (
         <div className="mt-4 pt-4 border-t border-border">
-          {validHistory.length > 0 ? (
+          {sortedHistory.length > 0 ? (
             <ul className="space-y-4">
-              {validHistory.map((log, index) => (
-                <li key={index} className="pl-4 border-l-2 border-primary/30">
-                  <p className="font-semibold text-base">{log.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Designado em: {format(log.assignedAt.toDate(), "dd 'de' MMM, yyyy", { locale: ptBR })}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Devolvido em: {format(log.completedAt.toDate(), "dd 'de' MMM, yyyy", { locale: ptBR })}
-                  </p>
+              {sortedHistory.map((log, index) => (
+                <li key={index} className="flex justify-between items-start pl-4 border-l-2 border-primary/30">
+                  <div>
+                    <p className="font-semibold">{log.name}</p>
+                    <p className="text-sm text-muted-foreground">Designado: {format(log.assignedAt.toDate(), "dd/MM/yy", { locale: ptBR })}</p>
+                    <p className="text-sm text-muted-foreground">Devolvido: {format(log.completedAt.toDate(), "dd/MM/yy", { locale: ptBR })}</p>
+                  </div>
+                  {isAdmin && (
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => onEdit(log)} className="text-muted-foreground hover:text-white"><Edit size={14} /></button>
+                      <button onClick={() => onDelete(log)} className="text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="text-center text-muted-foreground py-4">Nenhuma designação anterior registrada.</p>
-          )}
+          ) : (<p className="text-center text-muted-foreground py-4">Nenhuma designação anterior.</p>)}
         </div>
       )}
     </div>

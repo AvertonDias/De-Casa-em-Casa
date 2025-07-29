@@ -74,14 +74,14 @@ export default function TerritoryAssignmentPanel() {
     setIsAssignModalOpen(true);
   };
   
-  const handleSaveAssignment = async (territoryId: string, user: { uid: string; name: string }, dueDate: string) => {
+  const handleSaveAssignment = async (territoryId: string, user: { uid: string; name: string }, assignmentDate: string, dueDate: string) => {
     if (!currentUser?.congregationId) return;
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
     const assignment = {
       uid: user.uid,
       name: user.name,
-      assignedAt: serverTimestamp(),
-      dueDate: Timestamp.fromDate(new Date(dueDate)),
+      assignedAt: Timestamp.fromDate(new Date(assignmentDate + 'T12:00:00')),
+      dueDate: Timestamp.fromDate(new Date(dueDate + 'T12:00:00')),
     };
     await updateDoc(territoryRef, { status: 'designado', assignment });
   };
