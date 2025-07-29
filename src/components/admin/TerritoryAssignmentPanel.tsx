@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useContext, Fragment } from 'react';
+import Link from 'next/link';
 import { UserContext } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, arrayUnion, Timestamp, deleteField, orderBy } from 'firebase/firestore';
@@ -156,7 +157,14 @@ export default function TerritoryAssignmentPanel() {
             <tbody>
               {filteredTerritories.map(t => (
                 <tr key={t.id} className="border-b border-border last:border-b-0">
-                  <td className="p-2 font-semibold">{t.number} - {t.name}</td>
+                  <td className="p-2 font-semibold">
+                    <Link
+                      href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`}
+                      className="hover:text-primary transition-colors"
+                    >
+                      {t.number} - {t.name}
+                    </Link>
+                  </td>
                   <td className="p-2">{t.status === 'designado' ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>}</td>
                   <td className="p-2">{t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}</td>
                   <td className="p-2 text-right">

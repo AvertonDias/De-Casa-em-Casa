@@ -21,24 +21,24 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
   
   const today = new Date().toISOString().split('T')[0];
 
-  const calculateFutureDate = (monthsToAdd: number): string => {
-    const futureDate = new Date();
-    futureDate.setMonth(futureDate.getMonth() + monthsToAdd);
-    return futureDate.toISOString().split('T')[0];
-  };
-
   useEffect(() => {
     if (isOpen) {
       setSelectedUid('');
       setAssignmentDate(today);
-      // Mantém a sugestão padrão de 4 meses
-      setDueDate(calculateFutureDate(4));
+      const futureDate = new Date();
+      futureDate.setMonth(futureDate.getMonth() + 4);
+      setDueDate(futureDate.toISOString().split('T')[0]);
       setError('');
     }
   }, [isOpen, today]);
-  
-  const handleShortcutClick = (months: number) => {
-    setDueDate(calculateFutureDate(months));
+
+  const handleDueDateSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const monthsToAdd = parseInt(event.target.value, 10);
+    if (isNaN(monthsToAdd)) return;
+
+    const futureDate = new Date();
+    futureDate.setMonth(futureDate.getMonth() + monthsToAdd);
+    setDueDate(futureDate.toISOString().split('T')[0]);
   };
   
   const handleSave = () => {
@@ -51,7 +51,7 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
 
     onSave(territory.id, { uid: selectedUser.uid, name: selectedUser.name }, assignmentDate, dueDate);
     onClose();
-  };
+   };
 
   if (!isOpen || !territory) return null;
 
@@ -60,45 +60,49 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
       <div className="bg-card text-card-foreground p-6 rounded-lg shadow-xl w-full max-w-md relative">
         <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground"><X /></button>
         <h2 className="text-xl font-bold">Designar Território</h2>
-        
-        <Link 
-          href={`/dashboard/territorios/${territory.id}`} 
-          target="_blank"
-          className="text-muted-foreground text-sm mb-4 inline-flex items-center hover:text-primary transition-colors"
-        >
+        <Link href={`/dashboard/territorios/${territory.id}`} target="_blank" className="text-muted-foreground text-sm mb-4 inline-flex items-center hover:text-primary transition-colors">
           {territory.number} - {territory.name}
           <ExternalLink size={14} className="ml-2" />
         </Link>
         
         <div className="space-y-4 mt-2">
           <div>
-            <label htmlFor="user-select" className="block text-sm font-medium mb-1">Designar para:</label>
-            <select id="user-select" value={selectedUid} onChange={(e) => setSelectedUid(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border">
+            <label className="block text-sm font-medium mb-1">Designar para:</label>
+            <select value={selectedUid} onChange={(e) => setSelectedUid(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border">
               <option value="" disabled>Selecione um publicador</option>
               {users.map(user => (<option key={user.uid} value={user.uid}>{user.name}</option>))}
             </select>
           </div>
           <div className="flex gap-4">
             <div className="w-1/2">
-              <label htmlFor="assignment-date" className="block text-sm font-medium mb-1">Data de Designação:</label>
-              <input id="assignment-date" type="date" value={assignmentDate} onChange={(e) => setAssignmentDate(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border"/>
+              <label className="block text-sm font-medium mb-1">Data de Designação:</label>
+              <input type="date" value={assignmentDate} onChange={(e) => setAssignmentDate(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border"/>
             </div>
             <div className="w-1/2">
-              <label htmlFor="due-date" className="block text-sm font-medium mb-1">Data para Devolução:</label>
-              <input id="due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border"/>
+              <label className="block text-sm font-medium mb-1">Data para Devolução:</label>
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border"/>
             </div>
           </div>
           
-          <div className="flex items-center justify-center gap-2">
-            <button type="button" onClick={() => handleShortcutClick(1)} className="px-3 py-1 text-xs bg-muted hover:bg-muted/80 rounded-full">1 Mês</button>
-            <button type="button" onClick={() => handleShortcutClick(2)} className="px-3 py-1 text-xs bg-muted hover:bg-muted/80 rounded-full">2 Meses</button>
-            <button type="button" onClick={() => handleShortcutClick(4)} className="px-3 py-1 text-xs bg-muted hover:bg-muted/80 rounded-full">4 Meses</button>
+          <div>
+            <label className="block text-sm font-medium mb-1">Definir Devolução Rápida:</label>
+            <select 
+              onChange={handleDueDateSelect} 
+              className="w-full bg-input rounded-md p-2 border border-border text-muted-foreground"
+              value=""
+            >
+              <option value="" disabled>Escolha um período...</option>
+              <option value="1">Em 1 Mês</option>
+              <option value="2">Em 2 Meses</option>
+              <option value="3">Em 3 Meses</option>
+              <option value="4">Em 4 Meses</option>
+            </select>
           </div>
 
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <div className="flex justify-end space-x-3 pt-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-muted hover:bg-muted/80">Cancelar</button>
-            <button type="button" onClick={handleSave} className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/80">Salvar Designação</button>
+          <div className="flex justify-end space-x-3 pt-4 border-t border-border mt-4">
+            <button onClick={onClose} className="px-4 py-2 rounded-md bg-muted hover:bg-muted/80">Cancelar</button>
+            <button onClick={handleSave} className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/80">Salvar Designação</button>
           </div>
         </div>
       </div>
