@@ -4,13 +4,35 @@ import { useState, useEffect, useContext, Fragment } from 'react';
 import { UserContext } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, arrayUnion, Timestamp, deleteField, orderBy } from 'firebase/firestore';
-import { Search, MoreVertical, CheckCircle, RotateCw } from 'lucide-react';
+import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList } from 'lucide-react'; // Adicionados novos ícones
 import { Menu, Transition } from '@headlessui/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AssignTerritoryModal from './AssignTerritoryModal';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import type { Territory, AppUser } from '@/types/types';
+
+// Componente helper para o botão de filtro
+const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
+  label: string;
+  value: string;
+  currentFilter: string;
+  setFilter: (value: any) => void;
+  Icon: React.ElementType;
+}) => (
+  <button
+    onClick={() => setFilter(value)}
+    className={`flex items-center px-3 py-1.5 text-sm rounded-md transition-colors ${
+      currentFilter === value 
+      ? 'bg-primary text-primary-foreground font-semibold' 
+      : 'bg-input hover:bg-white/5'
+    }`}
+  >
+    <Icon size={16} className="mr-2"/>
+    {label}
+  </button>
+);
+
 
 export default function TerritoryAssignmentPanel() {
   const { user: currentUser } = useContext(UserContext);
@@ -21,6 +43,7 @@ export default function TerritoryAssignmentPanel() {
   // Estados para UI
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'disponivel' | 'designado'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'urban' | 'rural'>('all');
   
   // Estados para Modais
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -98,15 +121,24 @@ export default function TerritoryAssignmentPanel() {
   };
   
   const filteredTerritories = territories.filter(t => {
+      const type = t.type || 'urban'; // Default to urban if type is missing
+      const matchesType = typeFilter === 'all' || type === typeFilter;
       const matchesStatus = filterStatus === 'all' || (filterStatus === 'disponivel' ? t.status !== 'designado' : t.status === 'designado');
       const matchesSearch = searchTerm === '' || t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.number.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesStatus && matchesSearch;
+      return matchesType && matchesStatus && matchesSearch;
   }).sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
 
   return (
     <>
       <div className="bg-card p-6 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold mb-4">Designar Territórios</h2>
+
+        <div className="flex flex-wrap items-center gap-2 mb-4 p-2 bg-input/40 rounded-lg">
+          <FilterButton label="Todos" value="all" currentFilter={typeFilter} setFilter={setTypeFilter} Icon={LayoutList} />
+          <FilterButton label="Urbanos" value="urban" currentFilter={typeFilter} setFilter={setTypeFilter} Icon={Map} />
+          <FilterButton label="Rurais" value="rural" currentFilter={typeFilter} setFilter={setTypeFilter} Icon={Trees} />
+        </div>
+        
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
           <div className="relative flex-grow">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
