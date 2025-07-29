@@ -11,6 +11,7 @@ import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart } from "luc
 import Link from 'next/link';
 
 import ActivityHistory from '@/components/ActivityHistory';
+import AssignmentHistory from '@/components/AssignmentHistory';
 import QuadraCard from '@/components/QuadraCard';
 import EditTerritoryModal from '@/components/EditTerritoryModal';
 import AddQuadraModal from '@/components/AddQuadraModal';
@@ -298,6 +299,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             <>
               {isUrban && <ProgressSection territory={territory} />}
               <HistorySection territoryId={territory.id} history={activityHistory} />
+              <AssignmentHistory history={territory.assignmentHistory || []} />
               <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
               {isUrban && 
                 <QuadrasSection 
@@ -312,8 +314,8 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           ) : (
             <>
               {isUrban && 
-                <QuadrasSection
-                  territoryId={params.territoryId} 
+                <QuadrasSection 
+                  territoryId={params.territoryId}
                   quadras={quadras} 
                   isManagerView={isManagerView} 
                   onAddQuadra={() => setIsAddQuadraModalOpen(true)} 
@@ -322,6 +324,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
               }
               <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
               <HistorySection territoryId={territory.id} history={activityHistory} />
+              <AssignmentHistory history={territory.assignmentHistory || []} />
             </>
           )}
         </div>
