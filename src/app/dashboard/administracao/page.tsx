@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from 'react';
-import { Send, BookUser, Shield } from 'lucide-react';
-// Vamos criar esses componentes nos próximos passos
-// import { PushNotificationPanel } from '@/components/admin/PushNotificationPanel';
-// import { TerritoryAssignmentPanel } from '@/components/admin/TerritoryAssignmentPanel';
+import { Send, BookUser } from 'lucide-react';
+import TerritoryAssignmentPanel from '@/components/admin/TerritoryAssignmentPanel';
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('assignment');
@@ -12,11 +10,9 @@ export default function AdminPage() {
   const renderPanel = () => {
     switch (activeTab) {
       case 'notifications':
-        // return <PushNotificationPanel />;
         return <div>Painel de Notificações (em breve)</div>;
       case 'assignment':
-        // return <TerritoryAssignmentPanel />;
-        return <div>Painel de Designação de Territórios (em breve)</div>;
+        return <TerritoryAssignmentPanel />;
       default:
         return null;
     }
