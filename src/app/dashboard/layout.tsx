@@ -25,6 +25,7 @@ import { FeedbackModal } from "@/components/FeedbackModal";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
 import withAuth from "@/components/withAuth";
+import { usePresence } from "@/hooks/usePresence";
 
 
 // Componente para trocar o tema (agora mais robusto)
