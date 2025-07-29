@@ -4,7 +4,7 @@ import { useState, useEffect, useContext } from 'react';
 import { doc, onSnapshot, Timestamp, runTransaction, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { UserContext } from '@/contexts/UserContext';
-import { RuralTerritory, RuralWorkLog, AssignmentHistoryLog } from '@/types/types';
+import { RuralTerritory, RuralWorkLog, AssignmentHistoryLog, Assignment } from '@/types/types';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Link as LinkIcon, Loader, Edit, Trash2 } from 'lucide-react';
@@ -273,11 +273,14 @@ export default function RuralTerritoryDetailPage() {
             </div>
         </div>
         
-        <AssignmentHistory
-          history={territory.assignmentHistory || []}
-          onEdit={handleOpenEditLogModal}
-          onDelete={handleDeleteHistoryLog}
-        />
+        {isAdmin && (
+          <AssignmentHistory
+            currentAssignment={territory.assignment}
+            pastAssignments={territory.assignmentHistory || []}
+            onEdit={handleOpenEditLogModal}
+            onDelete={handleDeleteHistoryLog}
+          />
+        )}
       </div>
 
       {isAdmin && user.congregationId && territory && (

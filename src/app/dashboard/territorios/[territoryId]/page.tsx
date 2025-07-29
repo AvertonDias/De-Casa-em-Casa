@@ -118,29 +118,6 @@ const QuadrasSection = ({ territoryId, quadras, isManagerView, onAddQuadra, onEd
   </div>
 );
 
-const CurrentAssignmentSection = ({ territory }: { territory: Territory }) => {
-    if (!territory.assignment) return null;
-
-    return (
-        <div className="bg-card p-6 rounded-lg shadow-md border-l-4 border-yellow-400">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                <div>
-                    <h2 className="text-xl font-bold flex items-center mb-2">
-                        <UserCheck className="mr-3 text-yellow-400" />
-                        Território Designado
-                    </h2>
-                    <p>Responsável: <span className="font-semibold text-white">{territory.assignment.name}</span></p>
-                </div>
-                <div className="text-left sm:text-right">
-                    <p className="text-muted-foreground text-sm flex items-center gap-2"><Clock size={14}/> Data para Devolução:</p>
-                    <p className="font-semibold text-lg">{format(territory.assignment.dueDate.toDate(), "dd 'de' MMMM, yyyy", { locale: ptBR })}</p>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-
 function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
@@ -303,7 +280,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         
         const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
         const newHistory = currentHistory.map(log => {
-          if ((log as any).id === logId) { // Assumindo que log tem 'id'
+          if ((log as any).id === logId) { 
             return {
               ...log,
               name: updatedData.name,
@@ -340,8 +317,8 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   if (loading || !territory || !user) return <div className="p-8 text-center">Carregando...</div>;
   
   const isManagerView = user.role === 'Administrador' || user.role === 'Dirigente';
+  const isAdmin = user.role === 'Administrador';
   const isUrban = territory.type !== 'rural';
-  const isAssigned = territory.status === 'designado';
 
   return (
     <>
@@ -374,13 +351,17 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           {isManagerView ? (
             <>
               {isUrban && <ProgressSection territory={territory} />}
-              {isAssigned && <CurrentAssignmentSection territory={territory} />}
               <ActivityHistory territoryId={territory.id} history={activityHistory} />
-              <AssignmentHistory 
-                history={territory.assignmentHistory || []}
-                onEdit={handleOpenEditLogModal}
-                onDelete={handleDeleteHistoryLog}
-              />
+              
+              {isAdmin && (
+                <AssignmentHistory
+                  currentAssignment={territory.assignment}
+                  pastAssignments={territory.assignmentHistory || []}
+                  onEdit={handleOpenEditLogModal}
+                  onDelete={handleDeleteHistoryLog}
+                />
+              )}
+              
               <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
               {isUrban && 
                 <QuadrasSection 
@@ -394,7 +375,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             </>
           ) : (
             <>
-              {isAssigned && <CurrentAssignmentSection territory={territory} />}
+              <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
               {isUrban && 
                 <QuadrasSection 
                   territoryId={params.territoryId}
@@ -404,13 +385,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
                   onEditQuadra={handleOpenEditQuadraModal}
                 />
               }
-              <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
               <ActivityHistory territoryId={territory.id} history={activityHistory} />
-              <AssignmentHistory 
-                history={territory.assignmentHistory || []}
-                onEdit={handleOpenEditLogModal}
-                onDelete={handleDeleteHistoryLog}
-              />
             </>
           )}
         </div>
@@ -433,5 +408,3 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
 }
 
 export default withAuth(TerritoryDetailPage);
-
-    
