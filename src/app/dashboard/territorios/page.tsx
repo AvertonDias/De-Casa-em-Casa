@@ -6,41 +6,66 @@ import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 import { Territory } from '@/types/types';
 import Link from 'next/link';
-import { Plus, Search, ChevronRight, Loader } from 'lucide-react';
+import { Plus, Search, ChevronRight, Loader, UserCheck, CalendarClock } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import AddTerritoryModal from '@/components/AddTerritoryModal';
 import { RestrictedContent } from '@/components/RestrictedContent';
 import withAuth from '@/components/withAuth';
 
 // ========================================================================
-//   Componentes de Lista (Com Navegação Corrigida)
+//   Componentes de Lista (Com o Status de Designação)
 // ========================================================================
 
 const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
+  const isDesignado = territory.status === 'designado' && territory.assignment;
   const totalCasas = territory.stats?.totalHouses || 0;
   const casasFeitas = territory.stats?.housesDone || 0;
   const progresso = territory.progress ? Math.round(territory.progress * 100) : 0;
 
   return (
-    // O <Link> agora envolve todo o card
     <Link href={`/dashboard/territorios/${territory.id}`} className="block group">
-      <div className="bg-card p-4 rounded-lg shadow-md space-y-4 h-full group-hover:border-primary/50 border border-transparent transition-all">
-        <div className="flex justify-between items-center">
-          <h3 className="font-bold text-xl">{territory.number} - {territory.name}</h3>
+      <div className="bg-card p-4 rounded-lg shadow-md h-full group-hover:border-primary/50 border border-transparent transition-all flex flex-col space-y-4">
+        {/* Cabeçalho */}
+        <div className="flex justify-between items-start">
+          <h3 className="font-bold text-xl flex-1 pr-2">{territory.number} - {territory.name}</h3>
+          <span className={`px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${isDesignado ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'}`}>
+            {isDesignado ? 'Designado' : 'Disponível'}
+          </span>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div><p className="text-sm text-muted-foreground">Total de Casas</p><p className="font-bold text-2xl">{totalCasas}</p></div>
-            <div><p className="text-sm text-muted-foreground">Feitas</p><p className="font-bold text-2xl text-green-400">{casasFeitas}</p></div>
-            <div><p className="text-sm text-muted-foreground">Pendentes</p><p className="font-bold text-2xl text-yellow-400">{totalCasas - casasFeitas}</p></div>
-            <div><p className="text-sm text-muted-foreground">Progresso</p><p className="font-bold text-2xl text-blue-400">{progresso}%</p></div>
-        </div>
-        <div className="w-full bg-gray-700 rounded-full h-2.5"><div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progresso}%` }}></div></div>
+
+        {/* Informações da Designação (se existir) */}
+        {isDesignado && (
+          <div className="bg-input/50 p-3 rounded-md text-sm space-y-2">
+            <div className="flex items-center gap-2">
+              <UserCheck size={16} className="text-muted-foreground"/>
+              <span className="font-semibold">{territory.assignment?.name}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CalendarClock size={16} className="text-muted-foreground"/>
+              <span>Devolver até: {format(territory.assignment!.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR })}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Estatísticas (só renderiza se o território for urbano) */}
+        {territory.type !== 'rural' && (
+          <div className="pt-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div><p className="text-sm text-muted-foreground">Total de Casas</p><p className="font-bold text-2xl">{totalCasas}</p></div>
+                <div><p className="text-sm text-muted-foreground">Feitas</p><p className="font-bold text-2xl text-green-400">{casasFeitas}</p></div>
+                <div><p className="text-sm text-muted-foreground">Pendentes</p><p className="font-bold text-2xl text-yellow-400">{totalCasas - casasFeitas}</p></div>
+                <div><p className="text-sm text-muted-foreground">Progresso</p><p className="font-bold text-2xl text-blue-400">{progresso}%</p></div>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-2.5 mt-4"><div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progresso}%` }}></div></div>
+          </div>
+        )}
       </div>
     </Link>
   );
 };
 
 const TerritoryRowPublicador = ({ territory }: { territory: Territory }) => (
-  // Esta versão já estava correta, com o link envolvendo tudo.
   <Link href={`/dashboard/territorios/${territory.id}`} className="block">
     <div className="flex items-center justify-between py-3 px-4 -mx-4 hover:bg-white/5 transition-colors cursor-pointer">
       <div className="flex items-center space-x-4">
