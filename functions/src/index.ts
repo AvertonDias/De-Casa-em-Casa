@@ -249,6 +249,62 @@ export const onTerritoryChange = functions.firestore
 // ============================================================================
 //   OUTROS GATILHOS (Notificação, Exclusão)
 // ============================================================================
+export const onTerritoryAssigned = functions.firestore
+  .document("congregations/{congId}/territories/{terrId}")
+  .onUpdate(async (change, context) => {
+    
+    // Pega os dados do território ANTES e DEPOIS da mudança
+    const dataBefore = change.before.data();
+    const dataAfter = change.after.data();
+
+    // Condição para rodar: só continua se a designação mudou e existe uma nova.
+    if (!dataAfter.assignment || dataBefore.assignment?.uid === dataAfter.assignment?.uid) {
+        return null;
+    }
+    
+    const assignedUserUid = dataAfter.assignment.uid;
+    const territoryName = dataAfter.name;
+    const dueDate = (dataAfter.assignment.dueDate as admin.firestore.Timestamp).toDate();
+    
+    // Formata a data para a notificação
+    const formattedDueDate = dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    console.log(`[Notification] Enviando notificação de designação para o usuário ${assignedUserUid}...`);
+
+    try {
+        // Busca o documento do usuário para pegar seus tokens de notificação
+        const userDoc = await db.collection("users").doc(assignedUserUid).get();
+        if (!userDoc.exists) {
+            console.error(`[Notification] Usuário ${assignedUserUid} não encontrado.`);
+            return null;
+        }
+
+        const tokens = userDoc.data()?.fcmTokens;
+        if (!tokens || tokens.length === 0) {
+            console.log(`[Notification] Usuário ${assignedUserUid} não possui tokens FCM para notificar.`);
+            return null;
+        }
+
+        // Prepara e envia a mensagem
+        const payload = {
+            notification: {
+                title: "Você recebeu um novo território!",
+                body: `O território \"${territoryName}\" está sob sua responsabilidade. Devolver até ${formattedDueDate}.`,
+                icon: "/icon-192x192.png",
+                click_action: "/dashboard/meus-territorios", // Leva o usuário para a nova página
+            },
+        };
+
+        await admin.messaging().sendToDevice(tokens, payload);
+        console.log(`[Notification] Notificação enviada com sucesso para ${assignedUserUid}.`);
+        return { success: true };
+
+    } catch (error) {
+        console.error(`[Notification] FALHA CRÍTICA ao enviar notificação:`, error);
+        return { success: false, error };
+    }
+  });
+
 
 export const notifyAdminOfNewUser = functions.firestore.document("users/{userId}").onCreate(async (snapshot, context) => {
     const newUser = snapshot.data();
