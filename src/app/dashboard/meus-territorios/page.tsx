@@ -9,6 +9,7 @@ import { Map, Clock, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
+import Link from 'next/link'; // Importando o Link
 
 export default function MyTerritoriesPage() {
   const { user } = useUser();
@@ -72,7 +73,9 @@ export default function MyTerritoriesPage() {
               <div key={t.id} className="bg-card p-4 rounded-lg shadow-md">
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center">
                   <div className="mb-4 sm:mb-0">
-                    <h2 className="font-bold text-xl">{t.number} - {t.name}</h2>
+                    <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`}>
+                      <h2 className="font-bold text-xl hover:text-primary transition-colors">{t.number} - {t.name}</h2>
+                    </Link>
                     <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
                       <Clock size={14} />
                       <span>Devolver até: {format(t.assignment!.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR })}</span>
