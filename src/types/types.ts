@@ -37,6 +37,11 @@ export interface Territory {
   // Mantemos estes para compatibilidade ou uso direto, se necessário
   totalHouses?: number;
   housesDone?: number;
+  
+  // Novos campos de atribuição
+  status: 'disponivel' | 'designado'; // Novo status
+  assignment?: Assignment | null; // Objeto com os detalhes da atribuição atual
+  assignmentHistory?: AssignmentHistoryLog[]; // Array com o histórico
 }
 
 export interface RuralLink {
@@ -122,13 +127,25 @@ export interface RuralWorkLog {
   userId: string; // Adicionado para rastreamento
 }
 
-export interface RuralTerritory {
-  id: string;
-  number: string;
-  name: string;
-  description?: string;
-  mapLink?: string;
+export interface RuralTerritory extends Territory {
+  type: 'rural';
   links?: RuralLink[];
-  workLogs?: RuralWorkLog[];
-  type: 'rural'; 
+  workLogs?: any[]; // Ou um tipo mais específico para RuralWorkLog
+}
+
+
+// --- Novos Tipos para Atribuição ---
+
+export interface Assignment {
+  uid: string;      // UID do usuário designado
+  name: string;     // Nome do usuário designado
+  assignedAt: Timestamp; // Data em que foi atribuído
+  dueDate: Timestamp;    // Data em que deve ser devolvido
+}
+
+export interface AssignmentHistoryLog {
+  uid: string;
+  name: string;
+  assignedAt: Timestamp;
+  completedAt: Timestamp; // Data em que foi devolvido
 }

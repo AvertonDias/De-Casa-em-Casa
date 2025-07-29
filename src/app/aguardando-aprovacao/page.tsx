@@ -26,7 +26,7 @@ function AguardandoAprovacaoPage() {
                     Sua solicitação de acesso para a congregação <span className="font-semibold text-foreground">{user?.congregationName || '...'}</span> foi enviada.
                 </p>
                 <p className="text-muted-foreground">
-                    Um administrador ou dirigente precisa aprovar seu cadastro. Por favor, aguarde. Você será redirecionado automaticamente assim que seu acesso for liberado.
+                    Por favor avise um dirigente de campo de sua congregação para aprovar seu cadastro. Por favor, aguarde. Você será redirecionado automaticamente assim que seu acesso for liberado.
                 </p>
                 <div className="pt-4">
                     <button
