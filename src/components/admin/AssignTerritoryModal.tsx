@@ -21,17 +21,26 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
   
   const today = new Date().toISOString().split('T')[0];
 
+  const calculateFutureDate = (monthsToAdd: number): string => {
+    const futureDate = new Date();
+    futureDate.setMonth(futureDate.getMonth() + monthsToAdd);
+    return futureDate.toISOString().split('T')[0];
+  };
+
   useEffect(() => {
     if (isOpen) {
       setSelectedUid('');
       setAssignmentDate(today);
-      const futureDate = new Date();
-      futureDate.setMonth(futureDate.getMonth() + 4);
-      setDueDate(futureDate.toISOString().split('T')[0]);
+      // Mantém a sugestão padrão de 4 meses
+      setDueDate(calculateFutureDate(4));
       setError('');
     }
   }, [isOpen, today]);
-
+  
+  const handleShortcutClick = (months: number) => {
+    setDueDate(calculateFutureDate(months));
+  };
+  
   const handleSave = () => {
     if (!selectedUid || !dueDate || !assignmentDate) {
       setError("Por favor, preencha todos os campos.");
@@ -79,10 +88,17 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
               <input id="due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border"/>
             </div>
           </div>
+          
+          <div className="flex items-center justify-center gap-2">
+            <button type="button" onClick={() => handleShortcutClick(1)} className="px-3 py-1 text-xs bg-muted hover:bg-muted/80 rounded-full">1 Mês</button>
+            <button type="button" onClick={() => handleShortcutClick(2)} className="px-3 py-1 text-xs bg-muted hover:bg-muted/80 rounded-full">2 Meses</button>
+            <button type="button" onClick={() => handleShortcutClick(4)} className="px-3 py-1 text-xs bg-muted hover:bg-muted/80 rounded-full">4 Meses</button>
+          </div>
+
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex justify-end space-x-3 pt-4">
-            <button onClick={onClose} className="px-4 py-2 rounded-md bg-muted hover:bg-muted/80">Cancelar</button>
-            <button onClick={handleSave} className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/80">Salvar Designação</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-muted hover:bg-muted/80">Cancelar</button>
+            <button type="button" onClick={handleSave} className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/80">Salvar Designação</button>
           </div>
         </div>
       </div>
