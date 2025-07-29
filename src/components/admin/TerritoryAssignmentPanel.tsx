@@ -4,15 +4,15 @@ import { useState, useEffect, useContext, Fragment } from 'react';
 import { UserContext } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, arrayUnion, Timestamp, deleteField, orderBy } from 'firebase/firestore';
-import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList } from 'lucide-react'; // Adicionados novos ícones
+import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AssignTerritoryModal from './AssignTerritoryModal';
+import ReturnTerritoryModal from './ReturnTerritoryModal';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import type { Territory, AppUser } from '@/types/types';
 
-// Componente helper para o botão de filtro
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   label: string;
   value: string;
@@ -40,18 +40,14 @@ export default function TerritoryAssignmentPanel() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Estados para UI
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'disponivel' | 'designado'>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'urban' | 'rural'>('all');
   
-  // Estados para Modais
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false); 
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ action: () => void, title: string, message: string, confirmText: string } | null>(null);
 
-  // Busca todos os territórios da congregação
   useEffect(() => {
     if (!currentUser?.congregationId) return;
     const terRef = collection(db, 'congregations', currentUser.congregationId, 'territories');
@@ -63,7 +59,6 @@ export default function TerritoryAssignmentPanel() {
     return () => unsub();
   }, [currentUser]);
   
-  // Busca todos os usuários que podem receber territórios
   useEffect(() => {
     if (!currentUser?.congregationId) return;
     const usersRef = collection(db, 'users');
@@ -74,7 +69,7 @@ export default function TerritoryAssignmentPanel() {
     return () => unsub();
   }, [currentUser]);
 
-  const handleOpenModal = (territory: Territory) => {
+  const handleOpenAssignModal = (territory: Territory) => {
     setSelectedTerritory(territory);
     setIsAssignModalOpen(true);
   };
@@ -91,37 +86,34 @@ export default function TerritoryAssignmentPanel() {
     await updateDoc(territoryRef, { status: 'designado', assignment });
   };
 
-  const handleReturnTerritory = (territory: Territory) => {
-    if (!territory.assignment) return;
-    setConfirmAction({
-        action: async () => {
-            if (!currentUser?.congregationId || !territory.assignment) return;
-            
-            const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territory.id);
-            
-            const historyLog = {
-                uid: territory.assignment.uid,
-                name: territory.assignment.name,
-                assignedAt: territory.assignment.assignedAt,
-                completedAt: serverTimestamp(),
-            };
+  const handleOpenReturnModal = (territory: Territory) => {
+    setSelectedTerritory(territory);
+    setIsReturnModalOpen(true);
+  };
+  
+  const handleConfirmReturn = async (territoryId: string, returnDate: string) => {
+    if (!currentUser?.congregationId) return;
+    const territoryToReturn = territories.find(t => t.id === territoryId);
+    if (!territoryToReturn || !territoryToReturn.assignment) return;
+    
+    const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
+    
+    const historyLog = {
+      uid: territoryToReturn.assignment.uid,
+      name: territoryToReturn.assignment.name,
+      assignedAt: territoryToReturn.assignment.assignedAt,
+      completedAt: Timestamp.fromDate(new Date(returnDate + 'T12:00:00')),
+    };
 
-            await updateDoc(territoryRef, {
-                status: 'disponivel',
-                assignment: deleteField(),
-                assignmentHistory: arrayUnion(historyLog)
-            });
-            setIsConfirmModalOpen(false);
-        },
-        title: "Confirmar Devolução",
-        message: `Confirmar a devolução do território "${territory.name}" por ${territory.assignment?.name}?`,
-        confirmText: 'Sim, devolver'
+    await updateDoc(territoryRef, {
+      status: 'disponivel',
+      assignment: deleteField(),
+      assignmentHistory: arrayUnion(historyLog)
     });
-    setIsConfirmModalOpen(true);
   };
   
   const filteredTerritories = territories.filter(t => {
-      const type = t.type || 'urban'; // Default to urban if type is missing
+      const type = t.type || 'urban';
       const matchesType = typeFilter === 'all' || type === typeFilter;
       const matchesStatus = filterStatus === 'all' || (filterStatus === 'disponivel' ? t.status !== 'designado' : t.status === 'designado');
       const matchesSearch = searchTerm === '' || t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.number.toLowerCase().includes(searchTerm.toLowerCase());
@@ -185,17 +177,17 @@ export default function TerritoryAssignmentPanel() {
                                 <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-popover text-popover-foreground rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5 focus:outline-none">
                                     <div className="p-1">
                                         <Menu.Item>
-                                            {({ active }) => (<button onClick={() => handleReturnTerritory(t)} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <CheckCircle size={16} className="mr-2"/>Devolver</button>)}
+                                            {({ active }) => (<button onClick={() => handleOpenReturnModal(t)} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <CheckCircle size={16} className="mr-2"/>Devolver</button>)}
                                         </Menu.Item>
                                         <Menu.Item>
-                                            {({ active }) => (<button onClick={() => handleOpenModal(t)} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <RotateCw size={16} className="mr-2"/>Reatribuir</button>)}
+                                            {({ active }) => (<button onClick={() => handleOpenAssignModal(t)} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <RotateCw size={16} className="mr-2"/>Reatribuir</button>)}
                                         </Menu.Item>
                                     </div>
                                 </Menu.Items>
                             </Transition>
                         </Menu>
                     ) : (
-                        <button onClick={() => handleOpenModal(t)} className="text-primary hover:underline font-semibold text-sm">Designar</button>
+                        <button onClick={() => handleOpenAssignModal(t)} className="text-primary hover:underline font-semibold text-sm">Designar</button>
                     )}
                   </td>
                 </tr>
@@ -206,7 +198,12 @@ export default function TerritoryAssignmentPanel() {
       </div>
       
       <AssignTerritoryModal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} onSave={handleSaveAssignment} territory={selectedTerritory} users={users} />
-      {confirmAction && <ConfirmationModal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} onConfirm={confirmAction.action} title={confirmAction.title} message={confirmAction.message} confirmText={confirmAction.confirmText}/>}
+      <ReturnTerritoryModal
+        isOpen={isReturnModalOpen}
+        onClose={() => setIsReturnModalOpen(false)}
+        onConfirm={handleConfirmReturn}
+        territory={selectedTerritory}
+      />
     </>
   );
 }
