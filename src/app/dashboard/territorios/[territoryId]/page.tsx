@@ -2,17 +2,18 @@
 
 import { doc, onSnapshot, collection, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { db } from "@/lib/firebase";
+import { db, app } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory, Activity, Quadra, AssignmentHistoryLog } from "@/types/types"; 
-import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart } from "lucide-react";
+import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, UserCheck, Clock } from "lucide-react";
 import Link from 'next/link';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 import ActivityHistory from '@/components/ActivityHistory';
 import AssignmentHistory from '@/components/AssignmentHistory';
-import AddEditAssignmentLogModal from '@/components/admin/AddEditAssignmentLogModal';
 import QuadraCard from '@/components/QuadraCard';
 import EditTerritoryModal from '@/components/EditTerritoryModal';
 import AddQuadraModal from '@/components/AddQuadraModal';
@@ -21,8 +22,10 @@ import { ConfirmationModal } from '@/components/ConfirmationModal';
 import QuadraListItem from "@/components/QuadraListItem";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import withAuth from "@/components/withAuth";
+import AddEditAssignmentLogModal from "@/components/admin/AddEditAssignmentLogModal";
 
-const functions = getFunctions();
+
+const functions = getFunctions(app);
 const resetTerritoryFunction = httpsCallable(functions, 'resetTerritoryProgress');
 
 // ========================================================================
@@ -114,6 +117,28 @@ const QuadrasSection = ({ territoryId, quadras, isManagerView, onAddQuadra, onEd
     )}
   </div>
 );
+
+const CurrentAssignmentSection = ({ territory }: { territory: Territory }) => {
+    if (!territory.assignment) return null;
+
+    return (
+        <div className="bg-card p-6 rounded-lg shadow-md border-l-4 border-yellow-400">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                <div>
+                    <h2 className="text-xl font-bold flex items-center mb-2">
+                        <UserCheck className="mr-3 text-yellow-400" />
+                        Território Designado
+                    </h2>
+                    <p>Responsável: <span className="font-semibold text-white">{territory.assignment.name}</span></p>
+                </div>
+                <div className="text-left sm:text-right">
+                    <p className="text-muted-foreground text-sm flex items-center gap-2"><Clock size={14}/> Data para Devolução:</p>
+                    <p className="font-semibold text-lg">{format(territory.assignment.dueDate.toDate(), "dd 'de' MMMM, yyyy", { locale: ptBR })}</p>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 
 function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
@@ -278,15 +303,12 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         
         const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
         const newHistory = currentHistory.map(log => {
-          // O ID do log não existe no objeto, teremos que achar uma forma de identificar unicamente
-          // Por enquanto, vamos usar uma combinação de nome e data para encontrar
-          // ATENÇÃO: Isso pode falhar se houver logs idênticos
-          if (log.name === historyLogToEdit?.name && log.assignedAt.isEqual(historyLogToEdit.assignedAt)) {
+          if ((log as any).id === logId) { // Assumindo que log tem 'id'
             return {
               ...log,
               name: updatedData.name,
-              assignedAt: Timestamp.fromDate(new Date(updatedData.assignedAt + 'T12:00:00')),
-              completedAt: Timestamp.fromDate(new Date(updatedData.completedAt + 'T12:00:00')),
+              assignedAt: Timestamp.fromDate(new Date(updatedData.assignedAt)),
+              completedAt: Timestamp.fromDate(new Date(updatedData.completedAt)),
             };
           }
           return log;
@@ -304,7 +326,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
       action: async () => {
         const territoryRef = doc(db, 'congregations', user!.congregationId!, 'territories', territory.id);
         const currentHistory: AssignmentHistoryLog[] = territory.assignmentHistory || [];
-        const newHistory = currentHistory.filter(log => !(log.name === logToDelete.name && log.assignedAt.isEqual(logToDelete.assignedAt)));
+        const newHistory = currentHistory.filter(log => (log as any).id !== (logToDelete as any).id);
         await updateDoc(territoryRef, { assignmentHistory: newHistory });
         handleCloseAllModals();
       },
@@ -319,6 +341,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   
   const isManagerView = user.role === 'Administrador' || user.role === 'Dirigente';
   const isUrban = territory.type !== 'rural';
+  const isAssigned = territory.status === 'designado';
 
   return (
     <>
@@ -351,6 +374,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           {isManagerView ? (
             <>
               {isUrban && <ProgressSection territory={territory} />}
+              {isAssigned && <CurrentAssignmentSection territory={territory} />}
               <ActivityHistory territoryId={territory.id} history={activityHistory} />
               <AssignmentHistory 
                 history={territory.assignmentHistory || []}
@@ -370,6 +394,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             </>
           ) : (
             <>
+              {isAssigned && <CurrentAssignmentSection territory={territory} />}
               {isUrban && 
                 <QuadrasSection 
                   territoryId={params.territoryId}
@@ -381,7 +406,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
               }
               <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
               <ActivityHistory territoryId={territory.id} history={activityHistory} />
-              <AssignmentHistory
+              <AssignmentHistory 
                 history={territory.assignmentHistory || []}
                 onEdit={handleOpenEditLogModal}
                 onDelete={handleDeleteHistoryLog}
@@ -409,3 +434,4 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
 
 export default withAuth(TerritoryDetailPage);
 
+    
