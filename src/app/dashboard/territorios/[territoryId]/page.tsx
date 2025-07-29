@@ -1,17 +1,18 @@
 "use client";
 
-import { doc, onSnapshot, collection, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy } from "firebase/firestore";
+import { doc, onSnapshot, collection, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
-import { Territory, Activity, Quadra } from "@/types/types"; 
+import { Territory, Activity, Quadra, AssignmentHistoryLog } from "@/types/types"; 
 import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart } from "lucide-react";
 import Link from 'next/link';
 
 import ActivityHistory from '@/components/ActivityHistory';
 import AssignmentHistory from '@/components/AssignmentHistory';
+import AddEditAssignmentLogModal from '@/components/admin/AddEditAssignmentLogModal';
 import QuadraCard from '@/components/QuadraCard';
 import EditTerritoryModal from '@/components/EditTerritoryModal';
 import AddQuadraModal from '@/components/AddQuadraModal';
@@ -49,10 +50,6 @@ const ProgressSection = ({ territory }: { territory: Territory }) => {
         </div>
     );
 };
-
-const HistorySection = ({ territoryId, history }: { territoryId: string, history: Activity[] }) => (
-  <ActivityHistory territoryId={territoryId} history={history} />
-);
 
 const MapAndCardSection = ({ territory, onImageClick }: { territory: Territory, onImageClick: (url: string) => void }) => {
     const cardUrl = territory.cardUrl;
@@ -127,7 +124,6 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const { user } = useUser();
   const router = useRouter();
 
-  // Controles de Modais
   const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
   const [isAddQuadraModalOpen, setIsAddQuadraModalOpen] = useState(false);
   const [isEditQuadraModalOpen, setIsEditQuadraModalOpen] = useState(false);
@@ -137,6 +133,9 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
+  
+  const [isEditLogModalOpen, setIsEditLogModalOpen] = useState(false);
+  const [historyLogToEdit, setHistoryLogToEdit] = useState<AssignmentHistoryLog | null>(null);
   
   useEffect(() => {
     if (!user?.congregationId) { if (!user) setLoading(true); else setLoading(false); return; }
@@ -171,6 +170,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
     setSelectedQuadra(null);
     setIsPreviewModalOpen(false);
     setIsProcessingAction(false);
+    setIsEditLogModalOpen(false);
   };
 
   const handleSaveTerritory = async (territoryId: string, updatedData: Partial<Territory>) => {
@@ -262,6 +262,59 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
     setIsPreviewModalOpen(true);
   };
 
+  const handleOpenEditLogModal = (log: AssignmentHistoryLog) => {
+    setHistoryLogToEdit(log);
+    setIsEditLogModalOpen(true);
+  };
+
+  const handleSaveHistoryLog = async (logId: string, updatedData: { name: string; assignedAt: string; completedAt: string }) => {
+    if (!user?.congregationId || !territory) return;
+    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const territoryDoc = await transaction.get(territoryRef);
+        if (!territoryDoc.exists()) throw "Território não encontrado";
+        
+        const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
+        const newHistory = currentHistory.map(log => {
+          // O ID do log não existe no objeto, teremos que achar uma forma de identificar unicamente
+          // Por enquanto, vamos usar uma combinação de nome e data para encontrar
+          // ATENÇÃO: Isso pode falhar se houver logs idênticos
+          if (log.name === historyLogToEdit?.name && log.assignedAt.isEqual(historyLogToEdit.assignedAt)) {
+            return {
+              ...log,
+              name: updatedData.name,
+              assignedAt: Timestamp.fromDate(new Date(updatedData.assignedAt + 'T12:00:00')),
+              completedAt: Timestamp.fromDate(new Date(updatedData.completedAt + 'T12:00:00')),
+            };
+          }
+          return log;
+        });
+        transaction.update(territoryRef, { assignmentHistory: newHistory });
+      });
+    } catch (e) {
+      console.error("Erro ao salvar histórico:", e);
+    }
+  };
+  
+  const handleDeleteHistoryLog = (logToDelete: AssignmentHistoryLog) => {
+    if (!user?.congregationId || !territory) return;
+    setConfirmAction({
+      action: async () => {
+        const territoryRef = doc(db, 'congregations', user!.congregationId!, 'territories', territory.id);
+        const currentHistory: AssignmentHistoryLog[] = territory.assignmentHistory || [];
+        const newHistory = currentHistory.filter(log => !(log.name === logToDelete.name && log.assignedAt.isEqual(logToDelete.assignedAt)));
+        await updateDoc(territoryRef, { assignmentHistory: newHistory });
+        handleCloseAllModals();
+      },
+      message: `Tem certeza que deseja EXCLUIR o registro de ${logToDelete.name}?`,
+      title: "Confirmar Exclusão de Registro"
+    });
+    setIsConfirmModalOpen(true);
+  };
+
+
   if (loading || !territory || !user) return <div className="p-8 text-center">Carregando...</div>;
   
   const isManagerView = user.role === 'Administrador' || user.role === 'Dirigente';
@@ -298,8 +351,12 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           {isManagerView ? (
             <>
               {isUrban && <ProgressSection territory={territory} />}
-              <HistorySection territoryId={territory.id} history={activityHistory} />
-              <AssignmentHistory history={territory.assignmentHistory || []} />
+              <ActivityHistory territoryId={territory.id} history={activityHistory} />
+              <AssignmentHistory 
+                history={territory.assignmentHistory || []}
+                onEdit={handleOpenEditLogModal}
+                onDelete={handleDeleteHistoryLog}
+              />
               <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
               {isUrban && 
                 <QuadrasSection 
@@ -323,36 +380,32 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
                 />
               }
               <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
-              <HistorySection territoryId={territory.id} history={activityHistory} />
-              <AssignmentHistory history={territory.assignmentHistory || []} />
+              <ActivityHistory territoryId={territory.id} history={activityHistory} />
+              <AssignmentHistory
+                history={territory.assignmentHistory || []}
+                onEdit={handleOpenEditLogModal}
+                onDelete={handleDeleteHistoryLog}
+              />
             </>
           )}
         </div>
       </div>
       
       {territory && (<EditTerritoryModal isOpen={isEditTerritoryModalOpen} onClose={handleCloseAllModals} territory={territory} onSave={handleSaveTerritory} onReset={handleResetTerritory} onDelete={handleDeleteTerritory} />)}
-      
-      <AddQuadraModal
-        isOpen={isAddQuadraModalOpen}
-        onClose={handleCloseAllModals}
-        onSave={handleAddQuadra}
-        existingQuadrasCount={quadras.length}
-      />
-      
-      {selectedQuadra && (
-        <EditQuadraModal
-            isOpen={isEditQuadraModalOpen}
-            onClose={handleCloseAllModals}
-            quadra={selectedQuadra}
-            onSave={handleEditQuadra}
-            onDelete={handleDeleteQuadra}
-        />
-      )}
-
+      <AddQuadraModal isOpen={isAddQuadraModalOpen} onClose={handleCloseAllModals} onSave={handleAddQuadra} existingQuadrasCount={quadras.length}/>
+      {selectedQuadra && (<EditQuadraModal isOpen={isEditQuadraModalOpen} onClose={handleCloseAllModals} quadra={selectedQuadra} onSave={handleEditQuadra} onDelete={handleDeleteQuadra} />)}
       {confirmAction && <ConfirmationModal isOpen={isConfirmModalOpen} onClose={handleCloseAllModals} onConfirm={confirmAction.action} title={confirmAction.title} message={confirmAction.message} isLoading={isProcessingAction} />}
       <ImagePreviewModal isOpen={isPreviewModalOpen} onClose={() => setIsPreviewModalOpen(false)} imageUrl={selectedImageUrl} />
+
+      <AddEditAssignmentLogModal 
+        isOpen={isEditLogModalOpen}
+        onClose={handleCloseAllModals}
+        logToEdit={historyLogToEdit}
+        onSave={handleSaveHistoryLog}
+      />
     </>
   );
 }
 
 export default withAuth(TerritoryDetailPage);
+

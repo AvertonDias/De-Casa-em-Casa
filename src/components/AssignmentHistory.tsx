@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useContext } from 'react';
-// ▼▼▼ A CORREÇÃO ESTÁ AQUI ▼▼▼
-import { UserContext } from '@/contexts/UserContext'; // Importa o contexto
+import { UserContext } from '@/contexts/UserContext';
 import { AssignmentHistoryLog } from '@/types/types';
 import { BookUser, ChevronDown, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -15,13 +14,11 @@ interface AssignmentHistoryProps {
 }
 
 export default function AssignmentHistory({ history, onEdit, onDelete }: AssignmentHistoryProps) {
-  // Agora 'useContext(UserContext)' funcionará porque o UserContext foi importado.
   const { user } = useContext(UserContext);
   const isAdmin = user?.role === 'Administrador';
   const [isOpen, setIsOpen] = useState(false);
   const validHistory = history || [];
 
-  // A regra de visibilidade já estava correta.
   if (!isAdmin) {
     return null;
   }
