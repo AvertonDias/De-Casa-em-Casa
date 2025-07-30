@@ -19,7 +19,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
   // ▼▼▼ A CHAMADA CORRETA E SEGURA ▼▼▼
   const { user } = useUser();
   const isAdmin = user?.role === 'Administrador';
-  const [isOpen, setIsOpen] = useState(true); // Deixa aberto por padrão
+  const [isOpen, setIsOpen] = useState(false); // Deixa fechado por padrão
   
   const validHistory = pastAssignments || [];
 
@@ -62,7 +62,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                 <div>
                   <p className="font-semibold">{log.name}</p>
                   <p className="text-sm text-muted-foreground">Designado: {format(log.assignedAt.toDate(), "dd/MM/yy")}</p>
-                  <p className="text-sm text-muted-foreground">Devolvido: {format(log.completedAt.toDate(), "dd/MM/yy")}</p>
+                  <p className="text-sm text-muted-foreground">Devolvido: {log.completedAt ? format(log.completedAt.toDate(), "dd/MM/yy") : 'Não devolvido'}</p>
                 </div>
                 {isAdmin && (
                   <div className="flex items-center gap-2">
