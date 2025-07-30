@@ -9,6 +9,7 @@ import { Printer, ArrowLeft, Map, Trees } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
+import React from 'react';
 
 export default function S13ReportPage() {
   const { user } = useUser();
