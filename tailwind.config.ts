@@ -1,12 +1,11 @@
-import type {Config} from 'tailwindcss';
-
-export default {
-  darkMode: 'class',
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  darkMode: ["class"],
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
-  ],
+	],
   theme: {
     container: {
       center: true,
@@ -63,30 +62,19 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: { height: "0" },
+          from: { height: 0 },
           to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
           from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: "0" },
-        },
-        'pulse': { // Usando 'pulse' padrão para compatibilidade
-          '0%, 100%': { 
-            transform: 'scale(1)',
-            boxShadow: '0 0 0 0 rgba(34, 197, 94, 0.4)'
-          },
-          '50%': { 
-            transform: 'scale(1.05)',
-            boxShadow: '0 0 0 6px rgba(34, 197, 94, 0)'
-          },
+          to: { height: 0 },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        'pulse': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
-} satisfies Config;
+  plugins: [require("tailwindcss-animate")],
+}

@@ -1,26 +1,28 @@
 // next.config.js
 
-// Usamos a sintaxe de import, como no resto do seu projeto
-import withPWAInit from "@ducanh2912/next-pwa";
-
-const withPWA = withPWAInit({
+const withPWA = require("@ducanh2912/next-pwa")({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
+  register: true,
+  skipWaiting: true,
   importScripts: ["/firebase-messaging-sw.js"],
 });
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // A configuração de imagens, que é a que realmente precisávamos
+  reactStrictMode: true,
   images: {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'placehold.co', // Domínio para as imagens de placeholder
+        hostname: 'placehold.co',
       },
+      {
+        protocol: 'https',
+        hostname: 'storage.googleapis.com',
+      }
     ],
   },
 };
 
-// E exportamos usando a sintaxe 'export default'
-export default withPWA(nextConfig);
+module.exports = withPWA(nextConfig);

@@ -187,9 +187,10 @@ export default function RuralTerritoryDetailPage() {
   };
 
   const sortedWorkLogs = territory?.workLogs?.sort((a, b) => b.date.seconds - a.date.seconds) || [];
-
+  
   if (loading) return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" size={32} /></div>;
-  if (!territory) return <p className="text-center mt-10">Território não encontrado ou não é um território rural.</p>;
+
+  if (!user || !territory) return <p className="text-center mt-10">Território não encontrado ou usuário não autenticado.</p>;
 
   const isAdmin = user.role === 'Administrador';
 
