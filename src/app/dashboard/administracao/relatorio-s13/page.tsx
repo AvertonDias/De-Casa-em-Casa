@@ -9,7 +9,6 @@ import { Printer, ArrowLeft, Map, Trees } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
-import React from 'react';
 
 export default function S13ReportPage() {
   const { user } = useUser();
@@ -37,16 +36,16 @@ export default function S13ReportPage() {
   const getLastCompletedDate = (territory: Territory) => {
     const history = territory.assignmentHistory || [];
     if (history.length === 0) return '---';
-    // Ordena para garantir que a data mais recente esteja primeiro
     const sortedHistory = [...history].sort((a, b) => b.completedAt.toMillis() - a.completedAt.toMillis());
     return format(sortedHistory[0].completedAt.toDate(), "dd/MM/yy", { locale: ptBR });
   };
   
   return (
+    // Usamos um Fragment (<>) para não adicionar um 'div' extra que atrapalhe a impressão
     <>
       <div className="p-4 bg-card print:hidden">
         <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-            <Link href="/dashboard/administracao" className="flex items-center text-sm hover:text-primary"><ArrowLeft size={16} className="mr-2"/> Voltar</Link>
+            <Link href="/dashboard/administracao" className="flex items-center text-sm hover:text-primary"><ArrowLeft size={16} className="mr-2"/> Voltar para Administração</Link>
             <div className="flex bg-input p-1 rounded-lg">
                 <button onClick={() => setTypeFilter('urban')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${typeFilter === 'urban' ? 'bg-primary text-primary-foreground' : 'hover:bg-primary/20'}`}><Map size={14} className="inline mr-2"/> Urbanos</button>
                 <button onClick={() => setTypeFilter('rural')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${typeFilter === 'rural' ? 'bg-primary text-primary-foreground' : 'hover:bg-primary/20'}`}><Trees size={14} className="inline mr-2"/> Rurais</button>
@@ -55,46 +54,43 @@ export default function S13ReportPage() {
         </div>
       </div>
 
-      <div className="bg-white text-black p-8 mx-auto max-w-4xl">
+      {/* ▼▼▼ A PARTE IMPRIMÍVEL DO SEU APLICATIVO ▼▼▼ */}
+      <div id="printable-area" className="bg-white text-black p-8 mx-auto max-w-4xl">
         <h1 className="text-xl font-bold text-center uppercase">REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO ({typeFilter === 'urban' ? 'URBANO' : 'RURAL'})</h1>
-        <div className="text-center my-4"><label htmlFor="service-year" className="font-semibold">Ano de Serviço:</label><input id="service-year" type="text" value={serviceYear} onChange={(e) => setServiceYear(e.target.value)} className="border-b-2 border-black focus:outline-none text-center bg-white"/></div>
+        <div className="text-center my-4">
+            <label htmlFor="service-year" className="font-semibold">Ano de Serviço:</label>
+            <input id="service-year" type="text" value={serviceYear} onChange={(e) => setServiceYear(e.target.value)} className="border-b-2 border-black focus:outline-none text-center bg-white"/>
+        </div>
         <table className="w-full border-collapse border border-black text-sm">
-          <thead>
-            <tr className="text-center text-xs font-semibold">
-              <th className="border border-black p-1 w-[8%]">Terr. n.º</th>
-              <th className="border border-black p-1 w-[12%]">Última data concluída*</th>
-              <th className="border border-black p-1" colSpan={2}>Designado para</th>
-              <th className="border border-black p-1" colSpan={2}>Designado para</th>
-              <th className="border border-black p-1" colSpan={2}>Designado para</th>
-              <th className="border border-black p-1" colSpan={2}>Designado para</th>
-            </tr>
-            <tr className="text-center text-xs">
-              <td className="border border-black"></td><td className="border border-black"></td>
-              {Array(4).fill(0).map((_, i) => (<React.Fragment key={i}><td className="border border-black p-1">Data da designação</td><td className="border border-black p-1">Data da conclusão</td></React.Fragment>))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-                <tr><td colSpan={10} className="text-center p-4">Carregando dados...</td></tr>
-            ) : (
-                filteredTerritories.map(t => {
-                    let allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
-                    if (t.status === 'designado' && t.assignment) {
-                        allAssignments.push({
-                            name: t.assignment.name,
-                            assignedAt: t.assignment.assignedAt,
-                        });
-                    }
-                    const sortedHistory = allAssignments.sort((a, b) => b.assignedAt!.toMillis() - a.assignedAt!.toMillis());
-                    
-                    return (
-                        <tr key={t.id} className="h-10">
-                            <td className="border border-black text-center font-semibold">{t.number}</td>
-                            <td className="border border-black text-center">{getLastCompletedDate(t)}</td>
-                            {Array(4).fill(null).map((_, i) => {
-                                const assignment = sortedHistory[i];
-                                return (
-                                    <React.Fragment key={i}>
+            <thead>
+                <tr className="text-center text-xs font-semibold">
+                    <th className="border border-black p-1 w-[8%]">Terr. n.º</th>
+                    <th className="border border-black p-1 w-[12%]">Última data concluída*</th>
+                    <th className="border border-black p-1" colSpan={2}>Designado para</th>
+                    <th className="border border-black p-1" colSpan={2}>Designado para</th>
+                    <th className="border border-black p-1" colSpan={2}>Designado para</th>
+                    <th className="border border-black p-1" colSpan={2}>Designado para</th>
+                </tr>
+                <tr className="text-center text-xs">
+                    <td className="border border-black"></td><td className="border border-black"></td>
+                    {Array(4).fill(0).map((_, i) => (<><td key={`h-d-${i}`} className="border border-black p-1">Data da designação</td><td key={`h-c-${i}`} className="border border-black p-1">Data da conclusão</td></>))}
+                </tr>
+            </thead>
+            <tbody>
+                {loading ? (
+                    <tr><td colSpan={10} className="text-center p-4">Carregando dados...</td></tr>
+                ) : (
+                    filteredTerritories.map(t => {
+                        let allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
+                        if (t.status === 'designado' && t.assignment) { allAssignments.push({ name: t.assignment.name, assignedAt: t.assignment.assignedAt }); }
+                        const sortedHistory = allAssignments.sort((a, b) => b.assignedAt!.toMillis() - a.assignedAt!.toMillis());
+                        return (
+                            <tr key={t.id} className="h-10">
+                                <td className="border border-black text-center font-semibold">{t.number}</td>
+                                <td className="border border-black text-center">{getLastCompletedDate(t)}</td>
+                                {Array(4).fill(null).map((_, i) => {
+                                    const assignment = sortedHistory[i];
+                                    return (<React.Fragment key={`${t.id}-${i}`}>
                                         <td className="border-t border-b border-black text-center px-1">
                                             <div className="border-r border-black h-full flex flex-col justify-between items-center">
                                                 <span className="text-xs pt-1">{assignment?.name || ''}</span>
@@ -106,19 +102,44 @@ export default function S13ReportPage() {
                                                 <span className="text-xs pb-1">{assignment && assignment.completedAt ? format(assignment.completedAt.toDate(), "dd/MM/yy") : ''}</span>
                                             </div>
                                         </td>
-                                    </React.Fragment>
-                                );
-                            })}
-                        </tr>
-                    );
-                })
-            )}
-          </tbody>
+                                    </React.Fragment>);
+                                })}
+                            </tr>
+                        );
+                    })
+                )}
+            </tbody>
         </table>
         <p className="text-xs mt-2">*Ao iniciar uma nova folha, use esta coluna para registrar a data em que cada território foi concluído pela última vez.</p>
         <p className="text-xs text-right">S-13-T 01/22</p>
       </div>
-      <style jsx global>{` @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .print-hidden { display: none; } @page { size: A4 landscape; margin: 1cm; } } `}</style>
+
+      {/* ▼▼▼ ESTILOS FINAIS E CORRIGIDOS PARA IMPRESSÃO ▼▼▼ */}
+      <style jsx global>{`
+        @media print {
+          /* 1. Esconde TUDO que está no body por padrão */
+          body > * {
+            display: none !important;
+          }
+          /* 2. Deixa APENAS a nossa área de impressão e seus filhos visíveis */
+          #printable-area, #printable-area * {
+            display: block !important;
+            visibility: visible !important;
+          }
+          /* 3. Posiciona a área de impressão no canto da página */
+          #printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          /* 4. Define o tamanho e orientação da página */
+          @page {
+            size: A4 landscape;
+            margin: 1cm;
+          }
+        }
+      `}</style>
     </>
   );
 }
