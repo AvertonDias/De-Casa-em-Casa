@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useContext, Fragment } from 'react';
-import Link from 'next/link';
-import { UserContext } from '@/contexts/UserContext';
+import { useState, useEffect, Fragment } from 'react';
+import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, Timestamp, deleteField, orderBy } from 'firebase/firestore';
 import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList } from 'lucide-react';
@@ -35,7 +34,7 @@ const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
 
 
 export default function TerritoryAssignmentPanel() {
-  const { user: currentUser } = useContext(UserContext);
+  const { user: currentUser } = useUser();
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +63,7 @@ export default function TerritoryAssignmentPanel() {
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where('congregationId', '==', currentUser.congregationId), where('status', '==', 'ativo'), orderBy('name'));
     const unsub = onSnapshot(q, (snapshot) => {
-      setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }) as AppUser));
+      setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser)));
     });
     return () => unsub();
   }, [currentUser]);
