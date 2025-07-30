@@ -375,7 +375,6 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             </>
           ) : (
             <>
-              <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
               {isUrban && 
                 <QuadrasSection 
                   territoryId={params.territoryId}
@@ -385,6 +384,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
                   onEditQuadra={handleOpenEditQuadraModal}
                 />
               }
+              <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
               <ActivityHistory territoryId={territory.id} history={activityHistory} />
             </>
           )}
