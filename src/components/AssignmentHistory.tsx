@@ -1,27 +1,27 @@
 "use client";
 
-import { useState, useContext } from 'react';
-import { UserContext } from '@/contexts/UserContext';
-import { Assignment, AssignmentHistoryLog } from '@/types/types'; // Importa também o tipo 'Assignment'
+import { useState } from 'react';
+// ▼▼▼ CORREÇÃO APLICADA AQUI ▼▼▼
+import { useUser } from '@/contexts/UserContext'; // Usamos o hook customizado
+import { Assignment, AssignmentHistoryLog } from '@/types/types';
 import { BookUser, ChevronDown, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface AssignmentHistoryProps {
-  currentAssignment?: Assignment | null; // A designação atual (opcional)
-  pastAssignments: AssignmentHistoryLog[]; // O histórico de devoluções
+  currentAssignment?: Assignment | null;
+  pastAssignments: AssignmentHistoryLog[];
   onEdit: (log: AssignmentHistoryLog) => void;
   onDelete: (log: AssignmentHistoryLog) => void;
 }
 
 export default function AssignmentHistory({ currentAssignment, pastAssignments, onEdit, onDelete }: AssignmentHistoryProps) {
-  const { user } = useContext(UserContext);
+  // ▼▼▼ A CHAMADA CORRETA E SEGURA ▼▼▼
+  const { user } = useUser();
   const isAdmin = user?.role === 'Administrador';
-  const [isOpen, setIsOpen] = useState(false); // Deixa fechado por padrão
+  const [isOpen, setIsOpen] = useState(true); // Deixa aberto por padrão
   
-  const sortedHistory = (pastAssignments || []).sort((a, b) => 
-    b.completedAt.toMillis() - a.completedAt.toMillis()
-  );
+  const validHistory = pastAssignments || [];
 
   // O componente só é visível para Admins
   if (!isAdmin) return null;
@@ -42,8 +42,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
       {isOpen && (
         <div className="mt-4 pt-4 border-t border-border">
           <ul className="space-y-4">
-            
-            {/* Seção para a designação atual */}
+            {/* Seção para a Designação Atual */}
             {currentAssignment && (
               <li className="flex justify-between items-start p-3 bg-primary/10 rounded-lg border-l-4 border-primary">
                 <div>
@@ -55,17 +54,15 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                     Devolver até: {format(currentAssignment.dueDate.toDate(), "dd/MM/yyyy", { locale: ptBR })}
                   </p>
                 </div>
-                {/* Não há ações para a designação atual aqui, elas ficam no painel de admin */}
               </li>
             )}
-
-            {/* Seção para o histórico passado */}
-            {sortedHistory.map((log) => (
+            {/* Seção para o Histórico Passado */}
+            {validHistory.map((log) => (
               <li key={(log as any).id || log.assignedAt.toString()} className="flex justify-between items-start pl-4 border-l-2 border-border">
                 <div>
                   <p className="font-semibold">{log.name}</p>
-                  <p className="text-sm text-muted-foreground">Designado: {format(log.assignedAt.toDate(), "dd/MM/yy", { locale: ptBR })}</p>
-                  <p className="text-sm text-muted-foreground">Devolvido: {format(log.completedAt.toDate(), "dd/MM/yy", { locale: ptBR })}</p>
+                  <p className="text-sm text-muted-foreground">Designado: {format(log.assignedAt.toDate(), "dd/MM/yy")}</p>
+                  <p className="text-sm text-muted-foreground">Devolvido: {format(log.completedAt.toDate(), "dd/MM/yy")}</p>
                 </div>
                 {isAdmin && (
                   <div className="flex items-center gap-2">
@@ -76,9 +73,8 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
               </li>
             ))}
           </ul>
-          
-          {!currentAssignment && sortedHistory.length === 0 && (
-            <p className="text-center text-muted-foreground py-4">Nenhuma designação, atual ou passada, encontrada.</p>
+          {!currentAssignment && validHistory.length === 0 && (
+            <p className="text-center text-muted-foreground py-4">Nenhuma designação encontrada.</p>
           )}
         </div>
       )}
