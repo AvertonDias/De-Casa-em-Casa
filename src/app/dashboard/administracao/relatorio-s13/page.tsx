@@ -69,15 +69,6 @@ export default function S13ReportPage() {
                     <th className="border border-black p-1" colSpan={2}>Designado para</th>
                     <th className="border border-black p-1" colSpan={2}>Designado para</th>
                 </tr>
-                <tr className="text-center text-xs">
-                    <td className="border border-black"></td><td className="border border-black"></td>
-                    {Array(4).fill(0).map((_, i) => (
-                        <React.Fragment key={i}>
-                            <td className="border border-black p-1">Data da designação</td>
-                            <td className="border border-black p-1">Data da conclusão</td>
-                        </React.Fragment>
-                    ))}
-                </tr>
             </thead>
             <tbody>
                 {loading ? (
@@ -99,19 +90,15 @@ export default function S13ReportPage() {
                                 {Array(4).fill(null).map((_, i) => {
                                     const assignment = sortedHistory[i];
                                     return (
-                                        <React.Fragment key={`${t.id}-${i}`}>
-                                            <td className="border-t border-b border-black text-center px-1">
-                                                <div className="border-r border-black h-full flex flex-col justify-between items-center">
-                                                    <span className="text-xs pt-1">{assignment?.name || ''}</span>
-                                                    <span className="border-t border-black w-full mt-auto text-xs">{assignment ? format(assignment.assignedAt!.toDate(), "dd/MM/yy") : ''}</span>
-                                                </div>
-                                            </td>
-                                            <td className="border-t border-b border-black text-center">
-                                                <div className="border-r border-black h-full flex items-end justify-center">
-                                                    <span className="text-xs pb-1">{assignment && assignment.completedAt ? format(assignment.completedAt.toDate(), "dd/MM/yy") : ''}</span>
-                                                </div>
-                                            </td>
-                                        </React.Fragment>
+                                      <td key={`${t.id}-d-${i}`} className="border border-black text-center px-1" colSpan={2}>
+                                        <div className="flex flex-col justify-between items-center h-full">
+                                          <span className="text-xs pt-1">{assignment?.name || ''}</span>
+                                          <div className="w-full mt-auto grid grid-cols-2 divide-x divide-black border-t border-black">
+                                            <span className="text-xs">{assignment ? format(assignment.assignedAt!.toDate(), "dd/MM/yy") : ''}</span>
+                                            <span className="text-xs">{assignment && assignment.completedAt ? format(assignment.completedAt.toDate(), "dd/MM/yy") : ''}</span>
+                                          </div>
+                                        </div>
+                                      </td>
                                     );
                                 })}
                             </tr>
