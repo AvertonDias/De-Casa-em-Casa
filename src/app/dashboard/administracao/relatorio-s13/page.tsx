@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
@@ -41,7 +41,6 @@ export default function S13ReportPage() {
   };
   
   return (
-    // Usamos um Fragment (<>) para não adicionar um 'div' extra que atrapalhe a impressão
     <>
       <div className="p-4 bg-card print:hidden">
         <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -54,7 +53,6 @@ export default function S13ReportPage() {
         </div>
       </div>
 
-      {/* ▼▼▼ A PARTE IMPRIMÍVEL DO SEU APLICATIVO ▼▼▼ */}
       <div id="printable-area" className="bg-white text-black p-8 mx-auto max-w-4xl">
         <h1 className="text-xl font-bold text-center uppercase">REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO ({typeFilter === 'urban' ? 'URBANO' : 'RURAL'})</h1>
         <div className="text-center my-4">
@@ -73,7 +71,12 @@ export default function S13ReportPage() {
                 </tr>
                 <tr className="text-center text-xs">
                     <td className="border border-black"></td><td className="border border-black"></td>
-                    {Array(4).fill(0).map((_, i) => (<><td key={`h-d-${i}`} className="border border-black p-1">Data da designação</td><td key={`h-c-${i}`} className="border border-black p-1">Data da conclusão</td></>))}
+                    {Array(4).fill(0).map((_, i) => (
+                        <React.Fragment key={i}>
+                            <td className="border border-black p-1">Data da designação</td>
+                            <td className="border border-black p-1">Data da conclusão</td>
+                        </React.Fragment>
+                    ))}
                 </tr>
             </thead>
             <tbody>
@@ -82,7 +85,12 @@ export default function S13ReportPage() {
                 ) : (
                     filteredTerritories.map(t => {
                         let allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
-                        if (t.status === 'designado' && t.assignment) { allAssignments.push({ name: t.assignment.name, assignedAt: t.assignment.assignedAt }); }
+                        if (t.status === 'designado' && t.assignment) {
+                            allAssignments.push({
+                                name: t.assignment.name,
+                                assignedAt: t.assignment.assignedAt,
+                            });
+                        }
                         const sortedHistory = allAssignments.sort((a, b) => b.assignedAt!.toMillis() - a.assignedAt!.toMillis());
                         return (
                             <tr key={t.id} className="h-10">
@@ -90,19 +98,21 @@ export default function S13ReportPage() {
                                 <td className="border border-black text-center">{getLastCompletedDate(t)}</td>
                                 {Array(4).fill(null).map((_, i) => {
                                     const assignment = sortedHistory[i];
-                                    return (<React.Fragment key={`${t.id}-${i}`}>
-                                        <td className="border-t border-b border-black text-center px-1">
-                                            <div className="border-r border-black h-full flex flex-col justify-between items-center">
-                                                <span className="text-xs pt-1">{assignment?.name || ''}</span>
-                                                <span className="border-t border-black w-full mt-auto text-xs">{assignment ? format(assignment.assignedAt!.toDate(), "dd/MM/yy") : ''}</span>
-                                            </div>
-                                        </td>
-                                        <td className="border-t border-b border-black text-center">
-                                            <div className="border-r border-black h-full flex items-end justify-center">
-                                                <span className="text-xs pb-1">{assignment && assignment.completedAt ? format(assignment.completedAt.toDate(), "dd/MM/yy") : ''}</span>
-                                            </div>
-                                        </td>
-                                    </React.Fragment>);
+                                    return (
+                                        <React.Fragment key={`${t.id}-${i}`}>
+                                            <td className="border-t border-b border-black text-center px-1">
+                                                <div className="border-r border-black h-full flex flex-col justify-between items-center">
+                                                    <span className="text-xs pt-1">{assignment?.name || ''}</span>
+                                                    <span className="border-t border-black w-full mt-auto text-xs">{assignment ? format(assignment.assignedAt!.toDate(), "dd/MM/yy") : ''}</span>
+                                                </div>
+                                            </td>
+                                            <td className="border-t border-b border-black text-center">
+                                                <div className="border-r border-black h-full flex items-end justify-center">
+                                                    <span className="text-xs pb-1">{assignment && assignment.completedAt ? format(assignment.completedAt.toDate(), "dd/MM/yy") : ''}</span>
+                                                </div>
+                                            </td>
+                                        </React.Fragment>
+                                    );
                                 })}
                             </tr>
                         );
@@ -114,30 +124,12 @@ export default function S13ReportPage() {
         <p className="text-xs text-right">S-13-T 01/22</p>
       </div>
 
-      {/* ▼▼▼ ESTILOS FINAIS E CORRIGIDOS PARA IMPRESSÃO ▼▼▼ */}
       <style jsx global>{`
         @media print {
-          /* 1. Esconde TUDO que está no body por padrão */
-          body > * {
-            display: none !important;
-          }
-          /* 2. Deixa APENAS a nossa área de impressão e seus filhos visíveis */
-          #printable-area, #printable-area * {
-            display: block !important;
-            visibility: visible !important;
-          }
-          /* 3. Posiciona a área de impressão no canto da página */
-          #printable-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-          /* 4. Define o tamanho e orientação da página */
-          @page {
-            size: A4 landscape;
-            margin: 1cm;
-          }
+          body > * { display: none !important; }
+          #printable-area, #printable-area * { display: block !important; visibility: visible !important; }
+          #printable-area { position: absolute; left: 0; top: 0; width: 100%; }
+          @page { size: A4 landscape; margin: 1cm; }
         }
       `}</style>
     </>
