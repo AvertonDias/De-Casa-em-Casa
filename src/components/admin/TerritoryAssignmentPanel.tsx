@@ -4,6 +4,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, Timestamp, deleteField, orderBy } from 'firebase/firestore';
+import Link from 'next/link';
 import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { format } from 'date-fns';
@@ -118,6 +119,8 @@ export default function TerritoryAssignmentPanel() {
       const matchesSearch = searchTerm === '' || t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.number.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesType && matchesStatus && matchesSearch;
   }).sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
+
+  if(loading) return <div className="text-center p-8">Carregando dados...</div>
 
   return (
     <>
