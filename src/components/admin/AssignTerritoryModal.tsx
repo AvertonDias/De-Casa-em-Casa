@@ -15,15 +15,18 @@ interface AssignTerritoryModalProps {
 
 export default function AssignTerritoryModal({ isOpen, onClose, onSave, territory, users }: AssignTerritoryModalProps) {
   const [selectedUid, setSelectedUid] = useState<string>('');
+  const [customName, setCustomName] = useState('');
   const [assignmentDate, setAssignmentDate] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [error, setError] = useState('');
   
   const today = new Date().toISOString().split('T')[0];
+  const isFreeChoice = selectedUid === 'free-choice';
 
   useEffect(() => {
     if (isOpen) {
       setSelectedUid('');
+      setCustomName('');
       setAssignmentDate(today);
       const futureDate = new Date();
       futureDate.setMonth(futureDate.getMonth() + 2);
@@ -42,13 +45,29 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
   };
   
   const handleSave = () => {
-    if (!selectedUid || !dueDate || !assignmentDate) {
-      setError("Por favor, preencha todos os campos.");
-      return;
+    let assignedUser: { uid: string; name: string };
+
+    if (isFreeChoice) {
+        if (!customName.trim()) {
+            setError("Por favor, digite um nome para a designação.");
+            return;
+        }
+        // Para escolha livre, o UID pode ser um placeholder
+        assignedUser = { uid: 'custom_' + Date.now(), name: customName.trim() };
+    } else {
+        const selectedUser = users.find(u => u.uid === selectedUid);
+        if (!selectedUser) {
+            setError("Por favor, selecione um publicador.");
+            return;
+        }
+        assignedUser = { uid: selectedUser.uid, name: selectedUser.name };
     }
-    const selectedUser = users.find(u => u.uid === selectedUid);
-    if (!territory || !selectedUser) return;
-    onSave(territory.id, { uid: selectedUser.uid, name: selectedUser.name }, assignmentDate, dueDate);
+    
+    if (!territory || !dueDate || !assignmentDate) {
+        setError("Por favor, preencha todos os campos necessários.");
+        return;
+    }
+    onSave(territory.id, assignedUser, assignmentDate, dueDate);
     onClose();
   };
 
@@ -70,8 +89,24 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
             <select value={selectedUid} onChange={(e) => setSelectedUid(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border">
               <option value="" disabled>Selecione um publicador</option>
               {users.map(user => (<option key={user.uid} value={user.uid}>{user.name}</option>))}
+              <option value="free-choice" className="font-semibold text-primary">-- Digitar Outro Nome --</option>
             </select>
           </div>
+
+          {isFreeChoice && (
+              <div>
+                  <label htmlFor="custom-name" className="block text-sm font-medium mb-1">Nome da Designação Livre:</label>
+                  <input
+                      id="custom-name"
+                      type="text"
+                      value={customName}
+                      onChange={(e) => setCustomName(e.target.value)}
+                      placeholder="Ex: Campanha Especial, Grupo de Carro"
+                      className="w-full bg-input rounded-md p-2 border border-border"
+                  />
+              </div>
+          )}
+          
           <div className="flex gap-4">
             <div className="w-1/2">
               <label className="block text-sm font-medium mb-1">Data de Designação:</label>
