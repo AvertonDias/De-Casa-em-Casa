@@ -124,9 +124,9 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
 
   const navLinks = [
     { name: "Início", href: "/dashboard", icon: Home, roles: ['Administrador', 'Dirigente', 'Publicador'] },
-    { name: "Meus Territórios", href: "/dashboard/meus-territorios", icon: UserCheck, roles: ['Administrador', 'Dirigente', 'Publicador'] },
     { name: "Territórios", href: "/dashboard/territorios", icon: Map, roles: ['Administrador', 'Dirigente', 'Publicador'] },
     { name: "Rural", href: "/dashboard/rural", icon: Trees, roles: ['Administrador', 'Dirigente', 'Publicador'] },
+    { name: "Meus Territórios", href: "/dashboard/meus-territorios", icon: UserCheck, roles: ['Administrador', 'Dirigente'] },
     { name: "Usuários", href: "/dashboard/usuarios", icon: Users, roles: ['Administrador', 'Dirigente'] },
     { name: "Administração", href: "/dashboard/administracao", icon: Shield, roles: ['Administrador'] },
     { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings, roles: ['Administrador', 'Dirigente', 'Publicador'] },
@@ -310,3 +310,5 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 }
 
 export default withAuth(DashboardLayout);
+
+    
