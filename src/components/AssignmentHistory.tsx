@@ -17,7 +17,7 @@ interface AssignmentHistoryProps {
 export default function AssignmentHistory({ currentAssignment, pastAssignments, onEdit, onDelete }: AssignmentHistoryProps) {
   const { user } = useContext(UserContext);
   const isAdmin = user?.role === 'Administrador';
-  const [isOpen, setIsOpen] = useState(true); // Deixa aberto por padrão
+  const [isOpen, setIsOpen] = useState(false); // Deixa fechado por padrão
   
   const sortedHistory = (pastAssignments || []).sort((a, b) => 
     b.completedAt.toMillis() - a.completedAt.toMillis()
