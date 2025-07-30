@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { Territory } from '@/types/types';
+import { Territory, AssignmentHistoryLog } from '@/types/types';
 import { Printer, ArrowLeft, Map, Trees } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -16,7 +16,6 @@ export default function S13ReportPage() {
   const [allTerritories, setAllTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
   const [serviceYear, setServiceYear] = useState(new Date().getFullYear().toString());
-  
   const [typeFilter, setTypeFilter] = useState<'urban' | 'rural'>('urban');
 
   useEffect(() => {
@@ -79,7 +78,14 @@ export default function S13ReportPage() {
                 <tr><td colSpan={10} className="text-center p-4">Carregando dados...</td></tr>
             ) : (
                 filteredTerritories.map(t => {
-                    const sortedHistory = [...(t.assignmentHistory || [])].sort((a, b) => b.assignedAt.toMillis() - a.assignedAt.toMillis());
+                    let allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
+                    if (t.status === 'designado' && t.assignment) {
+                        allAssignments.push({
+                            name: t.assignment.name,
+                            assignedAt: t.assignment.assignedAt,
+                        });
+                    }
+                    const sortedHistory = allAssignments.sort((a, b) => b.assignedAt!.toMillis() - a.assignedAt!.toMillis());
                     
                     return (
                         <tr key={t.id} className="h-10">
@@ -92,12 +98,12 @@ export default function S13ReportPage() {
                                         <td className="border-t border-b border-black text-center px-1">
                                             <div className="border-r border-black h-full flex flex-col justify-between items-center">
                                                 <span className="text-xs pt-1">{assignment?.name || ''}</span>
-                                                <span className="border-t border-black w-full mt-auto text-xs">{assignment ? format(assignment.assignedAt.toDate(), "dd/MM/yy") : ''}</span>
+                                                <span className="border-t border-black w-full mt-auto text-xs">{assignment ? format(assignment.assignedAt!.toDate(), "dd/MM/yy") : ''}</span>
                                             </div>
                                         </td>
                                         <td className="border-t border-b border-black text-center">
                                             <div className="border-r border-black h-full flex items-end justify-center">
-                                                <span className="text-xs pb-1">{assignment ? format(assignment.completedAt.toDate(), "dd/MM/yy") : ''}</span>
+                                                <span className="text-xs pb-1">{assignment && assignment.completedAt ? format(assignment.completedAt.toDate(), "dd/MM/yy") : ''}</span>
                                             </div>
                                         </td>
                                     </React.Fragment>
