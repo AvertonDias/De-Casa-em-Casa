@@ -4,14 +4,13 @@ import { useState, useEffect, useContext, Fragment } from 'react';
 import Link from 'next/link';
 import { UserContext } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, arrayUnion, Timestamp, deleteField, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, Timestamp, deleteField, orderBy } from 'firebase/firestore';
 import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AssignTerritoryModal from './AssignTerritoryModal';
 import ReturnTerritoryModal from './ReturnTerritoryModal';
-import { ConfirmationModal } from '@/components/ConfirmationModal';
 import type { Territory, AppUser } from '@/types/types';
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
