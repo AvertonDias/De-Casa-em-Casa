@@ -1,24 +1,25 @@
 "use client";
 
-import { useState, useEffect, useContext } from 'react';
-import { doc, onSnapshot, Timestamp, runTransaction, updateDoc } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import { useUser } from '@/contexts/UserContext';
+import { doc, onSnapshot, updateDoc, arrayUnion, Timestamp, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { UserContext } from '@/contexts/UserContext';
-import { RuralTerritory, RuralWorkLog, AssignmentHistoryLog, Assignment } from '@/types/types';
+import { RuralTerritory, RuralWorkLog, AssignmentHistoryLog } from '@/types/types';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Link as LinkIcon, Loader, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
 import AddEditWorkLogModal from '@/components/AddEditWorkLogModal';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Button } from '@/components/ui/button';
-import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
 import AssignmentHistory from '@/components/AssignmentHistory';
 import AddEditAssignmentLogModal from '@/components/admin/AddEditAssignmentLogModal';
 
 export default function RuralTerritoryDetailPage() {
-  const { user } = useContext(UserContext);
+  const { user } = useUser();
   const params = useParams<{ territoryId: string }>();
   const [territory, setTerritory] = useState<RuralTerritory | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,7 +40,7 @@ export default function RuralTerritoryDetailPage() {
   const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; } | null>(null);
 
   useEffect(() => {
-    if (!user?.congregationId || !params.territoryId) {
+    if (!user?.congregationId || !params?.territoryId) {
         if (user) setLoading(false);
         return;
     }
@@ -53,7 +54,7 @@ export default function RuralTerritoryDetailPage() {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [user, params.territoryId]);
+  }, [user, params]);
 
   const handleAddWorkLog = async () => {
     if (!workNote.trim() || !user || !territory) return;
@@ -187,7 +188,7 @@ export default function RuralTerritoryDetailPage() {
 
   const sortedWorkLogs = territory?.workLogs?.sort((a, b) => b.date.seconds - a.date.seconds) || [];
 
-  if (loading || !user) return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" size={32} /></div>;
+  if (loading) return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" size={32} /></div>;
   if (!territory) return <p className="text-center mt-10">Território não encontrado ou não é um território rural.</p>;
 
   const isAdmin = user.role === 'Administrador';
@@ -204,9 +205,9 @@ export default function RuralTerritoryDetailPage() {
                   <h1 className="text-3xl font-bold">{territory.number} - {territory.name}</h1>
                   <p className="text-lg text-muted-foreground mt-1">{territory.description}</p>
               </div>
-              {isAdmin && user.congregationId && (
+              {isAdmin && (
                 <button onClick={() => setIsEditTerritoryModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md flex items-center">
-                  <Edit size={16} className="mr-2"/> Editar
+                  <Edit size={16} className="mr-2"/> Editar Território
                 </button>
               )}
           </div>
