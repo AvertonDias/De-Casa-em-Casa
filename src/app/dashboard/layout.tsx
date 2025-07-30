@@ -204,7 +204,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
                     <Button
                         onClick={handleInstallButtonClick}
                         variant="outline"
-                        className="w-full justify-center"
+                        className="w-full justify-center text-green-600 border-green-500/50 hover:bg-green-500/10 hover:text-green-600 dark:text-green-400 dark:border-green-400/50 dark:hover:bg-green-400/10 dark:hover:text-green-400"
                     >
                         <Download className="mr-2" size={20} /> Instalar Aplicativo
                     </Button>
