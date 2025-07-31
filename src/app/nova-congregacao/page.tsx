@@ -2,30 +2,23 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
 import Link from 'next/link';
-import { Eye, EyeOff } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-
-// Aponta para a função 'createCongregationAndAdmin' no backend
-const createCongregationAndAdminFunction = httpsCallable(functions, 'createCongregationAndAdmin');
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function NewCongregationPage() {
   const [adminName, setAdminName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
   const [congregationName, setCongregationName] = useState('');
   const [congregationNumber, setCongregationNumber] = useState('');
-
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,37 +32,34 @@ export default function NewCongregationPage() {
         setError("A senha precisa ter pelo menos 6 caracteres.");
         return;
     }
-
+    
     setLoading(true);
     
     try {
-      // Chama a Cloud Function com os dados do formulário
-      await createCongregationAndAdminFunction({
-        adminName,
-        adminEmail,
-        adminPassword,
-        congregationName,
-        congregationNumber
-      });
+      // ▼▼▼ NOVA LÓGICA DE CHAMADA HTTP ▼▼▼
+      const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin";
       
-      toast({
-          title: "Congregação criada com sucesso!",
-          description: "Você será redirecionado para o painel."
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminName, adminEmail, adminPassword,
+          congregationName, congregationNumber
+        }),
       });
-      
-      // Força um recarregamento para que o contexto de autenticação seja atualizado
-      window.location.href = '/dashboard';
+
+      const result = await response.json();
+      if (!response.ok) {
+        // Usa a mensagem de erro que vem do backend
+        throw new Error(result.error || `Erro do servidor: ${response.statusText}`);
+      }
+
+      toast({ title: "Congregação criada com sucesso!", description: "Você será redirecionado para fazer o login." });
+      router.push('/');
 
     } catch (err: any) {
       console.error("ERRO DETALHADO NA CRIAÇÃO:", err);
-      // Trata erros específicos da Cloud Function
-      if (err.code === 'functions/already-exists') {
-        setError("Este e-mail de administrador já está em uso.");
-      } else if (err.code === 'functions/invalid-argument') {
-        setError("Todos os campos são obrigatórios. Verifique o preenchimento.");
-      } else {
-        setError("Ocorreu um erro ao criar a congregação. Tente novamente.");
-      }
+      setError(err.message || "Ocorreu um erro ao criar a congregação.");
     } finally {
         setLoading(false);
     }
