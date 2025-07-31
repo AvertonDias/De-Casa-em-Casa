@@ -407,29 +407,34 @@ export const mirrorUserStatus = functions.database
 
 // ▼▼▼ FUNÇÃO sendFeedbackEmail COM onCall (CORRETA) ▼▼▼
 export const sendFeedbackEmail = functions.https.onCall(async (data, context) => {
+    // 1. Validação de Autenticação (onCall já faz isso, mas podemos adicionar mais)
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
+    }
+    
     try {
-        // 1. Validação dos dados
-        const { name, email, subject, message } = data; // 'data' já é o corpo da requisição em onCall
+        // 2. Validação dos dados de entrada
+        const { name, email, subject, message } = data;
         if (!name || !email || !subject || !message) {
             throw new functions.https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
         }
         
-        // 2. Lógica de envio de e-mail (simulada)
+        // 3. Lógica de envio de e-mail (simulada)
         console.log('--- NOVO FEEDBACK RECEBIDO ---');
         console.log(`De: ${name} (${email})`);
+        console.log(`UID: ${context.auth.uid}`); // Podemos logar o UID para referência
         console.log(`Assunto: ${subject}`);
         console.log(`Mensagem: ${message}`);
         console.log('------------------------------');
 
-        // 3. Retorna sucesso
+        // 4. Retorna sucesso
         return { success: true, message: 'Feedback enviado com sucesso!' };
 
     } catch (error: any) {
         console.error("Erro ao processar feedback:", error);
-        // Garante que o erro seja um HttpsError para ser tratado no frontend
         if (error instanceof functions.https.HttpsError) {
             throw error;
         }
-        throw new functions.https.HttpsError("internal", "Erro interno do servidor.");
+        throw new functions.https.HttpsError("internal", "Erro interno do servidor ao processar o feedback.");
     }
 });
