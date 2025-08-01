@@ -8,9 +8,10 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Loader } from "lucide-react"; // Adicione Loader se ainda não estiver
+import { Loader } from "lucide-react"; 
 
-import { getFunctions, HttpsError, httpsCallable } from 'firebase/functions';
+// ▼▼▼ CORREÇÃO AQUI: Removemos a importação direta de HttpsError ▼▼▼
+import { getFunctions, httpsCallable } from 'firebase/functions'; // HttpsError não é importado aqui
 import { app } from '@/lib/firebase'; // Certifique-se de que 'app' está exportado de '@/lib/firebase'
 
 
@@ -32,7 +33,8 @@ export default function NovaCongregacaoPage() {
     setIsLoading(true);
 
     try {
-        const createCongregationCloudFunction = httpsCallable(getFunctions(app, 'southamerica-east1'), 'createCongregationAndAdmin');
+        const functionsInstance = getFunctions(app, 'southamerica-east1');
+        const createCongregationCloudFunction = httpsCallable(functionsInstance, 'createCongregationAndAdmin');
 
         const result = await createCongregationCloudFunction({
             adminName: adminName.trim(),
@@ -53,12 +55,14 @@ export default function NovaCongregacaoPage() {
         }
     } catch (error: any) {
         console.error("Erro na chamada da Cloud Function:", error);
-        if (error instanceof HttpsError) {
-            switch (error.code) {
+        // ▼▼▼ CORREÇÃO AQUI: Referenciamos HttpsError através do objeto 'functions' ▼▼▼
+        if (error.code && error.message) { // Uma verificação simples para garantir que é um erro do Firebase
+            switch (error.code) { // Usamos error.code que vem do Firebase
                 case 'already-exists': setErrorMessage("Este e-mail já está em uso."); break;
                 case 'invalid-argument': setErrorMessage("Preencha todos os campos corretamente."); break;
                 case 'permission-denied': setErrorMessage("Você não tem permissão para criar congregações."); break;
-                default: setErrorMessage("Um erro interno ocorreu. Tente novamente mais tarde.");
+                case 'internal': setErrorMessage("Um erro interno do servidor ocorreu. Tente novamente mais tarde."); break;
+                default: setErrorMessage(error.message);
             }
         } else {
             setErrorMessage("Erro inesperado ao criar congregação. Tente novamente mais tarde.");
@@ -107,11 +111,7 @@ export default function NovaCongregacaoPage() {
                         <div className="text-red-500 text-sm mt-2">{errorMessage}</div>
                     )}
   
-                    <Button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full"
-                    >
+                    <Button type="submit" disabled={isLoading} className="w-full">
                         {isLoading ? (
                             <>
                                 <Loader className="mr-2 h-4 w-4 animate-spin" />
