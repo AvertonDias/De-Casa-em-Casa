@@ -91,10 +91,10 @@ export default function NewCongregationPage() {
             </fieldset>
 
             <fieldset className="border border-input p-4 rounded-md">
-                <legend className="px-2 text-lg font-semibold text-primary">Seus Dados de Administrador</legend>
+                <legend className="px-2 text-lg font-semibold text-primary">Seus Dados</legend>
                 <div className="space-y-4 pt-2">
                     <input type="text" value={adminName} onChange={e => setAdminName(e.target.value)} placeholder="Seu Nome Completo" required className="w-full px-4 py-2 bg-background border border-input rounded-md" />
-                    <input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="Seu E-mail" required className="w-full px-4 py-2 bg-background border border-input rounded-md" />
+                    <input type="email" value={adminEmail} onChange={e => setEmail(e.target.value)} placeholder="Seu E-mail" required className="w-full px-4 py-2 bg-background border border-input rounded-md" />
 
                     <div className="relative">
                         <input type={showPassword ? 'text' : 'password'} value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="Sua Senha (mín. 6 caracteres)" required className="w-full px-4 py-2 bg-background border border-input rounded-md pr-10"/>
