@@ -2,7 +2,6 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import type { GetSignedUrlConfig } from "@google-cloud/storage";
-const cors = require('cors')({origin: true}); // Importa e configura o cors
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -10,25 +9,13 @@ const db = admin.firestore();
 // ========================================================================
 //   FUNÇÕES HTTPS (onCall e onRequest)
 // ========================================================================
-// ▼▼▼ FUNÇÃO createCongregationAndAdmin COM CORS MANUAL ▼▼▼
-export const createCongregationAndAdmin = functions.https.onRequest((req, res) => {
-  // Envolve a função com o middleware do cors para responder corretamente ao navegador
-  cors(req, res, async () => {
-    if (req.method !== 'POST') {
-      res.status(405).send({ error: 'Método não permitido.' });
-      return;
+export const createCongregationAndAdmin = functions.https.onCall(async (data, context) => {
+    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = data;
+    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
+        throw new functions.https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
     }
-
+    let newUser: admin.auth.UserRecord | undefined;
     try {
-      const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = req.body;
-
-      if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
-        res.status(400).send({ error: 'Todos os campos são obrigatórios.' });
-        return;
-      }
-      
-      let newUser: admin.auth.UserRecord | undefined;
-      try {
         newUser = await admin.auth().createUser({ email: adminEmail, password: adminPassword, displayName: adminName });
         const batch = db.batch();
         const newCongregationRef = db.collection('congregations').doc();
@@ -36,20 +23,13 @@ export const createCongregationAndAdmin = functions.https.onRequest((req, res) =
         const userDocRef = db.collection("users").doc(newUser.uid);
         batch.set(userDocRef, { name: adminName, email: adminEmail, congregationId: newCongregationRef.id, role: "Administrador", status: "ativo" });
         await batch.commit();
-        res.status(200).send({ success: true, userId: newUser.uid });
-      } catch (error: any) {
-        if (newUser) { await admin.auth().deleteUser(newUser.uid); }
-        if (error.code === 'auth/email-already-exists') {
-             res.status(409).send({ error: "Este e-mail de administrador já está em uso." });
-        } else {
-             throw error;
-        }
-      }
-    } catch (error) {
-      console.error("Erro ao criar congregação:", error);
-      res.status(500).send({ success: false, error: 'Erro interno do servidor.' });
+        return { success: true, userId: newUser.uid };
+    } catch (error: any) {
+        if (newUser) { await admin.auth().deleteUser(newUser.uid).catch(deleteError => { console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser!.uid}':`, deleteError); }); }
+        console.error("Erro ao criar congregação e admin:", error);
+        if (error.code === 'auth/email-already-exists') { throw new functions.https.HttpsError("already-exists", "Este e-mail já está em uso."); }
+        throw new functions.https.HttpsError("internal", "Ocorreu um erro interno.");
     }
-  });
 });
 
 export const deleteUserAccount = functions.https.onCall(async (data, context) => {

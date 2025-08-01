@@ -2,23 +2,30 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/lib/firebase';
 import Link from 'next/link';
-import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
+
+// Aponta para a função 'createCongregationAndAdmin' no backend
+const createCongregationAndAdminFunction = httpsCallable(functions, 'createCongregationAndAdmin');
 
 export default function NewCongregationPage() {
   const [adminName, setAdminName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  
   const [congregationName, setCongregationName] = useState('');
   const [congregationNumber, setCongregationNumber] = useState('');
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,34 +39,36 @@ export default function NewCongregationPage() {
         setError("A senha precisa ter pelo menos 6 caracteres.");
         return;
     }
-    
+
     setLoading(true);
     
     try {
-      // ▼▼▼ NOVA LÓGICA DE CHAMADA HTTP ▼▼▼
-      const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin";
-      
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          adminName, adminEmail, adminPassword,
-          congregationName, congregationNumber
-        }),
+      // Chama a Cloud Function com os dados do formulário
+      await createCongregationAndAdminFunction({
+        adminName,
+        adminEmail,
+        adminPassword,
+        congregationName,
+        congregationNumber
       });
-
-      const result = await response.json();
-      if (!response.ok) {
-        // Usa a mensagem de erro que vem do backend
-        throw new Error(result.error || `Erro do servidor: ${response.statusText}`);
-      }
-
-      toast({ title: "Congregação criada com sucesso!", description: "Você será redirecionado para fazer o login." });
+      
+      toast({
+          title: "Congregação criada com sucesso!",
+          description: "Você será redirecionado para fazer o login."
+      });
+      
       router.push('/');
 
     } catch (err: any) {
       console.error("ERRO DETALHADO NA CRIAÇÃO:", err);
-      setError(err.message || "Ocorreu um erro ao criar a congregação.");
+      // Trata erros específicos da Cloud Function
+      if (err.code === 'functions/already-exists') {
+        setError("Este e-mail de administrador já está em uso.");
+      } else if (err.code === 'functions/invalid-argument') {
+        setError("Todos os campos são obrigatórios. Verifique o preenchimento.");
+      } else {
+        setError("Ocorreu um erro ao criar a congregação. Tente novamente.");
+      }
     } finally {
         setLoading(false);
     }
@@ -105,7 +114,7 @@ export default function NewCongregationPage() {
 
             {error && <p className="text-destructive text-sm text-center">{error}</p>}
             <button type="submit" disabled={loading} className="w-full px-4 py-3 font-semibold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50">
-                {loading ? 'Criando...' : 'Criar Congregação e Entrar'}
+                {loading ? 'Criando...' : 'Criar Congregação'}
             </button>
         </form>
         <div className="text-center text-sm">
