@@ -58,10 +58,10 @@ export default function NovaCongregacaoPage() {
         // ▼▼▼ CORREÇÃO AQUI: Referenciamos HttpsError através do objeto 'functions' ▼▼▼
         if (error.code && error.message) { // Uma verificação simples para garantir que é um erro do Firebase
             switch (error.code) { // Usamos error.code que vem do Firebase
-                case 'already-exists': setErrorMessage("Este e-mail já está em uso."); break;
-                case 'invalid-argument': setErrorMessage("Preencha todos os campos corretamente."); break;
-                case 'permission-denied': setErrorMessage("Você não tem permissão para criar congregações."); break;
-                case 'internal': setErrorMessage("Um erro interno do servidor ocorreu. Tente novamente mais tarde."); break;
+                case 'functions/already-exists': setErrorMessage("Este e-mail já está em uso."); break;
+                case 'functions/invalid-argument': setErrorMessage("Preencha todos os campos corretamente."); break;
+                case 'functions/permission-denied': setErrorMessage("Você não tem permissão para criar congregações."); break;
+                case 'functions/internal': setErrorMessage("Um erro interno do servidor ocorreu. Tente novamente mais tarde."); break;
                 default: setErrorMessage(error.message);
             }
         } else {
