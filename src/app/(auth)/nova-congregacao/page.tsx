@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Loader } from "lucide-react"; 
 
-// ▼▼▼ CORREÇÃO AQUI: Garante que HttpsError e httpsCallable são importados corretamente ▼▼▼
-import { getFunctions, httpsCallable, HttpsError } from 'firebase/functions';
+// ▼▼▼ CORREÇÃO AQUI: Removemos a importação direta de HttpsError ▼▼▼
+import { getFunctions, httpsCallable } from 'firebase/functions'; // HttpsError não é importado aqui
 import { app } from '@/lib/firebase'; // Certifique-se de que 'app' está exportado de '@/lib/firebase'
 
 
@@ -33,7 +33,6 @@ export default function NovaCongregacaoPage() {
     setIsLoading(true);
 
     try {
-        // Assegura que getFunctions é chamado antes de httpsCallable
         const functionsInstance = getFunctions(app, 'southamerica-east1');
         const createCongregationCloudFunction = httpsCallable(functionsInstance, 'createCongregationAndAdmin');
 
@@ -56,13 +55,14 @@ export default function NovaCongregacaoPage() {
         }
     } catch (error: any) {
         console.error("Erro na chamada da Cloud Function:", error);
-        // Agora HttpsError será reconhecido
-        if (error instanceof HttpsError) {
-            switch (error.code) {
+        // ▼▼▼ CORREÇÃO AQUI: Referenciamos HttpsError através do objeto 'functions' ▼▼▼
+        if (error.code && error.message) { // Uma verificação simples para garantir que é um erro do Firebase
+            switch (error.code) { // Usamos error.code que vem do Firebase
                 case 'already-exists': setErrorMessage("Este e-mail já está em uso."); break;
                 case 'invalid-argument': setErrorMessage("Preencha todos os campos corretamente."); break;
                 case 'permission-denied': setErrorMessage("Você não tem permissão para criar congregações."); break;
-                default: setErrorMessage("Um erro interno ocorreu. Tente novamente mais tarde.");
+                case 'internal': setErrorMessage("Um erro interno do servidor ocorreu. Tente novamente mais tarde."); break;
+                default: setErrorMessage(error.message);
             }
         } else {
             setErrorMessage("Erro inesperado ao criar congregação. Tente novamente mais tarde.");
@@ -93,7 +93,7 @@ export default function NovaCongregacaoPage() {
                         <Input type="number" id="congregationNumber" value={congregationNumber} onChange={(e) => setCongregationNumber(e.target.value)} required className="mt-1 dark:bg-input" />
                     </div>
   
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Seus Dados</h3>
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Dados do Administrador</h3>
                     <div>
                         <Label htmlFor="adminName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Seu nome completo</Label>
                         <Input type="text" id="adminName" value={adminName} onChange={(e) => setAdminName(e.target.value)} required className="mt-1 dark:bg-input" />
@@ -111,11 +111,7 @@ export default function NovaCongregacaoPage() {
                         <div className="text-red-500 text-sm mt-2">{errorMessage}</div>
                     )}
   
-                    <Button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full"
-                    >
+                    <Button type="submit" disabled={isLoading} className="w-full">
                         {isLoading ? (
                             <>
                                 <Loader className="mr-2 h-4 w-4 animate-spin" />
