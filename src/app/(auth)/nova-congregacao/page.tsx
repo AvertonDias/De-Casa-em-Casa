@@ -167,7 +167,7 @@ export default function NovaCongregacaoPage() {
   
                 <div className="text-center text-sm">
                     <Link href="/" className="text-muted-foreground hover:text-primary">
-                        Já tem uma conta? Acesse o painel aqui
+                        Já tem uma conta? Faça login
                     </Link>
                 </div>
             </div>
