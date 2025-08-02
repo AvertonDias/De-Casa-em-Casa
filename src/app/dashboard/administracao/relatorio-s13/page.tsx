@@ -37,20 +37,21 @@ export default function S13ReportPage() {
   const handlePrint = () => {
     const printContents = document.getElementById('printable-area')?.innerHTML;
     if (!printContents) return;
-
-    // Criar um iframe invisível
+  
     const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
     document.body.appendChild(iframe);
-
-    // Escrever o conteúdo no iframe
+  
     const doc = iframe.contentWindow?.document;
     if (!doc) return;
-
+  
     doc.open();
     doc.write('<html><head>');
     
-    // Copiar todos os links de estilo do documento principal para o iframe
+    // Copia todos os links de estilo do documento principal para o iframe
     const links = document.getElementsByTagName('link');
     for (let i = 0; i < links.length; i++) {
         if (links[i].rel === 'stylesheet') {
@@ -58,7 +59,7 @@ export default function S13ReportPage() {
         }
     }
     
-    // Adicionar estilos específicos de impressão
+    // Adiciona estilos específicos de impressão
     doc.write(`
       <style>
         @page { size: A4 portrait; margin: 1cm; }
@@ -71,11 +72,12 @@ export default function S13ReportPage() {
     doc.write(printContents);
     doc.write('</body></html>');
     doc.close();
-
-    // Chamar a impressão e remover o iframe
-    iframe.contentWindow?.focus();
-    iframe.contentWindow?.print();
-    document.body.removeChild(iframe);
+  
+    iframe.onload = function() {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      document.body.removeChild(iframe);
+    };
   };
 
   const filteredTerritories = allTerritories.filter(t => (t.type || 'urban') === typeFilter);
