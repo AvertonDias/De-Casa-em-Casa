@@ -246,7 +246,8 @@ exports.sendFeedbackEmail = (0, https_1.onCall)(async (req) => {
 // ========================================================================
 exports.onHouseChange = (0, firestore_1.onDocumentWritten)({
     document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}",
-    region: "southamerica-east1"
+    region: "southamerica-east1",
+    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
 }, async (event) => {
     const beforeData = event.data?.before.data();
     const afterData = event.data?.after.data();
@@ -352,7 +353,8 @@ exports.onHouseChange = (0, firestore_1.onDocumentWritten)({
 });
 exports.onQuadraChange = (0, firestore_1.onDocumentWritten)({
     document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
-    region: "southamerica-east1"
+    region: "southamerica-east1",
+    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
 }, async (event) => {
     const { congregationId, territoryId } = event.params;
     const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
@@ -372,7 +374,8 @@ exports.onQuadraChange = (0, firestore_1.onDocumentWritten)({
 });
 exports.onTerritoryChange = (0, firestore_1.onDocumentWritten)({
     document: "congregations/{congregationId}/territories/{territoryId}",
-    region: "southamerica-east1"
+    region: "southamerica-east1",
+    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
 }, async (event) => {
     const { congregationId } = event.params;
     const congregationRef = db.doc(`congregations/${congregationId}`);
@@ -403,7 +406,8 @@ exports.onTerritoryChange = (0, firestore_1.onDocumentWritten)({
 // ============================================================================
 exports.onTerritoryAssigned = (0, firestore_1.onDocumentUpdated)({
     document: "congregations/{congId}/territories/{terrId}",
-    region: "southamerica-east1"
+    region: "southamerica-east1",
+    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
 }, async (event) => {
     const dataBefore = event.data?.before.data();
     const dataAfter = event.data?.after.data();
@@ -441,7 +445,8 @@ exports.onTerritoryAssigned = (0, firestore_1.onDocumentUpdated)({
 });
 exports.notifyAdminOfNewUser = (0, firestore_1.onDocumentCreated)({
     document: "users/{userId}",
-    region: "southamerica-east1"
+    region: "southamerica-east1",
+    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
 }, async (event) => {
     const newUser = event.data?.data();
     if (!newUser || newUser.status !== "pendente" || !newUser.congregationId) {
@@ -481,7 +486,8 @@ exports.notifyAdminOfNewUser = (0, firestore_1.onDocumentCreated)({
 });
 exports.onDeleteTerritory = (0, firestore_1.onDocumentDeleted)({
     document: "congregations/{congregationId}/territories/{territoryId}",
-    region: "southamerica-east1"
+    region: "southamerica-east1",
+    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
 }, (event) => {
     if (!event.data)
         return null;
@@ -489,7 +495,8 @@ exports.onDeleteTerritory = (0, firestore_1.onDocumentDeleted)({
 });
 exports.onDeleteQuadra = (0, firestore_1.onDocumentDeleted)({
     document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
-    region: "southamerica-east1"
+    region: "southamerica-east1",
+    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
 }, (event) => {
     if (!event.data)
         return null;
@@ -499,7 +506,8 @@ exports.onDeleteQuadra = (0, firestore_1.onDocumentDeleted)({
 exports.scheduledFirestoreExport = (0, scheduler_1.onSchedule)({
     schedule: "every day 03:00",
     timeZone: "America/Sao_Paulo",
-    region: "southamerica-east1"
+    region: "southamerica-east1",
+    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
 }, async (event) => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const firestore = require("@google-cloud/firestore");
@@ -531,7 +539,8 @@ exports.scheduledFirestoreExport = (0, scheduler_1.onSchedule)({
 // ============================================================================
 exports.mirrorUserStatus = (0, database_1.onValueWritten)({
     ref: "/status/{uid}",
-    region: "us-central1"
+    region: "us-central1",
+    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
 }, async (event) => {
     const eventStatus = event.data.after.val();
     const uid = event.params.uid;

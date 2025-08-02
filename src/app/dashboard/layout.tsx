@@ -26,6 +26,7 @@ import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
 import withAuth from "@/components/withAuth";
 import { usePresence } from "@/hooks/usePresence";
+import { EditProfileModal } from "@/components/EditProfileModal"; // Importar o modal de perfil
 
 
 // Componente para trocar o tema (agora mais robusto)
@@ -67,6 +68,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
   const { showInstallButton, canPrompt, deviceInfo, onInstall } = usePWAInstall();
   const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false);
   const [isShareApiSupported, setIsShareApiSupported] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false); // Estado para o modal de perfil
 
   useEffect(() => {
     // Roda apenas no cliente para acessar o 'navigator'
@@ -184,7 +186,10 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
         
          <div className="border-t border-gray-200 dark:border-gray-700/50 pt-4">
             {user && (
-                <div className="flex items-center space-x-3 text-left p-2 rounded-md w-full mb-2">
+                <button 
+                  onClick={() => setIsProfileModalOpen(true)}
+                  className="flex items-center space-x-3 text-left p-2 rounded-md w-full mb-2 hover:bg-primary/10 transition-colors"
+                >
                     <Avatar>
                         <AvatarFallback>
                         {getInitials(user.name)}
@@ -196,7 +201,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
                           {user.role}
                         </p>
                     </div>
-                </div>
+                </button>
             )}
             
             <div className="space-y-1">
@@ -246,6 +251,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
           confirmText="Entendi"
           showCancelButton={false}
       />
+      <EditProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
     </>
   );
 }
@@ -310,5 +316,3 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 }
 
 export default withAuth(DashboardLayout);
-
-    

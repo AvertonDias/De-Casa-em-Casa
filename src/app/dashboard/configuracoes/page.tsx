@@ -10,7 +10,7 @@ import withAuth from '@/components/withAuth';
 
 function SettingsPage() {
   const { user } = useUser();
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  // O estado do modal de perfil foi movido para o layout.
 
   return (
     <div className="p-4 md:p-8 space-y-6">
@@ -22,20 +22,8 @@ function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
-        {/* Card 1: Editar Perfil Pessoal */}
-        <div className="bg-card p-6 rounded-lg shadow-md flex flex-col">
-          <div className="flex items-center mb-4">
-            <UserIcon className="h-6 w-6 mr-3 text-primary" />
-            <h2 className="text-2xl font-bold">Meu Perfil</h2>
-          </div>
-          <p className="text-muted-foreground mb-6 flex-grow">
-            Altere seu nome de exibição e sua senha de acesso.
-          </p>
-          <Button onClick={() => setIsProfileModalOpen(true)} className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center">
-            <Edit className="h-4 w-4 mr-2" /> Editar Perfil
-          </Button>
-        </div>
-
+        {/* O Card de Editar Perfil foi removido daqui */}
+        
         {/* Card 2: Editar Congregação */}
         {['Administrador', 'Dirigente'].includes(user?.role || '') && (
           <div className="bg-card p-6 rounded-lg shadow-md flex flex-col">
@@ -50,12 +38,8 @@ function SettingsPage() {
           </div>
         )}
       </div>
-
-      {/* O Modal de Edição de Perfil é renderizado aqui e controlado pelo estado */}
-      <EditProfileModal 
-        isOpen={isProfileModalOpen} 
-        onClose={() => setIsProfileModalOpen(false)} 
-      />
+      
+      {/* O modal de edição de perfil agora é renderizado e controlado pelo layout principal */}
     </div>
   );
 }
