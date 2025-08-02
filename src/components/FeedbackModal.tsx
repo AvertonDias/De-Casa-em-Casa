@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { getFunctions, httpsCallable } from 'firebase/functions'; // Agora precisamos de httpsCallable
+import { getFunctions, httpsCallable } from 'firebase/functions'; // Importar httpsCallable
 import { app } from '@/lib/firebase';
 import { Mail, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,9 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
 
-// ▼▼▼ INICIALIZAÇÃO CORRETA PARA httpsCallable ▼▼▼
+// Inicializar a instância das funções uma vez
 const functionsInstance = getFunctions(app, 'southamerica-east1');
 const sendFeedbackFunction = httpsCallable(functionsInstance, 'sendFeedbackEmail');
+
 
 export function FeedbackModal() {
   const { user } = useUser();
