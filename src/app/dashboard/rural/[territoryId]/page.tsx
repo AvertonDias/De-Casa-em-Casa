@@ -1,25 +1,23 @@
+
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useUser } from '@/contexts/UserContext';
-import { doc, onSnapshot, updateDoc, arrayUnion, Timestamp, runTransaction } from 'firebase/firestore';
+import { useState, useEffect, useContext } from 'react';
+import { doc, onSnapshot, Timestamp, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { RuralTerritory, RuralWorkLog, AssignmentHistoryLog } from '@/types/types';
+import { UserContext } from '@/contexts/UserContext';
+import { RuralTerritory, RuralWorkLog } from '@/types/types';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Link as LinkIcon, Loader, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-
-import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
 import AddEditWorkLogModal from '@/components/AddEditWorkLogModal';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Button } from '@/components/ui/button';
-import AssignmentHistory from '@/components/AssignmentHistory';
-import AddEditAssignmentLogModal from '@/components/admin/AddEditAssignmentLogModal';
+import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
 
 export default function RuralTerritoryDetailPage() {
-  const { user } = useUser();
+  const { user } = useContext(UserContext);
   const params = useParams<{ territoryId: string }>();
   const [territory, setTerritory] = useState<RuralTerritory | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,20 +25,15 @@ export default function RuralTerritoryDetailPage() {
   const [workNote, setWorkNote] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Estados para modais de trabalho
+  // Estados para modais
   const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
   const [isWorkLogModalOpen, setIsWorkLogModalOpen] = useState(false);
   const [workLogToEdit, setWorkLogToEdit] = useState<RuralWorkLog | null>(null);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [workLogToDelete, setWorkLogToDelete] = useState<RuralWorkLog | null>(null);
-  
-  // Estados para modais de histórico de designação
-  const [isEditLogModalOpen, setIsEditLogModalOpen] = useState(false);
-  const [historyLogToEdit, setHistoryLogToEdit] = useState<AssignmentHistoryLog | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; } | null>(null);
 
   useEffect(() => {
-    if (!user?.congregationId || !params?.territoryId) {
+    if (!user?.congregationId || !params.territoryId) {
         if (user) setLoading(false);
         return;
     }
@@ -54,7 +47,7 @@ export default function RuralTerritoryDetailPage() {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [user, params]);
+  }, [user, params.territoryId]);
 
   const handleAddWorkLog = async () => {
     if (!workNote.trim() || !user || !territory) return;
@@ -136,61 +129,11 @@ export default function RuralTerritoryDetailPage() {
     setWorkLogToDelete(log);
     setIsConfirmDeleteOpen(true);
   };
-  
-  const handleOpenEditLogModal = (log: AssignmentHistoryLog) => {
-    setHistoryLogToEdit(log);
-    setIsEditLogModalOpen(true);
-  };
-
-  const handleSaveHistoryLog = async (logId: string, updatedData: { name: string; assignedAt: string; completedAt: string }) => {
-    if (!user?.congregationId || !territory) return;
-    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
-
-    try {
-      await runTransaction(db, async (transaction) => {
-        const territoryDoc = await transaction.get(territoryRef);
-        if (!territoryDoc.exists()) throw "Território não encontrado";
-        
-        const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
-        const newHistory = currentHistory.map(log => {
-          if ((log as any).id === logId) { // Assumindo que log tem 'id'
-            return {
-              ...log,
-              name: updatedData.name,
-              assignedAt: Timestamp.fromDate(new Date(updatedData.assignedAt)),
-              completedAt: Timestamp.fromDate(new Date(updatedData.completedAt)),
-            };
-          }
-          return log;
-        });
-        transaction.update(territoryRef, { assignmentHistory: newHistory });
-      });
-    } catch (e) {
-      console.error("Erro ao salvar histórico:", e);
-    }
-  };
-  
-  const handleDeleteHistoryLog = (logToDelete: AssignmentHistoryLog) => {
-    if (!user?.congregationId || !territory) return;
-    setConfirmAction({
-      action: async () => {
-        const territoryRef = doc(db, 'congregations', user!.congregationId!, 'territories', territory.id);
-        const currentHistory = territory.assignmentHistory || [];
-        const newHistory = currentHistory.filter(log => (log as any).id !== (logToDelete as any).id);
-        await updateDoc(territoryRef, { assignmentHistory: newHistory });
-        setIsConfirmDeleteOpen(false);
-      },
-      message: `Tem certeza que deseja EXCLUIR o registro de ${logToDelete.name}?`,
-      title: "Confirmar Exclusão de Registro"
-    });
-    setIsConfirmDeleteOpen(true);
-  };
 
   const sortedWorkLogs = territory?.workLogs?.sort((a, b) => b.date.seconds - a.date.seconds) || [];
-  
-  if (loading) return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" size={32} /></div>;
 
-  if (!user || !territory) return <p className="text-center mt-10">Território não encontrado ou usuário não autenticado.</p>;
+  if (loading || !user) return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" size={32} /></div>;
+  if (!territory) return <p className="text-center mt-10">Território não encontrado ou não é um território rural.</p>;
 
   const isAdmin = user.role === 'Administrador';
 
@@ -198,22 +141,37 @@ export default function RuralTerritoryDetailPage() {
     <>
       <div className="p-4 md:p-8 space-y-8">
         <div>
-          <Link href="/dashboard/rural" className="flex items-center text-sm text-muted-foreground hover:text-white mb-2">
+          <Link href="/dashboard/rural" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
             <ArrowLeft size={16} className="mr-2" /> Voltar para Territórios Rurais
           </Link>
-          <div className="flex justify-between items-start">
-              <div>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+              <div className="flex-grow">
                   <h1 className="text-3xl font-bold">{territory.number} - {territory.name}</h1>
                   <p className="text-lg text-muted-foreground mt-1">{territory.description}</p>
               </div>
-              {isAdmin && (
-                <button onClick={() => setIsEditTerritoryModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md flex items-center">
+              {isAdmin && user.congregationId && (
+                <Button onClick={() => setIsEditTerritoryModalOpen(true)} className="w-full sm:w-auto">
                   <Edit size={16} className="mr-2"/> Editar Território
-                </button>
+                </Button>
               )}
           </div>
         </div>
 
+        <div className="bg-card p-6 rounded-lg">
+          <h2 className="font-semibold text-xl mb-4 flex items-center"><LinkIcon size={20} className="mr-3 text-primary" />Links Específicos</h2>
+          <div className="space-y-3">
+          {territory.links && territory.links.length > 0 ? (
+              territory.links.map(link => (
+              <a href={link.url} key={link.id} target="_blank" rel="noopener noreferrer" className="block text-blue-400 hover:underline">
+                  {link.description}
+              </a>
+              ))
+          ) : (
+              <p className="text-muted-foreground italic text-sm">Nenhum link específico para este território.</p>
+          )}
+          </div>
+        </div>
+        
         <div className="bg-card p-6 rounded-lg">
           <h2 className="font-semibold text-xl mb-4 flex items-center"><Calendar size={20} className="mr-3 text-primary" />Registrar Trabalho</h2>
           <textarea 
@@ -228,64 +186,41 @@ export default function RuralTerritoryDetailPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-card p-6 rounded-lg">
-                <h2 className="font-semibold text-xl mb-4 flex items-center"><LinkIcon size={20} className="mr-3 text-primary" />Links Específicos</h2>
-                <div className="space-y-3">
-                {territory.links && territory.links.length > 0 ? (
-                    territory.links.map(link => (
-                    <a href={link.url} key={link.id} target="_blank" rel="noopener noreferrer" className="block text-blue-400 hover:underline">
-                        {link.description}
-                    </a>
-                    ))
-                ) : (
-                    <p className="text-muted-foreground italic text-sm">Nenhum link específico para este território.</p>
-                )}
-                </div>
-            </div>
-            <div className="bg-card p-6 rounded-lg">
-                <h2 className="font-semibold text-xl mb-4">Histórico de Trabalho</h2>
-                <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                {sortedWorkLogs.length > 0 ? (
-                    sortedWorkLogs.map(log => {
-                        const canManageLog = user.uid === log.userId || isAdmin;
+        <div className="space-y-8">
+          <div className="bg-card p-6 rounded-lg">
+            <h2 className="font-semibold text-xl mb-4">Histórico de Trabalho</h2>
+            <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+              {sortedWorkLogs.length > 0 ? (
+                  sortedWorkLogs.map(log => {
+                      const canManageLog = user.uid === log.userId || isAdmin;
 
-                        return (
-                        <div key={log.id} className="border-l-2 border-primary/50 pl-4">
-                            <div className="flex justify-between items-start">
-                            <div>
-                                <p className="font-semibold text-sm">{format(log.date.toDate(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
-                                <p className="text-muted-foreground text-sm my-1">"{log.notes}"</p>
-                                <p className="text-xs text-muted-foreground/80">por: {log.userName}</p>
-                            </div>
-                            {canManageLog && (
-                                <div className="flex items-center gap-2">
+                      return (
+                      <div key={log.id} className="border-l-2 border-primary/50 pl-4">
+                        <div className="flex justify-between items-start">
+                           <div>
+                              <p className="font-semibold text-sm">{format(log.date.toDate(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
+                              <p className="text-muted-foreground text-sm my-1">"{log.notes}"</p>
+                              <p className="text-xs text-muted-foreground/80">por: {log.userName}</p>
+                           </div>
+                           {canManageLog && (
+                             <div className="flex items-center gap-2">
                                 <button onClick={() => openEditWorkLogModal(log)} className="text-muted-foreground hover:text-white"><Edit size={14} /></button>
                                 <button onClick={() => openDeleteConfirmModal(log)} className="text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
-                                </div>
-                            )}
-                            </div>
+                             </div>
+                           )}
                         </div>
-                        );
-                    })
-                ) : (
-                    <p className="text-muted-foreground italic text-sm">Nenhum registro de trabalho encontrado.</p>
-                )}
-                </div>
+                      </div>
+                    );
+                  })
+              ) : (
+                <p className="text-muted-foreground italic text-sm">Nenhum registro de trabalho encontrado.</p>
+              )}
             </div>
+          </div>
         </div>
-        
-        {isAdmin && (
-          <AssignmentHistory
-            currentAssignment={territory.assignment}
-            pastAssignments={territory.assignmentHistory || []}
-            onEdit={handleOpenEditLogModal}
-            onDelete={handleDeleteHistoryLog}
-          />
-        )}
       </div>
 
-      {isAdmin && user.congregationId && territory && (
+      {isAdmin && user.congregationId && (
         <EditRuralTerritoryModal
           isOpen={isEditTerritoryModalOpen}
           onClose={() => setIsEditTerritoryModalOpen(false)}
@@ -301,13 +236,6 @@ export default function RuralTerritoryDetailPage() {
         onSave={handleSaveWorkLog}
         workLogToEdit={workLogToEdit}
       />
-      
-      <AddEditAssignmentLogModal
-        isOpen={isEditLogModalOpen}
-        onClose={() => setIsEditLogModalOpen(false)}
-        onSave={handleSaveHistoryLog}
-        logToEdit={historyLogToEdit}
-      />
 
       <ConfirmationModal
         isOpen={isConfirmDeleteOpen}
@@ -317,14 +245,6 @@ export default function RuralTerritoryDetailPage() {
         message={`Tem certeza que deseja excluir o registro: "${workLogToDelete?.notes}"?`}
         confirmText="Sim, Excluir"
       />
-
-      {confirmAction && <ConfirmationModal
-        isOpen={isConfirmDeleteOpen}
-        onClose={() => setIsConfirmDeleteOpen(false)}
-        onConfirm={confirmAction.action}
-        title={confirmAction.title}
-        message={confirmAction.message}
-        isLoading={false} />}
     </>
   );
 }
