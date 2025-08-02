@@ -41,18 +41,19 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
         const activityDocRef = doc(historyCollectionRef, activityId);
         await updateDoc(activityDocRef, {
           activityDate: Timestamp.fromDate(activityData.activityDate),
-          notes: activityData.notes,
+          notes: activityData.notes, // Mantém 'notes' para entradas manuais
+          // `description` e `userId` (para auto-log) não são atualizados aqui
         });
       } else {
         await addDoc(historyCollectionRef, {
           activityDate: Timestamp.fromDate(activityData.activityDate),
-          notes: activityData.notes,
+          notes: activityData.notes, // Mantém 'notes' para entradas manuais
+          description: activityData.notes, // Adiciona description para entradas manuais também, por consistência
           userName: user.name,
           userId: user.uid,
           createdAt: now,
         });
       }
-      // Garante que a data principal do território seja atualizada
       await updateDoc(territoryDocRef, { lastUpdate: now });
 
     } catch (error) {
@@ -114,8 +115,22 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
                       <p className="font-semibold text-base">
                         {activity.activityDate ? format(activity.activityDate.toDate(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : 'Data não registrada'}
                       </p>
-                      {activity.notes && <p className="text-sm mt-1 text-muted-foreground italic">"{activity.notes}"</p>}
-                      <p className="text-xs text-muted-foreground mt-2">Registrado por: {activity.userName}</p>
+                      {/* MODIFICADO AQUI: Prioriza activity.description e adiciona CSS para quebra de linha */}
+                      {activity.description && (
+                        <p className="text-sm mt-1 text-muted-foreground italic" style={{ whiteSpace: 'pre-line' }}>
+                            {activity.description}
+                        </p>
+                      )}
+                      {/* Se description não existe, fallback para notes (para registros antigos ou específicos) */}
+                      {!activity.description && activity.notes && (
+                          <p className="text-sm mt-1 text-muted-foreground italic">"{activity.notes}"</p>
+                      )}
+                      
+                      {/* MODIFICADO AQUI: Lógica para exibir "Sistema" ou o userName */}
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Registrado por: {' '}
+                        {activity.userId === 'automatic_system_log' ? 'Sistema' : activity.userName || 'Desconhecido'}
+                      </p>
                     </div>
                     {canManage && (
                       <div className="flex space-x-2">
@@ -150,3 +165,4 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
     </>
   );
 }
+    

@@ -244,7 +244,10 @@ exports.sendFeedbackEmail = (0, https_1.onCall)(async (req) => {
 // ========================================================================
 //   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO
 // ========================================================================
-exports.onHouseChange = (0, firestore_1.onDocumentWritten)("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}", async (event) => {
+exports.onHouseChange = (0, firestore_1.onDocumentWritten)({
+    document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}",
+    region: "southamerica-east1"
+}, async (event) => {
     const beforeData = event.data?.before.data();
     const afterData = event.data?.after.data();
     if (!afterData)
@@ -297,7 +300,10 @@ exports.onHouseChange = (0, firestore_1.onDocumentWritten)("congregations/{congr
     }
     return null;
 });
-exports.onQuadraChange = (0, firestore_1.onDocumentWritten)("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}", async (event) => {
+exports.onQuadraChange = (0, firestore_1.onDocumentWritten)({
+    document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
+    region: "southamerica-east1"
+}, async (event) => {
     const { congregationId, territoryId } = event.params;
     const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
     const quadrasSnapshot = await territoryRef.collection("quadras").get();
@@ -314,7 +320,10 @@ exports.onQuadraChange = (0, firestore_1.onDocumentWritten)("congregations/{cong
         quadraCount: quadrasSnapshot.size,
     });
 });
-exports.onTerritoryChange = (0, firestore_1.onDocumentWritten)("congregations/{congregationId}/territories/{territoryId}", async (event) => {
+exports.onTerritoryChange = (0, firestore_1.onDocumentWritten)({
+    document: "congregations/{congregationId}/territories/{territoryId}",
+    region: "southamerica-east1"
+}, async (event) => {
     const { congregationId } = event.params;
     const congregationRef = db.doc(`congregations/${congregationId}`);
     const territoriesRef = congregationRef.collection("territories");
@@ -342,7 +351,10 @@ exports.onTerritoryChange = (0, firestore_1.onDocumentWritten)("congregations/{c
 // ============================================================================
 //   OUTROS GATILHOS (Notificação, Exclusão)
 // ============================================================================
-exports.onTerritoryAssigned = (0, firestore_1.onDocumentUpdated)("congregations/{congId}/territories/{terrId}", async (event) => {
+exports.onTerritoryAssigned = (0, firestore_1.onDocumentUpdated)({
+    document: "congregations/{congId}/territories/{terrId}",
+    region: "southamerica-east1"
+}, async (event) => {
     const dataBefore = event.data?.before.data();
     const dataAfter = event.data?.after.data();
     if (!dataAfter?.assignment || dataBefore?.assignment?.uid === dataAfter.assignment?.uid) {
@@ -377,7 +389,10 @@ exports.onTerritoryAssigned = (0, firestore_1.onDocumentUpdated)("congregations/
         return { success: false, error };
     }
 });
-exports.notifyAdminOfNewUser = (0, firestore_1.onDocumentCreated)("users/{userId}", async (event) => {
+exports.notifyAdminOfNewUser = (0, firestore_1.onDocumentCreated)({
+    document: "users/{userId}",
+    region: "southamerica-east1"
+}, async (event) => {
     const newUser = event.data?.data();
     if (!newUser || newUser.status !== "pendente" || !newUser.congregationId) {
         return null;
@@ -414,12 +429,18 @@ exports.notifyAdminOfNewUser = (0, firestore_1.onDocumentCreated)("users/{userId
         return null;
     }
 });
-exports.onDeleteTerritory = (0, firestore_1.onDocumentDeleted)("congregations/{congregationId}/territories/{territoryId}", (event) => {
+exports.onDeleteTerritory = (0, firestore_1.onDocumentDeleted)({
+    document: "congregations/{congregationId}/territories/{territoryId}",
+    region: "southamerica-east1"
+}, (event) => {
     if (!event.data)
         return null;
     return admin.firestore().recursiveDelete(event.data.ref);
 });
-exports.onDeleteQuadra = (0, firestore_1.onDocumentDeleted)("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}", (event) => {
+exports.onDeleteQuadra = (0, firestore_1.onDocumentDeleted)({
+    document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
+    region: "southamerica-east1"
+}, (event) => {
     if (!event.data)
         return null;
     return admin.firestore().recursiveDelete(event.data.ref);
@@ -427,7 +448,8 @@ exports.onDeleteQuadra = (0, firestore_1.onDocumentDeleted)("congregations/{cong
 // scheduledFirestoreExport - Pub/Sub com Scheduler
 exports.scheduledFirestoreExport = (0, scheduler_1.onSchedule)({
     schedule: "every day 03:00",
-    timeZone: "America/Sao_Paulo"
+    timeZone: "America/Sao_Paulo",
+    region: "southamerica-east1"
 }, async (event) => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const firestore = require("@google-cloud/firestore");
@@ -457,7 +479,10 @@ exports.scheduledFirestoreExport = (0, scheduler_1.onSchedule)({
 // ============================================================================
 //   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
 // ============================================================================
-exports.mirrorUserStatus = (0, database_1.onValueWritten)("/status/{uid}", async (event) => {
+exports.mirrorUserStatus = (0, database_1.onValueWritten)({
+    ref: "/status/{uid}",
+    region: "us-central1"
+}, async (event) => {
     const eventStatus = event.data.after.val();
     const uid = event.params.uid;
     const userDocRef = admin.firestore().doc(`users/${uid}`);
