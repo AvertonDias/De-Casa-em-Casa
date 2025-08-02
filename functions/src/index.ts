@@ -1,127 +1,66 @@
+// functions/src/index.ts
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import type { UserData } from "./types";
+import type { GetSignedUrlConfig } from "@google-cloud/storage";
+import type { CreateCongregationData, UserData } from "./types";
+const cors = require('cors')({origin: true});
 
 admin.initializeApp();
-
 const db = admin.firestore();
 
-// Defina a interface para os dados de entrada
-interface CreateCongregationData {
-    adminName: string;
-    adminEmail: string;
-    adminPassword: string;
-    congregationName: string;
-    congregationNumber: string;
-}
+// ========================================================================
+//   FUNÇÕES HTTPS (onCall e onRequest)
+// ========================================================================
 
-export const createCongregationAndAdmin = functions.https.onCall(async (data, context) => {
-    // Agora o TypeScript sabe exatamente o que esperar de 'data'
-    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = data as CreateCongregationData;
-
-    // Verificação de autenticação
-    if (!context.auth) {
-        throw new functions.https.HttpsError('unauthenticated', 'A função requer autenticação.');
-    }
-
-    // Validar os dados
-    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
+export const createCongregationAndAdmin = functions.https.onCall(async (data: CreateCongregationData, context) => {
+    
+    // Validar os dados de entrada com mais robustez
+    if (!data.adminName || !data.adminEmail || !data.adminPassword || !data.congregationName || !data.congregationNumber) {
         throw new functions.https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
     }
 
-    let newUser;
+    let newUser: admin.auth.UserRecord | undefined;
     try {
-        // Criar o usuário
         newUser = await admin.auth().createUser({
-            email: adminEmail,
-            password: adminPassword,
-            displayName: adminName,
+            email: data.adminEmail,
+            password: data.adminPassword,
+            displayName: data.adminName,
         });
 
-        // Criar a congregação e o usuário no Firestore
         const batch = db.batch();
-
         const newCongregationRef = db.collection('congregations').doc();
         batch.set(newCongregationRef, {
-            name: congregationName,
-            number: congregationNumber,
-            territoryCount: 0,
-            ruralTerritoryCount: 0,
-            totalQuadras: 0,
-            totalHouses: 0,
-            totalHousesDone: 0,
+            name: data.congregationName,
+            number: data.congregationNumber,
+            territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             lastUpdate: admin.firestore.FieldValue.serverTimestamp()
         });
 
         const userDocRef = db.collection("users").doc(newUser.uid);
         batch.set(userDocRef, {
-            name: adminName,
-            email: adminEmail,
+            name: data.adminName,
+            email: data.adminEmail,
             congregationId: newCongregationRef.id,
             role: "Administrador",
             status: "ativo"
         });
 
         await batch.commit();
-
         return { success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' };
 
     } catch (error: any) {
-        // Apaga o usuário se houver falha
         if (newUser) {
-            try {
-                await admin.auth().deleteUser(newUser.uid);
-                console.log(`Usuário órfão ${newUser.uid} excluído.`);
-            } catch (deleteError) {
-                console.error(`Falha ao limpar usuário órfão '${newUser.uid}':`, deleteError);
-            }
+            await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
+                console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser.uid}':`, deleteError);
+            });
         }
         console.error("Erro ao criar congregação e admin:", error);
-
-        // Trate diferentes tipos de erros de maneira mais detalhada
         if (error.code === 'auth/email-already-exists') {
-             throw new functions.https.HttpsError("already-exists", "Este e-mail já está em uso.");
+            throw new functions.https.HttpsError("already-exists", "Este e-mail já está em uso.");
         }
-        throw new functions.https.HttpsError("internal", "Ocorreu um erro interno ao processar a criação.", error);
+        throw new functions.https.HttpsError("internal", "Ocorreu um erro interno ao processar a criação.", error.message);
     }
-});
-
-// ============================================================================
-//   FUNÇÕES DE USUÁRIO
-// ============================================================================
-export const notifyAdminOfNewUser = functions.firestore.document("users/{userId}").onCreate(async (snapshot, context) => {
-  // Define o corpo do Payload da Mensagem
-  const payload = {
-    notification: {
-      title: "Novo Usuário Aguardando Aprovação!",
-      body: `O usuário "${snapshot.data().name}" se cadastrou e precisa de sua aprovação.`,
-      icon: "/icon-192x192.png", // Define o ícone
-      click_action: "/dashboard/usuarios", // Define a ação ao clicar
-    },
-  };
-
-  // Busca os administradores da mesma congregação
-  const querySnapshot = await admin.firestore().collection("users")
-    .where("congregationId", "==", snapshot.data().congregationId)
-    .where("role", "==", "Administrador")
-    .get();
-
-  const tokens: string[] = [];
-  querySnapshot.forEach(snap => {
-    const data = snap.data() as UserData;
-    if(data.fcmTokens && Array.isArray(data.fcmTokens)) {
-      tokens.push(...data.fcmTokens);
-    }
-  });
-
-  if (tokens.length > 0) {
-    // Envia para todos os tokens encontrados
-    const response = await admin.messaging().sendToDevice(tokens, payload);
-    console.log("Notificações enviadas com sucesso:", response);
-  } else {
-    console.warn("Nenhum administrador com token FCM encontrado.");
-  }
 });
 
 export const deleteUserAccount = functions.https.onCall(async (data, context) => {
@@ -129,170 +68,325 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
   if (!callingUserUid) {
     throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada.");
   }
-  
   const userIdToDelete = data.uid;
   if (!userIdToDelete || typeof userIdToDelete !== 'string') {
-    throw new functions.https.HttpsError("invalid-argument", "O ID do usuário a ser excluído não foi fornecido.");
+    throw new functions.https.HttpsError("invalid-argument", "ID inválido.");
   }
-
   const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
   const isAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
-  
   if (!isAdmin && callingUserUid !== userIdToDelete) {
-      throw new functions.https.HttpsError("permission-denied", "Você não tem permissão para realizar esta ação.");
+      throw new functions.https.HttpsError("permission-denied", "Sem permissão.");
   }
-    
   if (isAdmin && callingUserUid === userIdToDelete) {
-    throw new functions.https.HttpsError("permission-denied", "Um administrador não pode se autoexcluir através desta função.");
+    throw new functions.https.HttpsError("permission-denied", "Admin não pode se autoexcluir.");
   }
-
   try {
+    await admin.auth().deleteUser(userIdToDelete);
     const userDocRef = db.collection("users").doc(userIdToDelete);
     if ((await userDocRef.get()).exists) {
         await userDocRef.delete();
-        console.log(`Documento do usuário ${userIdToDelete} excluído do Firestore.`);
-    } else {
-        console.log(`Documento do usuário ${userIdToDelete} não foi encontrado no Firestore, pulando.`);
     }
-
-    try {
-      await admin.auth().deleteUser(userIdToDelete);
-      console.log(`Usuário ${userIdToDelete} excluído da autenticação.`);
-    } catch (authError: any) {
-        if (authError.code === "auth/user-not-found") {
-            console.warn(`Usuário ${userIdToDelete} não encontrado na autenticação, provavelmente já foi deletado.`);
-        } else {
-            throw authError;
-        }
-    }
-
     return { success: true, message: "Operação de exclusão concluída." };
   } catch (error: any) {
     console.error("Erro CRÍTICO ao excluir usuário:", error);
+    if (error.code === 'auth/user-not-found') {
+        const userDocRef = db.collection("users").doc(userIdToDelete);
+        if ((await userDocRef.get()).exists) {
+            await userDocRef.delete();
+        }
+        return { success: true, message: "Usuário não encontrado na Auth, mas removido do Firestore." };
+    }
     throw new functions.https.HttpsError("internal", `Falha na exclusão: ${error.message}`);
   }
 });
 
-// ============================================================================
-//   FUNÇÕES DE LIMPEZA E MANUTENÇÃO
-// ============================================================================
 export const resetTerritoryProgress = functions.https.onCall(async (data, context) => {
     const uid = context.auth?.uid;
     if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
-    
     const { congregationId, territoryId } = data;
     if (!congregationId || !territoryId) { throw new functions.https.HttpsError("invalid-argument", "IDs faltando."); }
-    
     const adminUserSnap = await db.collection("users").doc(uid).get();
     if (adminUserSnap.data()?.role !== "Administrador") {
         throw new functions.https.HttpsError("permission-denied", "Ação restrita a administradores.");
     }
-    
-    console.log(`[resetTerritory] Iniciado pelo admin ${uid} para o território ${territoryId}`);
-
     try {
         const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
         const quadrasSnapshot = await quadrasRef.get();
-        
         if (quadrasSnapshot.empty) {
-            console.log("[resetTerritory] Nenhuma quadra encontrada para limpar. Encerrando.");
             return { success: true, message: "Nenhuma casa para limpar." };
         }
-        
         const batch = db.batch();
         let housesUpdatedCount = 0;
-
         for (const quadraDoc of quadrasSnapshot.docs) {
             const casasSnapshot = await quadraDoc.ref.collection("casas").where('status', '==', true).get();
-            
-            if(casasSnapshot.empty) {
-              console.log(`[resetTerritory] Quadra ${quadraDoc.id} não tem casas 'feitas'. Pulando.`);
-              continue;
-            }
-            
-            console.log(`[resetTerritory] Encontradas ${casasSnapshot.size} casas 'feitas' na quadra ${quadraDoc.id}.`);
-            
             casasSnapshot.forEach(casaDoc => {
                 batch.update(casaDoc.ref, { status: false });
                 housesUpdatedCount++;
             });
         }
-        
         if (housesUpdatedCount > 0) {
             await batch.commit();
-
             const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
             await admin.firestore().recursiveDelete(db.collection(historyPath));
-            console.log(`Histórico de atividade para o território ${territoryId} limpo.`);
-
-            const successMessage = `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.`;
-            return { success: true, message: successMessage };
+            return { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` };
         } else {
-            console.log("[resetTerritory] Nenhuma casa precisava ser resetada.");
             return { success: true, message: "Nenhuma alteração necessária." };
         }
-
     } catch (error) {
         console.error(`[resetTerritory] FALHA CRÍTICA ao limpar o território ${territoryId}:`, error);
-        throw new functions.https.HttpsError("internal", "Falha ao processar a limpeza. Verifique os logs.");
+        throw new functions.https.HttpsError("internal", "Falha ao processar a limpeza.");
     }
 });
 
 
-export const onDeleteTerritory = functions.firestore
+export const generateUploadUrl = functions.region("southamerica-east1").https.onCall(async (data, context) => {
+    if (!context.auth) { throw new functions.https.HttpsError('unauthenticated', 'Ação não autorizada.'); }
+    const filePath = data.filePath;
+    if (!filePath || typeof filePath !== 'string') { throw new functions.https.HttpsError('invalid-argument', 'O nome do arquivo é necessário.'); }
+    
+    const options: GetSignedUrlConfig = {
+        version: 'v4',
+        action: 'write',
+        expires: Date.now() + 15 * 60 * 1000, // 15 minutos
+        contentType: data.contentType,
+    };
+    try {
+        const [url] = await admin.storage().bucket().file(filePath).getSignedUrl(options);
+        return { url };
+    } catch (error) {
+        console.error("Erro ao gerar URL assinada:", error);
+        throw new functions.https.HttpsError('internal', 'Falha ao criar URL.');
+    }
+});
+
+
+// ========================================================================
+//   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO
+// ========================================================================
+
+// FUNÇÃO 1: Acionada quando uma CASA muda.
+export const onHouseChange = functions.firestore
+  .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
+  .onWrite(async (change, context) => {
+    
+    const quadraRef = change.after.ref.parent.parent;
+    if(!quadraRef) return; // Segurança extra
+    const casasSnapshot = await quadraRef.collection("casas").get();
+    await quadraRef.update({
+        totalHouses: casasSnapshot.size,
+        housesDone: casasSnapshot.docs.filter(doc => doc.data().status === true).length
+    });
+
+    const beforeData = change.before.data();
+    const afterData = change.after.data();
+
+    if (beforeData?.status === false && afterData?.status === true) {
+        const { congregationId, territoryId } = context.params;
+        const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
+        await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
+    }
+    return null;
+});
+
+// FUNÇÃO 2: Acionada quando uma QUADRA muda (para atualizar o território)
+export const onQuadraChange = functions.firestore
+  .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
+  .onWrite(async (change, context) => {
+    const { congregationId, territoryId } = context.params;
+    const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
+    
+    const quadrasSnapshot = await territoryRef.collection("quadras").get();
+    
+    let totalHouses = 0;
+    let housesDone = 0;
+    quadrasSnapshot.forEach(doc => {
+      totalHouses += doc.data().totalHouses || 0;
+      housesDone += doc.data().housesDone || 0;
+    });
+
+    const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
+    
+    return territoryRef.update({
+        stats: { totalHouses, housesDone },
+        progress,
+        quadraCount: quadrasSnapshot.size,
+    });
+});
+
+// FUNÇÃO 3: Acionada quando um TERRITÓRIO muda (para atualizar a congregação)
+export const onTerritoryChange = functions.firestore
     .document("congregations/{congregationId}/territories/{territoryId}")
-    .onDelete(async (snap, context) => {
-        const territoryPath = snap.ref.path;
-        console.log(`Iniciando exclusão em cascata para: ${territoryPath}`);
+    .onWrite(async (change, context) => {
+        const { congregationId } = context.params;
+        const congregationRef = db.doc(`congregations/${congregationId}`);
+        const territoriesRef = congregationRef.collection("territories");
         
-        await admin.firestore().recursiveDelete(snap.ref);
+        const territoriesSnapshot = await territoriesRef.get();
+        let urbanCount = 0, ruralCount = 0, totalHouses = 0, totalHousesDone = 0, totalQuadras = 0;
+        territoriesSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.type === 'rural') { ruralCount++; }
+            else {
+                urbanCount++;
+                totalHouses += data.stats?.totalHouses || 0;
+                totalHousesDone += data.stats?.housesDone || 0;
+                totalQuadras += data.quadraCount || 0;
+            }
+        });
         
-        console.log(`Exclusão em cascata para ${territoryPath} concluída.`);
+        return congregationRef.update({
+            territoryCount: urbanCount,
+            ruralTerritoryCount: ruralCount,
+            totalQuadras, totalHouses, totalHousesDone,
+            lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+        });
     });
 
-export const onDeleteQuadra = functions.firestore
-    .document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
-    .onDelete(async (snap, context) => {
-        const quadraPath = snap.ref.path;
-        console.log(`Iniciando exclusão em cascata para a quadra: ${quadraPath}`);
+// ============================================================================
+//   OUTROS GATILHOS (Notificação, Exclusão, Presença)
+// ============================================================================
 
-        await admin.firestore().recursiveDelete(snap.ref);
+export const onTerritoryAssigned = functions.firestore
+  .document("congregations/{congId}/territories/{terrId}")
+  .onUpdate(async (change, context) => {
+    
+    const dataBefore = change.before.data();
+    const dataAfter = change.after.data();
+
+    if (!dataAfter.assignment || dataBefore.assignment?.uid === dataAfter.assignment?.uid) {
+        return null;
+    }
+    
+    const assignedUserUid = dataAfter.assignment.uid;
+    const territoryName = dataAfter.name;
+    const dueDate = (dataAfter.assignment.dueDate as admin.firestore.Timestamp).toDate();
+    const formattedDueDate = dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    try {
+        const userDoc = await db.collection("users").doc(assignedUserUid).get();
+        if (!userDoc.exists) return null;
+
+        const tokens = userDoc.data()?.fcmTokens;
+        if (!tokens || tokens.length === 0) return null;
+
+        const payload = {
+            notification: {
+                title: "Você recebeu um novo território!",
+                body: `O território "${territoryName}" está sob sua responsabilidade. Devolver até ${formattedDueDate}.`,
+                icon: "/icon-192x192.png",
+                click_action: "/dashboard/meus-territorios",
+            },
+        };
+
+        await admin.messaging().sendToDevice(tokens, payload);
+        return { success: true };
+
+    } catch (error) {
+        console.error(`[Notification] FALHA CRÍTICA ao enviar notificação:`, error);
+        return { success: false, error };
+    }
+  });
+
+
+export const notifyAdminOfNewUser = functions.firestore.document("users/{userId}").onCreate(async (snapshot) => {
+    const newUser = snapshot.data() as UserData;
+    if (newUser.status !== "pendente" || !newUser.congregationId) return null;
+    
+    const adminsSnapshot = await db.collection("users")
+        .where("congregationId", "==", newUser.congregationId)
+        .where("role", "in", ["Administrador", "Dirigente"])
+        .get();
         
-        console.log(`Exclusão em cascata para ${quadraPath} concluída.`);
-    });
+    if (adminsSnapshot.empty) return null;
+    
+    const tokens = adminsSnapshot.docs.flatMap(doc => (doc.data() as UserData).fcmTokens || []);
+    if (tokens.length === 0) return null;
 
-export const scheduledFirestoreExport = functions.pubsub.schedule("every day 03:00")
-  .timeZone("America/Sao_Paulo")
-  .onRun(async (context) => {
+    const payload = {
+        notification: {
+            title: "Novo Usuário Aguardando Aprovação!",
+            body: `O usuário "${newUser.name}" se cadastrou e precisa de sua aprovação.`,
+            icon: "/icon-192x192.png",
+            click_action: "/dashboard/usuarios",
+        },
+    };
+    try {
+        await admin.messaging().sendToDevice(tokens, payload);
+    } catch (error) {
+        console.error("[notifyAdmin] FALHA CRÍTICA:", error);
+    }
+    return null;
+});
+
+
+export const onDeleteTerritory = functions.firestore.document("congregations/{congregationId}/territories/{territoryId}").onDelete((snap) => {
+    return admin.firestore().recursiveDelete(snap.ref);
+});
+
+export const onDeleteQuadra = functions.firestore.document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}").onDelete((snap) => {
+    return admin.firestore().recursiveDelete(snap.ref);
+});
+
+export const scheduledFirestoreExport = functions.pubsub.schedule("every day 03:00").timeZone("America/Sao_Paulo").onRun(async () => {
     const firestore = require("@google-cloud/firestore");
     const client = new firestore.v1.FirestoreAdminClient();
     const projectId = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT;
-    if (!projectId) throw new Error("ID do Projeto Google Cloud não encontrado.");
+    if (!projectId) { throw new Error("ID do Projeto Google Cloud não encontrado."); }
     const databaseName = client.databasePath(projectId, "(default)");
-    const bucketName = `gs://${process.env.GCLOUD_PROJECT}.appspot.com`;
+    const bucketName = `gs://${projectId}.appspot.com`;
     const timestamp = new Date().toISOString().split('T')[0];
     const outputUriPrefix = `${bucketName}/backups/${timestamp}`;
     try {
-      await client.exportDocuments({ name: databaseName, outputUriPrefix, collectionIds: [] });
+        await client.exportDocuments({
+            name: databaseName,
+            outputUriPrefix: outputUriPrefix,
+            collectionIds: [],
+        });
+        console.log(`Backup do Firestore concluído para ${outputUriPrefix}`);
+        return null;
     } catch (error) {
-      console.error("[Backup] FALHA CRÍTICA:", error);
-      throw new functions.https.HttpsError("internal", "A operação de exportação falhou.", error as any);
+        console.error("[Backup] FALHA CRÍTICA:", error);
+        throw new functions.https.HttpsError("internal", "A operação de exportação falhou.", error);
     }
 });
 
-// ============================================================================
-//   FUNÇÃO DE PRESENÇA
-// ============================================================================
-export const handleUserPresence = functions.database.ref('/status/{uid}')
+export const mirrorUserStatus = functions.database
+  .ref("/status/{uid}")
   .onWrite(async (change, context) => {
     const eventStatus = change.after.val();
-    const firestoreUserRef = db.doc(`users/${context.params.uid}`);
-    const isOffline = !eventStatus || eventStatus.state === 'offline';
+    const uid = context.params.uid;
+    const userDocRef = db.doc(`users/${uid}`);
+
     try {
-      await firestoreUserRef.update({ isOnline: !isOffline, lastSeen: admin.firestore.FieldValue.serverTimestamp() });
-    } catch (error) {
-      if ((error as any).code !== 'not-found') {
-        console.error(`[handleUserPresence] Erro ao atualizar presença do usuário ${context.params.uid}:`, error);
-      }
+        if (!eventStatus || eventStatus.state === 'offline') {
+            await userDocRef.update({ isOnline: false, lastSeen: admin.firestore.FieldValue.serverTimestamp() });
+        } else if (eventStatus.state === 'online') {
+            await userDocRef.update({ isOnline: true, lastSeen: admin.firestore.FieldValue.serverTimestamp() });
+        }
+    } catch (err: any) {
+        if (err.code !== 'not-found') console.error(`[Presence Mirror] Falha para ${uid}:`, err);
     }
+    return null;
+  });
+
+export const sendFeedbackEmail = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "O usuário deve estar autenticado.");
+    }
+    
+    const { name, email, subject, message } = data;
+    if (!name || !email || !subject || !message) {
+        throw new functions.https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
+    }
+    
+    console.log('--- NOVO FEEDBACK RECEBIDO ---');
+    console.log(`De: ${name} (${email}) | UID: ${context.auth.uid}`);
+    console.log(`Assunto: ${subject}`);
+    console.log(`Mensagem: ${message}`);
+    console.log('------------------------------');
+
+    // Aqui iria a lógica real de envio de e-mail (ex: SendGrid, Mailgun)
+    // Por enquanto, apenas simulamos o sucesso.
+
+    return { success: true, message: 'Feedback enviado com sucesso!' };
 });
