@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from 'react';
-import { Send, BookUser, FileText } from 'lucide-react'; // Importa novo ícone
-import Link from 'next/link'; // Importa o Link
+import { Send, BookUser, FileText, House } from 'lucide-react'; // Importa novo ícone
+import Link from 'next/link';
 import TerritoryAssignmentPanel from '@/components/admin/TerritoryAssignmentPanel';
+import { useUser } from '@/contexts/UserContext';
+import { EditCongregationModal } from '@/components/EditCongregationModal';
 
 export default function AdminPage() {
+  const { user } = useUser();
   const [activeTab, setActiveTab] = useState('assignment');
 
   return (
@@ -14,6 +17,20 @@ export default function AdminPage() {
         <h1 className="text-3xl font-bold">Administração</h1>
         <p className="text-muted-foreground">Ferramentas para gerenciar a congregação.</p>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="bg-card p-6 rounded-lg shadow-md flex flex-col col-span-1 lg:col-span-1">
+            <div className="flex items-center mb-4">
+                <House className="h-6 w-6 mr-3 text-primary" />
+                <h2 className="text-2xl font-bold">Minha Congregação</h2>
+            </div>
+            <p className="text-muted-foreground mb-6 flex-grow">
+                Edite o nome e o número da sua congregação. Apenas administradores podem realizar esta ação.
+            </p>
+            <EditCongregationModal disabled={user?.role !== 'Administrador'} />
+        </div>
+      </div>
+
       <div className="flex border-b border-border">
         <button
           onClick={() => setActiveTab('assignment')}
