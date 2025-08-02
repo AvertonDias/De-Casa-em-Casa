@@ -8,17 +8,17 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Loader } from "lucide-react"; 
-
-// ▼▼▼ CORREÇÃO AQUI: Garante que HttpsError e httpsCallable são importados corretamente ▼▼▼
+import { Loader, Eye, EyeOff } from "lucide-react"; 
 import { getFunctions, httpsCallable, HttpsError } from 'firebase/functions';
-import { app } from '@/lib/firebase'; // Certifique-se de que 'app' está exportado de '@/lib/firebase'
+import { app } from '@/lib/firebase';
 
 
 export default function NovaCongregacaoPage() {
   const [adminName, setAdminName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [congregationName, setCongregationName] = useState('');
   const [congregationNumber, setCongregationNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -30,10 +30,15 @@ export default function NovaCongregacaoPage() {
   const handleCreateCongregation = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+
+    if (adminPassword !== confirmPassword) {
+      setErrorMessage("As senhas não coincidem.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-        // Assegura que getFunctions é chamado antes de httpsCallable
         const functionsInstance = getFunctions(app, 'southamerica-east1');
         const createCongregationCloudFunction = httpsCallable(functionsInstance, 'createCongregationAndAdmin');
 
@@ -45,7 +50,7 @@ export default function NovaCongregacaoPage() {
             congregationNumber: congregationNumber.trim()
         });
     
-        const data = result.data as any; // Cast para any para acessar propriedades de sucesso ou erro
+        const data = result.data as any; 
         
         if (data.success) {
             toast({ title: "Congregação Criada!", description: data.message || "Agora acesse o painel com seu novo usuário.", });
@@ -56,7 +61,6 @@ export default function NovaCongregacaoPage() {
         }
     } catch (error: any) {
         console.error("Erro na chamada da Cloud Function:", error);
-        // Agora HttpsError será reconhecido
         if (error instanceof HttpsError) {
             switch (error.code) {
                 case 'already-exists': setErrorMessage("Este e-mail já está em uso."); break;
@@ -74,7 +78,7 @@ export default function NovaCongregacaoPage() {
   
     return (
         <div className="flex min-h-screen items-center justify-center bg-background">
-            <div className="w-full max-w-md p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
+            <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
                 <div className="flex flex-col items-center">
                     <Link href="/" className="flex items-center gap-2">
                         <Image src="/icon-192x192.png" alt="Logo" width={80} height={80} className="mb-4 rounded-lg" priority />
@@ -102,9 +106,47 @@ export default function NovaCongregacaoPage() {
                         <Label htmlFor="adminEmail">Seu e-mail</Label>
                         <Input type="email" id="adminEmail" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required className="mt-1" />
                     </div>
-                    <div>
+                    <div className="space-y-2">
                         <Label htmlFor="adminPassword">Senha (mínimo 6 caracteres)</Label>
-                        <Input type="password" id="adminPassword" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} className="mt-1" />
+                        <div className="relative">
+                            <Input
+                                type={showPassword ? 'text' : 'password'}
+                                id="adminPassword"
+                                value={adminPassword}
+                                onChange={(e) => setAdminPassword(e.target.value)}
+                                required
+                                minLength={6}
+                                className="pr-10"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground"
+                            >
+                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                         <div className="relative">
+                            <Input
+                                type={showPassword ? 'text' : 'password'}
+                                id="confirmPassword"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                                minLength={6}
+                                className="pr-10"
+                            />
+                             <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground"
+                            >
+                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
+                        </div>
                     </div>
   
                     {errorMessage && (
