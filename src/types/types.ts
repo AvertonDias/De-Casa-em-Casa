@@ -101,6 +101,7 @@ export interface Activity {
   id: string;
   activityDate: Timestamp;
   notes?: string;
+  description?: string; // <-- CAMPO ADICIONADO
   userName: string;
   userId: string;
   createdAt: Timestamp; 
