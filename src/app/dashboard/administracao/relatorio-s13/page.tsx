@@ -6,10 +6,11 @@ import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { Territory, AssignmentHistoryLog } from '@/types/types';
-import { Printer, ArrowLeft, Map, Trees } from 'lucide-react';
+import { Printer, ArrowLeft, Map, Trees, ZoomIn, ZoomOut } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 export default function S13ReportPage() {
   const { user } = useUser();
@@ -17,6 +18,7 @@ export default function S13ReportPage() {
   const [loading, setLoading] = useState(true);
   const [serviceYear, setServiceYear] = useState(new Date().getFullYear().toString());
   const [typeFilter, setTypeFilter] = useState<'urban' | 'rural'>('urban');
+  const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
     if (!user?.congregationId) {
@@ -45,17 +47,32 @@ export default function S13ReportPage() {
     <>
       <div className="p-4 bg-card print:hidden">
         <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-            <Link href="/dashboard/administracao" className="flex items-center text-sm hover:text-primary"><ArrowLeft size={16} className="mr-2"/> Voltar</Link>
-            <div className="flex bg-input p-1 rounded-lg">
-                <button onClick={() => setTypeFilter('urban')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors flex items-center ${typeFilter === 'urban' ? 'bg-primary text-primary-foreground' : 'hover:bg-primary/20'}`}><Map size={14} className="inline mr-2"/> Urbanos</button>
-                <button onClick={() => setTypeFilter('rural')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors flex items-center ${typeFilter === 'rural' ? 'bg-primary text-primary-foreground' : 'hover:bg-primary/20'}`}><Trees size={14} className="inline mr-2"/> Rurais</button>
+            <Button variant="ghost" asChild className="self-start sm:self-center">
+              <Link href="/dashboard/administracao" className="flex items-center text-sm"><ArrowLeft size={16} className="mr-2"/> Voltar</Link>
+            </Button>
+            
+            <div className="flex flex-wrap gap-2 justify-center">
+              <div className="flex bg-input p-1 rounded-lg">
+                  <button onClick={() => setTypeFilter('urban')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors flex items-center ${typeFilter === 'urban' ? 'bg-primary text-primary-foreground' : 'hover:bg-primary/20'}`}><Map size={14} className="inline mr-2"/> Urbanos</button>
+                  <button onClick={() => setTypeFilter('rural')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors flex items-center ${typeFilter === 'rural' ? 'bg-primary text-primary-foreground' : 'hover:bg-primary/20'}`}><Trees size={14} className="inline mr-2"/> Rurais</button>
+              </div>
+               <div className="flex bg-input p-1 rounded-lg">
+                <Button variant="ghost" size="sm" onClick={() => setZoom(z => Math.max(0.5, z - 0.1))}><ZoomOut size={16}/></Button>
+                <Button variant="ghost" size="sm" onClick={() => setZoom(1)}>100%</Button>
+                <Button variant="ghost" size="sm" onClick={() => setZoom(z => Math.min(1.5, z + 0.1))}><ZoomIn size={16}/></Button>
+              </div>
             </div>
-            <button onClick={() => window.print()} className="flex items-center px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 w-full sm:w-auto justify-center"><Printer size={16} className="mr-2"/> Imprimir / Salvar PDF</button>
+
+            <Button onClick={() => window.print()} className="w-full sm:w-auto justify-center"><Printer size={16} className="mr-2"/> Imprimir / PDF</Button>
         </div>
       </div>
 
       <div className="overflow-x-auto p-4">
-        <div id="printable-area" className="bg-white text-black p-8 mx-auto min-w-[1024px]">
+        <div 
+          id="printable-area" 
+          style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
+          className="bg-white text-black p-8 mx-auto min-w-[1024px] transition-transform duration-300"
+        >
           <h1 className="text-xl font-bold text-center uppercase">REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO ({typeFilter === 'urban' ? 'URBANO' : 'RURAL'})</h1>
           <div className="text-center my-4">
               <label htmlFor="service-year" className="font-semibold">Ano de Serviço:</label>
@@ -125,6 +142,7 @@ export default function S13ReportPage() {
             width: 100%;
             min-width: 0;
             padding: 0;
+            transform: scale(1) !important;
           }
           .overflow-x-auto {
             overflow-x: visible !important;
@@ -135,3 +153,4 @@ export default function S13ReportPage() {
     </>
   );
 }
+
