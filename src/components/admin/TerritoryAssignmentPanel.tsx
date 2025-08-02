@@ -37,6 +37,8 @@ const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
 
 const TerritoryListItem = ({ territory, onAssign, onReturn, onReassign }: { territory: Territory, onAssign: () => void, onReturn: () => void, onReassign: () => void }) => {
     const isDesignado = territory.status === 'designado' && territory.assignment;
+    const assignment = territory.assignment;
+
     return (
         <div className="bg-card p-4 rounded-lg shadow-sm border-l-4 border-transparent hover:border-primary/50 transition-all">
             <div className="flex justify-between items-start">
@@ -86,10 +88,10 @@ const TerritoryListItem = ({ territory, onAssign, onReturn, onReassign }: { terr
                     <span>Status:</span>
                     <span className="font-semibold">{isDesignado ? 'Designado' : 'Disponível'}</span>
                 </div>
-                 {isDesignado && (
+                 {isDesignado && assignment && (
                     <div className="flex items-center gap-2">
                         <span>→</span>
-                        <span>{territory.assignment?.name} (até {format(territory.assignment.dueDate.toDate(), 'dd/MM/yy')})</span>
+                        <span>{assignment.name} (até {format(assignment.dueDate.toDate(), 'dd/MM/yy')})</span>
                     </div>
                 )}
             </div>
@@ -244,7 +246,9 @@ export default function TerritoryAssignmentPanel() {
                     </Link>
                   </td>
                   <td className="p-2">{t.status === 'designado' ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>}</td>
-                  <td className="p-2">{t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}</td>
+                  <td className="p-2">
+                    {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}
+                  </td>
                   <td className="p-2 text-right">
                     {t.status === 'designado' && t.assignment ? (
                         <Menu as="div" className="relative inline-block text-left">
