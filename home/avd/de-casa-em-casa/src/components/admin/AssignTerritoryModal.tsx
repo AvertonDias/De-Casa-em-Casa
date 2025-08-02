@@ -78,7 +78,6 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
         <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground hover:text-white"><X /></button>
         <h2 className="text-xl font-bold">Designar Território</h2>
         
-        {/* DESCRIÇÃO ADICIONADA PARA ACESSIBILIDADE */}
         <p className="text-muted-foreground text-sm mt-1 mb-4">
           Atribua o território <span className="font-semibold text-primary">{territory.number} - {territory.name}</span> a um publicador ou grupo.
         </p>
@@ -88,7 +87,11 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
             <label className="block text-sm font-medium mb-1">Designar para:</label>
             <select value={selectedUid} onChange={(e) => setSelectedUid(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border">
               <option value="" disabled>Selecione um publicador</option>
-              {users.map(user => (<option key={user.uid} value={user.uid}>{user.name}</option>))}
+              {users.map(user => (
+                <option key={user.uid} value={user.uid}>
+                  {user.name}{user.status !== 'ativo' ? ` (${user.status})` : ''}
+                </option>
+              ))}
               <option value="free-choice" className="font-semibold text-primary">-- Digitar Outro Nome --</option>
             </select>
           </div>
