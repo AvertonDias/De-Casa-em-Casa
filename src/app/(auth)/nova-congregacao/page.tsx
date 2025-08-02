@@ -7,22 +7,19 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Loader } from "lucide-react"; 
-
-// REMOVA: não precisa mais importar getFunctions, HttpsError, httpsCallable de firebase/functions
-// REMOVA: getAuth, createUserWithEmailAndPassword, updateProfile de firebase/auth
-// Já que estamos chamando a Cloud Function via fetch
-import { app } from '@/lib/firebase'; // Certifique-se de que 'app' está exportado de '@/lib/firebase'
-
+import { Loader, Eye, EyeOff } from "lucide-react"; 
 
 export default function NovaCongregacaoPage() {
   const [adminName, setAdminName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [congregationName, setCongregationName] = useState('');
   const [congregationNumber, setCongregationNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -32,8 +29,13 @@ export default function NovaCongregacaoPage() {
     setErrorMessage('');
     setIsLoading(true);
 
+    if (adminPassword !== confirmPassword) {
+      setErrorMessage("As senhas não coincidem.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-        // ▼▼▼ NOVA LÓGICA DE CHAMADA HTTP ▼▼▼
         const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin";
 
         const response = await fetch(functionUrl, {
@@ -48,25 +50,21 @@ export default function NovaCongregacaoPage() {
             })
         });
 
-        const result = await response.json(); // Pega o resultado JSON
+        const result = await response.json();
 
         if (!response.ok) {
-            // Se a resposta não for OK (status 4xx, 5xx), lança um erro com a mensagem do backend
             throw new Error(result.error || 'Erro desconhecido no servidor.');
         }
         
-        // Se a resposta for OK (status 200) e o backend retornou sucesso
         if (result.success) {
             toast({ title: "Congregação Criada!", description: result.message || "Agora acesse o painel com seu novo usuário.", });
             router.push("/login");
         } else {
-            // Caso raro em que response.ok é true mas success é false (deve ser tratado como erro)
             throw new Error(result.error || 'Falha ao criar congregação sem erro explícito.');
         }
 
     } catch (error: any) {
         console.error("Erro na criação:", error);
-        // Exibe a mensagem de erro que veio do backend
         setErrorMessage(error.message || "Erro inesperado ao criar congregação. Tente novamente mais tarde.");
     } finally {
         setIsLoading(false);
@@ -103,20 +101,24 @@ export default function NovaCongregacaoPage() {
                     </div>
                     <div className="relative">
                         <Label htmlFor="adminPassword">Senha (mínimo 6 caracteres)</Label>
-                        <Input type="password" id="adminPassword" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" />
-                        
+                        <Input type={showPassword ? 'text' : 'password'} id="adminPassword" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
+                            {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                        </button>
                     </div>
                      <div className="relative">
                         <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                        <Input type="password" id="confirmPassword" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" />
-                         
+                        <Input type={showConfirmPassword ? 'text' : 'password'} id="confirmPassword" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" />
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
+                            {showConfirmPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                        </button>
                     </div>
   
                     {errorMessage && (
                         <div className="text-destructive text-sm text-center">{errorMessage}</div>
                     )}
   
-                    <Button type="submit" disabled={isLoading} className="w-full">
+                    <Button type="submit" disabled={isLoading || !adminEmail || !adminName || !congregationName || !congregationNumber || adminPassword.length < 6 || adminPassword !== confirmPassword} className="w-full">
                         {isLoading ? <><Loader className="mr-2 h-4 w-4 animate-spin" /> Criando...</> : "Criar Congregação"}
                     </Button>
                 </form>
@@ -130,5 +132,3 @@ export default function NovaCongregacaoPage() {
         </div>
     );
 }
-
-    
