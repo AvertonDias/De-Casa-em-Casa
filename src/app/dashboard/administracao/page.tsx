@@ -115,10 +115,10 @@ export default function AdminPage() {
   const TabButton = ({ id, label, icon: Icon }: { id: string, label: string, icon: React.ElementType }) => (
     <button
       onClick={() => setActiveTab(id)}
-      className={`px-3 py-2 text-sm font-semibold transition-colors flex items-center gap-2 ${activeTab === id ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}
+      className={`whitespace-nowrap px-3 py-2 text-sm font-semibold transition-colors flex items-center gap-2 ${activeTab === id ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}
     >
       <Icon size={16} />
-      <span className="hidden sm:inline">{label}</span>
+      <span>{label}</span>
     </button>
   );
 
@@ -137,10 +137,10 @@ export default function AdminPage() {
             
             <Link 
                 href="/dashboard/administracao/relatorio-s13"
-                className="px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors ml-auto flex items-center gap-2"
+                className="whitespace-nowrap px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors ml-auto flex items-center gap-2"
             >
               <FileText size={16} />
-              <span className="hidden sm:inline">Relatório S-13</span>
+              <span>Relatório S-13</span>
             </Link>
         </div>
       </div>
@@ -152,4 +152,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
