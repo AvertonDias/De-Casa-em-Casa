@@ -89,6 +89,10 @@ export interface Casa {
   order: number;
   status: boolean;
   observations?: string;
+  lastWorkedBy?: {
+    uid: string;
+    name: string;
+  };
 }
 
 

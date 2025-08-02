@@ -266,20 +266,49 @@ export const onHouseChange = onDocumentWritten(
     const beforeData = event.data?.before.data();
     const afterData = event.data?.after.data();
 
+    if (!afterData) return null; // Documento foi deletado.
+
     const { congregationId, territoryId, quadraId } = event.params;
 
     const quadraRef = db.collection('congregations').doc(congregationId)
                         .collection('territories').doc(territoryId)
                         .collection('quadras').doc(quadraId);
 
+    // --- Lógica de atualização de estatísticas da quadra ---
     const casasSnapshot = await quadraRef.collection("casas").get();
     await quadraRef.update({
         totalHouses: casasSnapshot.size,
         housesDone: casasSnapshot.docs.filter(doc => doc.data().status === true).length
     });
 
+    // --- Lógica para o histórico de atividade do território ---
     if (beforeData?.status === false && afterData?.status === true) {
         const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
+        const todayStr = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+        
+        const activityHistoryRef = territoryRef.collection('activityHistory');
+        
+        const todayActivitiesQuery = await activityHistoryRef
+            .where('activityDateStr', '==', todayStr)
+            .limit(1)
+            .get();
+
+        if (todayActivitiesQuery.empty) {
+            // Não há registro de trabalho para hoje, então criamos um.
+            const userMakingChangeId = afterData.lastWorkedBy?.uid || null;
+            const userName = afterData.lastWorkedBy?.name || "Sistema";
+
+            await activityHistoryRef.add({
+                activityDate: admin.firestore.FieldValue.serverTimestamp(),
+                activityDateStr: todayStr,
+                notes: `Trabalho iniciado por ${userName}.`,
+                userName: userName,
+                userId: userMakingChangeId,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+        
+        // Sempre atualiza o lastUpdate do território quando uma casa é marcada como feita
         await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
     }
 
