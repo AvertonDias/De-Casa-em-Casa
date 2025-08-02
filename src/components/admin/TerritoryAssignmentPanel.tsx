@@ -128,7 +128,12 @@ export default function TerritoryAssignmentPanel() {
   useEffect(() => {
     if (!currentUser?.congregationId) return;
     const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('congregationId', '==', currentUser.congregationId), where('status', '==', 'ativo'), orderBy('name'));
+    const q = query(
+        usersRef, 
+        where('congregationId', '==', currentUser.congregationId), 
+        where('status', '==', 'ativo'),
+        orderBy('name')
+    );
     const unsub = onSnapshot(q, (snapshot) => {
       setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser)));
     });
