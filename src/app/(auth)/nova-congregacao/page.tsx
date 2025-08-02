@@ -8,152 +8,136 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Loader, Eye, EyeOff } from "lucide-react"; 
-import { getFunctions, httpsCallable, HttpsError } from 'firebase/functions';
-import { app } from '@/lib/firebase';
+import { Loader } from "lucide-react"; 
+import { app, functions } from '@/lib/firebase'; // Certifique-se de que 'app' está exportado de '@/lib/firebase'
+import { HttpsError, httpsCallable } from 'firebase/functions'; // IMPORTA AS CLASSES
 
 
 export default function NovaCongregacaoPage() {
-  const [adminName, setAdminName] = useState('');
-  const [adminEmail, setAdminEmail] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [congregationName, setCongregationName] = useState('');
-  const [congregationNumber, setCongregationNumber] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+    const [adminName, setAdminName] = useState('');
+    const [adminEmail, setAdminEmail] = useState('');
+    const [adminPassword, setAdminPassword] = useState('');
+    const [congregationName, setCongregationName] = useState('');
+    const [congregationNumber, setCongregationNumber] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
-  const router = useRouter();
-  const { toast } = useToast();
+    const router = useRouter();
+    const { toast } = useToast();
 
-  const handleCreateCongregation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
+    const handleCreateCongregation = async (e: any) => {
+        e.preventDefault();
 
-    if (adminPassword !== confirmPassword) {
-      setErrorMessage("As senhas não coincidem.");
-      return;
-    }
+        setIsLoading(true);
+        setErrorMessage(''); // Limpa qualquer mensagem de erro anterior
 
-    setIsLoading(true);
+        try {
+            // 1. Inicialize as Funções do Firebase (Certifique-se de que a região está correta)
+            const functionsInstance = getFunctions(app, 'southamerica-east1');
+            
+            // 2. Crie a Referência para a sua Cloud Function
+            const createCongregationCloudFunction = httpsCallable(functionsInstance, 'createCongregationAndAdmin');
 
-    try {
-        const functionsInstance = getFunctions(app, 'southamerica-east1');
-        const createCongregationCloudFunction = httpsCallable(functionsInstance, 'createCongregationAndAdmin');
+            // 3. Chame a Cloud Function com os dados do formulário
+            const result = await createCongregationCloudFunction({
+                adminName: adminName.trim(),
+                adminEmail: adminEmail.trim(),
+                adminPassword: adminPassword.trim(),
+                congregationName: congregationName.trim(),
+                congregationNumber: congregationNumber.trim()
+            });
 
-        const result = await createCongregationCloudFunction({
-            adminName: adminName.trim(),
-            adminEmail: adminEmail.trim(),
-            adminPassword: adminPassword.trim(),
-            congregationName: congregationName.trim(),
-            congregationNumber: congregationNumber.trim()
-        });
-    
-        const data = result.data as any; 
+            // 4. Trate a resposta da Cloud Function
+            const data = result.data as any;
         
-        if (data.success) {
-            toast({ title: "Congregação Criada!", description: data.message || "Agora acesse o painel com seu novo usuário.", });
-            router.push("/");
-        } else {
-            console.error("Falha ao criar congregação:", data);
-            setErrorMessage(data.error || "Falha ao criar congregação. Verifique os logs.");
-        }
-    } catch (error: any) {
-        console.error("Erro na chamada da Cloud Function:", error);
-        if (error instanceof HttpsError) {
-            switch (error.code) {
-                case 'already-exists': setErrorMessage("Este e-mail já está em uso."); break;
-                case 'invalid-argument': setErrorMessage("Preencha todos os campos corretamente."); break;
-                case 'permission-denied': setErrorMessage("Você não tem permissão para criar congregações."); break;
-                default: setErrorMessage("Um erro interno ocorreu. Tente novamente mais tarde.");
+            if (data && data.success) {
+                 toast({
+                     title: "Congregação Criada!",
+                     description: data.message || "Agora acesse o painel com seu novo usuário.",
+                     variant: "default",
+                 });
+                 router.push("/login");
+            } else {
+                console.error("Falha ao criar congregação:", result.data);
+                setErrorMessage((result.data as any).error || "Falha ao criar congregação. Verifique os logs.");
             }
-        } else {
-            setErrorMessage("Erro inesperado ao criar congregação. Tente novamente mais tarde.");
+    
+        } catch (error: any) {
+          console.error("Erro na chamada da Cloud Function:", error);
+          if (error instanceof HttpsError) {
+              // Adapte as mensagens de erro com base no código do HttpsError
+              switch (error.code) {
+                  case 'already-exists':
+                      setErrorMessage("Este e-mail já está em uso.");
+                      break;
+                  case 'invalid-argument':
+                      setErrorMessage("Preencha todos os campos corretamente.");
+                      break;
+                  case 'permission-denied':
+                      setErrorMessage("Você não tem permissão para criar congregações.");
+                      break;
+                  default:
+                      setErrorMessage("Um erro interno ocorreu. Tente novamente mais tarde.");
+              }
+          } else {
+              setErrorMessage("Erro inesperado ao criar congregação. Tente novamente mais tarde.");
+          }
+        } finally {
+            setIsLoading(false); // Desativa o loading
         }
-    } finally {
-        setIsLoading(false);
     }
-  };
   
     return (
-        <div className="flex min-h-screen items-center justify-center bg-background">
-            <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
+        <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
+            <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-card rounded-lg shadow-lg">
                 <div className="flex flex-col items-center">
                     <Link href="/" className="flex items-center gap-2">
-                        <Image src="/icon-192x192.png" alt="Logo" width={80} height={80} className="mb-4 rounded-lg" priority />
+                        <Image
+                            src="/icon-192x192.png"
+                            alt="Logo"
+                            width={80}
+                            height={80}
+                            className="mb-4 rounded-lg"
+                            priority
+                        />
                         <span className="font-bold text-3xl">De Casa em Casa</span>
                     </Link>
-                    <p className="text-muted-foreground text-sm mt-2">Configure sua congregação e o primeiro administrador</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">Configure sua congregação e o primeiro administrador</p>
                 </div>
   
                 <form onSubmit={handleCreateCongregation} className="space-y-4">
                     <div>
-                        <Label htmlFor="congregationName">Nome da Congregação</Label>
-                        <Input type="text" id="congregationName" value={congregationName} onChange={(e) => setCongregationName(e.target.value)} required className="mt-1" />
+                        <Label htmlFor="congregationName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome da Congregação</Label>
+                        <Input type="text" id="congregationName" value={congregationName} onChange={(e) => setCongregationName(e.target.value)} required className="mt-1 dark:bg-input" />
                     </div>
                     <div>
-                        <Label htmlFor="congregationNumber">Número da Congregação</Label>
-                        <Input type="tel" inputMode="numeric" id="congregationNumber" value={congregationNumber} onChange={(e) => setCongregationNumber(e.target.value.replace(/\D/g, ''))} required className="mt-1" />
+                        <Label htmlFor="congregationNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Número da Congregação</Label>
+                        <Input type="number" id="congregationNumber" value={congregationNumber} onChange={(e) => setCongregationNumber(e.target.value)} required className="mt-1 dark:bg-input" />
                     </div>
   
-                    <h3 className="text-lg font-semibold border-t border-border pt-4">Seus Dados</h3>
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Dados do Administrador</h3>
                     <div>
-                        <Label htmlFor="adminName">Seu nome completo</Label>
-                        <Input type="text" id="adminName" value={adminName} onChange={(e) => setAdminName(e.target.value)} required className="mt-1" />
+                        <Label htmlFor="adminName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Seu nome completo</Label>
+                        <Input type="text" id="adminName" value={adminName} onChange={(e) => setAdminName(e.target.value)} required className="mt-1 dark:bg-input" />
                     </div>
                     <div>
-                        <Label htmlFor="adminEmail">Seu e-mail</Label>
-                        <Input type="email" id="adminEmail" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required className="mt-1" />
+                        <Label htmlFor="adminEmail" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Seu e-mail</Label>
+                        <Input type="email" id="adminEmail" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required className="mt-1 dark:bg-input" />
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="adminPassword">Senha (mínimo 6 caracteres)</Label>
-                        <div className="relative">
-                            <Input
-                                type={showPassword ? 'text' : 'password'}
-                                id="adminPassword"
-                                value={adminPassword}
-                                onChange={(e) => setAdminPassword(e.target.value)}
-                                required
-                                minLength={6}
-                                className="pr-10"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground"
-                            >
-                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                            </button>
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                         <div className="relative">
-                            <Input
-                                type={showPassword ? 'text' : 'password'}
-                                id="confirmPassword"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                required
-                                minLength={6}
-                                className="pr-10"
-                            />
-                             <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground"
-                            >
-                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                            </button>
-                        </div>
+                    <div>
+                        <Label htmlFor="adminPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Senha (mínimo 6 caracteres)</Label>
+                        <Input type="password" id="adminPassword" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} className="mt-1 dark:bg-input" />
                     </div>
   
                     {errorMessage && (
-                        <div className="text-destructive text-sm mt-2 text-center">{errorMessage}</div>
+                        <div className="text-red-500 text-sm mt-2">{errorMessage}</div>
                     )}
   
-                    <Button type="submit" disabled={isLoading} className="w-full">
+                    <Button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full"
+                    >
                         {isLoading ? (
                             <>
                                 <Loader className="mr-2 h-4 w-4 animate-spin" />
@@ -166,8 +150,8 @@ export default function NovaCongregacaoPage() {
                 </form>
   
                 <div className="text-center text-sm">
-                    <Link href="/" className="text-muted-foreground hover:text-primary">
-                        Já tem uma conta? Faça login
+                    <Link href="/login" className="text-blue-600 dark:text-blue-400 hover:underline">
+                        Já tem uma conta? Acesse o painel aqui
                     </Link>
                 </div>
             </div>
