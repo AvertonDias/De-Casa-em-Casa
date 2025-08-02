@@ -135,7 +135,10 @@ export default function TerritoryAssignmentPanel() {
     );
     const unsub = onSnapshot(q, (snapshot) => {
       setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser)));
+    }, (error) => {
+      console.error("Erro ao buscar usuários:", error);
     });
+
     return () => unsub();
   }, [currentUser]);
 
@@ -291,7 +294,13 @@ export default function TerritoryAssignmentPanel() {
         </div>
       </div>
       
-      <AssignTerritoryModal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} onSave={handleSaveAssignment} territory={selectedTerritory} users={users} />
+      <AssignTerritoryModal 
+        isOpen={isAssignModalOpen} 
+        onClose={() => setIsAssignModalOpen(false)} 
+        onSave={handleSaveAssignment} 
+        territory={selectedTerritory} 
+        users={users} 
+      />
       <ReturnTerritoryModal
         isOpen={isReturnModalOpen}
         onClose={() => setIsReturnModalOpen(false)}
