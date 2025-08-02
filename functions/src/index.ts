@@ -266,70 +266,119 @@ export const onHouseChange = onDocumentWritten(
     document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}",
     region: "southamerica-east1"
   },
-  async (event) => {
+  async (event) => { // Usando DocumentSnapshot como tipo para Firestor Docs
     const beforeData = event.data?.before.data();
     const afterData = event.data?.after.data();
 
-    if (!afterData) return null; // Documento foi deletado.
+    // Log de disparo da função e dados
+    console.log('*** onHouseChange triggered ***');
+    console.log('Path:', `congregations/${event.params.congregationId}/territories/${event.params.territoryId}/quadras/${event.params.quadraId}/casas/${event.params.casaId}`);
+    console.log('Before Data:', beforeData);
+    console.log('After Data:', afterData);
+
+    if (!afterData) {
+      console.log('--- onHouseChange: Document deleted, exiting. ---');
+      return null;
+    }
 
     const { congregationId, territoryId, quadraId } = event.params;
-
     const quadraRef = db.collection('congregations').doc(congregationId)
                         .collection('territories').doc(territoryId)
                         .collection('quadras').doc(quadraId);
 
-    // --- Lógica de atualização de estatísticas da quadra ---
-    await db.runTransaction(async (transaction) => {
-        const currentQuadraSnap = await transaction.get(quadraRef);
-        if (!currentQuadraSnap.exists) {
-            console.error("Quadra não encontrada para atualizar estatísticas:", quadraRef.path);
-            return;
-        }
+    // --- Atualização das estatísticas da quadra ---
+    console.log('--- onHouseChange: Starting quadra stats update ---');
+    try {
+        await db.runTransaction(async (transaction) => {
+            const currentQuadraSnap = await transaction.get(quadraRef);
+            if (!currentQuadraSnap.exists) {
+                console.error("onHouseChange: Quadra não encontrada para atualizar estatísticas:", quadraRef.path);
+                return; // Importante para sair da transação
+            }
 
-        const casasSnapshot = await currentQuadraSnap.ref.collection("casas").get();
-        const totalHouses = casasSnapshot.size;
-        const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
-        
-        transaction.update(quadraRef, {
-            totalHouses: totalHouses,
-            housesDone: housesDone
+            const casasSnapshot = await currentQuadraSnap.ref.collection("casas").get();
+            const totalHouses = casasSnapshot.size;
+            const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
+            
+            transaction.update(quadraRef, {
+                totalHouses: totalHouses,
+                housesDone: housesDone
+            });
+            console.log(`onHouseChange: Quadra stats updated. Total: ${totalHouses}, Done: ${housesDone}`);
         });
-    });
+    } catch (e) {
+        console.error("onHouseChange: Erro na transação de atualização de estatísticas da quadra:", e);
+    }
 
 
-    // --- Lógica para o histórico de atividade diária (modificada) ---
+    // --- Lógica para o histórico de atividade diária (DEPURAÇÃO DETALHADA) ---
+    console.log('--- onHouseChange: Starting activity history logic ---');
     if (beforeData?.status === false && afterData?.status === true) {
+        console.log('onHouseChange: House status changed from false to true. Proceeding with history check.');
+
         const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
         const today = format(new Date(), 'yyyy-MM-dd'); // Formato YYYY-MM-DD para fácil comparação
-
         const activityHistoryRef = db.collection(territoryRef.path + '/activityHistory');
 
-        // Busca por uma entrada de "trabalho" já existente para hoje
-        const todayActivitiesSnap = await activityHistoryRef
-                                        .where('activityDateStr', '==', today)
-                                        .where('type', '==', 'work')
-                                        .limit(1)
-                                        .get();
+        console.log('onHouseChange: Checking for existing activity log for today:', today);
+        try {
+            const todayActivitiesSnap = await activityHistoryRef
+                                            .where('activityDateStr', '==', today)
+                                            .where('type', '==', 'work')
+                                            .limit(1)
+                                            .get();
 
-        if (todayActivitiesSnap.empty) {
-            // Se não há registro de trabalho para hoje, crie um novo registro automático
-            const automaticDescription = "Primeiro trabalho do dia registrado.(Registro Automático)";
-            const registeredByText = "Registrado por: Sistema";
-            const finalDescriptionForAutoLog = `${automaticDescription}\n${registeredByText}`;
+            if (todayActivitiesSnap.empty) {
+                console.log('onHouseChange: NO existing activity log found for today. Creating new automatic log.');
+                const automaticDescription = "Primeiro trabalho do dia registrado.(Registro Automático)";
+                const registeredByText = "Registrado por: Sistema";
+                const finalDescriptionForAutoLog = `${automaticDescription}\n${registeredByText}`;
+                
+                // Você pode usar o afterData.updatedBy se estiver salvando o UID do usuário que marcou a casa no front.
+                // Caso contrário, use 'automatic_system_log'
+                const userMakingChangeId = afterData.markedBy || afterData.updatedBy || 'automatic_system_log';
 
-            await activityHistoryRef.add({ // Usando .add() direto no collection ref
-                type: 'work',
-                activityDate: admin.firestore.FieldValue.serverTimestamp(),
-                activityDateStr: today,
-                description: finalDescriptionForAutoLog, // Descrição formatada como pedido
-                userId: 'automatic_system_log', // ID especial para logs automáticos do sistema
-            });
+                // Verifique se o ID "automatic_system_log" já existe ou crie um nome padrão
+                let userNameForLog = 'Sistema';
+                if (userMakingChangeId !== 'automatic_system_log') {
+                    // Tenta buscar o nome do usuário real se não for um log automático do sistema
+                    try {
+                        const userSnap = await db.collection('users').doc(userMakingChangeId).get();
+                        if (userSnap.exists) {
+                            userNameForLog = userSnap.data()?.name || 'Usuário Desconhecido';
+                        }
+                    } catch (e) {
+                        console.error("onHouseChange: Erro ao obter nome do usuário real para o histórico:", e);
+                        userNameForLog = 'Usuário Desconhecido';
+                    }
+                }
+
+
+                await activityHistoryRef.add({
+                    type: 'work',
+                    activityDate: admin.firestore.FieldValue.serverTimestamp(),
+                    activityDateStr: today,
+                    description: finalDescriptionForAutoLog,
+                    userId: 'automatic_system_log', // Sempre 'automatic_system_log' para o registro automático
+                    userName: 'Sistema' // Sempre "Sistema" para o registro automático
+                });
+                console.log('onHouseChange: Successfully added new automatic activity log.');
+            } else {
+                console.log('onHouseChange: Existing activity log found for today. Skipping automatic log creation.');
+            }
+        } catch (error) {
+            console.error("onHouseChange: Erro ao processar ou adicionar log de atividade:", error);
         }
-        
-        // Sempre atualiza o lastUpdate do território quando uma casa é marcada como feita
+
+        console.log('onHouseChange: Updating territory lastUpdate.');
+        // Atualiza sempre o lastUpdate do território quando uma casa é marcada como feita
         await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
+        console.log('onHouseChange: Territory lastUpdate completed.');
+    } else {
+        console.log('onHouseChange: House status did NOT change from false to true or was not a modification. Skipping history logic.');
     }
     
+    console.log('*** onHouseChange finished ***');
     return null;
   });
 
