@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -86,7 +87,7 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
           <div>
             <label className="block text-sm font-medium mb-1">Designar para:</label>
             <select value={selectedUid} onChange={(e) => setSelectedUid(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border">
-              <option value="" disabled>Selecione um publicador</option>
+              <option value="" disabled>Selecione um publicador...</option>
               {users.map(user => (
                 <option key={user.uid} value={user.uid}>
                   {user.name}{user.status !== 'ativo' ? ` (${user.status})` : ''}
@@ -155,3 +156,5 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
     </div>
   );
 }
+
+    

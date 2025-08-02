@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -126,15 +127,21 @@ export default function TerritoryAssignmentPanel() {
   
   useEffect(() => {
     if (!currentUser?.congregationId) return;
+    
+    // Consulta corrigida para buscar todos os usuários e ordenar por nome
     const usersRef = collection(db, 'users');
     const q = query(
         usersRef, 
         where('congregationId', '==', currentUser.congregationId),
         orderBy('name')
     );
+    
     const unsub = onSnapshot(q, (snapshot) => {
       setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser)));
+    }, (error) => {
+      console.error("Erro ao buscar usuários:", error);
     });
+
     return () => unsub();
   }, [currentUser]);
 
@@ -300,3 +307,5 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
+
+    
