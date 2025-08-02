@@ -411,7 +411,7 @@ exports.scheduledFirestoreExport = (0, scheduler_1.onSchedule)({
             collectionIds: [],
         });
         console.log(`Backup do Firestore concluído para ${outputUriPrefix}`);
-        return null;
+        return;
     }
     catch (error) {
         console.error("[Backup] FALHA CRÍTICA:", error);
