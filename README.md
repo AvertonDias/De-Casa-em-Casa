@@ -1,3 +1,4 @@
+
 #  De Casa em Casa - Gerenciador de Territórios
 
 ![Logo do App](public/icon-512x512.png)

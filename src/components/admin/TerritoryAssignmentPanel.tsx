@@ -131,7 +131,7 @@ export default function TerritoryAssignmentPanel() {
     const q = query(
         usersRef, 
         where('congregationId', '==', currentUser.congregationId), 
-        where('status', '==', 'ativo'),
+        where('status', 'in', ['ativo', 'pendente']),
         orderBy('name')
     );
     const unsub = onSnapshot(q, (snapshot) => {
