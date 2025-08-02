@@ -94,7 +94,7 @@ export default function NovaCongregacaoPage() {
                     </div>
                     <div>
                         <Label htmlFor="congregationNumber">Número da Congregação</Label>
-                        <Input type="number" id="congregationNumber" value={congregationNumber} onChange={(e) => setCongregationNumber(e.target.value)} required className="mt-1" />
+                        <Input type="tel" inputMode="numeric" id="congregationNumber" value={congregationNumber} onChange={(e) => setCongregationNumber(e.target.value.replace(/\D/g, ''))} required className="mt-1" />
                     </div>
   
                     <h3 className="text-lg font-semibold border-t border-border pt-4">Seus Dados</h3>
