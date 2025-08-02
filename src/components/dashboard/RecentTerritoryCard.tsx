@@ -27,7 +27,7 @@ export default function RecentTerritoryCard({ territory }: RecentTerritoryCardPr
             <h4 className="font-bold text-base">{territory.number} - {territory.name}</h4>
             <span className="font-bold text-blue-400 text-lg">{progresso}%</span>
           </div>
-          <p className="text-xs text-muted-foreground">Última atualização: {lastUpdateFormatted}</p>
+          <p className="text-xs text-muted-foreground">Último trabalho: {lastUpdateFormatted}</p>
         </div>
         
         {/* Parte Inferior: Barra e Link */}
