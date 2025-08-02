@@ -141,18 +141,18 @@ export default function RuralTerritoryDetailPage() {
     <>
       <div className="p-4 md:p-8 space-y-8">
         <div>
-          <Link href="/dashboard/rural" className="flex items-center text-sm text-muted-foreground hover:text-white mb-2">
+          <Link href="/dashboard/rural" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
             <ArrowLeft size={16} className="mr-2" /> Voltar para Territórios Rurais
           </Link>
-          <div className="flex justify-between items-start">
-              <div>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+              <div className="flex-grow">
                   <h1 className="text-3xl font-bold">{territory.number} - {territory.name}</h1>
                   <p className="text-lg text-muted-foreground mt-1">{territory.description}</p>
               </div>
               {isAdmin && user.congregationId && (
-                <button onClick={() => setIsEditTerritoryModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md flex items-center">
-                  <Edit size={16} className="mr-2"/> Editar
-                </button>
+                <Button onClick={() => setIsEditTerritoryModalOpen(true)} className="w-full sm:w-auto">
+                  <Edit size={16} className="mr-2"/> Editar Território
+                </Button>
               )}
           </div>
         </div>
