@@ -133,22 +133,13 @@ export default function S13ReportPage() {
 
       <style jsx global>{`
         @media print {
-          body > :not(#printable-area) {
-            display: none;
+          body * {
+            visibility: hidden;
           }
-          body > #__next > :not(#printable-area) {
-            display: none;
+          #printable-area, #printable-area * {
+            visibility: visible;
           }
-           main > :not(.overflow-x-auto) {
-            display: none;
-          }
-          .overflow-x-auto > :not(#printable-area) {
-            display: none;
-          }
-
           #printable-area {
-            display: block !important;
-            visibility: visible !important;
             position: absolute;
             left: 0;
             top: 0;
