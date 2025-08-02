@@ -49,7 +49,7 @@ export default function NovaCongregacaoPage() {
         
         if (data.success) {
             toast({ title: "Congregação Criada!", description: data.message || "Agora acesse o painel com seu novo usuário.", });
-            router.push("/login");
+            router.push("/");
         } else {
             console.error("Falha ao criar congregação:", data);
             setErrorMessage(data.error || "Falha ao criar congregação. Verifique os logs.");
@@ -93,7 +93,7 @@ export default function NovaCongregacaoPage() {
                         <Input type="number" id="congregationNumber" value={congregationNumber} onChange={(e) => setCongregationNumber(e.target.value)} required className="mt-1" />
                     </div>
   
-                    <h3 className="text-lg font-semibold border-t border-border pt-4">Dados do Administrador</h3>
+                    <h3 className="text-lg font-semibold border-t border-border pt-4">Seus Dados</h3>
                     <div>
                         <Label htmlFor="adminName">Seu nome completo</Label>
                         <Input type="text" id="adminName" value={adminName} onChange={(e) => setAdminName(e.target.value)} required className="mt-1" />
