@@ -42,7 +42,7 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
         await updateDoc(activityDocRef, {
           activityDate: Timestamp.fromDate(activityData.activityDate),
           notes: activityData.notes, // Mantém 'notes' para entradas manuais
-          // `description` e `userId` (para auto-log) não são atualizados aqui
+          description: activityData.notes, // Atualiza description para consistência
         });
       } else {
         await addDoc(historyCollectionRef, {
@@ -165,4 +165,3 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
     </>
   );
 }
-    
