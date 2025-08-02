@@ -22,7 +22,7 @@ interface UserData {
     email: string;
     congregationId: string;
     role: 'Administrador' | 'Dirigente' | 'Publicador' | 'pendente';
-    status: 'ativo' | 'inativo' | 'pendente';
+    status: 'ativo' | 'inativo' | 'pendente' | 'rejeitado';
     isOnline?: boolean;
     lastSeen?: admin.firestore.Timestamp;
     fcmTokens?: string[];
@@ -301,3 +301,5 @@ export const scheduledFirestoreExport = functions.pubsub.schedule("every day 03:
         throw new functions.https.HttpsError("internal", "A operação de exportação falhou.", error as any); 
     }
 });
+
+    
