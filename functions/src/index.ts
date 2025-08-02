@@ -3,7 +3,6 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import type { GetSignedUrlConfig } from "@google-cloud/storage";
 import type { CreateCongregationData, UserData } from "./types";
-const cors = require('cors')({origin: true});
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -156,6 +155,42 @@ export const generateUploadUrl = functions.region("southamerica-east1").https.on
     } catch (error) {
         console.error("Erro ao gerar URL assinada:", error);
         throw new functions.https.HttpsError('internal', 'Falha ao criar URL.');
+    }
+});
+
+export const sendFeedbackEmail = functions.https.onCall(async (data, context) => {
+    // 1. Validação de Autenticação
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
+    }
+    
+    try {
+        // 2. Validação dos dados de entrada
+        const { name, email, subject, message } = data;
+        if (!name || !email || !subject || !message) {
+            throw new functions.https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
+        }
+        
+        // 3. Lógica de envio de e-mail (simulada)
+        // Em um projeto real, você usaria um serviço como SendGrid ou Mailgun aqui.
+        // Por agora, apenas logamos os dados para confirmar que a função foi chamada.
+        console.log('--- NOVO FEEDBACK RECEBIDO ---');
+        console.log(`De: ${name} (${email})`);
+        console.log(`UID: ${context.auth.uid}`); 
+        console.log(`Assunto: ${subject}`);
+        console.log(`Mensagem: ${message}`);
+        console.log('------------------------------');
+
+        // 4. Retorna sucesso
+        return { success: true, message: 'Feedback enviado com sucesso!' };
+
+    } catch (error: any) {
+        console.error("Erro ao processar feedback:", error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error; // Re-lança o erro HttpsError para o cliente
+        }
+        // Para outros erros, lança um erro interno genérico
+        throw new functions.https.HttpsError("internal", "Erro interno do servidor ao processar o feedback.");
     }
 });
 
@@ -368,25 +403,3 @@ export const mirrorUserStatus = functions.database
     }
     return null;
   });
-
-export const sendFeedbackEmail = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError("unauthenticated", "O usuário deve estar autenticado.");
-    }
-    
-    const { name, email, subject, message } = data;
-    if (!name || !email || !subject || !message) {
-        throw new functions.https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
-    }
-    
-    console.log('--- NOVO FEEDBACK RECEBIDO ---');
-    console.log(`De: ${name} (${email}) | UID: ${context.auth.uid}`);
-    console.log(`Assunto: ${subject}`);
-    console.log(`Mensagem: ${message}`);
-    console.log('------------------------------');
-
-    // Aqui iria a lógica real de envio de e-mail (ex: SendGrid, Mailgun)
-    // Por enquanto, apenas simulamos o sucesso.
-
-    return { success: true, message: 'Feedback enviado com sucesso!' };
-});
