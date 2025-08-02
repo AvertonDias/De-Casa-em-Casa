@@ -101,7 +101,7 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
           <div className="mt-4 pt-4 border-t border-border">
             {canManage && (
               <div className="mb-4">
-                <button onClick={openAddModal} className="w-full flex items-center justify-center p-2 bg-primary/20 text-primary rounded-md hover:bg-primary/30 transition-colors">
+                <button onClick={openAddModal} className="w-full flex items-center justify-center p-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">
                   <Plus className="mr-2 h-4 w-4" /> Adicionar Registro
                 </button>
               </div>
