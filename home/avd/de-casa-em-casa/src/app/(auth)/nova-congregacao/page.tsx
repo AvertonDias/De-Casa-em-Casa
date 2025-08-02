@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -10,8 +9,9 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Loader } from "lucide-react"; 
 
-// ▼▼▼ CORREÇÃO AQUI: Removemos a importação direta de HttpsError ▼▼▼
-import { getFunctions, httpsCallable } from 'firebase/functions'; // HttpsError não é importado aqui
+// REMOVA: não precisa mais importar getFunctions, HttpsError, httpsCallable de firebase/functions
+// REMOVA: getAuth, createUserWithEmailAndPassword, updateProfile de firebase/auth
+// Já que estamos chamando a Cloud Function via fetch
 import { app } from '@/lib/firebase'; // Certifique-se de que 'app' está exportado de '@/lib/firebase'
 
 
@@ -33,40 +33,41 @@ export default function NovaCongregacaoPage() {
     setIsLoading(true);
 
     try {
-        const functionsInstance = getFunctions(app, 'southamerica-east1');
-        const createCongregationCloudFunction = httpsCallable(functionsInstance, 'createCongregationAndAdmin');
+        // ▼▼▼ NOVA LÓGICA DE CHAMADA HTTP ▼▼▼
+        const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin";
 
-        const result = await createCongregationCloudFunction({
-            adminName: adminName.trim(),
-            adminEmail: adminEmail.trim(),
-            adminPassword: adminPassword.trim(),
-            congregationName: congregationName.trim(),
-            congregationNumber: congregationNumber.trim()
+        const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                adminName: adminName.trim(),
+                adminEmail: adminEmail.trim(),
+                adminPassword: adminPassword.trim(),
+                congregationName: congregationName.trim(),
+                congregationNumber: congregationNumber.trim()
+            })
         });
-    
-        const data = result.data as any; // Cast para any para acessar propriedades de sucesso ou erro
+
+        const result = await response.json(); // Pega o resultado JSON
+
+        if (!response.ok) {
+            // Se a resposta não for OK (status 4xx, 5xx), lança um erro com a mensagem do backend
+            throw new Error(result.error || 'Erro desconhecido no servidor.');
+        }
         
-        if (data.success) {
-            toast({ title: "Congregação Criada!", description: data.message || "Agora acesse o painel com seu novo usuário.", });
+        // Se a resposta for OK (status 200) e o backend retornou sucesso
+        if (result.success) {
+            toast({ title: "Congregação Criada!", description: result.message || "Agora acesse o painel com seu novo usuário.", });
             router.push("/login");
         } else {
-            console.error("Falha ao criar congregação:", data);
-            setErrorMessage(data.error || "Falha ao criar congregação. Verifique os logs.");
+            // Caso raro em que response.ok é true mas success é false (deve ser tratado como erro)
+            throw new Error(result.error || 'Falha ao criar congregação sem erro explícito.');
         }
+
     } catch (error: any) {
-        console.error("Erro na chamada da Cloud Function:", error);
-        // ▼▼▼ CORREÇÃO AQUI: Referenciamos HttpsError através do objeto 'functions' ▼▼▼
-        if (error.code && error.message) { // Uma verificação simples para garantir que é um erro do Firebase
-            switch (error.code) { // Usamos error.code que vem do Firebase
-                case 'functions/already-exists': setErrorMessage("Este e-mail já está em uso."); break;
-                case 'functions/invalid-argument': setErrorMessage("Preencha todos os campos corretamente."); break;
-                case 'functions/permission-denied': setErrorMessage("Você não tem permissão para criar congregações."); break;
-                case 'functions/internal': setErrorMessage("Um erro interno do servidor ocorreu. Tente novamente mais tarde."); break;
-                default: setErrorMessage(error.message);
-            }
-        } else {
-            setErrorMessage("Erro inesperado ao criar congregação. Tente novamente mais tarde.");
-        }
+        console.error("Erro na criação:", error);
+        // Exibe a mensagem de erro que veio do backend
+        setErrorMessage(error.message || "Erro inesperado ao criar congregação. Tente novamente mais tarde.");
     } finally {
         setIsLoading(false);
     }

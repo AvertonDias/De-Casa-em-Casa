@@ -2,8 +2,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import type { GetSignedUrlConfig } from "@google-cloud/storage";
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const cors = require('cors')({origin: true});
+const cors = require('cors')({origin: true}); // Importa e configura o cors
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -11,28 +10,79 @@ const db = admin.firestore();
 // ========================================================================
 //   FUNÇÕES HTTPS (onCall e onRequest)
 // ========================================================================
-export const createCongregationAndAdmin = functions.https.onCall(async (data, context) => {
-    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = data;
-    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
-        throw new functions.https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
+// ▼▼▼ FUNÇÃO createCongregationAndAdmin COM CORS MANUAL ▼▼▼
+export const createCongregationAndAdmin = functions.https.onRequest((req, res) => {
+  // Envolve a função com o middleware do cors para responder corretamente ao navegador
+  cors(req, res, async () => {
+    // 1. Valida o método da requisição
+    if (req.method !== 'POST') {
+      res.status(405).send({ error: 'Método não permitido.' });
+      return;
     }
-    let newUser: admin.auth.UserRecord | undefined;
+
     try {
-        newUser = await admin.auth().createUser({ email: adminEmail, password: adminPassword, displayName: adminName });
-        const batch = db.batch();
-        const newCongregationRef = db.collection('congregations').doc();
-        batch.set(newCongregationRef, { name: congregationName, number: congregationNumber, territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0, createdAt: admin.firestore.FieldValue.serverTimestamp(), lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
-        const userDocRef = db.collection("users").doc(newUser.uid);
-        batch.set(userDocRef, { name: adminName, email: adminEmail, congregationId: newCongregationRef.id, role: "Administrador", status: "ativo" });
-        await batch.commit();
-        return { success: true, userId: newUser.uid };
+      // 2. Extrai os dados do corpo da requisição (req.body para onRequest)
+      const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = req.body;
+
+      // 3. Valida os campos obrigatórios
+      if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
+        res.status(400).send({ error: 'Todos os campos são obrigatórios.' });
+        return;
+      }
+      
+      // 4. Lógica de criação do usuário e congregação (copiada do seu código original)
+      let newUser: admin.auth.UserRecord | undefined; // Tipagem adicionada aqui
+      try {
+        newUser = await admin.auth().createUser({
+            email: adminEmail,
+            password: adminPassword,
+            displayName: adminName,
+        });
+      } catch (authError: any) {
+        // Trata erro específico de email já em uso ou outros erros de auth
+        if (authError.code === 'auth/email-already-exists') {
+          return res.status(400).send({ error: "Este e-mail já está em uso." });
+        }
+        return res.status(500).send({ error: "Erro ao criar usuário na autenticação." });
+      }
+      
+      const batch = db.batch();
+      const newCongregationRef = db.collection('congregations').doc();
+      batch.set(newCongregationRef, {
+          name: congregationName,
+          number: congregationNumber,
+          territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      const userDocRef = db.collection("users").doc(newUser.uid);
+      batch.set(userDocRef, {
+          name: adminName,
+          email: adminEmail,
+          congregationId: newCongregationRef.id,
+          role: "Administrador",
+          status: "ativo"
+      });
+      await batch.commit();
+
+      // 5. Envia uma resposta de sucesso
+      res.status(200).send({ success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' });
+
     } catch (error: any) {
-        if (newUser) { await admin.auth().deleteUser(newUser.uid).catch(deleteError => { console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser!.uid}':`, deleteError); }); }
-        console.error("Erro ao criar congregação e admin:", error);
-        if (error.code === 'auth/email-already-exists') { throw new functions.https.HttpsError("already-exists", "Este e-mail já está em uso."); }
-        throw new functions.https.HttpsError("internal", "Ocorreu um erro interno.");
+      let newUser: admin.auth.UserRecord | undefined;
+      console.error("Erro ao processar criação de congregação:", error);
+      // Garante que o usuário órfão seja apagado no caso de erro no Firestore após a autenticação.
+      if (newUser) { 
+          await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
+              console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser.uid}':`, deleteError);
+          });
+      }
+      return res.status(500).send({ error: 'Ocorreu um erro interno ao processar a criação.' });
     }
+  });
 });
+
 
 export const deleteUserAccount = functions.https.onCall(async (data, context) => {
   const callingUserUid = context.auth?.uid;
@@ -251,6 +301,62 @@ export const onTerritoryChange = functions.firestore
 // ============================================================================
 //   OUTROS GATILHOS (Notificação, Exclusão)
 // ============================================================================
+export const onTerritoryAssigned = functions.firestore
+  .document("congregations/{congId}/territories/{terrId}")
+  .onUpdate(async (change, context) => {
+    
+    // Pega os dados do território ANTES e DEPOIS da mudança
+    const dataBefore = change.before.data();
+    const dataAfter = change.after.data();
+
+    // Condição para rodar: só continua se a designação mudou e existe uma nova.
+    if (!dataAfter.assignment || dataBefore.assignment?.uid === dataAfter.assignment?.uid) {
+        return null;
+    }
+    
+    const assignedUserUid = dataAfter.assignment.uid;
+    const territoryName = dataAfter.name;
+    const dueDate = (dataAfter.assignment.dueDate as admin.firestore.Timestamp).toDate();
+    
+    // Formata a data para a notificação
+    const formattedDueDate = dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    console.log(`[Notification] Enviando notificação de designação para o usuário ${assignedUserUid}...`);
+
+    try {
+        // Busca o documento do usuário para pegar seus tokens de notificação
+        const userDoc = await db.collection("users").doc(assignedUserUid).get();
+        if (!userDoc.exists) {
+            console.error(`[Notification] Usuário ${assignedUserUid} não encontrado.`);
+            return null;
+        }
+
+        const tokens = userDoc.data()?.fcmTokens;
+        if (!tokens || tokens.length === 0) {
+            console.log(`[Notification] Usuário ${assignedUserUid} não possui tokens FCM para notificar.`);
+            return null;
+        }
+
+        // Prepara e envia a mensagem
+        const payload = {
+            notification: {
+                title: "Você recebeu um novo território!",
+                body: `O território \"${territoryName}\" está sob sua responsabilidade. Devolver até ${formattedDueDate}.`,
+                icon: "/icon-192x192.png",
+                click_action: "/dashboard/meus-territorios", // Leva o usuário para a nova página
+            },
+        };
+
+        await admin.messaging().sendToDevice(tokens, payload);
+        console.log(`[Notification] Notificação enviada com sucesso para ${assignedUserUid}.`);
+        return { success: true };
+
+    } catch (error) {
+        console.error(`[Notification] FALHA CRÍTICA ao enviar notificação:`, error);
+        return { success: false, error };
+    }
+  });
+
 
 export const notifyAdminOfNewUser = functions.firestore.document("users/{userId}").onCreate(async (snapshot, context) => {
     const newUser = snapshot.data();
@@ -351,40 +457,36 @@ export const mirrorUserStatus = functions.database
     return null;
   });
 
-// ▼▼▼ FUNÇÃO sendFeedbackEmail COM CORS MANUAL ▼▼▼
-export const sendFeedbackEmail = functions.https.onRequest((req, res) => {
-  // Envolve a função com o middleware do cors para responder corretamente ao navegador
-  cors(req, res, async () => {
-    // 1. Valida o método da requisição
-    if (req.method !== 'POST') {
-      res.status(405).send({ error: 'Método não permitido.' });
-      return;
+// ▼▼▼ FUNÇÃO sendFeedbackEmail COM onCall (CORRETA) ▼▼▼
+export const sendFeedbackEmail = functions.https.onCall(async (data, context) => {
+    // 1. Validação de Autenticação (onCall já faz isso, mas podemos adicionar mais)
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
     }
-
+    
     try {
-      // 2. Extrai os dados do corpo da requisição
-      const { email, subject, message } = req.body;
+        // 2. Validação dos dados de entrada
+        const { name, email, subject, message } = data;
+        if (!name || !email || !subject || !message) {
+            throw new functions.https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
+        }
+        
+        // 3. Lógica de envio de e-mail (simulada)
+        console.log('--- NOVO FEEDBACK RECEBIDO ---');
+        console.log(`De: ${name} (${email})`);
+        console.log(`UID: ${context.auth.uid}`); // Podemos logar o UID para referência
+        console.log(`Assunto: ${subject}`);
+        console.log(`Mensagem: ${message}`);
+        console.log('------------------------------');
 
-      // 3. Valida se os campos obrigatórios estão preenchidos
-      if (!email || !subject || !message) {
-        res.status(400).send({ error: 'Todos os campos são obrigatórios.' });
-        return;
-      }
-      
-      // 4. Aqui você faria a lógica de envio de e-mail real.
-      // Por enquanto, vamos apenas logar e simular sucesso.
-      console.log('--- NOVO FEEDBACK RECEBIDO ---');
-      console.log(`De: ${email}`);
-      console.log(`Assunto: ${subject}`);
-      console.log(`Mensagem: ${message}`);
-      console.log('------------------------------');
+        // 4. Retorna sucesso
+        return { success: true, message: 'Feedback enviado com sucesso!' };
 
-      // 5. Envia uma resposta de sucesso
-      res.status(200).send({ success: true, message: 'Feedback enviado com sucesso!' });
-
-    } catch (error) {
-      console.error("Erro ao processar feedback:", error);
-      res.status(500).send({ success: false, error: 'Erro interno do servidor.' });
+    } catch (error: any) {
+        console.error("Erro ao processar feedback:", error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
+        throw new functions.https.HttpsError("internal", "Erro interno do servidor ao processar o feedback.");
     }
-  });
 });
