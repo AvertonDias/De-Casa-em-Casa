@@ -34,6 +34,50 @@ export default function S13ReportPage() {
     return () => unsubscribe();
   }, [user]);
 
+  const handlePrint = () => {
+    const printContents = document.getElementById('printable-area')?.innerHTML;
+    if (!printContents) return;
+
+    // Criar um iframe invisível
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    // Escrever o conteúdo no iframe
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    doc.open();
+    doc.write('<html><head>');
+    
+    // Copiar todos os links de estilo do documento principal para o iframe
+    const links = document.getElementsByTagName('link');
+    for (let i = 0; i < links.length; i++) {
+        if (links[i].rel === 'stylesheet') {
+            doc.write(links[i].outerHTML);
+        }
+    }
+    
+    // Adicionar estilos específicos de impressão
+    doc.write(`
+      <style>
+        @page { size: A4 portrait; margin: 1cm; }
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        tr { page-break-inside: avoid; }
+      </style>
+    `);
+    
+    doc.write('</head><body>');
+    doc.write(printContents);
+    doc.write('</body></html>');
+    doc.close();
+
+    // Chamar a impressão e remover o iframe
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+    document.body.removeChild(iframe);
+  };
+
   const filteredTerritories = allTerritories.filter(t => (t.type || 'urban') === typeFilter);
   
   const getLastCompletedDate = (territory: Territory) => {
@@ -63,7 +107,7 @@ export default function S13ReportPage() {
               </div>
             </div>
 
-            <Button onClick={() => window.print()} className="w-full sm:w-auto justify-center"><Printer size={16} className="mr-2"/> Imprimir / PDF</Button>
+            <Button onClick={handlePrint} className="w-full sm:w-auto justify-center"><Printer size={16} className="mr-2"/> Imprimir / PDF</Button>
         </div>
       </div>
 
@@ -71,7 +115,7 @@ export default function S13ReportPage() {
         <div 
           id="printable-area" 
           style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
-          className="bg-white text-black p-8 mx-auto min-w-[794px] max-w-[794px] transition-transform duration-300 print:transform-none print:p-0"
+          className="bg-white text-black p-8 mx-auto min-w-[794px] max-w-[794px] transition-transform duration-300"
         >
           <h1 className="text-xl font-bold text-center uppercase">REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO ({typeFilter === 'urban' ? 'URBANO' : 'RURAL'})</h1>
           <div className="text-center my-4">
@@ -103,8 +147,8 @@ export default function S13ReportPage() {
                           }
                           const sortedHistory = allAssignments.sort((a, b) => b.assignedAt!.toMillis() - a.assignedAt!.toMillis());
                           return (
-                              <tr key={t.id} className="h-10">
-                                  <td className="border border-black text-center font-semibold">{t.number}</td>
+                              <tr key={t.id}>
+                                  <td className="border border-black text-center font-semibold h-10">{t.number}</td>
                                   <td className="border border-black text-center">{getLastCompletedDate(t)}</td>
                                   {Array(4).fill(null).map((_, i) => {
                                       const assignment = sortedHistory[i];
@@ -130,30 +174,6 @@ export default function S13ReportPage() {
           <p className="text-xs text-right">S-13-T 01/22</p>
         </div>
       </div>
-
-      <style jsx global>{`
-        @media print {
-          body > :not(#printable-area) {
-            display: none;
-          }
-          body {
-            background-color: #fff;
-          }
-          #printable-area {
-            display: block;
-            margin: 0;
-            padding: 0;
-            transform: scale(1) !important;
-          }
-          tr {
-            page-break-inside: avoid;
-          }
-        }
-        @page { 
-          size: A4 portrait; 
-          margin: 1cm; 
-        }
-      `}</style>
     </>
   );
 }
