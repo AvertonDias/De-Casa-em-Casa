@@ -1,14 +1,13 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
-import { doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
-import { cn } from '@/lib/utils';
 import { Trash2, Edit, Loader, Plus, Link as LinkIcon, Save } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,13 +17,13 @@ interface EditRuralTerritoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onTerritoryUpdated: () => void;
+  onDeleteRequest: () => void; // Ação para abrir o modal de confirmação
   congregationId: string;
   territory: RuralTerritory; 
 }
 
-export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, congregationId, territory }: EditRuralTerritoryModalProps) {
+export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, onDeleteRequest, congregationId, territory }: EditRuralTerritoryModalProps) {
   const { user } = useUser();
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   
   // States for territory data
   const [number, setNumber] = useState('');
@@ -112,32 +111,8 @@ export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, c
       setIsLoading(false);
     }
   };
-  
-  const handleDelete = async () => {
-    if (!user || user.role !== 'Administrador' || !territory) {
-      setError("Ação não permitida.");
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const territoryRef = doc(db, 'congregations', congregationId, 'territories', territory.id);
-      await deleteDoc(territoryRef);
-      onTerritoryUpdated();
-      setIsConfirmOpen(false);
-      onClose();
-    } catch (err) {
-      console.error("Erro ao excluir território rural:", err);
-      setError("Falha ao excluir o território.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
-    <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -189,7 +164,7 @@ export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, c
           </form>
           <DialogFooter className="justify-between sm:justify-between pt-4 border-t">
             {user?.role === 'Administrador' ? (
-              <Button variant="destructive" onClick={() => setIsConfirmOpen(true)} disabled={isLoading}>
+              <Button variant="destructive" onClick={() => { onClose(); onDeleteRequest(); }} disabled={isLoading}>
                 <Trash2 className="mr-2 h-4 w-4" /> Excluir
               </Button>
             ) : <div />}
@@ -204,27 +179,8 @@ export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, c
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Território Rural?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir o território "{territory.name}"? Esta ação é permanente e não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDelete} 
-              disabled={isLoading}
-              className={cn(buttonVariants({ variant: "destructive" }))}
-            >
-              {isLoading ? "Excluindo..." : "Sim, excluir"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
   );
 }
+
+
+    
