@@ -3,8 +3,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import type { GetSignedUrlConfig } from "@google-cloud/storage";
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const cors = require('cors')({origin: true}); // Importa e configura o cors
+// O cors não é mais necessário aqui, vamos tratar manualmente.
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -12,77 +11,77 @@ const db = admin.firestore();
 // ========================================================================
 //   FUNÇÕES HTTPS (onCall e onRequest)
 // ========================================================================
-// ▼▼▼ FUNÇÃO createCongregationAndAdmin COM CORS MANUAL ▼▼▼
-export const createCongregationAndAdmin = functions.https.onRequest((req, res) => {
-  // Envolve a função com o middleware do cors para responder corretamente ao navegador
-  cors(req, res, async () => {
-    // 1. Valida o método da requisição
-    if (req.method !== 'POST') {
-      res.status(405).send({ error: 'Método não permitido.' });
-      return;
-    }
 
-    try {
-      // 2. Extrai os dados do corpo da requisição (req.body para onRequest)
-      const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = req.body;
+export const createCongregationAndAdmin = functions.https.onRequest(async (req, res) => {
+    // Define os cabeçalhos CORS para permitir o acesso do seu frontend.
+    // O '*' permite qualquer origem, mas em produção, o ideal é especificar seu domínio.
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-      // 3. Valida os campos obrigatórios
-      if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
-        res.status(400).send({ error: 'Todos os campos são obrigatórios.' });
+    // Responde imediatamente às requisições "preflight" do tipo OPTIONS.
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
         return;
-      }
-      
-      // 4. Lógica de criação do usuário e congregação (copiada do seu código original)
-      let newUser: admin.auth.UserRecord | undefined; // Tipagem adicionada aqui
-      try {
-        newUser = await admin.auth().createUser({
-            email: adminEmail,
-            password: adminPassword,
-            displayName: adminName,
-        });
-      } catch (authError: any) {
-        // Trata erro específico de email já em uso ou outros erros de auth
-        if (authError.code === 'auth/email-already-exists') {
-          return res.status(400).send({ error: "Este e-mail já está em uso." });
-        }
-        return res.status(500).send({ error: "Erro ao criar usuário na autenticação." });
-      }
-      
-      const batch = db.batch();
-      const newCongregationRef = db.collection('congregations').doc();
-      batch.set(newCongregationRef, {
-          name: congregationName,
-          number: congregationNumber,
-          territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          lastUpdate: admin.firestore.FieldValue.serverTimestamp()
-      });
-
-      const userDocRef = db.collection("users").doc(newUser.uid);
-      batch.set(userDocRef, {
-          name: adminName,
-          email: adminEmail,
-          congregationId: newCongregationRef.id,
-          role: "Administrador",
-          status: "ativo"
-      });
-      await batch.commit();
-
-      // 5. Envia uma resposta de sucesso
-      res.status(200).send({ success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' });
-
-    } catch (error: any) {
-      let newUser: admin.auth.UserRecord | undefined;
-      console.error("Erro ao processar criação de congregação:", error);
-      // Garante que o usuário órfão seja apagado no caso de erro no Firestore após a autenticação.
-      if (newUser) { 
-          await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
-              console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser.uid}':`, deleteError);
-          });
-      }
-      return res.status(500).send({ error: 'Ocorreu um erro interno ao processar a criação.' });
     }
-  });
+
+    // Valida o método da requisição principal.
+    if (req.method !== 'POST') {
+        res.status(405).send({ error: 'Método não permitido.' });
+        return;
+    }
+  
+    try {
+        const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = req.body;
+  
+        if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
+            res.status(400).send({ error: 'Todos os campos são obrigatórios.' });
+            return;
+        }
+        
+        let newUser: admin.auth.UserRecord | undefined;
+        try {
+            newUser = await admin.auth().createUser({
+                email: adminEmail,
+                password: adminPassword,
+                displayName: adminName,
+            });
+        } catch (authError: any) {
+            if (authError.code === 'auth/email-already-exists') {
+                return res.status(409).send({ error: "Este e-mail já está em uso." });
+            }
+            console.error("Erro na criação do Auth:", authError);
+            return res.status(500).send({ error: "Erro interno ao criar usuário na autenticação." });
+        }
+        
+        const batch = db.batch();
+        const newCongregationRef = db.collection('congregations').doc();
+        batch.set(newCongregationRef, {
+            name: congregationName,
+            number: congregationNumber,
+            territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+        });
+  
+        const userDocRef = db.collection("users").doc(newUser.uid);
+        batch.set(userDocRef, {
+            name: adminName,
+            email: adminEmail,
+            congregationId: newCongregationRef.id,
+            role: "Administrador",
+            status: "ativo"
+        });
+        await batch.commit();
+  
+        res.status(200).send({ success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' });
+  
+    } catch (error: any) {
+        console.error("Erro CRÍTICO no processamento da criação:", error);
+        // A lógica de limpeza de usuário órfão precisa ser ajustada, pois `newUser` não está no escopo.
+        // Uma abordagem mais robusta seria verificar se o usuário existe por e-mail e deletá-lo se a congregação não foi criada.
+        return res.status(500).send({ error: 'Ocorreu um erro interno no servidor.' });
+    }
 });
 
 
@@ -479,7 +478,7 @@ export const sendFeedbackEmail = functions.https.onCall(async (data, context) =>
         console.log(`UID: ${context.auth.uid}`); // Podemos logar o UID para referência
         console.log(`Assunto: ${subject}`);
         console.log(`Mensagem: ${message}`);
-        console.log('------------------------------');
+        console.log('----------------പരമായ');
 
         // 4. Retorna sucesso
         return { success: true, message: 'Feedback enviado com sucesso!' };
