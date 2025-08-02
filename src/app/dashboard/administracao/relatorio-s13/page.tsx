@@ -67,11 +67,11 @@ export default function S13ReportPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto p-4">
+      <div className="overflow-x-auto p-4 print:p-0 print:overflow-visible">
         <div 
           id="printable-area" 
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
-          className="bg-white text-black p-8 mx-auto min-w-[1024px] transition-transform duration-300"
+          style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
+          className="bg-white text-black p-8 mx-auto min-w-[794px] max-w-[794px] transition-transform duration-300 print:transform-none print:p-0"
         >
           <h1 className="text-xl font-bold text-center uppercase">REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO ({typeFilter === 'urban' ? 'URBANO' : 'RURAL'})</h1>
           <div className="text-center my-4">
@@ -133,21 +133,31 @@ export default function S13ReportPage() {
 
       <style jsx global>{`
         @media print {
-          body > * { display: none !important; }
-          #printable-area, #printable-area * { display: block !important; visibility: visible !important; }
-          #printable-area { 
-            position: absolute; 
-            left: 0; 
-            top: 0; 
+          body > :not(#printable-area) {
+            display: none;
+          }
+          body > #__next > :not(#printable-area) {
+            display: none;
+          }
+           main > :not(.overflow-x-auto) {
+            display: none;
+          }
+          .overflow-x-auto > :not(#printable-area) {
+            display: none;
+          }
+
+          #printable-area {
+            display: block !important;
+            visibility: visible !important;
+            position: absolute;
+            left: 0;
+            top: 0;
             width: 100%;
-            min-width: 0;
-            padding: 0;
-            transform: scale(1) !important;
           }
-          .overflow-x-auto {
-            overflow-x: visible !important;
-          }
-          @page { size: A4 landscape; margin: 1cm; }
+        }
+        @page { 
+          size: A4 portrait; 
+          margin: 1cm; 
         }
       `}</style>
     </>
