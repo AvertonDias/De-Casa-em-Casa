@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -8,73 +7,71 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Loader, Eye, EyeOff } from "lucide-react"; 
-import { functions } from '@/lib/firebase';
-import { httpsCallable } from 'firebase/functions';
+import { Loader } from "lucide-react"; 
+
+// REMOVA: não precisa mais importar getFunctions, HttpsError, httpsCallable de firebase/functions
+// REMOVA: getAuth, createUserWithEmailAndPassword, updateProfile de firebase/auth
+// Já que estamos chamando a Cloud Function via fetch
+import { app } from '@/lib/firebase'; // Certifique-se de que 'app' está exportado de '@/lib/firebase'
 
 
 export default function NovaCongregacaoPage() {
-    const [adminName, setAdminName] = useState('');
-    const [adminEmail, setAdminEmail] = useState('');
-    const [adminPassword, setAdminPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [congregationName, setCongregationName] = useState('');
-    const [congregationNumber, setCongregationNumber] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [errorMessage, setErrorMessage] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [adminName, setAdminName] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [congregationName, setCongregationName] = useState('');
+  const [congregationNumber, setCongregationNumber] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-    const router = useRouter();
-    const { toast } = useToast();
+  const router = useRouter();
+  const { toast } = useToast();
 
-    const handleCreateCongregation = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        if (adminPassword !== confirmPassword) {
-            setErrorMessage("As senhas não coincidem.");
-            return;
-        }
-        
-        setIsLoading(true);
-        setErrorMessage('');
+  const handleCreateCongregation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setIsLoading(true);
 
-        try {
-            const createCongregationCloudFunction = httpsCallable(functions, 'createCongregationAndAdmin');
+    try {
+        // ▼▼▼ NOVA LÓGICA DE CHAMADA HTTP ▼▼▼
+        const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin";
 
-            const result = await createCongregationCloudFunction({
+        const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
                 adminName: adminName.trim(),
                 adminEmail: adminEmail.trim(),
                 adminPassword: adminPassword,
                 congregationName: congregationName.trim(),
                 congregationNumber: congregationNumber.trim()
-            });
-    
-            const data = result.data as any;
-            
-            if (data.success) {
-                toast({ title: "Congregação Criada!", description: data.message || "Agora acesse o painel com seu novo usuário.", });
-                router.push("/");
-            } else {
-                setErrorMessage(data.error || "Falha ao criar congregação.");
-            }
-        } catch (error: any) {
-            console.error("Erro na chamada da Cloud Function:", error);
-            if (error.code) { 
-                switch (error.code) {
-                    case 'functions/already-exists': setErrorMessage("Este e-mail já está em uso."); break;
-                    case 'functions/invalid-argument': setErrorMessage("Preencha todos os campos corretamente."); break;
-                    case 'functions/permission-denied': setErrorMessage("Você não tem permissão para criar congregações."); break;
-                    case 'functions/internal': setErrorMessage("Um erro interno do servidor ocorreu. Tente novamente mais tarde."); break;
-                    default: setErrorMessage(error.message);
-                }
-            } else {
-                setErrorMessage("Erro inesperado ao criar congregação. Tente novamente mais tarde.");
-            }
-        } finally {
-            setIsLoading(false);
+            })
+        });
+
+        const result = await response.json(); // Pega o resultado JSON
+
+        if (!response.ok) {
+            // Se a resposta não for OK (status 4xx, 5xx), lança um erro com a mensagem do backend
+            throw new Error(result.error || 'Erro desconhecido no servidor.');
         }
-    };
+        
+        // Se a resposta for OK (status 200) e o backend retornou sucesso
+        if (result.success) {
+            toast({ title: "Congregação Criada!", description: result.message || "Agora acesse o painel com seu novo usuário.", });
+            router.push("/login");
+        } else {
+            // Caso raro em que response.ok é true mas success é false (deve ser tratado como erro)
+            throw new Error(result.error || 'Falha ao criar congregação sem erro explícito.');
+        }
+
+    } catch (error: any) {
+        console.error("Erro na criação:", error);
+        // Exibe a mensagem de erro que veio do backend
+        setErrorMessage(error.message || "Erro inesperado ao criar congregação. Tente novamente mais tarde.");
+    } finally {
+        setIsLoading(false);
+    }
+  };
   
     return (
         <div className="flex min-h-screen items-center justify-center bg-background">
@@ -106,17 +103,13 @@ export default function NovaCongregacaoPage() {
                     </div>
                     <div className="relative">
                         <Label htmlFor="adminPassword">Senha (mínimo 6 caracteres)</Label>
-                        <Input type={showPassword ? "text" : "password"} id="adminPassword" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute bottom-2 right-2 text-muted-foreground">
-                            {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
-                        </button>
+                        <Input type="password" id="adminPassword" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" />
+                        
                     </div>
                      <div className="relative">
                         <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                        <Input type={showConfirmPassword ? "text" : "password"} id="confirmPassword" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" />
-                         <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute bottom-2 right-2 text-muted-foreground">
-                            {showConfirmPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
-                        </button>
+                        <Input type="password" id="confirmPassword" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" />
+                         
                     </div>
   
                     {errorMessage && (
@@ -137,3 +130,5 @@ export default function NovaCongregacaoPage() {
         </div>
     );
 }
+
+    

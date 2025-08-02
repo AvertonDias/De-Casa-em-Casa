@@ -1,3 +1,4 @@
+
 // functions/src/index.ts
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
@@ -491,3 +492,5 @@ export const sendFeedbackEmail = functions.https.onCall(async (data, context) =>
         throw new functions.https.HttpsError("internal", "Erro interno do servidor ao processar o feedback.");
     }
 });
+
+    
