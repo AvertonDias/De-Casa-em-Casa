@@ -238,6 +238,8 @@ export const sendFeedbackEmail = onCall(async (req: CallableRequest<SendFeedback
             throw new HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
         }
 
+        // A lógica real de envio de e-mail seria aqui.
+        // Por agora, apenas logamos a informação.
         console.log('--- NOVO FEEDBACK RECEBIDO ---');
         console.log(`De: ${name} (${email})`);
         console.log(`UID: ${req.auth.uid}`);
@@ -245,13 +247,15 @@ export const sendFeedbackEmail = onCall(async (req: CallableRequest<SendFeedback
         console.log(`Mensagem: ${message}`);
         console.log('------------------------------');
 
+        // Retorna uma resposta de sucesso para o cliente.
         return { success: true, message: 'Feedback enviado com sucesso!' };
 
     } catch (error: any) {
         console.error("Erro ao processar feedback:", error);
         if (error instanceof HttpsError) {
-            throw error;
+            throw error; // Re-lança o HttpsError para que o cliente o receba
         }
+        // Para outros erros, lança um erro genérico.
         throw new HttpsError("internal", "Erro interno do servidor ao processar o feedback.");
     }
 });

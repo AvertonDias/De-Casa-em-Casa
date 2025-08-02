@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from 'react';
-import { getFunctions, httpsCallable } from 'firebase/functions'; // Importar httpsCallable
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
 import { Mail, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
 
-// Inicializar a instância das funções uma vez
+// Inicializar a instância das funções uma vez, fora do componente
 const functionsInstance = getFunctions(app, 'southamerica-east1');
 const sendFeedbackFunction = httpsCallable(functionsInstance, 'sendFeedbackEmail');
 
@@ -43,10 +43,10 @@ export function FeedbackModal() {
     setIsSending(true);
 
     try {
-        // ▼▼▼ NOVA LÓGICA DE CHAMADA COM httpsCallable ▼▼▼
+        // A chamada da função agora é mais simples e direta
         const result = await sendFeedbackFunction({ 
-          name: user.name, // Passa o nome do usuário logado
-          email: user.email, // Passa o e-mail do usuário logado
+          name: user.name,
+          email: user.email,
           subject, 
           message 
         });
@@ -84,11 +84,12 @@ export function FeedbackModal() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Enviar Feedback</DialogTitle>
+            <DialogDescription>
+              Use este formulário para nos enviar sua sugestão, relatar um problema ou fazer um elogio. Seu nome e e-mail serão enviados automaticamente.
+            </DialogDescription>
             <DialogClose />
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Seu nome (<span className="font-semibold">{user?.name}</span>) e e-mail serão enviados automaticamente.
-          </p>
+          
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
             <div>
               <label htmlFor="subject" className="block text-sm font-medium">Assunto</label>
