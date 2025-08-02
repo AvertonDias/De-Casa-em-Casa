@@ -45,6 +45,7 @@ const firestore_1 = require("firebase-functions/v2/firestore");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 // Importar funções Realtime Database diretamente, sem `ref` - CORRIGIDO AQUI
 const database_1 = require("firebase-functions/v2/database");
+const date_fns_1 = require("date-fns");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const cors = require('cors')({ origin: true });
 admin.initializeApp();
@@ -253,31 +254,42 @@ exports.onHouseChange = (0, firestore_1.onDocumentWritten)("congregations/{congr
         .collection('territories').doc(territoryId)
         .collection('quadras').doc(quadraId);
     // --- Lógica de atualização de estatísticas da quadra ---
-    const casasSnapshot = await quadraRef.collection("casas").get();
-    await quadraRef.update({
-        totalHouses: casasSnapshot.size,
-        housesDone: casasSnapshot.docs.filter(doc => doc.data().status === true).length
+    await db.runTransaction(async (transaction) => {
+        const currentQuadraSnap = await transaction.get(quadraRef);
+        if (!currentQuadraSnap.exists) {
+            console.error("Quadra não encontrada para atualizar estatísticas:", quadraRef.path);
+            return;
+        }
+        const casasSnapshot = await currentQuadraSnap.ref.collection("casas").get();
+        const totalHouses = casasSnapshot.size;
+        const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
+        transaction.update(quadraRef, {
+            totalHouses: totalHouses,
+            housesDone: housesDone
+        });
     });
-    // --- Lógica para o histórico de atividade do território ---
+    // --- Lógica para o histórico de atividade diária (modificada) ---
     if (beforeData?.status === false && afterData?.status === true) {
         const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
-        const todayStr = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
-        const activityHistoryRef = territoryRef.collection('activityHistory');
-        const todayActivitiesQuery = await activityHistoryRef
-            .where('activityDateStr', '==', todayStr)
+        const today = (0, date_fns_1.format)(new Date(), 'yyyy-MM-dd'); // Formato YYYY-MM-DD para fácil comparação
+        const activityHistoryRef = db.collection(territoryRef.path + '/activityHistory');
+        // Busca por uma entrada de "trabalho" já existente para hoje
+        const todayActivitiesSnap = await activityHistoryRef
+            .where('activityDateStr', '==', today)
+            .where('type', '==', 'work')
             .limit(1)
             .get();
-        if (todayActivitiesQuery.empty) {
-            // Não há registro de trabalho para hoje, então criamos um.
-            const userMakingChangeId = afterData.lastWorkedBy?.uid || null;
-            const userName = afterData.lastWorkedBy?.name || "Sistema";
+        if (todayActivitiesSnap.empty) {
+            // Se não há registro de trabalho para hoje, crie um novo registro automático
+            const automaticDescription = "Primeiro trabalho do dia registrado.(Registro Automático)";
+            const registeredByText = "Registrado por: Sistema";
+            const finalDescriptionForAutoLog = `${automaticDescription}\n${registeredByText}`;
             await activityHistoryRef.add({
+                type: 'work',
                 activityDate: admin.firestore.FieldValue.serverTimestamp(),
-                activityDateStr: todayStr,
-                notes: `Trabalho iniciado por ${userName}.`,
-                userName: userName,
-                userId: userMakingChangeId,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                activityDateStr: today,
+                description: finalDescriptionForAutoLog, // Descrição formatada como pedido
+                userId: 'automatic_system_log', // ID especial para logs automáticos do sistema
             });
         }
         // Sempre atualiza o lastUpdate do território quando uma casa é marcada como feita

@@ -262,7 +262,10 @@ export const sendFeedbackEmail = onCall(async (req: CallableRequest<SendFeedback
 // ========================================================================
 
 export const onHouseChange = onDocumentWritten(
-  "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}",
+  {
+    document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}",
+    region: "southamerica-east1"
+  },
   async (event) => {
     const beforeData = event.data?.before.data();
     const afterData = event.data?.after.data();
@@ -331,7 +334,10 @@ export const onHouseChange = onDocumentWritten(
   });
 
 export const onQuadraChange = onDocumentWritten(
-  "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
+  {
+    document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
+    region: "southamerica-east1"
+  },
   async (event) => {
     const { congregationId, territoryId } = event.params;
 
@@ -356,7 +362,10 @@ export const onQuadraChange = onDocumentWritten(
 });
 
 export const onTerritoryChange = onDocumentWritten(
-    "congregations/{congregationId}/territories/{territoryId}",
+    {
+      document: "congregations/{congregationId}/territories/{territoryId}",
+      region: "southamerica-east1"
+    },
     async (event) => {
         const { congregationId } = event.params;
         const congregationRef = db.doc(`congregations/${congregationId}`);
@@ -388,7 +397,10 @@ export const onTerritoryChange = onDocumentWritten(
 //   OUTROS GATILHOS (Notificação, Exclusão)
 // ============================================================================
 export const onTerritoryAssigned = onDocumentUpdated(
-  "congregations/{congId}/territories/{terrId}",
+  {
+    document: "congregations/{congId}/territories/{terrId}",
+    region: "southamerica-east1"
+  },
   async (event) => {
     const dataBefore = event.data?.before.data();
     const dataAfter = event.data?.after.data();
@@ -434,7 +446,12 @@ export const onTerritoryAssigned = onDocumentUpdated(
   });
 
 
-export const notifyAdminOfNewUser = onDocumentCreated("users/{userId}", async (event) => {
+export const notifyAdminOfNewUser = onDocumentCreated(
+  {
+    document: "users/{userId}",
+    region: "southamerica-east1"
+  },
+  async (event) => {
     const newUser = event.data?.data();
     if (!newUser || newUser.status !== "pendente" || !newUser.congregationId) {
         return null;
@@ -470,12 +487,22 @@ export const notifyAdminOfNewUser = onDocumentCreated("users/{userId}", async (e
 });
 
 
-export const onDeleteTerritory = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}", (event) => {
+export const onDeleteTerritory = onDocumentDeleted(
+  {
+    document: "congregations/{congregationId}/territories/{territoryId}",
+    region: "southamerica-east1"
+  },
+  (event) => {
     if (!event.data) return null;
     return admin.firestore().recursiveDelete(event.data.ref);
 });
 
-export const onDeleteQuadra = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}", (event) => {
+export const onDeleteQuadra = onDocumentDeleted(
+  {
+    document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
+    region: "southamerica-east1"
+  },
+  (event) => {
     if (!event.data) return null;
     return admin.firestore().recursiveDelete(event.data.ref);
 });
@@ -483,7 +510,8 @@ export const onDeleteQuadra = onDocumentDeleted("congregations/{congregationId}/
 // scheduledFirestoreExport - Pub/Sub com Scheduler
 export const scheduledFirestoreExport = onSchedule({
     schedule: "every day 03:00",
-    timeZone: "America/Sao_Paulo"
+    timeZone: "America/Sao_Paulo",
+    region: "southamerica-east1"
   }, async (event) => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const firestore = require("@google-cloud/firestore");
@@ -511,7 +539,12 @@ export const scheduledFirestoreExport = onSchedule({
 // ============================================================================
 //   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
 // ============================================================================
-export const mirrorUserStatus = onValueWritten("/status/{uid}", async (event) => {
+export const mirrorUserStatus = onValueWritten(
+  {
+    ref: "/status/{uid}",
+    region: "us-central1"
+  },
+  async (event) => {
     const eventStatus = event.data.after.val();
     const uid = event.params.uid;
     const userDocRef = admin.firestore().doc(`users/${uid}`);
