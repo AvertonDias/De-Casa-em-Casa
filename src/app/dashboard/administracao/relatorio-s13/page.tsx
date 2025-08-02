@@ -133,18 +133,17 @@ export default function S13ReportPage() {
 
       <style jsx global>{`
         @media print {
-          body {
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-          .print-hidden {
+          body > :not(#printable-area) {
             display: none;
           }
-          #printable-area {
-            display: block !important;
+          body {
+            background-color: #fff;
           }
-          body > :not(#printable-area) {
-             display: none;
+          #printable-area {
+            display: block;
+            margin: 0;
+            padding: 0;
+            transform: scale(1) !important;
           }
           tr {
             page-break-inside: avoid;
