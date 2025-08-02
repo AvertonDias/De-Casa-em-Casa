@@ -1,13 +1,17 @@
 "use client";
 
 import { useState } from 'react';
-import { getFunctions } from 'firebase/functions'; // Não precisa mais de httpsCallable aqui
+import { getFunctions, httpsCallable } from 'firebase/functions'; // Importar httpsCallable
 import { app } from '@/lib/firebase';
 import { Mail, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog"; // Adicionado DialogDescription
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
+
+// Inicializar a instância das funções uma vez
+const functionsInstance = getFunctions(app, 'southamerica-east1');
+const sendFeedbackFunction = httpsCallable(functionsInstance, 'sendFeedbackEmail');
 
 
 export function FeedbackModal() {
@@ -39,28 +43,16 @@ export function FeedbackModal() {
     setIsSending(true);
 
     try {
-        const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendFeedbackEmail";
-        
-        const response = await fetch(functionUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              name: user.name, // Usa o nome do usuário logado
-              email: user.email, // Usa o e-mail do usuário logado
-              subject, 
-              message 
-            }),
+        const result = await sendFeedbackFunction({ 
+          name: user.name,
+          email: user.email,
+          subject, 
+          message 
         });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.error || 'Erro do servidor');
-        }
 
         toast({
             title: "Feedback Enviado!",
-            description: "Agradecemos a sua mensagem.",
+            description: (result.data as any).message || "Agradecemos a sua mensagem.",
             variant: "default",
         });
         setIsOpen(false);
@@ -91,11 +83,13 @@ export function FeedbackModal() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Enviar Feedback</DialogTitle>
+            {/* DESCRIÇÃO ADICIONADA PARA ACESSIBILIDADE */}
+            <DialogDescription>
+              Use este formulário para nos enviar sua sugestão, relatar um problema ou fazer um elogio. Seu nome e e-mail serão enviados automaticamente.
+            </DialogDescription>
             <DialogClose />
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Seu nome (<span className="font-semibold">{user?.name}</span>) e e-mail serão enviados automaticamente.
-          </p>
+          
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
             <div>
               <label htmlFor="subject" className="block text-sm font-medium">Assunto</label>
@@ -105,7 +99,7 @@ export function FeedbackModal() {
               <label htmlFor="message" className="block text-sm font-medium">Mensagem</label>
               <textarea id="message" value={message} onChange={(e) => setMessage(e.target.value)} required rows={5} placeholder="Descreva sua sugestão ou o problema que encontrou..." className="mt-1 block w-full border rounded-md p-2 bg-input"></textarea>
             </div>
-            <Button type="submit" className="w-full" disabled={isSending}>
+            <Button type="submit" className="w-full" disabled={isSending || !subject.trim() || !message.trim()}>
               {isSending ? <Loader className="animate-spin" size={20}/> : 'Enviar Mensagem'}
             </Button>
           </form>
