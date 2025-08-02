@@ -5,6 +5,7 @@ import { Fragment, type ReactNode } from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { buttonVariants } from './ui/button';
 import { cn } from '@/lib/utils';
+import { Loader } from 'lucide-react';
 
 
 interface ConfirmationModalProps {
@@ -49,7 +50,7 @@ export function ConfirmationModal({
             disabled={isLoading} 
             className={cn(buttonVariants({ variant: variant }))}
           >
-            {isLoading ? "Processando..." : confirmText}
+            {isLoading ? <><Loader className="mr-2 h-4 w-4 animate-spin" /> Processando...</> : confirmText}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
