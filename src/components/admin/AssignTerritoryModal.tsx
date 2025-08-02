@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -33,8 +32,9 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
       futureDate.setMonth(futureDate.getMonth() + 2);
       setDueDate(futureDate.toISOString().split('T')[0]);
       setError('');
+      console.log("AssignTerritoryModal: Users received for selection:", users); // <-- ADICIONADO AQUI
     }
-  }, [isOpen, today]);
+  }, [isOpen, today, users]);
 
   const handleDueDateSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const monthsToAdd = parseInt(event.target.value, 10);
