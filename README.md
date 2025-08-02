@@ -1,7 +1,7 @@
 
 #  De Casa em Casa - Gerenciador de Territórios
 
-![Logo do App](public/icon-512x512.png)
+![Logo do App](public/icon-512x512.jpg)
 
 Um painel de controle web completo, construído como um Progressive Web App (PWA) com **Next.js**, **TypeScript** e **Firebase**. O objetivo do "De Casa em Casa" é permitir o gerenciamento moderno, eficiente e seguro dos territórios de congregações.
 

@@ -146,7 +146,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
             <div className="w-full flex justify-center items-center">
                 <div className="flex-1"></div> {/* Spacer Left */}
                 <Image
-                    src="/icon-192x192.png"
+                    src="/icon-192x192.jpg"
                     alt="Logo"
                     width={80}
                     height={80}

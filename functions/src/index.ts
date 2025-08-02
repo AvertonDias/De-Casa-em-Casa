@@ -487,7 +487,7 @@ export const onTerritoryAssigned = onDocumentUpdated(
             notification: {
                 title: "Você recebeu um novo território!",
                 body: `O território \"${territoryName}\" está sob sua responsabilidade. Devolver até ${formattedDueDate}.`,
-                icon: "/icon-192x192.png",
+                icon: "/icon-192x192.jpg",
                 click_action: "/dashboard/meus-territorios",
             },
         };
@@ -531,7 +531,7 @@ export const notifyAdminOfNewUser = onDocumentCreated(
         notification: {
             title: "Novo Usuário Aguardando Aprovação!",
             body: `O usuário "${newUser.name}" se cadastrou e precisa de sua aprovação.`,
-            icon: "/icon-192x192.png",
+            icon: "/icon-192x192.jpg",
             click_action: "/dashboard/usuarios",
         },
     };
