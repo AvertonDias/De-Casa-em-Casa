@@ -42,7 +42,7 @@ export default function NovaCongregacaoPage() {
             body: JSON.stringify({
                 adminName: adminName.trim(),
                 adminEmail: adminEmail.trim(),
-                adminPassword: adminPassword.trim(),
+                adminPassword: adminPassword,
                 congregationName: congregationName.trim(),
                 congregationNumber: congregationNumber.trim()
             })
@@ -74,59 +74,56 @@ export default function NovaCongregacaoPage() {
   };
   
     return (
-        <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
-            <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-card rounded-lg shadow-lg">
+        <div className="flex min-h-screen items-center justify-center bg-background">
+            <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
                 <div className="flex flex-col items-center">
-                    <Link href="/" className="flex items-center gap-2">
-                        <Image src="/icon-192x192.png" alt="Logo" width={80} height={80} className="mb-4 rounded-lg" priority />
-                        <span className="font-bold text-3xl">De Casa em Casa</span>
-                    </Link>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">Configure sua congregação e o primeiro administrador</p>
+                    <Image src="/icon-192x192.png" alt="Logo" width={80} height={80} className="mb-4 rounded-lg" priority />
+                    <h1 className="text-3xl font-bold text-center">De Casa em Casa</h1>
+                    <p className="text-muted-foreground text-sm mt-2">Configure sua congregação e o primeiro administrador</p>
                 </div>
   
                 <form onSubmit={handleCreateCongregation} className="space-y-4">
                     <div>
-                        <Label htmlFor="congregationName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome da Congregação</Label>
-                        <Input type="text" id="congregationName" value={congregationName} onChange={(e) => setCongregationName(e.target.value)} required className="mt-1 dark:bg-input" />
+                        <Label htmlFor="congregationName">Nome da Congregação</Label>
+                        <Input type="text" id="congregationName" value={congregationName} onChange={(e) => setCongregationName(e.target.value)} required className="mt-1" />
                     </div>
                     <div>
-                        <Label htmlFor="congregationNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Número da Congregação</Label>
-                        <Input type="number" id="congregationNumber" value={congregationNumber} onChange={(e) => setCongregationNumber(e.target.value)} required className="mt-1 dark:bg-input" />
+                        <Label htmlFor="congregationNumber">Número da Congregação</Label>
+                        <Input type="text" id="congregationNumber" value={congregationNumber} onChange={(e) => setCongregationNumber(e.target.value.replace(/\D/g, ''))} required className="mt-1" placeholder="Apenas números" />
                     </div>
   
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Dados do Administrador</h3>
+                    <h3 className="text-lg font-semibold border-t border-border pt-4">Seus Dados</h3>
                     <div>
-                        <Label htmlFor="adminName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Seu nome completo</Label>
-                        <Input type="text" id="adminName" value={adminName} onChange={(e) => setAdminName(e.target.value)} required className="mt-1 dark:bg-input" />
+                        <Label htmlFor="adminName">Seu nome completo</Label>
+                        <Input type="text" id="adminName" value={adminName} onChange={(e) => setAdminName(e.target.value)} required className="mt-1" />
                     </div>
                     <div>
-                        <Label htmlFor="adminEmail" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Seu e-mail</Label>
-                        <Input type="email" id="adminEmail" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required className="mt-1 dark:bg-input" />
+                        <Label htmlFor="adminEmail">Seu e-mail</Label>
+                        <Input type="email" id="adminEmail" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required className="mt-1" />
                     </div>
-                    <div>
-                        <Label htmlFor="adminPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Senha (mínimo 6 caracteres)</Label>
-                        <Input type="password" id="adminPassword" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} className="mt-1 dark:bg-input" />
+                    <div className="relative">
+                        <Label htmlFor="adminPassword">Senha (mínimo 6 caracteres)</Label>
+                        <Input type="password" id="adminPassword" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" />
+                        
+                    </div>
+                     <div className="relative">
+                        <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                        <Input type="password" id="confirmPassword" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" />
+                         
                     </div>
   
                     {errorMessage && (
-                        <div className="text-red-500 text-sm mt-2">{errorMessage}</div>
+                        <div className="text-destructive text-sm text-center">{errorMessage}</div>
                     )}
   
                     <Button type="submit" disabled={isLoading} className="w-full">
-                        {isLoading ? (
-                            <>
-                                <Loader className="mr-2 h-4 w-4 animate-spin" />
-                                Criando...
-                            </>
-                        ) : (
-                            "Criar Congregação"
-                        )}
+                        {isLoading ? <><Loader className="mr-2 h-4 w-4 animate-spin" /> Criando...</> : "Criar Congregação"}
                     </Button>
                 </form>
   
                 <div className="text-center text-sm">
-                    <Link href="/login" className="text-blue-600 dark:text-blue-400 hover:underline">
-                        Já tem uma conta? Acesse o painel aqui
+                    <Link href="/" className="text-muted-foreground hover:text-primary">
+                        Já tem uma conta? Faça login
                     </Link>
                 </div>
             </div>

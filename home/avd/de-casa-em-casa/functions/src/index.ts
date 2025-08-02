@@ -2,6 +2,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import type { GetSignedUrlConfig } from "@google-cloud/storage";
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const cors = require('cors')({origin: true}); // Importa e configura o cors
 
 admin.initializeApp();
