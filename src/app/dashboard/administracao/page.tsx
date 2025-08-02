@@ -1,7 +1,8 @@
+
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Send, BookUser, FileText, House, Edit, Loader } from 'lucide-react';
+import { useState } from 'react';
+import { Send, BookUser, FileText, Edit, Loader, Map, Trees, LayoutList } from 'lucide-react';
 import Link from 'next/link';
 import TerritoryAssignmentPanel from '@/components/admin/TerritoryAssignmentPanel';
 import { useUser } from '@/contexts/UserContext';
@@ -19,7 +20,7 @@ const CongregationEditForm = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
+  useState(() => {
     if (user?.congregationId) {
       const congRef = doc(db, 'congregations', user.congregationId);
       getDoc(congRef).then(snap => {
@@ -29,7 +30,7 @@ const CongregationEditForm = () => {
         }
       });
     }
-  }, [user]);
+  });
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +65,7 @@ const CongregationEditForm = () => {
   return (
     <div className="bg-card p-6 rounded-lg shadow-md max-w-md mx-auto">
       <div className="flex items-center mb-4">
-        <House className="h-6 w-6 mr-3 text-primary" />
+        <Edit className="h-6 w-6 mr-3 text-primary" />
         <h2 className="text-2xl font-bold">Dados da Congregação</h2>
       </div>
       <p className="text-muted-foreground mb-6">
@@ -109,8 +110,17 @@ const CongregationEditForm = () => {
 
 
 export default function AdminPage() {
-  const { user } = useUser();
   const [activeTab, setActiveTab] = useState('assignment');
+  
+  const TabButton = ({ id, label, icon: Icon }: { id: string, label: string, icon: React.ElementType }) => (
+    <button
+      onClick={() => setActiveTab(id)}
+      className={`px-3 py-2 text-sm font-semibold transition-colors flex items-center gap-2 ${activeTab === id ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}
+    >
+      <Icon size={16} />
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  );
 
   return (
     <div className="p-4 md:p-8 space-y-6">
@@ -119,39 +129,27 @@ export default function AdminPage() {
         <p className="text-muted-foreground">Ferramentas para gerenciar a congregação.</p>
       </div>
 
-      <div className="flex border-b border-border">
-        <button
-          onClick={() => setActiveTab('assignment')}
-          className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'assignment' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}
-        >
-          <BookUser size={16} className="inline-block mr-2" /> Designar Territórios
-        </button>
-        <button
-          onClick={() => setActiveTab('congregation')}
-          className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'congregation' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}
-        >
-          <Edit size={16} className="inline-block mr-2" /> Editar Congregação
-        </button>
-        <button
-          onClick={() => setActiveTab('notifications')}
-          className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'notifications' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}
-        >
-          <Send size={16} className="inline-block mr-2" /> Enviar Notificação
-        </button>
-        
-        <Link 
-            href="/dashboard/administracao/relatorio-s13"
-            className="px-4 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors ml-auto flex items-center"
-        >
-          <FileText size={16} className="inline-block mr-2" />
-          Gerar Relatório S-13
-        </Link>
+      <div className="border-b border-border overflow-x-auto">
+        <div className="flex items-center">
+            <TabButton id="assignment" label="Designar Territórios" icon={BookUser} />
+            <TabButton id="congregation" label="Editar Congregação" icon={Edit} />
+            <TabButton id="notifications" label="Enviar Notificação" icon={Send} />
+            
+            <Link 
+                href="/dashboard/administracao/relatorio-s13"
+                className="px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors ml-auto flex items-center gap-2"
+            >
+              <FileText size={16} />
+              <span className="hidden sm:inline">Relatório S-13</span>
+            </Link>
+        </div>
       </div>
       <div className="mt-6">
         {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
         {activeTab === 'congregation' && <CongregationEditForm />}
-        {activeTab === 'notifications' && <div>Painel de Notificações (em breve)</div>}
+        {activeTab === 'notifications' && <div className="text-center p-8 bg-card rounded-lg">Painel de Notificações (em breve)</div>}
       </div>
     </div>
   );
 }
+

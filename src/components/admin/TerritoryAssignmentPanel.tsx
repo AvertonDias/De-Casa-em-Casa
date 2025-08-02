@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -5,7 +6,7 @@ import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, Timestamp, deleteField, orderBy } from 'firebase/firestore';
 import Link from 'next/link';
-import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList } from 'lucide-react';
+import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -22,7 +23,7 @@ const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
 }) => (
   <button
     onClick={() => setFilter(value)}
-    className={`flex items-center px-3 py-1.5 text-sm rounded-md transition-colors ${
+    className={`flex items-center justify-center flex-grow sm:flex-grow-0 px-3 py-1.5 text-sm rounded-md transition-colors ${
       currentFilter === value 
       ? 'bg-primary text-primary-foreground font-semibold' 
       : 'bg-input hover:bg-white/5'
@@ -32,6 +33,69 @@ const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
     {label}
   </button>
 );
+
+
+const TerritoryListItem = ({ territory, onAssign, onReturn, onReassign }: { territory: Territory, onAssign: () => void, onReturn: () => void, onReassign: () => void }) => {
+    const isDesignado = territory.status === 'designado' && territory.assignment;
+    return (
+        <div className="bg-card p-4 rounded-lg shadow-sm border-l-4 border-transparent hover:border-primary/50 transition-all">
+            <div className="flex justify-between items-start">
+                <Link
+                  href={territory.type === 'rural' ? `/dashboard/rural/${territory.id}` : `/dashboard/territorios/${territory.id}`}
+                  className="font-bold hover:text-primary transition-colors flex-1 min-w-0"
+                >
+                  <p className="truncate">{territory.number} - {territory.name}</p>
+                </Link>
+                 <Menu as="div" className="relative ml-2 flex-shrink-0">
+                    <Menu.Button className="p-1 rounded-full hover:bg-white/10">
+                        <MoreVertical size={20} />
+                    </Menu.Button>
+                    <Transition
+                        as={Fragment}
+                        enter="transition ease-out duration-100"
+                        enterFrom="transform opacity-0 scale-95"
+                        enterTo="transform opacity-100 scale-100"
+                        leave="transition ease-in duration-75"
+                        leaveFrom="transform opacity-100 scale-100"
+                        leaveTo="transform opacity-0 scale-95"
+                    >
+                        <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-popover text-popover-foreground rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5 focus:outline-none">
+                            <div className="p-1">
+                                {isDesignado ? (
+                                    <>
+                                        <Menu.Item>
+                                            {({ active }) => (<button onClick={onReturn} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <CheckCircle size={16} className="mr-2"/>Devolver</button>)}
+                                        </Menu.Item>
+                                        <Menu.Item>
+                                            {({ active }) => (<button onClick={onReassign} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <RotateCw size={16} className="mr-2"/>Reatribuir</button>)}
+                                        </Menu.Item>
+                                    </>
+                                ) : (
+                                     <Menu.Item>
+                                        {({ active }) => (<button onClick={onAssign} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <BookUser size={16} className="mr-2"/>Designar</button>)}
+                                    </Menu.Item>
+                                )}
+                            </div>
+                        </Menu.Items>
+                    </Transition>
+                </Menu>
+            </div>
+            <div className="mt-2 text-sm text-muted-foreground space-y-1">
+                <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${isDesignado ? 'bg-yellow-400' : 'bg-green-400'}`}></span>
+                    <span>Status:</span>
+                    <span className="font-semibold">{isDesignado ? 'Designado' : 'Disponível'}</span>
+                </div>
+                 {isDesignado && (
+                    <div className="flex items-center gap-2">
+                        <span>→</span>
+                        <span>{territory.assignment?.name} (até {format(territory.assignment.dueDate.toDate(), 'dd/MM/yy')})</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 
 export default function TerritoryAssignmentPanel() {
@@ -124,10 +188,10 @@ export default function TerritoryAssignmentPanel() {
 
   return (
     <>
-      <div className="bg-card p-6 rounded-lg shadow-md">
+      <div className="bg-card p-4 sm:p-6 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold mb-4">Designar Territórios</h2>
 
-        <div className="flex flex-wrap items-center gap-2 mb-4 p-2 bg-input/40 rounded-lg">
+        <div className="flex flex-col sm:flex-row gap-2 mb-4 p-2 bg-input/40 rounded-lg">
           <FilterButton label="Todos" value="all" currentFilter={typeFilter} setFilter={setTypeFilter} Icon={LayoutList} />
           <FilterButton label="Urbanos" value="urban" currentFilter={typeFilter} setFilter={setTypeFilter} Icon={Map} />
           <FilterButton label="Rurais" value="rural" currentFilter={typeFilter} setFilter={setTypeFilter} Icon={Trees} />
@@ -145,7 +209,20 @@ export default function TerritoryAssignmentPanel() {
           </select>
         </div>
         
-        <div className="overflow-x-auto">
+        {/* Lista para Mobile, Tabela para Desktop */}
+        <div className="space-y-3 sm:hidden">
+            {filteredTerritories.map(t => (
+                <TerritoryListItem 
+                    key={t.id} 
+                    territory={t} 
+                    onAssign={() => handleOpenAssignModal(t)}
+                    onReturn={() => handleOpenReturnModal(t)}
+                    onReassign={() => handleOpenAssignModal(t)}
+                />
+            ))}
+        </div>
+
+        <div className="overflow-x-auto hidden sm:block">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-border">
