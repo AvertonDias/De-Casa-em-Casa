@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -20,7 +19,8 @@ import withAuth from "@/components/withAuth";
 
 function RuralTerritoryDetailPage() {
   const { user, loading: userLoading } = useUser();
-  const params = useParams<{ territoryId: string }>();
+  const params = useParams<{ territoryId?: string }>();
+  const territoryId = params?.territoryId;
   const router = useRouter();
 
   const [territory, setTerritory] = useState<RuralTerritory | null>(null);
@@ -39,14 +39,14 @@ function RuralTerritoryDetailPage() {
 
 
   useEffect(() => {
-    if (userLoading) return; // Aguarda o usuário carregar
-    if (!user?.congregationId || !params.territoryId) {
+    if (userLoading) return;
+
+    if (!territoryId || !user?.congregationId) {
         setLoading(false);
         return;
     }
     
-    // Caminho correto para o território, independentemente do tipo
-    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', params.territoryId);
+    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
     
     const unsubscribe = onSnapshot(territoryRef, (docSnap) => {
       if (docSnap.exists() && docSnap.data().type === 'rural') {
@@ -57,7 +57,7 @@ function RuralTerritoryDetailPage() {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [user, userLoading, params.territoryId]);
+  }, [territoryId, user, userLoading]);
 
   const handleAddWorkLog = async () => {
     if (!workNote.trim() || !user || !territory) return;
@@ -123,7 +123,7 @@ function RuralTerritoryDetailPage() {
             transaction.update(territoryRef, { workLogs: newLogsArray });
         });
     } catch (error) {
-        console.error("Erro na transação de excluir registro:", error);
+      console.error("Erro na transação de excluir registro:", error);
     } finally {
         setIsConfirmDeleteOpen(false);
         setWorkLogToDelete(null);
@@ -157,7 +157,7 @@ function RuralTerritoryDetailPage() {
 
   const sortedWorkLogs = territory?.workLogs?.sort((a, b) => b.date.seconds - a.date.seconds) || [];
 
-  if (userLoading || loading) return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" size={32} /></div>;
+  if (userLoading || loading || !territoryId) return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" size={32} /></div>;
   if (!territory) return <p className="text-center mt-10">Território não encontrado ou não é um território rural.</p>;
 
   const isAdmin = user?.role === 'Administrador';
@@ -284,3 +284,5 @@ function RuralTerritoryDetailPage() {
 }
 
 export default withAuth(RuralTerritoryDetailPage);
+
+    
