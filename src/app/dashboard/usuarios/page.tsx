@@ -47,7 +47,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
   };
 
   return (
-    <li className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <li className={`p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-l-4 ${user.status === 'pendente' ? 'border-yellow-500' : 'border-transparent'}`}>
       <div className="flex items-center flex-1 min-w-0">
           <div className="relative flex-shrink-0 mr-4">
             <Avatar>
@@ -226,12 +226,16 @@ function UsersPage() {
   
   const handleUserUpdate = async (userId: string, dataToUpdate: object) => {
     try {
+      const permissions = dataToUpdate as Partial<AppUser>;
       if (currentUser?.role !== 'Administrador') {
-        const permissions = dataToUpdate as Partial<AppUser>;
         if (permissions.role) {
           console.error("Apenas administradores podem alterar perfis.");
           return;
         }
+      }
+      if (currentUser?.uid === userId && permissions.role && permissions.role !== 'Administrador') {
+          alert("Você não pode rebaixar a si mesmo.");
+          return;
       }
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, dataToUpdate);
@@ -258,6 +262,7 @@ function UsersPage() {
     setIsConfirmModalOpen(false);
     try {
         await deleteUserFunction({ uid: userToDelete.uid });
+        // A lista será atualizada automaticamente pelo onSnapshot
     } catch (error: any) {
         console.error("Erro ao chamar a função para excluir usuário:", error);
     } finally {
@@ -267,10 +272,12 @@ function UsersPage() {
 
   const stats = useMemo(() => {
     const onlineCount = users.filter(u => u.isOnline === true).length;
+    const pendingCount = users.filter(u => u.status === 'pendente').length;
     return {
       total: users.length,
       online: onlineCount,
       offline: users.length - onlineCount,
+      pending: pendingCount
     };
   }, [users]);
 
@@ -287,8 +294,10 @@ function UsersPage() {
       filtered = filtered.filter(user => user.status === statusFilter);
     }
     if (searchTerm) {
+      const lowerCaseSearch = searchTerm.toLowerCase();
       filtered = filtered.filter(user =>
-        user.name.toLowerCase().includes(searchTerm.toLowerCase())
+        user.name.toLowerCase().includes(lowerCaseSearch) ||
+        user.email?.toLowerCase().includes(lowerCaseSearch)
       );
     }
     
@@ -401,7 +410,7 @@ function UsersPage() {
                                 <p className="font-semibold mb-2">Status de Aprovação</p>
                                 <div className="flex flex-wrap gap-2">
                                     <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                    <FilterButton label="Apenas Pendentes" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                    <FilterButton label={`Apenas Pendentes (${stats.pending})`} value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 </div>
                             </div>
                         </Disclosure.Panel>
@@ -414,7 +423,7 @@ function UsersPage() {
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-        <input type="text" placeholder="Buscar por nome..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-card border border-input rounded-lg" />
+        <input type="text" placeholder="Buscar por nome ou e-mail..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-card border border-input rounded-lg" />
       </div>
       
       <div className="bg-white dark:bg-[#2a2736] rounded-lg shadow-md">
