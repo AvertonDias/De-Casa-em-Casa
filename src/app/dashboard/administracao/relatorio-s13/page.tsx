@@ -34,50 +34,9 @@ export default function S13ReportPage() {
     return () => unsubscribe();
   }, [user]);
 
+  // Lógica de impressão simplificada que confia no CSS.
   const handlePrint = () => {
-    const printContents = document.getElementById('printable-area')?.innerHTML;
-    if (!printContents) return;
-  
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'absolute';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = 'none';
-    document.body.appendChild(iframe);
-  
-    const doc = iframe.contentWindow?.document;
-    if (!doc) return;
-  
-    doc.open();
-    doc.write('<html><head>');
-    
-    // Copia todos os links de estilo do documento principal para o iframe
-    const links = document.getElementsByTagName('link');
-    for (let i = 0; i < links.length; i++) {
-        if (links[i].rel === 'stylesheet') {
-            doc.write(links[i].outerHTML);
-        }
-    }
-    
-    // Adiciona estilos específicos de impressão
-    doc.write(`
-      <style>
-        @page { size: A4 portrait; margin: 1cm; }
-        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        tr { page-break-inside: avoid; }
-      </style>
-    `);
-    
-    doc.write('</head><body>');
-    doc.write(printContents);
-    doc.write('</body></html>');
-    doc.close();
-  
-    iframe.onload = function() {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      document.body.removeChild(iframe);
-    };
+    window.print();
   };
 
   const filteredTerritories = allTerritories.filter(t => (t.type || 'urban') === typeFilter);
@@ -91,6 +50,32 @@ export default function S13ReportPage() {
   
   return (
     <>
+      {/* CSS específico para impressão */}
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #printable-area, #printable-area * {
+            visibility: visible;
+          }
+          #printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 1cm;
+          }
+          tr {
+            page-break-inside: avoid;
+          }
+        }
+      `}</style>
+
+      {/* A classe 'print-controls' será usada para esconder este container na impressão */}
       <div className="p-4 bg-card print:hidden">
         <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
             <Button variant="ghost" asChild className="self-start sm:self-center">
