@@ -62,7 +62,7 @@ const CongregationEditForm = () => {
   const isDisabled = user?.role !== 'Administrador';
 
   return (
-    <div className="bg-card p-6 rounded-lg shadow-md max-w-md">
+    <div className="bg-card p-6 rounded-lg shadow-md max-w-md mx-auto">
       <div className="flex items-center mb-4">
         <House className="h-6 w-6 mr-3 text-primary" />
         <h2 className="text-2xl font-bold">Dados da Congregação</h2>
