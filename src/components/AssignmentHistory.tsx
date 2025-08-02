@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-// ▼▼▼ CORREÇÃO APLICADA AQUI ▼▼▼
-import { useUser } from '@/contexts/UserContext'; // Usamos o hook customizado
+import { useUser } from '@/contexts/UserContext';
 import { Assignment, AssignmentHistoryLog } from '@/types/types';
 import { BookUser, ChevronDown, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -16,12 +15,16 @@ interface AssignmentHistoryProps {
 }
 
 export default function AssignmentHistory({ currentAssignment, pastAssignments, onEdit, onDelete }: AssignmentHistoryProps) {
-  // ▼▼▼ A CHAMADA CORRETA E SEGURA ▼▼▼
   const { user } = useUser();
   const isAdmin = user?.role === 'Administrador';
-  const [isOpen, setIsOpen] = useState(false); // Deixa fechado por padrão
+  const [isOpen, setIsOpen] = useState(false);
   
-  const validHistory = pastAssignments || [];
+  // Ordena o histórico de forma decrescente pela data de conclusão
+  const sortedHistory = [...(pastAssignments || [])].sort((a, b) => {
+    const dateA = a.completedAt?.toMillis() || 0;
+    const dateB = b.completedAt?.toMillis() || 0;
+    return dateB - dateA;
+  });
 
   // O componente só é visível para Admins
   if (!isAdmin) return null;
@@ -57,7 +60,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
               </li>
             )}
             {/* Seção para o Histórico Passado */}
-            {validHistory.map((log) => (
+            {sortedHistory.map((log) => (
               <li key={(log as any).id || log.assignedAt.toString()} className="flex justify-between items-start pl-4 border-l-2 border-border">
                 <div>
                   <p className="font-semibold">{log.name}</p>
@@ -73,7 +76,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
               </li>
             ))}
           </ul>
-          {!currentAssignment && validHistory.length === 0 && (
+          {!currentAssignment && sortedHistory.length === 0 && (
             <p className="text-center text-muted-foreground py-4">Nenhuma designação encontrada.</p>
           )}
         </div>
