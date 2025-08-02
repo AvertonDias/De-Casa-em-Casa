@@ -284,5 +284,3 @@ function RuralTerritoryDetailPage() {
 }
 
 export default withAuth(RuralTerritoryDetailPage);
-
-    

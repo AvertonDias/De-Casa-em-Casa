@@ -225,19 +225,23 @@ exports.sendFeedbackEmail = (0, https_1.onCall)(async (req) => {
         if (!name || !email || !subject || !message) {
             throw new https_1.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
         }
+        // A lógica real de envio de e-mail seria aqui.
+        // Por agora, apenas logamos a informação.
         console.log('--- NOVO FEEDBACK RECEBIDO ---');
         console.log(`De: ${name} (${email})`);
         console.log(`UID: ${req.auth.uid}`);
         console.log(`Assunto: ${subject}`);
         console.log(`Mensagem: ${message}`);
         console.log('------------------------------');
+        // Retorna uma resposta de sucesso para o cliente.
         return { success: true, message: 'Feedback enviado com sucesso!' };
     }
     catch (error) {
         console.error("Erro ao processar feedback:", error);
         if (error instanceof https_1.HttpsError) {
-            throw error;
+            throw error; // Re-lança o HttpsError para que o cliente o receba
         }
+        // Para outros erros, lança um erro genérico.
         throw new https_1.HttpsError("internal", "Erro interno do servidor ao processar o feedback.");
     }
 });
