@@ -457,7 +457,7 @@ export const scheduledFirestoreExport = onSchedule({
             collectionIds: [],
         });
         console.log(`Backup do Firestore concluído para ${outputUriPrefix}`);
-        return null;
+        return;
     } catch (error) {
         console.error("[Backup] FALHA CRÍTICA:", error);
         throw new HttpsError("internal", "A operação de exportação falhou.", error);
@@ -483,3 +483,4 @@ export const mirrorUserStatus = onValueWritten("/status/{uid}", async (event) =>
     }
     return null;
   });
+    
