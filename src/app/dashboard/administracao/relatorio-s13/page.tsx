@@ -132,7 +132,7 @@ export default function S13ReportPage() {
                                   assignedAt: t.assignment.assignedAt,
                               });
                           }
-                          const sortedHistory = allAssignments.sort((a, b) => b.assignedAt!.toMillis() - a.assignedAt!.toMillis());
+                          const sortedHistory = allAssignments.sort((a, b) => a.assignedAt!.toMillis() - b.assignedAt!.toMillis());
                           return (
                               <tr key={t.id}>
                                   <td className="border border-black text-center font-semibold h-10">{t.number}</td>
