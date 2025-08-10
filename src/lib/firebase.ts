@@ -7,16 +7,17 @@ import { getFunctions } from "firebase/functions";
 import { getMessaging } from "firebase/messaging";
 import { getDatabase } from "firebase/database";
 
-// Objeto de configuração completo e correto para o projeto appterritorios-e5bb5.
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBu4-CY52oi93-g611yCgvqEkd8vb5Jaa0",
+  apiKey: "AIzaSyBKW1da2xBNH0TCrW0AoSbbGgX8-HI8WSI",
   authDomain: "appterritorios-e5bb5.firebaseapp.com",
+  databaseURL: "https://appterritorios-e5bb5-default-rtdb.firebaseio.com",
   projectId: "appterritorios-e5bb5",
   storageBucket: "appterritorios-e5bb5.appspot.com",
   messagingSenderId: "83629039662",
-  appId: "1:83629039662:web:72832b87617b7468b31778",
-  databaseURL: "https://appterritorios-e5bb5.firebaseio.com",
+  appId: "1:83629039662:web:028e1dc87bdd41f73fffbf"
 };
+
 
 // Inicializa o Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
