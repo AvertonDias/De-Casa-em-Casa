@@ -3,7 +3,12 @@
   "firestore": {
     "rules": "firestore.rules"
   },
-  "functions": {
-    "source": "functions"
-  }
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "runtime": "nodejs20",
+      "serviceAccount": "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com"
+    }
+  ]
 }
