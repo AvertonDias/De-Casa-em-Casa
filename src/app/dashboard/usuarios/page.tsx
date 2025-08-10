@@ -47,7 +47,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
   };
 
   return (
-    <li className={`p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-l-4 ${user.status === 'pendente' ? 'border-yellow-500' : 'border-transparent'}`}>
+    <li className={`p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b ${user.status === 'pendente' ? 'bg-yellow-500/10' : 'border-transparent'}`}>
       <div className="flex items-center flex-1 min-w-0">
           <div className="relative flex-shrink-0 mr-4">
             <Avatar>
