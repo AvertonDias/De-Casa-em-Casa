@@ -580,3 +580,4 @@ exports.mirrorUserStatus = (0, database_1.onValueWritten)({
 });
 //# sourceMappingURL=index.js.map
 
+
