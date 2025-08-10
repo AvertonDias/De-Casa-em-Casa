@@ -1,7 +1,8 @@
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+// ATUALIZADO: Importa initializeFirestore e persistentLocalCache em vez de getFirestore e enableIndexedDbPersistence
+import { initializeFirestore, persistentLocalCache, memoryLocalCache } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 import { getMessaging } from "firebase/messaging";
@@ -23,27 +24,20 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 const auth = getAuth(app);
-const db = getFirestore(app);
+// ATUALIZADO: A inicialização do Firestore agora configura a persistência diretamente.
+const db = initializeFirestore(app, {
+  localCache: (typeof window !== 'undefined')
+    ? persistentLocalCache({
+        // Configurações opcionais do cache, se necessário
+      })
+    : memoryLocalCache(), // Usa cache em memória no servidor
+});
+
 const storage = getStorage(app);
 const functions = getFunctions(app, 'southamerica-east1');
 const messaging = (typeof window !== 'undefined') ? getMessaging(app) : null;
 const rtdb = getDatabase(app);
 
-// Habilita a persistência de dados offline
-if (typeof window !== 'undefined') {
-  try {
-    enableIndexedDbPersistence(db)
-      .catch((err) => {
-        if (err.code == 'failed-precondition') {
-          console.warn("Múltiplas abas abertas, a persistência pode não funcionar corretamente.");
-        } else if (err.code == 'unimplemented') {
-          console.warn("O navegador não suporta persistência offline.");
-        }
-      });
-  } catch (error) {
-    console.error("Erro ao habilitar a persistência do Firestore", error);
-  }
-}
 
 // Exporta tudo para ser usado em outras partes do aplicativo
 export { app, auth, db, storage, functions, messaging, rtdb };
