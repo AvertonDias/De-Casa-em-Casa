@@ -102,9 +102,15 @@ export default function S13ReportPage() {
           className="bg-white text-black p-8 mx-auto min-w-[794px] max-w-[794px] transition-transform duration-300"
         >
           <h1 className="text-xl font-bold text-center uppercase">REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO ({typeFilter === 'urban' ? 'URBANO' : 'RURAL'})</h1>
-          <div className="text-center my-4">
-              <label htmlFor="service-year" className="font-semibold">Ano de Serviço:</label>
-              <input id="service-year" type="text" value={serviceYear} onChange={(e) => setServiceYear(e.target.value)} className="border-b-2 border-black focus:outline-none text-center bg-white w-24"/>
+          <div className="flex justify-between items-end my-4">
+            <div>
+                <label htmlFor="service-year" className="font-semibold">Ano de Serviço:</label>
+                <input id="service-year" type="text" value={serviceYear} onChange={(e) => setServiceYear(e.target.value)} className="border-b-2 border-black focus:outline-none bg-white w-24 ml-2"/>
+            </div>
+            <div className="text-right">
+                <span className="font-semibold">Congregação:</span>
+                <span className="ml-2 pb-1 border-b-2 border-black px-4">{user?.congregationName || '...'}</span>
+            </div>
           </div>
           <table className="w-full border-collapse border border-black text-sm">
             <thead>
@@ -140,9 +146,7 @@ export default function S13ReportPage() {
                         }
                         const sortedHistory = allAssignments.sort((a, b) => (a.assignedAt?.toMillis() || 0) - (b.assignedAt?.toMillis() || 0));
                         
-                        // Pega os últimos 4 registros
                         const lastFourAssignments = sortedHistory.slice(-4); 
-                        // Preenche com nulos se houver menos de 4, para manter a estrutura da tabela
                         const displayAssignments = Array(4).fill(null).map((_, i) => lastFourAssignments[i] || null);
 
                         return (
