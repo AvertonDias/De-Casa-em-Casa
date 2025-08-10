@@ -211,7 +211,7 @@ interface GenerateUploadUrlData {
 }
 
 export const generateUploadUrl = onCall(
-  { region: "southamerica-east1", serviceAccount: "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com" },
+  { region: "southamerica-east1" },
   async (req: CallableRequest<GenerateUploadUrlData>) => {
     if (!req.auth) {
       throw new HttpsError('unauthenticated', 'Ação não autorizada.');
@@ -243,7 +243,7 @@ interface SendFeedbackEmailData {
   message: string;
 }
 
-export const sendFeedbackEmail = onCall({ serviceAccount: "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com" }, async (req: CallableRequest<SendFeedbackEmailData>) => {
+export const sendFeedbackEmail = onCall(async (req: CallableRequest<SendFeedbackEmailData>) => {
     if (!req.auth) {
         throw new HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
     }
@@ -281,6 +281,7 @@ export const sendFeedbackEmail = onCall({ serviceAccount: "deploy-functions-sa@a
 //   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO
 // ========================================================================
 
+/*
 export const onHouseChange = onDocumentWritten(
   {
     document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}",
@@ -638,4 +639,5 @@ export const mirrorUserStatus = onValueWritten(
     }
     return null;
   });
+*/
     
