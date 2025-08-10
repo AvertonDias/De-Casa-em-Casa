@@ -9,6 +9,7 @@ const cors = require('cors')({ origin: true });
 
 admin.initializeApp();
 const db = admin.firestore();
+const rtdb = admin.database();
 
 // Helper para definir as opções de função padrão
 const functionOptions = {
@@ -102,7 +103,6 @@ export const deleteUserAccount = functions
     }
     try {
       await admin.auth().deleteUser(userIdToDelete);
-      // Se a exclusão no Auth funcionou, prosseguimos para o Firestore.
       const userDocRef = db.collection("users").doc(userIdToDelete);
       if ((await userDocRef.get()).exists) {
           await userDocRef.delete();
@@ -110,8 +110,6 @@ export const deleteUserAccount = functions
       return { success: true, message: "Operação de exclusão concluída." };
     } catch (error: any) {
       console.error("Erro CRÍTICO ao excluir usuário:", error);
-      // Se o usuário não foi encontrado na Auth, talvez ele já tenha sido excluído.
-      // Tentamos mesmo assim limpar o Firestore.
       if (error.code === 'auth/user-not-found') {
           const userDocRef = db.collection("users").doc(userIdToDelete);
           if ((await userDocRef.get()).exists) {
@@ -119,7 +117,6 @@ export const deleteUserAccount = functions
           }
           return { success: true, message: "Usuário não encontrado na Auth, mas removido do Firestore." };
       }
-      // Para outros erros, lançamos uma exceção.
       throw new functions.https.HttpsError("internal", `Falha na exclusão: ${error.message}`);
     }
 });
@@ -127,7 +124,7 @@ export const deleteUserAccount = functions
 
 export const resetTerritoryProgress = functions
     .region(functionOptions.region)
-    .runWith({ timeoutSeconds: 120 }) // Aumentar timeout
+    .runWith({ serviceAccount: functionOptions.serviceAccount })
     .https.onCall(async (data, context) => {
         const uid = context.auth?.uid;
         if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
@@ -247,6 +244,7 @@ export const sendFeedbackEmail = functions
 
 export const onHouseChange = functions
     .region(functionOptions.region)
+    .runWith({ serviceAccount: functionOptions.serviceAccount })
     .firestore.document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
     .onWrite(async (change, context) => {
     const beforeData = change.before.data();
@@ -309,6 +307,7 @@ export const onHouseChange = functions
 
 export const onQuadraChange = functions
     .region(functionOptions.region)
+    .runWith({ serviceAccount: functionOptions.serviceAccount })
     .firestore.document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
     .onWrite(async (change, context) => {
     const { congregationId, territoryId } = context.params;
@@ -332,6 +331,7 @@ export const onQuadraChange = functions
 
 export const onTerritoryChange = functions
     .region(functionOptions.region)
+    .runWith({ serviceAccount: functionOptions.serviceAccount })
     .firestore.document("congregations/{congregationId}/territories/{territoryId}")
     .onWrite(async (change, context) => {
         const { congregationId } = context.params;
@@ -365,6 +365,7 @@ export const onTerritoryChange = functions
 // ============================================================================
 export const onTerritoryAssigned = functions
     .region(functionOptions.region)
+    .runWith({ serviceAccount: functionOptions.serviceAccount })
     .firestore.document("congregations/{congId}/territories/{terrId}")
     .onUpdate(async (change, context) => {
     const dataBefore = change.before.data();
@@ -404,6 +405,7 @@ export const onTerritoryAssigned = functions
 
 export const onDeleteTerritory = functions
     .region(functionOptions.region)
+    .runWith({ serviceAccount: functionOptions.serviceAccount })
     .firestore.document("congregations/{congregationId}/territories/{territoryId}")
     .onDelete((snap) => {
         return admin.firestore().recursiveDelete(snap.ref);
@@ -411,6 +413,7 @@ export const onDeleteTerritory = functions
 
 export const onDeleteQuadra = functions
     .region(functionOptions.region)
+    .runWith({ serviceAccount: functionOptions.serviceAccount })
     .firestore.document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
     .onDelete((snap) => {
         return admin.firestore().recursiveDelete(snap.ref);
@@ -420,7 +423,7 @@ export const onDeleteQuadra = functions
 //   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
 // ============================================================================
 export const mirrorUserStatus = functions
-    .region('us-central1') // O Realtime Database está em us-central1
+    .runWith({ serviceAccount: functionOptions.serviceAccount })
     .database.ref("/status/{uid}")
     .onWrite(async (change, context) => {
         const eventStatus = change.after.val();
@@ -434,7 +437,6 @@ export const mirrorUserStatus = functions
                 await userDocRef.update({ isOnline: true, lastSeen: admin.firestore.FieldValue.serverTimestamp() });
             }
         } catch(err: any) {
-            // É comum dar 'not-found' se o documento do Firestore ainda não foi criado, então ignoramos esse erro.
             if (err.code !== 'not-found') {
               console.error(`[Presence Mirror] Falha para ${uid}:`, err);
             }
