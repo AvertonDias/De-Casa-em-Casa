@@ -155,37 +155,53 @@ export const resetTerritoryProgress = onCall(async (req: CallableRequest<ResetTe
         throw new HttpsError("permission-denied", "Ação restrita a administradores.");
     }
 
+    const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
+    const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
+    
+    // Deleta o histórico de atividades fora da transação
     try {
-        const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
-        const quadrasSnapshot = await quadrasRef.get();
-
-        if (quadrasSnapshot.empty) {
-            return { success: true, message: "Nenhuma casa para limpar." };
-        }
-
-        const batch = db.batch();
+        await admin.firestore().recursiveDelete(db.collection(historyPath));
+        console.log(`[resetTerritory] Histórico para ${territoryId} deletado com sucesso.`);
+    } catch (error) {
+        console.error(`[resetTerritory] Falha ao deletar histórico para ${territoryId}:`, error);
+        // Não continua se a exclusão do histórico falhar, para evitar estado inconsistente.
+        throw new HttpsError("internal", "Falha ao limpar histórico do território.");
+    }
+    
+    // Roda a transação para resetar as casas
+    try {
         let housesUpdatedCount = 0;
+        await db.runTransaction(async (transaction) => {
+            const quadrasSnapshot = await transaction.get(quadrasRef);
 
-        for (const quadraDoc of quadrasSnapshot.docs) {
-            const casasSnapshot = await quadraDoc.ref.collection("casas").where('status', '==', true).get();
-            casasSnapshot.forEach(casaDoc => {
-                batch.update(casaDoc.ref, { status: false });
-                housesUpdatedCount++;
+            if (quadrasSnapshot.empty) {
+                console.log(`[resetTerritory] Nenhuma quadra encontrada para o território ${territoryId}.`);
+                return; // Sai da transação
+            }
+
+            const houseUpdatePromises = quadrasSnapshot.docs.map(async (quadraDoc) => {
+                const casasRef = quadraDoc.ref.collection("casas");
+                const casasSnapshot = await transaction.get(casasRef);
+                casasSnapshot.forEach(casaDoc => {
+                    if (casaDoc.data().status === true) {
+                        transaction.update(casaDoc.ref, { status: false });
+                        housesUpdatedCount++;
+                    }
+                });
             });
-        }
+
+            await Promise.all(houseUpdatePromises);
+        });
 
         if (housesUpdatedCount > 0) {
-            await batch.commit();
-            const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
-            await admin.firestore().recursiveDelete(db.collection(historyPath));
             return { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` };
         } else {
-            return { success: true, message: "Nenhuma alteração necessária." };
+            return { success: true, message: "Nenhuma alteração necessária, nenhuma casa estava marcada como 'feita'." };
         }
 
     } catch (error) {
-        console.error(`[resetTerritory] FALHA CRÍTICA ao limpar o território ${territoryId}:`, error);
-        throw new HttpsError("internal", "Falha ao processar a limpeza.");
+        console.error(`[resetTerritory] FALHA CRÍTICA na transação ao limpar o território ${territoryId}:`, error);
+        throw new HttpsError("internal", "Falha ao processar a limpeza das casas do território.");
     }
 });
 
