@@ -34,7 +34,6 @@ export default function S13ReportPage() {
     return () => unsubscribe();
   }, [user]);
 
-  // Lógica de impressão simplificada que confia no CSS.
   const handlePrint = () => {
     window.print();
   };
@@ -50,7 +49,6 @@ export default function S13ReportPage() {
   
   return (
     <>
-      {/* CSS específico para impressão */}
       <style jsx global>{`
         @media print {
           body * {
@@ -75,7 +73,6 @@ export default function S13ReportPage() {
         }
       `}</style>
 
-      {/* A classe 'print-controls' será usada para esconder este container na impressão */}
       <div className="p-4 bg-card print:hidden">
         <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
             <Button variant="ghost" asChild className="self-start sm:self-center">
@@ -120,18 +117,13 @@ export default function S13ReportPage() {
                   <th className="border border-black p-1" colSpan={3}>Designado a</th>
               </tr>
               <tr className="text-center text-xs font-semibold">
-                  <th className="border border-black p-1">Nome</th>
-                  <th className="border border-black p-1">Data da designação</th>
-                  <th className="border border-black p-1">Data da conclusão</th>
-                  <th className="border border-black p-1">Nome</th>
-                  <th className="border border-black p-1">Data da designação</th>
-                  <th className="border border-black p-1">Data da conclusão</th>
-                  <th className="border border-black p-1">Nome</th>
-                  <th className="border border-black p-1">Data da designação</th>
-                  <th className="border border-black p-1">Data da conclusão</th>
-                  <th className="border border-black p-1">Nome</th>
-                  <th className="border border-black p-1">Data da designação</th>
-                  <th className="border border-black p-1">Data da conclusão</th>
+                  {Array(4).fill(null).map((_, i) => (
+                    <React.Fragment key={i}>
+                        <th className="border border-black p-1">Nome</th>
+                        <th className="border border-black p-1">Data da designação</th>
+                        <th className="border border-black p-1">Data da conclusão</th>
+                    </React.Fragment>
+                  ))}
               </tr>
             </thead>
             <tbody>
@@ -144,7 +136,7 @@ export default function S13ReportPage() {
                             allAssignments.push({
                                 name: t.assignment.name,
                                 assignedAt: t.assignment.assignedAt,
-                                completedAt: undefined, // Designação atual não tem data de conclusão ainda
+                                completedAt: undefined,
                             });
                         }
                         const sortedHistory = allAssignments.sort((a, b) => (a.assignedAt?.toMillis() || 0) - (b.assignedAt?.toMillis() || 0));
