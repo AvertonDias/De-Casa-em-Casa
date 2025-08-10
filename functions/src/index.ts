@@ -199,9 +199,7 @@ export const generateUploadUrl = functions
         contentType: contentType,
     };
     try {
-        const bucket = admin.storage().bucket();
-        const file = bucket.file(filePath);
-        const [url] = await file.getSignedUrl(options);
+        const [url] = await admin.storage().bucket().file(filePath).getSignedUrl(options);
         return { url };
     } catch (error) {
         console.error("Erro ao gerar URL assinada:", error);
@@ -423,6 +421,7 @@ export const onDeleteQuadra = functions
 //   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
 // ============================================================================
 export const mirrorUserStatus = functions
+    .region(functionOptions.region)
     .runWith({ serviceAccount: functionOptions.serviceAccount })
     .database.ref("/status/{uid}")
     .onWrite(async (change, context) => {
