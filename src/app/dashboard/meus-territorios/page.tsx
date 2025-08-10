@@ -1,12 +1,12 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-// ▼▼▼ ADICIONA Timestamp à IMPORTAÇÃO ▼▼▼
 import { collection, query, where, onSnapshot, doc, updateDoc, deleteField, arrayUnion, Timestamp } from 'firebase/firestore';
 import { Territory } from '@/types/types';
-import { Map, Clock, CheckCircle, Loader } from 'lucide-react';
+import { Map, Clock, CheckCircle, Loader, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
@@ -42,7 +42,6 @@ function MyTerritoriesPage() {
     setIsConfirmModalOpen(true);
   };
   
-  // ▼▼▼ FUNÇÃO DE DEVOLUÇÃO CORRIGIDA ▼▼▼
   const handleReturnTerritory = async () => {
     if (!territoryToReturn || !user?.congregationId || !territoryToReturn.assignment) return;
     
@@ -52,7 +51,6 @@ function MyTerritoriesPage() {
       uid: territoryToReturn.assignment.uid,
       name: territoryToReturn.assignment.name,
       assignedAt: territoryToReturn.assignment.assignedAt,
-      // Usamos Timestamp.now() para criar a data no cliente. Isso resolve o erro.
       completedAt: Timestamp.now(), 
     };
 
@@ -84,24 +82,33 @@ function MyTerritoriesPage() {
 
         {assignedTerritories.length > 0 ? (
           <div className="space-y-4">
-            {assignedTerritories.map(t => (
-              <div key={t.id} className="bg-card p-4 rounded-lg shadow-md">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center">
-                  <div className="mb-4 sm:mb-0">
-                    <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`}>
-                        <h2 className="font-bold text-xl hover:text-primary transition-colors">{t.number} - {t.name}</h2>
-                    </Link>
-                    <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-                      <Clock size={14} />
-                      <span>Devolver até: {t.assignment?.dueDate ? format(t.assignment.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}</span>
+            {assignedTerritories.map(t => {
+              const isOverdue = t.assignment && t.assignment.dueDate.toDate() < new Date();
+              return (
+                <div key={t.id} className={`bg-card p-4 rounded-lg shadow-md ${isOverdue ? 'border-l-4 border-red-500' : ''}`}>
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center">
+                    <div className="mb-4 sm:mb-0">
+                      <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`}>
+                          <h2 className="font-bold text-xl hover:text-primary transition-colors">{t.number} - {t.name}</h2>
+                      </Link>
+                      <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                        <Clock size={14} />
+                        <span>Devolver até: {t.assignment?.dueDate ? format(t.assignment.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}</span>
+                      </div>
+                       {isOverdue && (
+                        <div className="text-sm text-red-500 font-semibold flex items-center gap-2 mt-1">
+                            <AlertTriangle size={14} />
+                            <span>ATRASADO! Por favor, devolva o quanto antes.</span>
+                        </div>
+                       )}
                     </div>
+                    <button onClick={() => handleOpenReturnModal(t)} className="w-full sm:w-auto bg-primary text-primary-foreground font-semibold py-2 px-4 rounded-md flex items-center justify-center">
+                      <CheckCircle size={16} className="mr-2"/> Devolver Território
+                    </button>
                   </div>
-                  <button onClick={() => handleOpenReturnModal(t)} className="w-full sm:w-auto bg-primary text-primary-foreground font-semibold py-2 px-4 rounded-md flex items-center justify-center">
-                    <CheckCircle size={16} className="mr-2"/> Devolver Território
-                  </button>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <div className="text-center p-8 bg-card rounded-lg">
