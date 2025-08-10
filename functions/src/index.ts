@@ -9,7 +9,6 @@ const cors = require('cors')({ origin: true });
 
 admin.initializeApp();
 const db = admin.firestore();
-const rtdb = admin.database();
 
 // Helper para definir as opções de função padrão
 const functionOptions = {
@@ -84,6 +83,7 @@ export const createCongregationAndAdmin = functions
 
 export const deleteUserAccount = functions
   .region(functionOptions.region)
+  .runWith({ serviceAccount: functionOptions.serviceAccount })
   .https.onCall(async (data, context) => {
     const callingUserUid = context.auth?.uid;
     if (!callingUserUid) {
@@ -103,6 +103,7 @@ export const deleteUserAccount = functions
     }
     try {
       await admin.auth().deleteUser(userIdToDelete);
+      // Se a exclusão no Auth funcionou, prosseguimos para o Firestore.
       const userDocRef = db.collection("users").doc(userIdToDelete);
       if ((await userDocRef.get()).exists) {
           await userDocRef.delete();
@@ -110,6 +111,8 @@ export const deleteUserAccount = functions
       return { success: true, message: "Operação de exclusão concluída." };
     } catch (error: any) {
       console.error("Erro CRÍTICO ao excluir usuário:", error);
+      // Se o usuário não foi encontrado na Auth, talvez ele já tenha sido excluído.
+      // Tentamos mesmo assim limpar o Firestore.
       if (error.code === 'auth/user-not-found') {
           const userDocRef = db.collection("users").doc(userIdToDelete);
           if ((await userDocRef.get()).exists) {
@@ -117,6 +120,7 @@ export const deleteUserAccount = functions
           }
           return { success: true, message: "Usuário não encontrado na Auth, mas removido do Firestore." };
       }
+      // Para outros erros, lançamos uma exceção.
       throw new functions.https.HttpsError("internal", `Falha na exclusão: ${error.message}`);
     }
 });
@@ -124,7 +128,7 @@ export const deleteUserAccount = functions
 
 export const resetTerritoryProgress = functions
     .region(functionOptions.region)
-    .runWith({ serviceAccount: functionOptions.serviceAccount })
+    .runWith({ serviceAccount: functionOptions.serviceAccount, timeoutSeconds: 120 }) // Aumentar timeout
     .https.onCall(async (data, context) => {
         const uid = context.auth?.uid;
         if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
@@ -141,20 +145,26 @@ export const resetTerritoryProgress = functions
         const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
         
         try {
+            // A exclusão recursiva é uma operação separada e pesada. Deve ser feita FORA da transação.
             await admin.firestore().recursiveDelete(db.collection(historyPath));
             console.log(`[resetTerritory] Histórico para ${territoryId} deletado com sucesso.`);
         } catch (error) {
             console.error(`[resetTerritory] Falha ao deletar histórico para ${territoryId}:`, error);
+            // Considerar se deve parar aqui ou continuar mesmo que a limpeza do histórico falhe.
+            // Por segurança, vamos parar.
             throw new functions.https.HttpsError("internal", "Falha ao limpar histórico do território.");
         }
         
         try {
+            // Agora, a transação para resetar as casas
             let housesUpdatedCount = 0;
             await db.runTransaction(async (transaction) => {
                 const quadrasSnapshot = await transaction.get(quadrasRef);
                 
                 const housesToUpdate: { ref: FirebaseFirestore.DocumentReference, data: { status: boolean } }[] = [];
 
+                // Fase 1 da transação: Ler todas as casas de todas as quadras.
+                // É necessário carregar todas as leituras antes de fazer escritas.
                 for (const quadraDoc of quadrasSnapshot.docs) {
                     const casasSnapshot = await transaction.get(quadraDoc.ref.collection("casas"));
                     casasSnapshot.forEach(casaDoc => {
@@ -165,6 +175,7 @@ export const resetTerritoryProgress = functions
                     });
                 }
                 
+                // Fase 2 da transação: Agora que todas as leituras foram feitas, fazer as escritas.
                 for (const houseUpdate of housesToUpdate) {
                     transaction.update(houseUpdate.ref, houseUpdate.data);
                 }
@@ -183,6 +194,7 @@ export const resetTerritoryProgress = functions
 
 export const generateUploadUrl = functions
   .region(functionOptions.region)
+  .runWith({ serviceAccount: functionOptions.serviceAccount })
   .https.onCall(async (data, context) => {
     if (!context.auth) {
       throw new functions.https.HttpsError('unauthenticated', 'Ação não autorizada.');
@@ -199,7 +211,9 @@ export const generateUploadUrl = functions
         contentType: contentType,
     };
     try {
-        const [url] = await admin.storage().bucket().file(filePath).getSignedUrl(options);
+        const bucket = admin.storage().bucket(); // Get default bucket
+        const file = bucket.file(filePath);
+        const [url] = await file.getSignedUrl(options);
         return { url };
     } catch (error) {
         console.error("Erro ao gerar URL assinada:", error);
@@ -405,7 +419,7 @@ export const onDeleteTerritory = functions
     .region(functionOptions.region)
     .runWith({ serviceAccount: functionOptions.serviceAccount })
     .firestore.document("congregations/{congregationId}/territories/{territoryId}")
-    .onDelete((snap, context) => {
+    .onDelete((snap) => {
         return admin.firestore().recursiveDelete(snap.ref);
     });
 
@@ -413,7 +427,7 @@ export const onDeleteQuadra = functions
     .region(functionOptions.region)
     .runWith({ serviceAccount: functionOptions.serviceAccount })
     .firestore.document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
-    .onDelete((snap, context) => {
+    .onDelete((snap) => {
         return admin.firestore().recursiveDelete(snap.ref);
     });
 
@@ -421,6 +435,7 @@ export const onDeleteQuadra = functions
 //   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
 // ============================================================================
 export const mirrorUserStatus = functions
+    .region('us-central1') // O Realtime Database está em us-central1
     .runWith({ serviceAccount: functionOptions.serviceAccount })
     .database.ref("/status/{uid}")
     .onWrite(async (change, context) => {
@@ -435,7 +450,10 @@ export const mirrorUserStatus = functions
                 await userDocRef.update({ isOnline: true, lastSeen: admin.firestore.FieldValue.serverTimestamp() });
             }
         } catch(err: any) {
-            if (err.code !== 'not-found') console.error(`[Presence Mirror] Falha para ${uid}:`, err);
+            // É comum dar 'not-found' se o documento do Firestore ainda não foi criado, então ignoramos esse erro.
+            if (err.code !== 'not-found') {
+              console.error(`[Presence Mirror] Falha para ${uid}:`, err);
+            }
         }
         return null;
     });
