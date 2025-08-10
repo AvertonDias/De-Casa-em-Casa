@@ -7,15 +7,15 @@ import { getFunctions } from "firebase/functions";
 import { getMessaging } from "firebase/messaging";
 import { getDatabase } from "firebase/database";
 
-// O objeto de configuração agora lê as variáveis de ambiente seguras.
+// Objeto de configuração completo e correto para o projeto appterritorios-e5bb5.
 const firebaseConfig = {
-  apiKey: "AIzaSyBKW1da2xBNH0TCrW0AoSbbGgX8-HI8WSI",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+  apiKey: "AIzaSyBu4-CY52oi93-g611yCgvqEkd8vb5Jaa0",
+  authDomain: "appterritorios-e5bb5.firebaseapp.com",
+  projectId: "appterritorios-e5bb5",
+  storageBucket: "appterritorios-e5bb5.appspot.com",
+  messagingSenderId: "83629039662",
+  appId: "1:83629039662:web:72832b87617b7468b31778",
+  databaseURL: "https://appterritorios-e5bb5.firebaseio.com",
 };
 
 // Inicializa o Firebase
