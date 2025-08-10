@@ -26,9 +26,9 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
   const progresso = territory.progress ? Math.round(territory.progress * 100) : 0;
 
   const getStatusInfo = () => {
-    if (isOverdue) return { text: 'Atrasado', color: 'bg-red-500/20 text-red-400' };
-    if (isDesignado) return { text: 'Designado', color: 'bg-yellow-500/20 text-yellow-400' };
-    return { text: 'Disponível', color: 'bg-green-500/20 text-green-400' };
+    if (isOverdue) return { text: 'Atrasado', color: 'bg-red-500 text-white' };
+    if (isDesignado) return { text: 'Designado', color: 'bg-yellow-500 text-white' };
+    return { text: 'Disponível', color: 'bg-green-500 text-white' };
   };
   const statusInfo = getStatusInfo();
 
