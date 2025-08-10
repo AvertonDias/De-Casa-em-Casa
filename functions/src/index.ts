@@ -83,7 +83,6 @@ export const createCongregationAndAdmin = functions
 
 export const deleteUserAccount = functions
   .region(functionOptions.region)
-  .runWith({ serviceAccount: functionOptions.serviceAccount })
   .https.onCall(async (data, context) => {
     const callingUserUid = context.auth?.uid;
     if (!callingUserUid) {
@@ -128,7 +127,7 @@ export const deleteUserAccount = functions
 
 export const resetTerritoryProgress = functions
     .region(functionOptions.region)
-    .runWith({ serviceAccount: functionOptions.serviceAccount, timeoutSeconds: 120 }) // Aumentar timeout
+    .runWith({ timeoutSeconds: 120 }) // Aumentar timeout
     .https.onCall(async (data, context) => {
         const uid = context.auth?.uid;
         if (!uid) { throw new functions.https.HttpsError("unauthenticated", "Ação não autorizada."); }
@@ -145,26 +144,20 @@ export const resetTerritoryProgress = functions
         const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
         
         try {
-            // A exclusão recursiva é uma operação separada e pesada. Deve ser feita FORA da transação.
             await admin.firestore().recursiveDelete(db.collection(historyPath));
             console.log(`[resetTerritory] Histórico para ${territoryId} deletado com sucesso.`);
         } catch (error) {
             console.error(`[resetTerritory] Falha ao deletar histórico para ${territoryId}:`, error);
-            // Considerar se deve parar aqui ou continuar mesmo que a limpeza do histórico falhe.
-            // Por segurança, vamos parar.
             throw new functions.https.HttpsError("internal", "Falha ao limpar histórico do território.");
         }
         
         try {
-            // Agora, a transação para resetar as casas
             let housesUpdatedCount = 0;
             await db.runTransaction(async (transaction) => {
                 const quadrasSnapshot = await transaction.get(quadrasRef);
                 
                 const housesToUpdate: { ref: FirebaseFirestore.DocumentReference, data: { status: boolean } }[] = [];
 
-                // Fase 1 da transação: Ler todas as casas de todas as quadras.
-                // É necessário carregar todas as leituras antes de fazer escritas.
                 for (const quadraDoc of quadrasSnapshot.docs) {
                     const casasSnapshot = await transaction.get(quadraDoc.ref.collection("casas"));
                     casasSnapshot.forEach(casaDoc => {
@@ -175,7 +168,6 @@ export const resetTerritoryProgress = functions
                     });
                 }
                 
-                // Fase 2 da transação: Agora que todas as leituras foram feitas, fazer as escritas.
                 for (const houseUpdate of housesToUpdate) {
                     transaction.update(houseUpdate.ref, houseUpdate.data);
                 }
@@ -194,7 +186,6 @@ export const resetTerritoryProgress = functions
 
 export const generateUploadUrl = functions
   .region(functionOptions.region)
-  .runWith({ serviceAccount: functionOptions.serviceAccount })
   .https.onCall(async (data, context) => {
     if (!context.auth) {
       throw new functions.https.HttpsError('unauthenticated', 'Ação não autorizada.');
@@ -211,7 +202,7 @@ export const generateUploadUrl = functions
         contentType: contentType,
     };
     try {
-        const bucket = admin.storage().bucket(); // Get default bucket
+        const bucket = admin.storage().bucket();
         const file = bucket.file(filePath);
         const [url] = await file.getSignedUrl(options);
         return { url };
@@ -256,7 +247,6 @@ export const sendFeedbackEmail = functions
 
 export const onHouseChange = functions
     .region(functionOptions.region)
-    .runWith({ serviceAccount: functionOptions.serviceAccount })
     .firestore.document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}")
     .onWrite(async (change, context) => {
     const beforeData = change.before.data();
@@ -319,7 +309,6 @@ export const onHouseChange = functions
 
 export const onQuadraChange = functions
     .region(functionOptions.region)
-    .runWith({ serviceAccount: functionOptions.serviceAccount })
     .firestore.document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
     .onWrite(async (change, context) => {
     const { congregationId, territoryId } = context.params;
@@ -343,7 +332,6 @@ export const onQuadraChange = functions
 
 export const onTerritoryChange = functions
     .region(functionOptions.region)
-    .runWith({ serviceAccount: functionOptions.serviceAccount })
     .firestore.document("congregations/{congregationId}/territories/{territoryId}")
     .onWrite(async (change, context) => {
         const { congregationId } = context.params;
@@ -377,7 +365,6 @@ export const onTerritoryChange = functions
 // ============================================================================
 export const onTerritoryAssigned = functions
     .region(functionOptions.region)
-    .runWith({ serviceAccount: functionOptions.serviceAccount })
     .firestore.document("congregations/{congId}/territories/{terrId}")
     .onUpdate(async (change, context) => {
     const dataBefore = change.before.data();
@@ -417,7 +404,6 @@ export const onTerritoryAssigned = functions
 
 export const onDeleteTerritory = functions
     .region(functionOptions.region)
-    .runWith({ serviceAccount: functionOptions.serviceAccount })
     .firestore.document("congregations/{congregationId}/territories/{territoryId}")
     .onDelete((snap) => {
         return admin.firestore().recursiveDelete(snap.ref);
@@ -425,7 +411,6 @@ export const onDeleteTerritory = functions
 
 export const onDeleteQuadra = functions
     .region(functionOptions.region)
-    .runWith({ serviceAccount: functionOptions.serviceAccount })
     .firestore.document("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}")
     .onDelete((snap) => {
         return admin.firestore().recursiveDelete(snap.ref);
@@ -436,7 +421,6 @@ export const onDeleteQuadra = functions
 // ============================================================================
 export const mirrorUserStatus = functions
     .region('us-central1') // O Realtime Database está em us-central1
-    .runWith({ serviceAccount: functionOptions.serviceAccount })
     .database.ref("/status/{uid}")
     .onWrite(async (change, context) => {
         const eventStatus = change.after.val();
