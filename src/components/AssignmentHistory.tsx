@@ -19,12 +19,12 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
   const isAdmin = user?.role === 'Administrador';
   const [isOpen, setIsOpen] = useState(false);
   
-  // Ordena o histórico de forma decrescente pela data de conclusão
+  // Ordena o histórico e pega apenas os 8 registros mais recentes
   const sortedHistory = [...(pastAssignments || [])].sort((a, b) => {
     const dateA = a.completedAt?.toMillis() || 0;
     const dateB = b.completedAt?.toMillis() || 0;
     return dateB - dateA;
-  });
+  }).slice(0, 8);
 
   // O componente só é visível para Admins
   if (!isAdmin) return null;
