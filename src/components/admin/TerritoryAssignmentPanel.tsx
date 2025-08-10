@@ -6,7 +6,7 @@ import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, Timestamp, deleteField, orderBy } from 'firebase/firestore';
 import Link from 'next/link';
-import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, Bell } from 'lucide-react';
+import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, Bell, CalendarClock } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -203,11 +203,20 @@ export default function TerritoryAssignmentPanel() {
       const type = t.type || 'urban';
       const matchesType = typeFilter === 'all' || type === typeFilter;
       
-      const isOverdue = t.status === 'designado' && t.assignment && t.assignment.dueDate.toDate() < new Date();
       let matchesStatus = true;
-      if (filterStatus === 'disponivel') matchesStatus = t.status !== 'designado';
-      else if (filterStatus === 'designado') matchesStatus = t.status === 'designado' && !isOverdue;
-      else if (filterStatus === 'atrasado') matchesStatus = isOverdue;
+      let isOverdue: boolean = false;
+      
+      if (t.status === 'designado' && t.assignment?.dueDate) {
+          isOverdue = t.assignment.dueDate.toDate() < new Date();
+      }
+
+      if (filterStatus === 'disponivel') {
+          matchesStatus = t.status !== 'designado';
+      } else if (filterStatus === 'designado') {
+          matchesStatus = t.status === 'designado' && !isOverdue;
+      } else if (filterStatus === 'atrasado') {
+          matchesStatus = isOverdue;
+      }
 
       const matchesSearch = searchTerm === '' || t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.number.toLowerCase().includes(searchTerm.toLowerCase());
       
