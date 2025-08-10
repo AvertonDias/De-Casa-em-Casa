@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Send, BookUser, FileText, Edit, Loader, Map, Trees, LayoutList } from 'lucide-react';
+import { BookUser, FileText, Edit, Loader } from 'lucide-react';
 import Link from 'next/link';
 import TerritoryAssignmentPanel from '@/components/admin/TerritoryAssignmentPanel';
 import { useUser } from '@/contexts/UserContext';
@@ -133,7 +133,6 @@ export default function AdminPage() {
         <div className="flex items-center">
             <TabButton id="assignment" label="Designar Territórios" icon={BookUser} />
             <TabButton id="congregation" label="Editar Congregação" icon={Edit} />
-            <TabButton id="notifications" label="Enviar Notificação" icon={Send} />
             
             <Link 
                 href="/dashboard/administracao/relatorio-s13"
@@ -147,7 +146,6 @@ export default function AdminPage() {
       <div className="mt-6">
         {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
         {activeTab === 'congregation' && <CongregationEditForm />}
-        {activeTab === 'notifications' && <div className="text-center p-8 bg-card rounded-lg">Painel de Notificações (em breve)</div>}
       </div>
     </div>
   );
