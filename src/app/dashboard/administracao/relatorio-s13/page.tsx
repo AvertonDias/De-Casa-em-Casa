@@ -111,28 +111,32 @@ export default function S13ReportPage() {
           </div>
           <table className="w-full border-collapse border border-black text-sm">
             <thead>
-                <tr className="text-center text-xs font-semibold">
-                    <th className="border border-black p-1 w-[8%]" rowSpan={2}>Terr. n.º</th>
-                    <th className="border border-black p-1 w-[12%]" rowSpan={2}>Última data concluída*</th>
-                    <th className="border border-black p-1" colSpan={2}>Designado a</th>
-                    <th className="border border-black p-1" colSpan={2}>Designado a</th>
-                    <th className="border border-black p-1" colSpan={2}>Designado a</th>
-                    <th className="border border-black p-1" colSpan={2}>Designado a</th>
-                </tr>
-                <tr className="text-center text-xs font-semibold">
-                    <th className="border border-black p-1">Data da designação</th>
-                    <th className="border border-black p-1">Data da conclusão</th>
-                    <th className="border border-black p-1">Data da designação</th>
-                    <th className="border border-black p-1">Data da conclusão</th>
-                    <th className="border border-black p-1">Data da designação</th>
-                    <th className="border border-black p-1">Data da conclusão</th>
-                    <th className="border border-black p-1">Data da designação</th>
-                    <th className="border border-black p-1">Data da conclusão</th>
-                </tr>
+              <tr className="text-center text-xs font-semibold">
+                  <th className="border border-black p-1 w-[8%]" rowSpan={2}>Terr. n.º</th>
+                  <th className="border border-black p-1 w-[12%]" rowSpan={2}>Última data concluída*</th>
+                  <th className="border border-black p-1" colSpan={3}>Designado a</th>
+                  <th className="border border-black p-1" colSpan={3}>Designado a</th>
+                  <th className="border border-black p-1" colSpan={3}>Designado a</th>
+                  <th className="border border-black p-1" colSpan={3}>Designado a</th>
+              </tr>
+              <tr className="text-center text-xs font-semibold">
+                  <th className="border border-black p-1">Nome</th>
+                  <th className="border border-black p-1">Data da designação</th>
+                  <th className="border border-black p-1">Data da conclusão</th>
+                  <th className="border border-black p-1">Nome</th>
+                  <th className="border border-black p-1">Data da designação</th>
+                  <th className="border border-black p-1">Data da conclusão</th>
+                  <th className="border border-black p-1">Nome</th>
+                  <th className="border border-black p-1">Data da designação</th>
+                  <th className="border border-black p-1">Data da conclusão</th>
+                  <th className="border border-black p-1">Nome</th>
+                  <th className="border border-black p-1">Data da designação</th>
+                  <th className="border border-black p-1">Data da conclusão</th>
+              </tr>
             </thead>
             <tbody>
                 {loading ? (
-                    <tr><td colSpan={10} className="text-center p-4">Carregando dados...</td></tr>
+                    <tr><td colSpan={14} className="text-center p-4">Carregando dados...</td></tr>
                 ) : (
                     filteredTerritories.map(t => {
                         let allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
@@ -140,22 +144,22 @@ export default function S13ReportPage() {
                             allAssignments.push({
                                 name: t.assignment.name,
                                 assignedAt: t.assignment.assignedAt,
+                                completedAt: undefined, // Designação atual não tem data de conclusão ainda
                             });
                         }
-                        const sortedHistory = allAssignments.sort((a, b) => a.assignedAt!.toMillis() - b.assignedAt!.toMillis());
+                        const sortedHistory = allAssignments.sort((a, b) => (a.assignedAt?.toMillis() || 0) - (b.assignedAt?.toMillis() || 0));
                         
-                        // Criar um array de 4 elementos para garantir que sempre haja 4 colunas de designação
                         const displayAssignments = Array(4).fill(null).map((_, i) => sortedHistory[i] || null);
 
                         return (
                             <tr key={t.id}>
-                                <td className="border border-black text-center font-semibold align-top h-10 pt-1">{t.number}</td>
-                                <td className="border border-black text-center align-top pt-1">{getLastCompletedDate(t)}</td>
+                                <td className="border border-black text-center font-semibold align-middle h-10">{t.number}</td>
+                                <td className="border border-black text-center align-middle">{getLastCompletedDate(t)}</td>
                                 {displayAssignments.map((assignment, i) => (
                                     <React.Fragment key={`${t.id}-assign-${i}`}>
-                                        <td className="border-t-0 border-b-0 border-l border-r-0 border-black align-top pt-1 text-center" colSpan={2}>
-                                          {assignment?.name || ''}
-                                        </td>
+                                        <td className="border border-black align-middle text-center text-xs p-1">{assignment?.name || ''}</td>
+                                        <td className="border border-black align-middle text-center text-xs p-1">{assignment?.assignedAt ? format(assignment.assignedAt.toDate(), "dd/MM/yy") : ''}</td>
+                                        <td className="border border-black align-middle text-center text-xs p-1">{assignment?.completedAt ? format(assignment.completedAt.toDate(), "dd/MM/yy") : ''}</td>
                                     </React.Fragment>
                                 ))}
                             </tr>
@@ -171,4 +175,3 @@ export default function S13ReportPage() {
     </>
   );
 }
-
