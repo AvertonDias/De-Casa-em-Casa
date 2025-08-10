@@ -6,7 +6,7 @@ import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, Timestamp, deleteField, orderBy } from 'firebase/firestore';
 import Link from 'next/link';
-import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser } from 'lucide-react';
+import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, Bell } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -80,6 +80,11 @@ const TerritoryListItem = ({ territory, onAssign, onReturn, onReassign }: { terr
                                         <Menu.Item>
                                             {({ active }) => (<button onClick={onReassign} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <RotateCw size={16} className="mr-2"/>Reatribuir</button>)}
                                         </Menu.Item>
+                                        {isOverdue && (
+                                          <Menu.Item>
+                                            {({ active }) => (<button onClick={() => alert('Função de notificação em breve!')} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500`}> <Bell size={16} className="mr-2"/>Notificar Atraso</button>)}
+                                          </Menu.Item>
+                                        )}
                                     </>
                                 ) : (
                                      <Menu.Item>
@@ -302,6 +307,11 @@ export default function TerritoryAssignmentPanel() {
                                           <Menu.Item>
                                               {({ active }) => (<button onClick={() => handleOpenAssignModal(t)} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <RotateCw size={16} className="mr-2"/>Reatribuir</button>)}
                                           </Menu.Item>
+                                          {isOverdue && (
+                                            <Menu.Item>
+                                              {({ active }) => (<button onClick={() => alert('Função de notificação em breve!')} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500`}> <Bell size={16} className="mr-2"/>Notificar Atraso</button>)}
+                                            </Menu.Item>
+                                          )}
                                       </div>
                                   </Menu.Items>
                               </Transition>
