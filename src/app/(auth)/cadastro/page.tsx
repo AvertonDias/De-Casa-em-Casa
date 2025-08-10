@@ -50,11 +50,12 @@ export default function SignUpPage() {
       
       toast({
         title: 'Solicitação enviada!',
-        description: 'Você será redirecionado para o painel.',
+        description: 'Seu acesso agora precisa ser aprovado por um administrador.',
         variant: 'default',
       });
       
-      window.location.href = '/dashboard';
+      // A lógica de redirecionamento agora é tratada pelo UserContext,
+      // que levará o usuário para a página de 'aguardando-aprovacao'
 
     } catch (err: any) {
       console.error("Erro detalhado no cadastro:", err);

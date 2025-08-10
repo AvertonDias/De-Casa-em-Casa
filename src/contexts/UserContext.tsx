@@ -126,11 +126,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     if (user.status === 'ativo') {
       if (pathname === '/aguardando-aprovacao' || !isProtectedPage && pathname !== '/sobre') {
-        if (user.role === 'Publicador') {
-          router.replace('/dashboard/territorios');
-        } else {
-          router.replace('/dashboard');
-        }
+        // Redireciona TODOS os usuários para o dashboard principal
+        router.replace('/dashboard');
       }
     }
   }, [user, loading, pathname, router]);
