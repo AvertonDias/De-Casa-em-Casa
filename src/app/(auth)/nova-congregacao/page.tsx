@@ -58,7 +58,7 @@ export default function NovaCongregacaoPage() {
         
         if (result.success) {
             toast({ title: "Congregação Criada!", description: result.message || "Agora acesse o painel com seu novo usuário.", });
-            router.push("/login");
+            router.push("/");
         } else {
             throw new Error(result.error || 'Falha ao criar congregação sem erro explícito.');
         }

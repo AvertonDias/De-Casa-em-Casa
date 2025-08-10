@@ -23,7 +23,8 @@ export default function UniversalLoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push('/dashboard'); 
+      // The UserContext will handle the redirect now.
+      // No router.push() needed here.
     } catch (err: any) {
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setError("E-mail ou senha inválidos.");
@@ -46,6 +47,7 @@ export default function UniversalLoginPage() {
                 width={80}
                 height={80}
                 className="rounded-lg mb-4"
+                priority
             />
             <h1 className="text-3xl font-bold text-center">
                 De Casa em Casa
