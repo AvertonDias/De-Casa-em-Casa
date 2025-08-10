@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -19,15 +20,11 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
   const isAdmin = user?.role === 'Administrador';
   const [isOpen, setIsOpen] = useState(false);
   
-  // Ordena o histórico e pega apenas os 8 registros mais recentes
   const sortedHistory = [...(pastAssignments || [])].sort((a, b) => {
     const dateA = a.completedAt?.toMillis() || 0;
     const dateB = b.completedAt?.toMillis() || 0;
     return dateB - dateA;
   }).slice(0, 8);
-
-  // O componente só é visível para Admins
-  if (!isAdmin) return null;
 
   return (
     <div className="bg-card p-4 rounded-lg shadow-md">
@@ -67,6 +64,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                   <p className="text-sm text-muted-foreground">Designado: {format(log.assignedAt.toDate(), "dd/MM/yy")}</p>
                   <p className="text-sm text-muted-foreground">Devolvido: {log.completedAt ? format(log.completedAt.toDate(), "dd/MM/yy") : 'Não devolvido'}</p>
                 </div>
+                {/* Edit and Delete actions are only available for Admins */}
                 {isAdmin && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => onEdit(log)} className="text-muted-foreground hover:text-white" title="Editar"><Edit size={14} /></button>

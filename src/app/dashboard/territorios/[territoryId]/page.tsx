@@ -1,3 +1,4 @@
+
 "use client";
 
 import { doc, onSnapshot, collection, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction } from "firebase/firestore";
@@ -43,9 +44,9 @@ const ProgressSection = ({ territory }: { territory: Territory }) => {
             <h2 className="text-xl font-bold mb-4 flex items-center"><BarChart className="mr-3 text-primary" />Progresso Geral</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                 <div><p className="text-sm text-muted-foreground">Total de Casas</p><p className="text-2xl font-bold">{totalHouses}</p></div>
-                <div><p className="text-sm text-muted-foreground">Casas Feitas</p><p className="text-2xl font-bold text-green-400">{housesDone}</p></div>
-                <div><p className="text-sm text-muted-foreground">Pendentes</p><p className="text-2xl font-bold text-yellow-400">{totalHouses - housesDone}</p></div>
-                <div><p className="text-sm text-muted-foreground">Progresso</p><p className="text-2xl font-bold text-blue-400">{progressPercentage}%</p></div>
+                <div><p className="text-sm text-muted-foreground">Casas Feitas</p><p className="font-bold text-2xl text-green-400">{housesDone}</p></div>
+                <div><p className="text-sm text-muted-foreground">Pendentes</p><p className="font-bold text-2xl text-yellow-400">{totalHouses - housesDone}</p></div>
+                <div><p className="text-sm text-muted-foreground">Progresso</p><p className="font-bold text-2xl text-blue-400">{progressPercentage}%</p></div>
             </div>
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-4">
               <div className="bg-blue-600 dark:bg-blue-400 h-2.5 rounded-full" style={{ width: `${progressPercentage}%` }}></div>
@@ -353,7 +354,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
               {isUrban && <ProgressSection territory={territory} />}
               <ActivityHistory territoryId={territory.id} history={activityHistory} />
               
-              {isAdmin && (
+              {isManagerView && (
                 <AssignmentHistory
                   currentAssignment={territory.assignment}
                   pastAssignments={territory.assignmentHistory || []}
