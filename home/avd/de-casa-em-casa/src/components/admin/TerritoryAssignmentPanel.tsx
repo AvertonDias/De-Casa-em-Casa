@@ -38,6 +38,15 @@ const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
 const TerritoryListItem = ({ territory, onAssign, onReturn, onReassign }: { territory: Territory, onAssign: () => void, onReturn: () => void, onReassign: () => void }) => {
     const isDesignado = territory.status === 'designado' && territory.assignment;
     const assignment = territory.assignment;
+    const isOverdue = isDesignado && assignment && assignment.dueDate.toDate() < new Date();
+
+    const getStatusInfo = () => {
+        if (isOverdue) return { text: 'Atrasado', color: 'bg-red-500' };
+        if (isDesignado) return { text: 'Designado', color: 'bg-yellow-400' };
+        return { text: 'Disponível', color: 'bg-green-400' };
+    };
+
+    const statusInfo = getStatusInfo();
 
     return (
         <div className="bg-card p-4 rounded-lg shadow-sm border-l-4 border-transparent hover:border-primary/50 transition-all">
@@ -84,9 +93,9 @@ const TerritoryListItem = ({ territory, onAssign, onReturn, onReassign }: { terr
             </div>
             <div className="mt-2 text-sm text-muted-foreground space-y-1">
                 <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${isDesignado ? 'bg-yellow-400' : 'bg-green-400'}`}></span>
+                    <span className={`w-2 h-2 rounded-full ${statusInfo.color}`}></span>
                     <span>Status:</span>
-                    <span className="font-semibold">{isDesignado ? 'Designado' : 'Disponível'}</span>
+                    <span className="font-semibold">{statusInfo.text}</span>
                 </div>
                  {isDesignado && assignment && (
                     <div className="flex items-center gap-2">
@@ -107,7 +116,7 @@ export default function TerritoryAssignmentPanel() {
   const [loading, setLoading] = useState(true);
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'disponivel' | 'designado'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'disponivel' | 'designado' | 'atrasado'>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'urban' | 'rural'>('all');
   
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -127,15 +136,12 @@ export default function TerritoryAssignmentPanel() {
   
   useEffect(() => {
     if (!currentUser?.congregationId) return;
-    
-    // Consulta corrigida para buscar todos os usuários e ordenar por nome
     const usersRef = collection(db, 'users');
     const q = query(
         usersRef, 
         where('congregationId', '==', currentUser.congregationId),
         orderBy('name')
     );
-    
     const unsub = onSnapshot(q, (snapshot) => {
       setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser)));
     }, (error) => {
@@ -191,8 +197,15 @@ export default function TerritoryAssignmentPanel() {
   const filteredTerritories = territories.filter(t => {
       const type = t.type || 'urban';
       const matchesType = typeFilter === 'all' || type === typeFilter;
-      const matchesStatus = filterStatus === 'all' || (filterStatus === 'disponivel' ? t.status !== 'designado' : t.status === 'designado');
+      
+      const isOverdue = t.status === 'designado' && t.assignment && t.assignment.dueDate.toDate() < new Date();
+      let matchesStatus = true;
+      if (filterStatus === 'disponivel') matchesStatus = t.status !== 'designado';
+      else if (filterStatus === 'designado') matchesStatus = t.status === 'designado' && !isOverdue;
+      else if (filterStatus === 'atrasado') matchesStatus = isOverdue;
+
       const matchesSearch = searchTerm === '' || t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.number.toLowerCase().includes(searchTerm.toLowerCase());
+      
       return matchesType && matchesStatus && matchesSearch;
   }).sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
 
@@ -218,6 +231,7 @@ export default function TerritoryAssignmentPanel() {
             <option value="all">Todos os status</option>
             <option value="disponivel">Disponível</option>
             <option value="designado">Designado</option>
+            <option value="atrasado">Atrasado</option>
           </select>
         </div>
         
@@ -245,59 +259,72 @@ export default function TerritoryAssignmentPanel() {
               </tr>
             </thead>
             <tbody>
-              {filteredTerritories.map(t => (
-                <tr key={t.id} className="border-b border-border last:border-b-0">
-                  <td className="p-2 font-semibold">
-                    <Link
-                      href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`}
-                      className="hover:text-primary transition-colors"
-                    >
-                      {t.number} - {t.name}
-                    </Link>
-                  </td>
-                  <td className="p-2">{t.status === 'designado' ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>}</td>
-                  <td className="p-2">
-                    {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}
-                  </td>
-                  <td className="p-2 text-right">
-                    {t.status === 'designado' && t.assignment ? (
-                        <Menu as="div" className="relative inline-block text-left">
-                            <Menu.Button className="p-1 rounded-full hover:bg-white/10">
-                                <MoreVertical size={20} />
-                            </Menu.Button>
-                            <Transition
-                                as={Fragment}
-                                enter="transition ease-out duration-100"
-                                enterFrom="transform opacity-0 scale-95"
-                                enterTo="transform opacity-100 scale-100"
-                                leave="transition ease-in duration-75"
-                                leaveFrom="transform opacity-100 scale-100"
-                                leaveTo="transform opacity-0 scale-95"
-                            >
-                                <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-popover text-popover-foreground rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5 focus:outline-none">
-                                    <div className="p-1">
-                                        <Menu.Item>
-                                            {({ active }) => (<button onClick={() => handleOpenReturnModal(t)} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <CheckCircle size={16} className="mr-2"/>Devolver</button>)}
-                                        </Menu.Item>
-                                        <Menu.Item>
-                                            {({ active }) => (<button onClick={() => handleOpenAssignModal(t)} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <RotateCw size={16} className="mr-2"/>Reatribuir</button>)}
-                                        </Menu.Item>
-                                    </div>
-                                </Menu.Items>
-                            </Transition>
-                        </Menu>
-                    ) : (
-                        <button onClick={() => handleOpenAssignModal(t)} className="text-primary hover:underline font-semibold text-sm">Designar</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {filteredTerritories.map(t => {
+                const isDesignado = t.status === 'designado' && t.assignment;
+                const isOverdue = isDesignado && t.assignment && t.assignment.dueDate.toDate() < new Date();
+                
+                return (
+                  <tr key={t.id} className="border-b border-border last:border-b-0">
+                    <td className="p-2 font-semibold">
+                      <Link
+                        href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`}
+                        className="hover:text-primary transition-colors"
+                      >
+                        {t.number} - {t.name}
+                      </Link>
+                    </td>
+                    <td className="p-2">
+                      {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
+                    </td>
+                    <td className="p-2">
+                      {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}
+                    </td>
+                    <td className="p-2 text-right">
+                      {isDesignado ? (
+                          <Menu as="div" className="relative inline-block text-left">
+                              <Menu.Button className="p-1 rounded-full hover:bg-white/10">
+                                  <MoreVertical size={20} />
+                              </Menu.Button>
+                              <Transition
+                                  as={Fragment}
+                                  enter="transition ease-out duration-100"
+                                  enterFrom="transform opacity-0 scale-95"
+                                  enterTo="transform opacity-100 scale-100"
+                                  leave="transition ease-in duration-75"
+                                  leaveFrom="transform opacity-100 scale-100"
+                                  leaveTo="transform opacity-0 scale-95"
+                              >
+                                  <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-popover text-popover-foreground rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                      <div className="p-1">
+                                          <Menu.Item>
+                                              {({ active }) => (<button onClick={() => handleOpenReturnModal(t)} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <CheckCircle size={16} className="mr-2"/>Devolver</button>)}
+                                          </Menu.Item>
+                                          <Menu.Item>
+                                              {({ active }) => (<button onClick={() => handleOpenAssignModal(t)} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <RotateCw size={16} className="mr-2"/>Reatribuir</button>)}
+                                          </Menu.Item>
+                                      </div>
+                                  </Menu.Items>
+                              </Transition>
+                          </Menu>
+                      ) : (
+                          <button onClick={() => handleOpenAssignModal(t)} className="text-primary hover:underline font-semibold text-sm">Designar</button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
       </div>
       
-      <AssignTerritoryModal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} onSave={handleSaveAssignment} territory={selectedTerritory} users={users} />
+      <AssignTerritoryModal 
+        isOpen={isAssignModalOpen} 
+        onClose={() => setIsAssignModalOpen(false)} 
+        onSave={handleSaveAssignment} 
+        territory={selectedTerritory} 
+        users={users} 
+      />
       <ReturnTerritoryModal
         isOpen={isReturnModalOpen}
         onClose={() => setIsReturnModalOpen(false)}
@@ -307,5 +334,3 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
-
-    

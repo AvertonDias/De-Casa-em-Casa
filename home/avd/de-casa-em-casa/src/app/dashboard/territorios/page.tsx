@@ -1,0 +1,209 @@
+
+"use client";
+
+import { useState, useEffect } from 'react';
+import { collection, onSnapshot, query, where, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useUser } from '@/contexts/UserContext';
+import { Territory } from '@/types/types';
+import Link from 'next/link';
+import { Plus, Search, ChevronRight, Loader, UserCheck, CalendarClock, AlertTriangle } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import AddTerritoryModal from '@/components/AddTerritoryModal';
+import { RestrictedContent } from '@/components/RestrictedContent';
+import withAuth from '@/components/withAuth';
+
+// ========================================================================
+//   Componentes de Lista (Com o Status de Designação)
+// ========================================================================
+
+const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
+  const isDesignado = territory.status === 'designado' && territory.assignment;
+  const isOverdue = isDesignado && territory.assignment && territory.assignment.dueDate.toDate() < new Date();
+  const totalCasas = territory.stats?.totalHouses || 0;
+  const casasFeitas = territory.stats?.housesDone || 0;
+  const progresso = territory.progress ? Math.round(territory.progress * 100) : 0;
+
+  const getStatusInfo = () => {
+    if (isOverdue) return { text: 'Atrasado', color: 'bg-red-500/20 text-red-400' };
+    if (isDesignado) return { text: 'Designado', color: 'bg-yellow-500/20 text-yellow-400' };
+    return { text: 'Disponível', color: 'bg-green-500/20 text-green-400' };
+  };
+  const statusInfo = getStatusInfo();
+
+  return (
+    <Link href={`/dashboard/territorios/${territory.id}`} className="block group">
+      <div className="bg-card p-4 rounded-lg shadow-md h-full group-hover:border-primary/50 border border-transparent transition-all flex flex-col space-y-4">
+        {/* Cabeçalho */}
+        <div className="flex justify-between items-start">
+          <h3 className="font-bold text-xl flex-1 pr-2">{territory.number} - {territory.name}</h3>
+          <span className={`px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${statusInfo.color}`}>
+            {statusInfo.text}
+          </span>
+        </div>
+
+        {/* Informações da Designação (se existir) */}
+        {isDesignado && (
+          <div className={`p-3 rounded-md text-sm space-y-2 ${isOverdue ? 'bg-red-500/10' : 'bg-input/50'}`}>
+            <div className="flex items-center gap-2">
+              <UserCheck size={16} className="text-muted-foreground"/>
+              <span className="font-semibold">{territory.assignment?.name}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CalendarClock size={16} className="text-muted-foreground"/>
+              <span>Devolver até: {format(territory.assignment!.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR })}</span>
+            </div>
+             {isOverdue && (
+                <div className="flex items-center gap-2 font-bold text-red-500">
+                    <AlertTriangle size={16} />
+                    <span>Território Atrasado!</span>
+                </div>
+             )}
+          </div>
+        )}
+
+        {/* Estatísticas (só renderiza se o território for urbano) */}
+        {territory.type !== 'rural' && (
+          <div className="pt-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div><p className="text-sm text-muted-foreground">Total de Casas</p><p className="font-bold text-2xl">{totalCasas}</p></div>
+                <div><p className="text-sm text-muted-foreground">Feitas</p><p className="font-bold text-2xl text-green-400">{casasFeitas}</p></div>
+                <div><p className="text-sm text-muted-foreground">Pendentes</p><p className="font-bold text-2xl text-yellow-400">{totalCasas - casasFeitas}</p></div>
+                <div><p className="text-sm text-muted-foreground">Progresso</p><p className="font-bold text-2xl text-blue-400">{progresso}%</p></div>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-2.5 mt-4"><div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progresso}%` }}></div></div>
+          </div>
+        )}
+      </div>
+    </Link>
+  );
+};
+
+const TerritoryRowPublicador = ({ territory }: { territory: Territory }) => (
+  <Link href={`/dashboard/territorios/${territory.id}`} className="block">
+    <div className="flex items-center justify-between py-3 px-4 -mx-4 hover:bg-white/5 transition-colors cursor-pointer">
+      <div className="flex items-center space-x-4">
+        <span className="font-bold text-lg text-muted-foreground w-8 text-center">{territory.number}</span>
+        <h3 className="font-semibold text-lg">{territory.name}</h3>
+      </div>
+      <ChevronRight className="text-muted-foreground h-5 w-5" />
+    </div>
+  </Link>
+);
+
+
+// ========================================================================
+//   PÁGINA PRINCIPAL
+// ========================================================================
+function TerritoriosPage() {
+  const [territories, setTerritories] = useState<Territory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const { user, loading: userLoading } = useUser();
+  
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (user?.status === 'ativo' && user.congregationId) {
+      const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
+      const q = query(territoriesRef, where("type", "in", ["urban", null, ""]), orderBy("number"));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
+        setTerritories(data);
+        setLoading(false);
+      });
+      return () => unsubscribe();
+    } else if (!userLoading) {
+        setLoading(false);
+    }
+  }, [user, userLoading]);
+
+  const handleAddTerritory = async (data: any) => {
+    if (!user?.congregationId) {
+      throw new Error("Usuário não tem congregação associada.");
+    }
+    const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
+    await addDoc(territoriesRef, {
+      ...data,
+      createdAt: serverTimestamp(),
+      lastUpdate: serverTimestamp(),
+      totalHouses: 0,
+      housesDone: 0,
+      progress: 0,
+      quadraCount: 0,
+    });
+  };
+
+  const filteredTerritories = territories.filter(t =>
+    t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.number.includes(searchTerm)
+  );
+  
+  if (userLoading || loading) {
+    return <div className="flex items-center justify-center h-full"><Loader className="animate-spin text-purple-600" size={48} /></div>;
+  }
+
+  if (!user) {
+    return null; // O layout principal redireciona
+  }
+
+  if (user.status === 'pendente') {
+    return (
+      <RestrictedContent
+        title="Acesso aos Territórios Restrito"
+        message="Seu acesso precisa ser aprovado por um administrador para que você possa ver os territórios da congregação."
+      />
+    );
+  }
+  
+  const isManagerView = user?.role === 'Administrador' || user?.role === 'Dirigente';
+  const isAdmin = user?.role === 'Administrador';
+
+  return (
+    <>
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">Territórios</h1>
+            <p className="text-muted-foreground">{user.congregationName || 'Sua Congregação'}</p>
+          </div>
+
+          {isAdmin && (
+            <button 
+              onClick={() => setIsAddModalOpen(true)} 
+              className="w-full sm:w-auto bg-primary hover:bg-primary/80 text-white font-semibold py-2 px-4 rounded-md flex items-center justify-center">
+              <Plus className="mr-2 h-4 w-4" /> Adicionar Território
+            </button>
+          )}
+        </div>
+
+        <div className="relative mb-6">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+            <input type="text" placeholder="Buscar por nome ou número..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-card border border-border rounded-md pl-10 pr-4 py-2" />
+        </div>
+
+        {isManagerView ? (
+            <div className="space-y-4">
+            {filteredTerritories.length > 0 ? (
+                filteredTerritories.map(t => <TerritoryRowManager key={t.id} territory={t} />)
+            ) : (<p className="text-center text-muted-foreground py-8">Nenhum território encontrado.</p>)}
+            </div>
+        ) : (
+            <div className="bg-card rounded-lg shadow-md px-4 divide-y divide-border">
+            {filteredTerritories.length > 0 ? (
+                filteredTerritories.map(t => <TerritoryRowPublicador key={t.id} territory={t} />)
+            ) : (<p className="text-center text-muted-foreground py-8">Nenhum território disponível.</p>)}
+            </div>
+        )}
+      </div>
+
+      <AddTerritoryModal 
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSave={handleAddTerritory}
+      />
+    </>
+  );
+}
+
+export default withAuth(TerritoriosPage);
