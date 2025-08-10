@@ -211,7 +211,7 @@ interface GenerateUploadUrlData {
 }
 
 export const generateUploadUrl = onCall(
-  { region: "southamerica-east1" },
+  { region: "southamerica-east1", serviceAccount: "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com" },
   async (req: CallableRequest<GenerateUploadUrlData>) => {
     if (!req.auth) {
       throw new HttpsError('unauthenticated', 'Ação não autorizada.');
@@ -243,7 +243,7 @@ interface SendFeedbackEmailData {
   message: string;
 }
 
-export const sendFeedbackEmail = onCall(async (req: CallableRequest<SendFeedbackEmailData>) => {
+export const sendFeedbackEmail = onCall({ serviceAccount: "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com" }, async (req: CallableRequest<SendFeedbackEmailData>) => {
     if (!req.auth) {
         throw new HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
     }
@@ -285,7 +285,7 @@ export const onHouseChange = onDocumentWritten(
   {
     document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}",
     region: "southamerica-east1",
-    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
+    serviceAccount: "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com"
   },
   async (event) => { // Usando DocumentSnapshot como tipo para Firestor Docs
     const beforeData = event.data?.before.data();
@@ -407,7 +407,7 @@ export const onQuadraChange = onDocumentWritten(
   {
     document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
     region: "southamerica-east1",
-    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
+    serviceAccount: "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com"
   },
   async (event) => {
     const { congregationId, territoryId } = event.params;
@@ -436,7 +436,7 @@ export const onTerritoryChange = onDocumentWritten(
     {
       document: "congregations/{congregationId}/territories/{territoryId}",
       region: "southamerica-east1",
-      serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
+      serviceAccount: "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com"
     },
     async (event) => {
         const { congregationId } = event.params;
@@ -472,7 +472,7 @@ export const onTerritoryAssigned = onDocumentUpdated(
   {
     document: "congregations/{congId}/territories/{terrId}",
     region: "southamerica-east1",
-    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
+    serviceAccount: "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com"
   },
   async (event) => {
     const dataBefore = event.data?.before.data();
@@ -523,7 +523,7 @@ export const notifyAdminOfNewUser = onDocumentCreated(
   {
     document: "users/{userId}",
     region: "southamerica-east1",
-    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
+    serviceAccount: "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com"
   },
   async (event) => {
     const newUser = event.data?.data();
@@ -565,7 +565,7 @@ export const onDeleteTerritory = onDocumentDeleted(
   {
     document: "congregations/{congregationId}/territories/{territoryId}",
     region: "southamerica-east1",
-    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
+    serviceAccount: "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com"
   },
   (event) => {
     if (!event.data) return null;
@@ -576,7 +576,7 @@ export const onDeleteQuadra = onDocumentDeleted(
   {
     document: "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
     region: "southamerica-east1",
-    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
+    serviceAccount: "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com"
   },
   (event) => {
     if (!event.data) return null;
@@ -588,7 +588,7 @@ export const scheduledFirestoreExport = onSchedule({
     schedule: "every day 03:00",
     timeZone: "America/Sao_Paulo",
     region: "southamerica-east1",
-    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
+    serviceAccount: "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com"
   }, async (event) => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const firestore = require("@google-cloud/firestore");
@@ -620,7 +620,7 @@ export const mirrorUserStatus = onValueWritten(
   {
     ref: "/status/{uid}",
     region: "us-central1",
-    serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
+    serviceAccount: "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com"
   },
   async (event) => {
     const eventStatus = event.data.after.val();

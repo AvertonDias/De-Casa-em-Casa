@@ -1,0 +1,193 @@
+{
+  "bindings": [
+    {
+      "members": [
+        "serviceAccount:service-83629039662@gcp-gae-service.iam.gserviceaccount.com"
+      ],
+      "role": "roles/appengine.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:service-83629039662@gcp-sa-artifactregistry.iam.gserviceaccount.com"
+      ],
+      "role": "roles/artifactregistry.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:83629039662@cloudbuild.gserviceaccount.com"
+      ],
+      "role": "roles/cloudbuild.builds.builder"
+    },
+    {
+      "members": [
+        "serviceAccount:service-83629039662@gcp-sa-cloudbuild.iam.gserviceaccount.com"
+      ],
+      "role": "roles/cloudbuild.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:firebase-adminsdk-fbsvc@appterritorios-e5bb5.iam.gserviceaccount.com"
+      ],
+      "role": "roles/cloudfunctions.admin"
+    },
+    {
+      "members": [
+        "deleted:serviceAccount:service-83629039662@gcf-admin-robot.iam.gserviceaccount.com?uid=106373309534802704752",
+        "serviceAccount:service-83629039662@gcf-admin-robot.iam.gserviceaccount.com"
+      ],
+      "role": "roles/cloudfunctions.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:service-83629039662@gcp-sa-cloudscheduler.iam.gserviceaccount.com"
+      ],
+      "role": "roles/cloudscheduler.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:service-83629039662@compute-system.iam.gserviceaccount.com"
+      ],
+      "role": "roles/compute.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:service-83629039662@containerregistry.iam.gserviceaccount.com"
+      ],
+      "role": "roles/containerregistry.ServiceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:appterritorios-e5bb5@appspot.gserviceaccount.com"
+      ],
+      "role": "roles/datastore.importExportAdmin"
+    },
+    {
+      "members": [
+        "serviceAccount:appterritorios-e5bb5@appspot.gserviceaccount.com"
+      ],
+      "role": "roles/datastore.userCredsAdmin"
+    },
+    {
+      "members": [
+        "serviceAccount:83629039662-compute@developer.gserviceaccount.com",
+        "serviceAccount:83629039662@cloudservices.gserviceaccount.com",
+        "serviceAccount:appterritorios-e5bb5@appspot.gserviceaccount.com"
+      ],
+      "role": "roles/editor"
+    },
+    {
+      "members": [
+        "serviceAccount:83629039662-compute@developer.gserviceaccount.com"
+      ],
+      "role": "roles/eventarc.eventReceiver"
+    },
+    {
+      "members": [
+        "serviceAccount:service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
+      ],
+      "role": "roles/eventarc.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:service-83629039662@gcp-sa-firebase.iam.gserviceaccount.com"
+      ],
+      "role": "roles/firebase.managementServiceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:firebase-adminsdk-fbsvc@appterritorios-e5bb5.iam.gserviceaccount.com"
+      ],
+      "role": "roles/firebase.sdkAdminServiceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:firebase-adminsdk-fbsvc@appterritorios-e5bb5.iam.gserviceaccount.com"
+      ],
+      "role": "roles/firebaseappcheck.admin"
+    },
+    {
+      "members": [
+        "serviceAccount:firebase-adminsdk-fbsvc@appterritorios-e5bb5.iam.gserviceaccount.com"
+      ],
+      "role": "roles/firebasedatabase.admin"
+    },
+    {
+      "members": [
+        "serviceAccount:service-83629039662@gcp-sa-firebasedatabase.iam.gserviceaccount.com"
+      ],
+      "role": "roles/firebasedatabase.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:service-83629039662@gcp-sa-firebasemods.iam.gserviceaccount.com"
+      ],
+      "role": "roles/firebasemods.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:service-83629039662@firebase-rules.iam.gserviceaccount.com"
+      ],
+      "role": "roles/firebaserules.system"
+    },
+    {
+      "members": [
+        "serviceAccount:service-83629039662@gcp-sa-firebasestorage.iam.gserviceaccount.com"
+      ],
+      "role": "roles/firebasestorage.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:service-83629039662@gcp-sa-firestore.iam.gserviceaccount.com"
+      ],
+      "role": "roles/firestore.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:appterritorios-e5bb5@appspot.gserviceaccount.com",
+        "serviceAccount:firebase-adminsdk-fbsvc@appterritorios-e5bb5.iam.gserviceaccount.com",
+        "serviceAccount:service-83629039662@gcp-sa-pubsub.iam.gserviceaccount.com"
+      ],
+      "role": "roles/iam.serviceAccountTokenCreator"
+    },
+    {
+      "members": [
+        "serviceAccount:service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com",
+        "user:verton3@gmail.com"
+      ],
+      "role": "roles/iam.serviceAccountUser"
+    },
+    {
+      "members": [
+        "user:verton3@gmail.com"
+      ],
+      "role": "roles/owner"
+    },
+    {
+      "members": [
+        "serviceAccount:service-83629039662@gcp-sa-pubsub.iam.gserviceaccount.com"
+      ],
+      "role": "roles/pubsub.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:83629039662-compute@developer.gserviceaccount.com"
+      ],
+      "role": "roles/run.invoker"
+    },
+    {
+      "members": [
+        "deleted:serviceAccount:service-83629039662@serverless-robot-prod.iam.gserviceaccount.com?uid=104317658599170563407",
+        "serviceAccount:service-83629039662@serverless-robot-prod.iam.gserviceaccount.com"
+      ],
+      "role": "roles/run.serviceAgent"
+    },
+    {
+      "members": [
+        "serviceAccount:firebase-adminsdk-fbsvc@appterritorios-e5bb5.iam.gserviceaccount.com"
+      ],
+      "role": "roles/storage.admin"
+    }
+  ],
+  "etag": "BwY8CXC9XE4=",
+  "version": 1
+}
