@@ -139,7 +139,11 @@ export default function S13ReportPage() {
                             });
                         }
                         const sortedHistory = allAssignments.sort((a, b) => (a.assignedAt?.toMillis() || 0) - (b.assignedAt?.toMillis() || 0));
-                        const displayAssignments = Array(4).fill(null).map((_, i) => sortedHistory[i] || null);
+                        
+                        // Pega os últimos 4 registros
+                        const lastFourAssignments = sortedHistory.slice(-4); 
+                        // Preenche com nulos se houver menos de 4, para manter a estrutura da tabela
+                        const displayAssignments = Array(4).fill(null).map((_, i) => lastFourAssignments[i] || null);
 
                         return (
                             <React.Fragment key={t.id}>
