@@ -109,17 +109,16 @@ export default function S13ReportPage() {
           <table className="w-full border-collapse border border-black text-sm">
             <thead>
               <tr className="text-center text-xs font-semibold">
-                  <th className="border border-black p-1 w-[8%]" rowSpan={2}>Terr. n.º</th>
-                  <th className="border border-black p-1 w-[12%]" rowSpan={2}>Última data concluída*</th>
-                  <th className="border border-black p-1" colSpan={3}>Designado a</th>
-                  <th className="border border-black p-1" colSpan={3}>Designado a</th>
-                  <th className="border border-black p-1" colSpan={3}>Designado a</th>
-                  <th className="border border-black p-1" colSpan={3}>Designado a</th>
+                <th className="border border-black p-1 w-[8%]" rowSpan={2}>Terr. n.º</th>
+                <th className="border border-black p-1 w-[12%]" rowSpan={2}>Última data concluída*</th>
+                <th className="border border-black p-1" colSpan={2}>Designado a</th>
+                <th className="border border-black p-1" colSpan={2}>Designado a</th>
+                <th className="border border-black p-1" colSpan={2}>Designado a</th>
+                <th className="border border-black p-1" colSpan={2}>Designado a</th>
               </tr>
               <tr className="text-center text-xs font-semibold">
                   {Array(4).fill(null).map((_, i) => (
                     <React.Fragment key={i}>
-                        <th className="border border-black p-1">Nome</th>
                         <th className="border border-black p-1">Data da designação</th>
                         <th className="border border-black p-1">Data da conclusão</th>
                     </React.Fragment>
@@ -140,21 +139,26 @@ export default function S13ReportPage() {
                             });
                         }
                         const sortedHistory = allAssignments.sort((a, b) => (a.assignedAt?.toMillis() || 0) - (b.assignedAt?.toMillis() || 0));
-                        
                         const displayAssignments = Array(4).fill(null).map((_, i) => sortedHistory[i] || null);
 
                         return (
-                            <tr key={t.id}>
-                                <td className="border border-black text-center font-semibold align-middle h-10">{t.number}</td>
-                                <td className="border border-black text-center align-middle">{getLastCompletedDate(t)}</td>
-                                {displayAssignments.map((assignment, i) => (
-                                    <React.Fragment key={`${t.id}-assign-${i}`}>
-                                        <td className="border border-black align-middle text-center text-xs p-1">{assignment?.name || ''}</td>
-                                        <td className="border border-black align-middle text-center text-xs p-1">{assignment?.assignedAt ? format(assignment.assignedAt.toDate(), "dd/MM/yy") : ''}</td>
-                                        <td className="border border-black align-middle text-center text-xs p-1">{assignment?.completedAt ? format(assignment.completedAt.toDate(), "dd/MM/yy") : ''}</td>
-                                    </React.Fragment>
-                                ))}
-                            </tr>
+                            <React.Fragment key={t.id}>
+                                <tr className="text-center align-top">
+                                    <td className="border border-black font-semibold align-middle" rowSpan={2}>{t.number}</td>
+                                    <td className="border border-black align-middle" rowSpan={2}>{getLastCompletedDate(t)}</td>
+                                    {displayAssignments.map((assignment, i) => (
+                                        <td key={`${t.id}-name-${i}`} className="border border-black p-1 font-semibold" colSpan={2}>{assignment?.name || ''}</td>
+                                    ))}
+                                </tr>
+                                <tr className="text-center text-xs h-8">
+                                    {displayAssignments.map((assignment, i) => (
+                                        <React.Fragment key={`${t.id}-dates-${i}`}>
+                                            <td className="border border-black p-1">{assignment?.assignedAt ? format(assignment.assignedAt.toDate(), "dd/MM/yy") : ''}</td>
+                                            <td className="border border-black p-1">{assignment?.completedAt ? format(assignment.completedAt.toDate(), "dd/MM/yy") : ''}</td>
+                                        </React.Fragment>
+                                    ))}
+                                </tr>
+                            </React.Fragment>
                         );
                     })
                 )}
