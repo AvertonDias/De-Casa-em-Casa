@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -6,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 import { Territory } from '@/types/types';
 import Link from 'next/link';
-import { Plus, Search, ChevronRight, Loader, UserCheck, CalendarClock } from 'lucide-react';
+import { Plus, Search, ChevronRight, Loader, UserCheck, CalendarClock, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AddTerritoryModal from '@/components/AddTerritoryModal';
@@ -19,9 +20,17 @@ import withAuth from '@/components/withAuth';
 
 const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
   const isDesignado = territory.status === 'designado' && territory.assignment;
+  const isOverdue = isDesignado && territory.assignment && territory.assignment.dueDate.toDate() < new Date();
   const totalCasas = territory.stats?.totalHouses || 0;
   const casasFeitas = territory.stats?.housesDone || 0;
   const progresso = territory.progress ? Math.round(territory.progress * 100) : 0;
+
+  const getStatusInfo = () => {
+    if (isOverdue) return { text: 'Atrasado', color: 'bg-red-500/20 text-red-400' };
+    if (isDesignado) return { text: 'Designado', color: 'bg-yellow-500/20 text-yellow-400' };
+    return { text: 'Disponível', color: 'bg-green-500/20 text-green-400' };
+  };
+  const statusInfo = getStatusInfo();
 
   return (
     <Link href={`/dashboard/territorios/${territory.id}`} className="block group">
@@ -29,14 +38,14 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
         {/* Cabeçalho */}
         <div className="flex justify-between items-start">
           <h3 className="font-bold text-xl flex-1 pr-2">{territory.number} - {territory.name}</h3>
-          <span className={`px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${isDesignado ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'}`}>
-            {isDesignado ? 'Designado' : 'Disponível'}
+          <span className={`px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${statusInfo.color}`}>
+            {statusInfo.text}
           </span>
         </div>
 
         {/* Informações da Designação (se existir) */}
         {isDesignado && (
-          <div className="bg-input/50 p-3 rounded-md text-sm space-y-2">
+          <div className={`p-3 rounded-md text-sm space-y-2 ${isOverdue ? 'bg-red-500/10' : 'bg-input/50'}`}>
             <div className="flex items-center gap-2">
               <UserCheck size={16} className="text-muted-foreground"/>
               <span className="font-semibold">{territory.assignment?.name}</span>
@@ -45,6 +54,12 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
               <CalendarClock size={16} className="text-muted-foreground"/>
               <span>Devolver até: {format(territory.assignment!.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR })}</span>
             </div>
+             {isOverdue && (
+                <div className="flex items-center gap-2 font-bold text-red-500">
+                    <AlertTriangle size={16} />
+                    <span>Território Atrasado!</span>
+                </div>
+             )}
           </div>
         )}
 
