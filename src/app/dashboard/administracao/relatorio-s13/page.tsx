@@ -110,52 +110,59 @@ export default function S13ReportPage() {
               <input id="service-year" type="text" value={serviceYear} onChange={(e) => setServiceYear(e.target.value)} className="border-b-2 border-black focus:outline-none text-center bg-white w-24"/>
           </div>
           <table className="w-full border-collapse border border-black text-sm">
-              <thead>
-                  <tr className="text-center text-xs font-semibold">
-                      <th className="border border-black p-1 w-[8%]">Terr. n.º</th>
-                      <th className="border border-black p-1 w-[12%]">Última data concluída*</th>
-                      <th className="border border-black p-1" colSpan={2}>Designado para</th>
-                      <th className="border border-black p-1" colSpan={2}>Designado para</th>
-                      <th className="border border-black p-1" colSpan={2}>Designado para</th>
-                      <th className="border border-black p-1" colSpan={2}>Designado para</th>
-                  </tr>
-              </thead>
-              <tbody>
-                  {loading ? (
-                      <tr><td colSpan={10} className="text-center p-4">Carregando dados...</td></tr>
-                  ) : (
-                      filteredTerritories.map(t => {
-                          let allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
-                          if (t.status === 'designado' && t.assignment) {
-                              allAssignments.push({
-                                  name: t.assignment.name,
-                                  assignedAt: t.assignment.assignedAt,
-                              });
-                          }
-                          const sortedHistory = allAssignments.sort((a, b) => a.assignedAt!.toMillis() - b.assignedAt!.toMillis());
-                          return (
-                              <tr key={t.id}>
-                                  <td className="border border-black text-center font-semibold h-10">{t.number}</td>
-                                  <td className="border border-black text-center">{getLastCompletedDate(t)}</td>
-                                  {Array(4).fill(null).map((_, i) => {
-                                      const assignment = sortedHistory[i];
-                                      return (
-                                        <td key={`${t.id}-d-${i}`} className="border border-black text-center px-1" colSpan={2}>
-                                          <div className="flex flex-col justify-between items-center h-full">
-                                            <span className="text-xs pt-1">{assignment?.name || ''}</span>
-                                            <div className="w-full mt-auto grid grid-cols-2 divide-x divide-black border-t border-black">
-                                              <span className="text-xs">{assignment && assignment.assignedAt ? format(assignment.assignedAt!.toDate(), "dd/MM/yy") : ''}</span>
-                                              <span className="text-xs">{assignment && assignment.completedAt ? format(assignment.completedAt.toDate(), "dd/MM/yy") : ''}</span>
-                                            </div>
-                                          </div>
+            <thead>
+                <tr className="text-center text-xs font-semibold">
+                    <th className="border border-black p-1 w-[8%]" rowSpan={2}>Terr. n.º</th>
+                    <th className="border border-black p-1 w-[12%]" rowSpan={2}>Última data concluída*</th>
+                    <th className="border border-black p-1" colSpan={2}>Designado a</th>
+                    <th className="border border-black p-1" colSpan={2}>Designado a</th>
+                    <th className="border border-black p-1" colSpan={2}>Designado a</th>
+                    <th className="border border-black p-1" colSpan={2}>Designado a</th>
+                </tr>
+                <tr className="text-center text-xs font-semibold">
+                    <th className="border border-black p-1">Data da designação</th>
+                    <th className="border border-black p-1">Data da conclusão</th>
+                    <th className="border border-black p-1">Data da designação</th>
+                    <th className="border border-black p-1">Data da conclusão</th>
+                    <th className="border border-black p-1">Data da designação</th>
+                    <th className="border border-black p-1">Data da conclusão</th>
+                    <th className="border border-black p-1">Data da designação</th>
+                    <th className="border border-black p-1">Data da conclusão</th>
+                </tr>
+            </thead>
+            <tbody>
+                {loading ? (
+                    <tr><td colSpan={10} className="text-center p-4">Carregando dados...</td></tr>
+                ) : (
+                    filteredTerritories.map(t => {
+                        let allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
+                        if (t.status === 'designado' && t.assignment) {
+                            allAssignments.push({
+                                name: t.assignment.name,
+                                assignedAt: t.assignment.assignedAt,
+                            });
+                        }
+                        const sortedHistory = allAssignments.sort((a, b) => a.assignedAt!.toMillis() - b.assignedAt!.toMillis());
+                        
+                        // Criar um array de 4 elementos para garantir que sempre haja 4 colunas de designação
+                        const displayAssignments = Array(4).fill(null).map((_, i) => sortedHistory[i] || null);
+
+                        return (
+                            <tr key={t.id}>
+                                <td className="border border-black text-center font-semibold align-top h-10 pt-1">{t.number}</td>
+                                <td className="border border-black text-center align-top pt-1">{getLastCompletedDate(t)}</td>
+                                {displayAssignments.map((assignment, i) => (
+                                    <React.Fragment key={`${t.id}-assign-${i}`}>
+                                        <td className="border-t-0 border-b-0 border-l border-r-0 border-black align-top pt-1 text-center" colSpan={2}>
+                                          {assignment?.name || ''}
                                         </td>
-                                      );
-                                  })}
-                              </tr>
-                          );
-                      })
-                  )}
-              </tbody>
+                                    </React.Fragment>
+                                ))}
+                            </tr>
+                        );
+                    })
+                )}
+            </tbody>
           </table>
           <p className="text-xs mt-2">*Ao iniciar uma nova folha, use esta coluna para registrar a data em que cada território foi concluído pela última vez.</p>
           <p className="text-xs text-right">S-13-T 01/22</p>
@@ -164,3 +171,4 @@ export default function S13ReportPage() {
     </>
   );
 }
+
