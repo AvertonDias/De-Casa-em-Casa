@@ -1,3 +1,4 @@
+
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -8,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Loader, Eye, EyeOff } from "lucide-react"; 
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 export default function NovaCongregacaoPage() {
   const [adminName, setAdminName] = useState('');
@@ -27,16 +30,16 @@ export default function NovaCongregacaoPage() {
   const handleCreateCongregation = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-    setIsLoading(true);
 
     if (adminPassword !== confirmPassword) {
       setErrorMessage("As senhas não coincidem.");
-      setIsLoading(false);
       return;
     }
+    
+    setIsLoading(true);
 
     try {
-        const functionUrl = "https://us-central1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin";
+        const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin";
 
         const response = await fetch(functionUrl, {
             method: 'POST',
@@ -57,18 +60,20 @@ export default function NovaCongregacaoPage() {
         }
         
         if (result.success) {
-            toast({ title: "Congregação Criada!", description: result.message || "Agora acesse o painel com seu novo usuário.", });
-            router.push("/");
+            toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
+            // Login automático após o sucesso
+            await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+            // O UserContext irá lidar com o redirecionamento para /dashboard
         } else {
             throw new Error(result.error || 'Falha ao criar congregação sem erro explícito.');
         }
 
     } catch (error: any) {
-        console.error("Erro na criação:", error);
-        setErrorMessage(error.message || "Erro inesperado ao criar congregação. Tente novamente mais tarde.");
-    } finally {
+        console.error("Erro na criação ou login:", error);
+        setErrorMessage(error.message || "Erro inesperado. Tente novamente mais tarde.");
         setIsLoading(false);
     }
+    // Não definimos setIsLoading(false) aqui, pois o redirecionamento irá desmontar o componente.
   };
   
     return (
