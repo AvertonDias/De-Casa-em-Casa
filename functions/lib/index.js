@@ -371,16 +371,36 @@ exports.onTerritoryAssigned = (0, firestore_1.onDocumentWritten)("congregations/
         return { success: false, error };
     }
 });
-exports.onDeleteTerritory = (0, firestore_1.onDocumentWritten)("congregations/{congregationId}/territories/{territoryId}", async (event) => {
-    if (!event.data?.after.exists) { // Se o documento foi deletado
-        const ref = event.data.before.ref;
-        await db.recursiveDelete(ref);
+exports.onDeleteTerritory = (0, firestore_1.onDocumentDeleted)("congregations/{congregationId}/territories/{territoryId}", async (event) => {
+    if (!event.data) {
+        console.warn(`[onDeleteTerritory] Evento de deleção para ${event.params.territoryId} sem dados. Ignorando.`);
+        return null;
+    }
+    const ref = event.data.ref;
+    try {
+        await admin.firestore().recursiveDelete(ref);
+        console.log(`[onDeleteTerritory] Território ${event.params.territoryId} e subcoleções deletadas.`);
+        return { success: true };
+    }
+    catch (error) {
+        console.error(`[onDeleteTerritory] Erro ao deletar ${event.params.territoryId}:`, error);
+        throw new v2_1.https.HttpsError("internal", "Falha ao deletar território recursivamente.");
     }
 });
-exports.onDeleteQuadra = (0, firestore_1.onDocumentWritten)("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}", async (event) => {
-    if (!event.data?.after.exists) {
-        const ref = event.data.before.ref;
-        await db.recursiveDelete(ref);
+exports.onDeleteQuadra = (0, firestore_1.onDocumentDeleted)("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}", async (event) => {
+    if (!event.data) {
+        console.warn(`[onDeleteQuadra] Evento de deleção para ${event.params.quadraId} sem dados. Ignorando.`);
+        return null;
+    }
+    const ref = event.data.ref;
+    try {
+        await admin.firestore().recursiveDelete(ref);
+        console.log(`[onDeleteQuadra] Quadra ${event.params.quadraId} e subcoleções deletadas.`);
+        return { success: true };
+    }
+    catch (error) {
+        console.error(`[onDeleteQuadra] Erro ao deletar ${event.params.quadraId}:`, error);
+        throw new v2_1.https.HttpsError("internal", "Falha ao deletar quadra recursivamente.");
     }
 });
 // ============================================================================

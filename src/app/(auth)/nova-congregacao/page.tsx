@@ -92,7 +92,16 @@ export default function NovaCongregacaoPage() {
                     </div>
                     <div>
                         <Label htmlFor="congregationNumber">Número da Congregação</Label>
-                        <Input type="text" id="congregationNumber" value={congregationNumber} onChange={(e) => setCongregationNumber(e.target.value.replace(/\D/g, ''))} required className="mt-1" placeholder="Apenas números" />
+                        <Input
+                            type="tel"
+                            inputMode="numeric"
+                            id="congregationNumber"
+                            value={congregationNumber}
+                            onChange={(e) => setCongregationNumber(e.target.value.replace(/\D/g, ''))}
+                            required
+                            className="mt-1"
+                            placeholder="Apenas números"
+                        />
                     </div>
   
                     <h3 className="text-lg font-semibold border-t border-border pt-4">Seus Dados</h3>
@@ -137,4 +146,3 @@ export default function NovaCongregacaoPage() {
         </div>
     );
 }
-
