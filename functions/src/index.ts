@@ -1,6 +1,6 @@
 // functions/src/index.ts
 import { https, setGlobalOptions } from "firebase-functions/v2";
-import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { format } from 'date-fns';
@@ -378,17 +378,35 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
   }
 });
 
-export const onDeleteTerritory = onDocumentWritten("congregations/{congregationId}/territories/{territoryId}", async (event) => {
-    if (!event.data?.after.exists) { // Se o documento foi deletado
-        const ref = event.data.before.ref;
-        await db.recursiveDelete(ref);
+export const onDeleteTerritory = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}", async (event) => {
+    if (!event.data) {
+        console.warn(`[onDeleteTerritory] Evento de deleção para ${event.params.territoryId} sem dados. Ignorando.`);
+        return null;
+    }
+    const ref = event.data.ref;
+    try {
+        await admin.firestore().recursiveDelete(ref);
+        console.log(`[onDeleteTerritory] Território ${event.params.territoryId} e subcoleções deletadas.`);
+        return { success: true };
+    } catch (error) {
+        console.error(`[onDeleteTerritory] Erro ao deletar ${event.params.territoryId}:`, error);
+        throw new https.HttpsError("internal", "Falha ao deletar território recursivamente.");
     }
 });
 
-export const onDeleteQuadra = onDocumentWritten("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}", async (event) => {
-    if (!event.data?.after.exists) {
-        const ref = event.data.before.ref;
-        await db.recursiveDelete(ref);
+export const onDeleteQuadra = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}", async (event) => {
+    if (!event.data) {
+        console.warn(`[onDeleteQuadra] Evento de deleção para ${event.params.quadraId} sem dados. Ignorando.`);
+        return null;
+    }
+    const ref = event.data.ref;
+    try {
+        await admin.firestore().recursiveDelete(ref);
+        console.log(`[onDeleteQuadra] Quadra ${event.params.quadraId} e subcoleções deletadas.`);
+        return { success: true };
+    } catch (error) {
+        console.error(`[onDeleteQuadra] Erro ao deletar ${event.params.quadraId}:`, error);
+        throw new https.HttpsError("internal", "Falha ao deletar quadra recursivamente.");
     }
 });
 
@@ -414,5 +432,3 @@ export const mirrorUserStatus = onValueWritten("/status/{uid}", async (event) =>
     }
     return null;
 });
-
-    
