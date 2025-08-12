@@ -414,7 +414,12 @@ export const onDeleteQuadra = onDocumentDeleted("congregations/{congregationId}/
 // ============================================================================
 //   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
 // ============================================================================
-export const mirrorUserStatus = onValueWritten("/status/{uid}", async (event) => {
+export const mirrorUserStatus = onValueWritten(
+  {
+    ref: "/status/{uid}",
+    region: "us-central1"
+  },
+  async (event) => {
     const eventStatus = event.data.after.val();
     const uid = event.params.uid;
     const userDocRef = db.doc(`users/${uid}`);
