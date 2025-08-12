@@ -406,7 +406,10 @@ exports.onDeleteQuadra = (0, firestore_1.onDocumentDeleted)("congregations/{cong
 // ============================================================================
 //   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
 // ============================================================================
-exports.mirrorUserStatus = (0, database_1.onValueWritten)("/status/{uid}", async (event) => {
+exports.mirrorUserStatus = (0, database_1.onValueWritten)({
+    ref: "/status/{uid}",
+    region: "us-central1"
+}, async (event) => {
     const eventStatus = event.data.after.val();
     const uid = event.params.uid;
     const userDocRef = db.doc(`users/${uid}`);
