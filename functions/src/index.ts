@@ -414,3 +414,5 @@ export const mirrorUserStatus = onValueWritten("/status/{uid}", async (event) =>
     }
     return null;
 });
+
+    

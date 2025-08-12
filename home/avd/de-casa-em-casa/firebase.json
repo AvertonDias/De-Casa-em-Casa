@@ -7,7 +7,10 @@
     {
       "source": "functions",
       "codebase": "default",
-      "serviceAccount": "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com"
+      "serviceAccount": "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
     }
   ]
 }
+
+
+    
