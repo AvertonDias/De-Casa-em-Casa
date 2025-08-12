@@ -9,7 +9,7 @@ import { GetSignedUrlConfig } from "@google-cloud/storage";
 admin.initializeApp();
 const db = admin.firestore();
 
-// Define as opções globais para todas as funções
+// Define as opções globais para todas as funções V2
 setGlobalOptions({ 
   region: "southamerica-east1",
   serviceAccount: "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
@@ -20,67 +20,64 @@ setGlobalOptions({
 //   FUNÇÕES HTTPS (onCall e onRequest)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const cors = require('cors')({ origin: true });
-    
-    cors(req, res, async () => {
-        if (req.method !== 'POST') {
-            res.status(405).json({ error: 'Método não permitido' });
-            return;
-        }
+export const createCongregationAndAdmin = https.onRequest(
+  { cors: true }, // Habilita CORS para a função
+  async (req, res) => {
+      if (req.method !== 'POST') {
+          res.status(405).json({ error: 'Método não permitido' });
+          return;
+      }
 
-        const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = req.body;
-        if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
-            res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
-            return;
-        }
+      const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = req.body;
+      if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
+          res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
+          return;
+      }
 
-        let newUser: admin.auth.UserRecord | undefined;
-        try {
-            newUser = await admin.auth().createUser({
-                email: adminEmail,
-                password: adminPassword,
-                displayName: adminName,
-            });
+      let newUser: admin.auth.UserRecord | undefined;
+      try {
+          newUser = await admin.auth().createUser({
+              email: adminEmail,
+              password: adminPassword,
+              displayName: adminName,
+          });
 
-            const batch = db.batch();
-            const newCongregationRef = db.collection('congregations').doc();
-            batch.set(newCongregationRef, {
-                name: congregationName,
-                number: congregationNumber,
-                territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                lastUpdate: admin.firestore.FieldValue.serverTimestamp()
-            });
+          const batch = db.batch();
+          const newCongregationRef = db.collection('congregations').doc();
+          batch.set(newCongregationRef, {
+              name: congregationName,
+              number: congregationNumber,
+              territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+          });
 
-            const userDocRef = db.collection("users").doc(newUser.uid);
-            batch.set(userDocRef, {
-                name: adminName,
-                email: adminEmail,
-                congregationId: newCongregationRef.id,
-                role: "Administrador",
-                status: "ativo"
-            });
-            await batch.commit();
+          const userDocRef = db.collection("users").doc(newUser.uid);
+          batch.set(userDocRef, {
+              name: adminName,
+              email: adminEmail,
+              congregationId: newCongregationRef.id,
+              role: "Administrador",
+              status: "ativo"
+          });
+          await batch.commit();
 
-            res.status(200).json({ success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' });
+          res.status(200).json({ success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' });
 
-        } catch (error: any) {
-            if (newUser) {
-                await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
-                    console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`, deleteError);
-                });
-            }
+      } catch (error: any) {
+          if (newUser) {
+              await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
+                  console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`, deleteError);
+              });
+          }
 
-            console.error("Erro ao criar congregação e admin:", error);
-            if (error.code === 'auth/email-already-exists') {
-                res.status(409).json({ error: "Este e-mail já está em uso." });
-            } else {
-                res.status(500).json({ error: error.message || 'Erro interno no servidor' });
-            }
-        }
-    });
+          console.error("Erro ao criar congregação e admin:", error);
+          if (error.code === 'auth/email-already-exists') {
+              res.status(409).json({ error: "Este e-mail já está em uso." });
+          } else {
+              res.status(500).json({ error: error.message || 'Erro interno no servidor' });
+          }
+      }
 });
 
 export const deleteUserAccount = https.onCall(async (req) => {
@@ -400,7 +397,7 @@ export const onDeleteQuadra = onDocumentWritten("congregations/{congregationId}/
 //   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
 // ============================================================================
 export const mirrorUserStatus = onValueWritten("/status/{uid}", async (event) => {
-    const eventStatus = event.data.after;
+    const eventStatus = event.data.after.val();
     const uid = event.params.uid;
     const userDocRef = db.doc(`users/${uid}`);
 
