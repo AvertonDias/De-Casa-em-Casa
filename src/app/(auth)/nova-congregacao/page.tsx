@@ -1,3 +1,4 @@
+
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -60,7 +61,6 @@ export default function NovaCongregacaoPage() {
         
         if (result.success) {
             toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
-            // Login automático após o sucesso
             await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
             // O UserContext irá lidar com o redirecionamento para /dashboard
         } else {
@@ -72,7 +72,6 @@ export default function NovaCongregacaoPage() {
         setErrorMessage(error.message || "Erro inesperado. Tente novamente mais tarde.");
         setIsLoading(false);
     }
-    // Não definimos setIsLoading(false) aqui, pois o redirecionamento irá desmontar o componente.
   };
   
     return (
