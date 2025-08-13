@@ -41,12 +41,6 @@ export default function NovaCongregacaoPage() {
     setIsLoading(true);
 
     try {
-        const congregationQuery = query(collection(db, 'congregations'), where('number', '==', congregationNumber.trim()));
-        const existingCongregationSnapshot = await getDocs(congregationQuery);
-        if (!existingCongregationSnapshot.empty) {
-          throw new Error("Já existe uma congregação com este número.");
-        }
-        
         const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin";
 
         const response = await fetch(functionUrl, {
