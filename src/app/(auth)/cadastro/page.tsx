@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -41,16 +42,19 @@ export default function SignUpPage() {
       }
       const congregationId = querySnapshot.docs[0].id;
       
-      // 1. Cria usuário no Auth, mas não espera pela conclusão do login ainda
+      // 1. Cria usuário no Auth
       await createUserWithEmailAndPassword(auth, email, password);
       
-      // 2. Espera a confirmação da autenticação antes de prosseguir
+      // 2. Espera a confirmação da autenticação e recarrega o usuário para sincronizar o token JWT
       await new Promise<void>((resolve, reject) => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
           if (user) {
-            unsubscribe(); // Para de ouvir para evitar chamadas múltiplas
             try {
-              // 3. Agora que o usuário está autenticado, cria o documento no Firestore
+              // Força a atualização do token do usuário no cliente.
+              // Isso é crucial para que as regras do Firestore reconheçam a autenticação.
+              await user.reload();
+
+              // Agora que o usuário está autenticado e sincronizado, cria o documento.
               await setDoc(doc(db, "users", user.uid), {
                 name: name.trim(), 
                 email, 
@@ -59,8 +63,10 @@ export default function SignUpPage() {
                 status: "pendente"
               });
               resolve();
-            } catch (firestoreError) {
-              reject(firestoreError); // Rejeita a promise se a escrita no Firestore falhar
+            } catch (err) {
+              reject(err); // Rejeita a promise se o reload ou a escrita no Firestore falhar
+            } finally {
+              unsubscribe(); // Para de ouvir para evitar chamadas múltiplas
             }
           }
           // Se o usuário for nulo, a promise continuará pendente até o timeout ou erro do Auth
