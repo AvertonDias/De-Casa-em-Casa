@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useState, useEffect, useContext, ReactNode } from 'react';
+import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, app } from '@/lib/firebase';
@@ -31,13 +31,29 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Ref para armazenar funções de unsubscribe de Firestore.
+  const firestoreUnsubsRef = useRef<(() => void)[]>([]);
+
+  // Função auxiliar para desinscrever TODOS os listeners Firestore.
+  const unsubscribeAllFirestoreListeners = () => {
+    firestoreUnsubsRef.current.forEach(unsub => {
+      try {
+        unsub();
+      } catch (e) {
+        console.warn("Erro ao desinscrever listener Firestore:", e);
+      }
+    });
+    firestoreUnsubsRef.current = []; // Limpa o array.
+  };
+
   const logout = async () => {
     if (user) {
         const userStatusRTDBRef = ref(rtdb, `/status/${user.uid}`);
-        await set(userStatusRTDBRef, null); 
+        await set(userStatusRTDBRef, null); // Remove o nó do RTDB
     }
     // O onAuthStateChanged listener irá tratar da limpeza dos listeners do firestore
     await signOut(auth);
+    router.push('/');
   };
   
   const updateUser = async (data: Partial<AppUser>) => {
@@ -50,8 +66,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
-      let firestoreUnsubscribe: () => void = () => {};
-      let congUnsubscribe: () => void = () => {};
+      // Limpa listeners antigos antes de configurar novos.
+      unsubscribeAllFirestoreListeners();
 
       if (firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
@@ -61,55 +77,50 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const isOnlineForDatabase = { state: 'online', last_changed: serverTimestamp() };
         
         const connectedRef = ref(rtdb, '.info/connected');
-        onValue(connectedRef, (snap) => {
+        const rtdbListener = onValue(connectedRef, (snap) => {
             if (snap.val() === true) {
                 onDisconnect(userStatusRTDBRef).set(isOfflineForDatabase);
                 set(userStatusRTDBRef, isOnlineForDatabase);
             }
         });
+        firestoreUnsubsRef.current.push(rtdbListener); // Armazena unsub do rtdb
 
-        firestoreUnsubscribe = onSnapshot(userRef, (docSnap) => {
+        const userDocListener = onSnapshot(userRef, (docSnap) => {
           const userData = docSnap.exists() ? { uid: firebaseUser.uid, ...docSnap.data() } as AppUser : null;
           
-          if(congUnsubscribe) congUnsubscribe();
-
           if (userData?.congregationId) {
             const congRef = doc(db, 'congregations', userData.congregationId);
-            congUnsubscribe = onSnapshot(congRef, (congSnap) => {
+            const congListener = onSnapshot(congRef, (congSnap) => {
               const congData = congSnap.exists() ? { id: congSnap.id, ...congSnap.data() } as Congregation : null;
               setUser({...userData, congregationName: congData?.name});
               setCongregation(congData);
               if(loading) setLoading(false);
-            }, (error) => {
-                console.error("Erro no listener da congregação:", error);
-                setLoading(false);
             });
+            firestoreUnsubsRef.current.push(congListener); // Armazena unsub da congregação
           } else {
              setUser(userData);
              setCongregation(null);
              if(loading) setLoading(false);
           }
         }, (error) => {
-            console.error("Erro no listener do usuário:", error);
+            console.error("Erro no listener de usuário:", error);
             setLoading(false);
+            setUser(null);
+            unsubscribeAllFirestoreListeners();
         });
+        firestoreUnsubsRef.current.push(userDocListener); // Armazena unsub do usuário
 
       } else {
         setUser(null);
         setCongregation(null);
         setLoading(false);
       }
-      
-      return () => {
-        firestoreUnsubscribe();
-        congUnsubscribe();
-        if (firebaseUser?.uid) {
-            const userStatusRTDBRef = ref(rtdb, `/status/${firebaseUser.uid}`);
-            set(userStatusRTDBRef, null);
-        }
-      };
     });
-    return () => unsubscribeAuth();
+
+    return () => {
+        unsubscribeAuth();
+        unsubscribeAllFirestoreListeners();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
