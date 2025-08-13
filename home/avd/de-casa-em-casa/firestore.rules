@@ -1,0 +1,71 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Funções de Ajuda ---
+    function getUserData() { 
+      return request.auth != null ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data : null; 
+    }
+    function isMemberActive(congregationId) { 
+      let userData = getUserData(); 
+      return request.auth != null && userData != null && userData.congregationId == congregationId && userData.status == 'ativo'; 
+    }
+    function isAtLeastDirigente(congregationId) { 
+      let userData = getUserData();
+      return isMemberActive(congregationId) && userData.role in ['Administrador', 'Dirigente']; 
+    }
+    function isAdmin(congregationId) { 
+      let userData = getUserData();
+      return isMemberActive(congregationId) && userData.role == 'Administrador'; 
+    }
+
+    // --- Regras de Coleções ---
+    match /congregations/{congregationId} {
+      // Permite LISTAR e OBTER para QUALQUER usuário AUTENTICADO.
+      allow list, get: if request.auth != null; 
+      
+      // A criação é gerenciada por uma Cloud Function, que tem acesso de admin.
+      // Nenhum cliente deve poder criar uma congregação diretamente.
+      allow create: if false;
+      
+      allow update: if isAdmin(congregationId);
+      allow delete: if false; 
+    }
+
+    match /users/{userId} {
+      // A criação do documento do usuário é feita pela Cloud Function.
+      // O cliente só pode criar o seu próprio documento ao se registrar.
+      allow create: if request.auth != null && request.auth.uid == userId;
+
+      allow get: if request.auth.uid == userId || (request.auth != null && isAtLeastDirigente(getUserData()?.congregationId));
+      allow list: if request.auth != null && isAtLeastDirigente(getUserData()?.congregationId);
+
+      allow update: if (request.auth != null && isAtLeastDirigente(getUserData()?.congregationId)) || 
+                    (request.auth != null && request.auth.uid == userId && 
+                     request.resource.data.role == resource.data.role && 
+                     request.resource.data.status == resource.data.status);
+      
+      allow delete: if request.auth != null && isAdmin(getUserData()?.congregationId);
+    }
+    
+    match /congregations/{congregationId}/territories/{territoryId} {
+      allow get, list: if isMemberActive(congregationId);
+      allow create, update, delete: if isAtLeastDirigente(congregationId);
+
+      match /activityHistory/{activityId} {
+        allow read, create, update, delete: if isAtLeastDirigente(congregationId);
+      }
+
+      match /quadras/{quadraId} {
+        allow get, list: if isMemberActive(congregationId);
+        allow create, update, delete: if isAtLeastDirigente(congregationId);
+
+        match /casas/{casaId} {
+          allow read, create, delete: if isMemberActive(congregationId);
+          allow update: if isMemberActive(congregationId);
+        }
+      }
+    }
+  }
+}

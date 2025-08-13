@@ -33,9 +33,9 @@ const date_fns_1 = require("date-fns");
 admin.initializeApp();
 const db = admin.firestore();
 // Define as opções globais para todas as funções V2
+// Removida a serviceAccount daqui para usar a padrão do runtime
 (0, v2_1.setGlobalOptions)({
     region: "southamerica-east1",
-    serviceAccount: "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com"
 });
 // ========================================================================
 //   FUNÇÕES HTTPS (onCall e onRequest)
@@ -55,6 +55,12 @@ exports.createCongregationAndAdmin = v2_1.https.onRequest(async (req, res) => {
         }
         let newUser;
         try {
+            // Verifica se a congregação já existe
+            const congQuery = await db.collection('congregations').where('number', '==', congregationNumber).get();
+            if (!congQuery.empty) {
+                res.status(409).json({ error: 'Uma congregação com este número já existe.' });
+                return;
+            }
             newUser = await admin.auth().createUser({
                 email: adminEmail,
                 password: adminPassword,
