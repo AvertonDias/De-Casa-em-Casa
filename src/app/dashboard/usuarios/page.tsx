@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, Fragment } from 'react';
@@ -47,7 +48,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
   };
 
   return (
-    <li className={`p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b ${user.status === 'pendente' ? 'bg-yellow-500/10' : 'border-transparent'}`}>
+    <li className={`p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b dark:border-gray-700 ${user.status === 'pendente' ? 'bg-yellow-500/10' : ''}`}>
       <div className="flex items-center flex-1 min-w-0">
           <div className="relative flex-shrink-0 mr-4">
             <Avatar>
@@ -74,7 +75,9 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
       
       <div className="flex items-center justify-end gap-3 shrink-0">
           <div className="flex items-center justify-end gap-3 shrink-0">
-            <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRoleClass(user.role)}`}>{user.role}</span>
+            {user.status !== 'pendente' && (
+              <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRoleClass(user.role)}`}>{user.role}</span>
+            )}
             {user.status !== 'ativo' && (
                 <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusClass(user.status)}`}>
                     {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
@@ -471,3 +474,5 @@ function UsersPage() {
 }
 
 export default withAuth(UsersPage);
+
+    
