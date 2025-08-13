@@ -10,8 +10,8 @@ export default function DeprecatedRequestAccessPage() {
   }, [router]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#1e1b29]">
-      <p className="text-white">Redirecionando...</p>
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <p className="text-foreground">Redirecionando...</p>
     </div>
   );
 }

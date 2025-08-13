@@ -1,4 +1,3 @@
-
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -39,7 +38,7 @@ export default function NovaCongregacaoPage() {
     setIsLoading(true);
 
     try {
-        const functionUrl = "https://us-central1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin";
+        const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin";
 
         const response = await fetch(functionUrl, {
             method: 'POST',
