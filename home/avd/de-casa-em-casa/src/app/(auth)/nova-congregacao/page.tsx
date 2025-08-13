@@ -10,9 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Loader, Eye, EyeOff } from "lucide-react"; 
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-
+import { auth } from '@/lib/firebase';
 
 export default function NovaCongregacaoPage() {
   const [adminName, setAdminName] = useState('');
