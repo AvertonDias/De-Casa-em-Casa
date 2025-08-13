@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,13 +9,17 @@ import { Timestamp } from "firebase/firestore";
 interface AddEditAssignmentLogModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (logId: string, updatedData: { name: string; assignedAt: string; completedAt: string }) => void;
+  onSave: (originalLog: AssignmentHistoryLog, updatedData: { name: string; assignedAt: Date; completedAt: Date; }) => void;
   logToEdit: AssignmentHistoryLog | null;
 }
 
-// Helper para formatar um Timestamp para o input de data
-const toInputDateString = (date: Timestamp): string => {
-  return date.toDate().toISOString().split('T')[0];
+const toInputDateString = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
+
+const fromInputDateString = (dateString: string): Date => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
 };
 
 export default function AddEditAssignmentLogModal({ isOpen, onClose, onSave, logToEdit }: AddEditAssignmentLogModalProps) {
@@ -26,8 +31,8 @@ export default function AddEditAssignmentLogModal({ isOpen, onClose, onSave, log
   useEffect(() => {
     if (isOpen && logToEdit) {
       setName(logToEdit.name);
-      setAssignedAt(toInputDateString(logToEdit.assignedAt));
-      setCompletedAt(toInputDateString(logToEdit.completedAt));
+      setAssignedAt(toInputDateString(logToEdit.assignedAt.toDate()));
+      setCompletedAt(toInputDateString(logToEdit.completedAt.toDate()));
       setError('');
     }
   }, [isOpen, logToEdit]);
@@ -39,12 +44,11 @@ export default function AddEditAssignmentLogModal({ isOpen, onClose, onSave, log
     }
     if (!logToEdit) return;
     
-    // O 'id' do logToEdit não é realmente um campo do documento, mas um identificador.
-    // Precisamos ter certeza de como o ID é gerenciado. Assumindo que o ID é único.
-    // Vamos passar um ID hipotético se não existir.
-    const logId = (logToEdit as any).id || Date.now().toString();
-
-    onSave(logId, { name, assignedAt, completedAt });
+    onSave(logToEdit, { 
+        name, 
+        assignedAt: fromInputDateString(assignedAt), 
+        completedAt: fromInputDateString(completedAt) 
+    });
     onClose();
   };
 
@@ -55,6 +59,7 @@ export default function AddEditAssignmentLogModal({ isOpen, onClose, onSave, log
       <div className="bg-card text-card-foreground p-6 rounded-lg shadow-xl w-full max-w-md relative">
         <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground"><X /></button>
         <h2 className="text-xl font-bold">Editar Registro do Histórico</h2>
+        {/* DESCRIÇÃO ADICIONADA PARA ACESSIBILIDADE */}
         <p className="text-sm text-muted-foreground mb-4">Ajuste os detalhes desta designação passada.</p>
         
         <div className="space-y-4">
