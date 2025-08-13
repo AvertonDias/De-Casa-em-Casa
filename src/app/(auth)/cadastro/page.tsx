@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword } from 'firebase/auth'; 
+import { createUserWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth'; 
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
@@ -41,28 +41,47 @@ export default function SignUpPage() {
       }
       const congregationId = querySnapshot.docs[0].id;
       
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const newUser = userCredential.user;
+      // 1. Cria usuário no Auth, mas não espera pela conclusão do login ainda
+      await createUserWithEmailAndPassword(auth, email, password);
       
-      await setDoc(doc(db, "users", newUser.uid), {
-        name, email, congregationId, role: "Publicador", status: "pendente"
+      // 2. Espera a confirmação da autenticação antes de prosseguir
+      await new Promise<void>((resolve, reject) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+          if (user) {
+            unsubscribe(); // Para de ouvir para evitar chamadas múltiplas
+            try {
+              // 3. Agora que o usuário está autenticado, cria o documento no Firestore
+              await setDoc(doc(db, "users", user.uid), {
+                name: name.trim(), 
+                email, 
+                congregationId, 
+                role: "Publicador", 
+                status: "pendente"
+              });
+              resolve();
+            } catch (firestoreError) {
+              reject(firestoreError); // Rejeita a promise se a escrita no Firestore falhar
+            }
+          }
+          // Se o usuário for nulo, a promise continuará pendente até o timeout ou erro do Auth
+        });
       });
-      
+
       toast({
         title: 'Solicitação enviada!',
         description: 'Seu acesso agora precisa ser aprovado por um administrador.',
         variant: 'default',
       });
       
-      // A lógica de redirecionamento agora é tratada pelo UserContext,
-      // que levará o usuário para a página de 'aguardando-aprovacao'
+      // O UserContext cuidará do redirecionamento para /aguardando-aprovacao
 
     } catch (err: any) {
       console.error("Erro detalhado no cadastro:", err);
       if (err.message?.includes("Número da congregação")) { setError(err.message); }
       else if (err.code === 'auth/email-already-in-use') { setError("Este e-mail já está em uso."); }
       else { setError("Ocorreu um erro ao criar a conta."); }
-      setLoading(false);
+    } finally {
+        setLoading(false);
     }
   };
   
