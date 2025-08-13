@@ -1,9 +1,9 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { Territory, AppUser } from "@/types/types";
-import { X, ExternalLink } from 'lucide-react';
-import Link from 'next/link';
+import { X } from 'lucide-react';
 
 interface AssignTerritoryModalProps {
   isOpen: boolean;
@@ -23,26 +23,45 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
   const today = new Date().toISOString().split('T')[0];
   const isFreeChoice = selectedUid === 'free-choice';
 
+  // Reseta o estado quando o modal abre
   useEffect(() => {
     if (isOpen) {
+      const newAssignmentDate = new Date();
+      const newDueDate = new Date(newAssignmentDate);
+      newDueDate.setMonth(newDueDate.getMonth() + 2);
+
+      setAssignmentDate(newAssignmentDate.toISOString().split('T')[0]);
+      setDueDate(newDueDate.toISOString().split('T')[0]);
+      
       setSelectedUid('');
       setCustomName('');
-      setAssignmentDate(today);
-      const futureDate = new Date();
-      futureDate.setMonth(futureDate.getMonth() + 2);
-      setDueDate(futureDate.toISOString().split('T')[0]);
       setError('');
-      console.log("AssignTerritoryModal: Users received for selection:", users); // <-- ADICIONADO AQUI
     }
-  }, [isOpen, today, users]);
+  }, [isOpen]);
+  
+  // Recalcula a data de devolução se a data de designação mudar
+  useEffect(() => {
+    if (assignmentDate) {
+      const newAssignmentDate = new Date(assignmentDate + 'T12:00:00'); // Adiciona tempo para evitar problemas de fuso
+      if (!isNaN(newAssignmentDate.getTime())) {
+          const newDueDate = new Date(newAssignmentDate);
+          newDueDate.setMonth(newDueDate.getMonth() + 2);
+          setDueDate(newDueDate.toISOString().split('T')[0]);
+      }
+    }
+  }, [assignmentDate]);
+
 
   const handleDueDateSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const monthsToAdd = parseInt(event.target.value, 10);
-    if (isNaN(monthsToAdd)) return;
+    if (isNaN(monthsToAdd) || !assignmentDate) return;
 
-    const futureDate = new Date();
-    futureDate.setMonth(futureDate.getMonth() + monthsToAdd);
-    setDueDate(futureDate.toISOString().split('T')[0]);
+    const baseDate = new Date(assignmentDate + 'T12:00:00');
+    if (!isNaN(baseDate.getTime())) {
+      const futureDate = new Date(baseDate);
+      futureDate.setMonth(futureDate.getMonth() + monthsToAdd);
+      setDueDate(futureDate.toISOString().split('T')[0]);
+    }
   };
   
   const handleSave = () => {
