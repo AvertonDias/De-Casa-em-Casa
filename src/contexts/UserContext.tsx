@@ -34,8 +34,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     if (user) {
         const userStatusRTDBRef = ref(rtdb, `/status/${user.uid}`);
-        await set(userStatusRTDBRef, null); // Remove o nó do RTDB, acionando a função de limpeza
+        await set(userStatusRTDBRef, null); 
     }
+    // O onAuthStateChanged listener irá tratar da limpeza dos listeners do firestore
     await signOut(auth);
   };
   
@@ -55,7 +56,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
         
-        // ▼▼▼ LÓGICA DE PRESENÇA NO REALTIME DATABASE ▼▼▼
         const userStatusRTDBRef = ref(rtdb, `/status/${firebaseUser.uid}`);
         const isOfflineForDatabase = { state: 'offline', last_changed: serverTimestamp() };
         const isOnlineForDatabase = { state: 'online', last_changed: serverTimestamp() };
@@ -80,12 +80,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
               setUser({...userData, congregationName: congData?.name});
               setCongregation(congData);
               if(loading) setLoading(false);
+            }, (error) => {
+                console.error("Erro no listener da congregação:", error);
+                setLoading(false);
             });
           } else {
              setUser(userData);
              setCongregation(null);
              if(loading) setLoading(false);
           }
+        }, (error) => {
+            console.error("Erro no listener do usuário:", error);
+            setLoading(false);
         });
 
       } else {
@@ -104,7 +110,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       };
     });
     return () => unsubscribeAuth();
-  }, [loading]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (loading || !pathname) return;
@@ -125,7 +132,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
 
     if (user.status === 'ativo') {
-      if (pathname === '/aguardando-aprovacao' || !isProtectedPage && pathname !== '/sobre') {
+      if (pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre')) {
         if (user.role === 'Publicador') {
           router.replace('/dashboard/territorios');
         } else {
