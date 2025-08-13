@@ -5,10 +5,10 @@ import { useUser } from '@/contexts/UserContext';
 import { getAuth, updateProfile, reauthenticateWithCredential, EmailAuthProvider, updatePassword } from 'firebase/auth';
 import { auth, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 
 export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
@@ -64,12 +64,10 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
     }
     
     try {
-      // 1. Atualiza o NOME no serviço de Autenticação
       if (name.trim() !== auth.currentUser.displayName) {
         await updateProfile(auth.currentUser, { displayName: name.trim() });
       }
       
-      // 2. Atualiza o NOME no documento do Firestore
       if (name.trim() !== user.name) {
         await updateUser({ name: name.trim() });
       }
@@ -142,9 +140,9 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Editar Perfil</DialogTitle>
-          <DialogClose asChild>
-            <button className="absolute top-3 right-3 p-1 rounded-full hover:bg-muted"><X size={20} /></button>
-          </DialogClose>
+          <DialogDescription>
+            Altere seu nome ou senha. Para excluir sua conta, use a seção "Zona de Perigo".
+          </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSaveChanges} className="mt-4 space-y-4">
