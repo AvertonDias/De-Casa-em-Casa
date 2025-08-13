@@ -13,7 +13,6 @@ const db = admin.firestore();
 // Define as opções globais para todas as funções V2
 setGlobalOptions({ 
   region: "southamerica-east1",
-  serviceAccount: "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com"
 });
 
 
