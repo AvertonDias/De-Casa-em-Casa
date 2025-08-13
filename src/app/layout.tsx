@@ -11,10 +11,10 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Casa em Casa",
+    title: "De Casa em Casa",
   },
-  mobileWebApp: {
-    capable: true,
+  other: {
+    "mobile-web-app-capable": "yes",
   }
 };
 
