@@ -7,16 +7,16 @@ import { getFunctions } from "firebase/functions";
 import { getMessaging } from "firebase/messaging";
 import { getDatabase } from "firebase/database";
 
-// O objeto de configuração agora lê as variáveis de ambiente seguras.
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  databaseURL: `https://appterritorios-e5bb5.firebaseio.com`,
+  apiKey: "AIzaSyBKW1da2xBNH0TCrW0AoSbbGgX8-HI8WSI",
+  authDomain: "appterritorios-e5bb5.firebaseapp.com",
+  databaseURL: "https://appterritorios-e5bb5-default-rtdb.firebaseio.com",
+  projectId: "appterritorios-e5bb5",
+  storageBucket: "appterritorios-e5bb5.appspot.com",
+  messagingSenderId: "83629039662",
+  appId: "1:83629039662:web:028e1dc87bdd41f73fffbf"
 };
+
 
 // Inicializa o Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
