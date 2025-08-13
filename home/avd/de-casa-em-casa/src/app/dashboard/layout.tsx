@@ -9,7 +9,7 @@ import { useTheme } from 'next-themes';
 import { doc, arrayUnion, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { getToken } from 'firebase/messaging';
 
-import { Home, Map, Users, Settings, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info } from 'lucide-react';
+import { Home, Map, Users, Settings, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,7 @@ import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
 import withAuth from "@/components/withAuth";
 import { usePresence } from "@/hooks/usePresence";
+import { EditProfileModal } from "@/components/EditProfileModal"; // Importar o modal de perfil
 
 
 // Componente para trocar o tema (agora mais robusto)
@@ -67,6 +68,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
   const { showInstallButton, canPrompt, deviceInfo, onInstall } = usePWAInstall();
   const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false);
   const [isShareApiSupported, setIsShareApiSupported] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false); // Estado para o modal de perfil
 
   useEffect(() => {
     // Roda apenas no cliente para acessar o 'navigator'
@@ -126,8 +128,9 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
     { name: "Início", href: "/dashboard", icon: Home, roles: ['Administrador', 'Dirigente', 'Publicador'] },
     { name: "Territórios", href: "/dashboard/territorios", icon: Map, roles: ['Administrador', 'Dirigente', 'Publicador'] },
     { name: "Rural", href: "/dashboard/rural", icon: Trees, roles: ['Administrador', 'Dirigente', 'Publicador'] },
+    { name: "Meus Territórios", href: "/dashboard/meus-territorios", icon: UserCheck, roles: ['Administrador', 'Dirigente', 'Publicador'] },
     { name: "Usuários", href: "/dashboard/usuarios", icon: Users, roles: ['Administrador', 'Dirigente'] },
-    { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings, roles: ['Administrador', 'Dirigente', 'Publicador'] },
+    { name: "Administração", href: "/dashboard/administracao", icon: Shield, roles: ['Administrador', 'Dirigente'] },
   ];
   const filteredNavLinks = navLinks.filter(link => user?.role && link.roles.includes(user.role));
   
@@ -143,7 +146,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
             <div className="w-full flex justify-center items-center">
                 <div className="flex-1"></div> {/* Spacer Left */}
                 <Image
-                    src="/icon-192x192.png"
+                    src="/icon-192x192.jpg"
                     alt="Logo"
                     width={80}
                     height={80}
@@ -182,7 +185,10 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
         
          <div className="border-t border-gray-200 dark:border-gray-700/50 pt-4">
             {user && (
-                <div className="flex items-center space-x-3 text-left p-2 rounded-md w-full mb-2">
+                <button 
+                  onClick={() => setIsProfileModalOpen(true)}
+                  className="flex items-center space-x-3 text-left p-2 rounded-md w-full mb-2 hover:bg-primary/10 transition-colors"
+                >
                     <Avatar>
                         <AvatarFallback>
                         {getInitials(user.name)}
@@ -194,7 +200,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
                           {user.role}
                         </p>
                     </div>
-                </div>
+                </button>
             )}
             
             <div className="space-y-1">
@@ -202,7 +208,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
                     <Button
                         onClick={handleInstallButtonClick}
                         variant="outline"
-                        className="w-full justify-center"
+                        className="w-full justify-center text-green-600 border-green-500/50 hover:bg-green-500/10 hover:text-green-600 dark:text-green-400 dark:border-green-400/50 dark:hover:bg-green-400/10 dark:hover:text-green-400"
                     >
                         <Download className="mr-2" size={20} /> Instalar Aplicativo
                     </Button>
@@ -244,6 +250,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
           confirmText="Entendi"
           showCancelButton={false}
       />
+      <EditProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
     </>
   );
 }
