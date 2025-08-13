@@ -13,6 +13,9 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "Casa em Casa",
   },
+  mobileWebApp: {
+    capable: true,
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode; }) {
