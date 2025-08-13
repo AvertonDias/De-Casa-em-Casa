@@ -90,7 +90,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
                   <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
                       <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right bg-white dark:bg-gray-800 divide-y dark:divide-gray-700 rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5 focus:outline-none">
                          <div className="p-1">
-                            {user.status === 'pendente' && (
+                            {user.status === 'pendente' ? (
                               <>
                                 <Menu.Item>
                                   {({ active }) => (
@@ -107,55 +107,58 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
                                   )}
                                 </Menu.Item>
                               </>
-                            )}
-                            {user.status === 'rejeitado' && (
-                                <Menu.Item>
-                                  {({ active }) => (
-                                    <button onClick={() => onUpdate(user.uid, { status: 'ativo' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                      <Check className="mr-2 h-4 w-4"/>Aprovar Mesmo Assim
-                                    </button>
-                                  )}
-                                </Menu.Item>
-                            )}
-                            
-                            {isAdmin && user.role !== 'Administrador' && (
-                              <Menu.Item>
-                                {({ active }) => (
-                                  <button onClick={() => onUpdate(user.uid, { role: 'Administrador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                    <ShieldAlert className="mr-2 h-4 w-4"/>Tornar Administrador
-                                  </button>
+                            ) : (
+                              <>
+                                {user.status === 'rejeitado' && (
+                                    <Menu.Item>
+                                      {({ active }) => (
+                                        <button onClick={() => onUpdate(user.uid, { status: 'ativo' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                          <Check className="mr-2 h-4 w-4"/>Aprovar Mesmo Assim
+                                        </button>
+                                      )}
+                                    </Menu.Item>
                                 )}
-                              </Menu.Item>
-                            )}
-                            {isAdmin && user.role === 'Publicador' && (
-                                <Menu.Item>
-                                  {({ active }) => (
-                                    <button onClick={() => onUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                      <Shield className="mr-2 h-4 w-4"/>Tornar Dirigente
-                                    </button>
-                                  )}
-                                </Menu.Item>
-                            )}
-                            {isAdmin && user.role === 'Dirigente' && (
-                                <Menu.Item>
-                                  {({ active }) => (
-                                    <button onClick={() => onUpdate(user.uid, { role: 'Publicador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                      <User className="mr-2 h-4 w-4"/>Tornar Publicador
-                                    </button>
-                                  )}
-                                </Menu.Item>
-                            )}
-                            {isAdmin && user.role === 'Administrador' && (
-                              <Menu.Item>
-                                {({ active }) => (
-                                  <button onClick={() => onUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                    <Shield className="mr-2 h-4 w-4"/>Rebaixar para Dirigente
-                                  </button>
+                                
+                                {isAdmin && user.role !== 'Administrador' && (
+                                  <Menu.Item>
+                                    {({ active }) => (
+                                      <button onClick={() => onUpdate(user.uid, { role: 'Administrador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                        <ShieldAlert className="mr-2 h-4 w-4"/>Tornar Administrador
+                                      </button>
+                                    )}
+                                  </Menu.Item>
                                 )}
-                              </Menu.Item>
+                                {isAdmin && user.role === 'Publicador' && (
+                                    <Menu.Item>
+                                      {({ active }) => (
+                                        <button onClick={() => onUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                          <Shield className="mr-2 h-4 w-4"/>Tornar Dirigente
+                                        </button>
+                                      )}
+                                    </Menu.Item>
+                                )}
+                                {isAdmin && user.role === 'Dirigente' && (
+                                    <Menu.Item>
+                                      {({ active }) => (
+                                        <button onClick={() => onUpdate(user.uid, { role: 'Publicador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                          <User className="mr-2 h-4 w-4"/>Tornar Publicador
+                                        </button>
+                                      )}
+                                    </Menu.Item>
+                                )}
+                                {isAdmin && user.role === 'Administrador' && (
+                                  <Menu.Item>
+                                    {({ active }) => (
+                                      <button onClick={() => onUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                        <Shield className="mr-2 h-4 w-4"/>Rebaixar para Dirigente
+                                      </button>
+                                    )}
+                                  </Menu.Item>
+                                )}
+                              </>
                             )}
                          </div>
-                         {isAdmin && (
+                         {isAdmin && user.status !== 'pendente' && (
                            <div className="p-1">
                               <Menu.Item>
                                 {({ active }) => (
