@@ -1,22 +1,17 @@
-import withPWAInit from "@ducanh2912/next-pwa";
-
-// Configure dotenv to load environment variables
+// Configure dotenv to load environment variables at the very top
 import dotenv from 'dotenv';
 dotenv.config({ path: './.env.local' });
 
+import withPWAInit from "@ducanh2912/next-pwa";
 
 const isDev = process.env.NODE_ENV === "development";
 
 const withPWA = withPWAInit({
   dest: "public",
   disable: isDev,
-  // The service worker filename is the default, but we specify it for clarity.
-  sw: "sw.js", 
-  // The service worker is registered by default, but we can be explicit.
-  register: true, 
-  // We can skip waiting for the old service worker to unregister.
-  skipWaiting: true, 
-  // Custom import to load the Firebase messaging service worker
+  sw: "sw.js",
+  register: true,
+  skipWaiting: true,
   importScripts: ["/firebase-messaging-sw.js"],
 });
 

@@ -125,10 +125,14 @@ export const deleteUserAccount = https.onCall(async (req) => {
 
 export const resetTerritoryProgress = https.onCall(async (req) => {
     const uid = req.auth?.uid;
-    if (!uid) { throw new https.HttpsError("unauthenticated", "Ação não autorizada."); }
+    if (!uid) {
+        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
+    }
 
     const { congregationId, territoryId } = req.data;
-    if (!congregationId || !territoryId) { throw new https.HttpsError("invalid-argument", "IDs faltando."); }
+    if (!congregationId || !territoryId) {
+        throw new https.HttpsError("invalid-argument", "IDs faltando.");
+    }
 
     const adminUserSnap = await db.collection("users").doc(uid).get();
     if (adminUserSnap.data()?.role !== "Administrador") {
