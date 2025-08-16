@@ -13,7 +13,8 @@ import { ptBR } from 'date-fns/locale';
 import AssignTerritoryModal from './AssignTerritoryModal';
 import ReturnTerritoryModal from './ReturnTerritoryModal';
 import type { Territory, AppUser, AssignmentHistoryLog } from '@/types/types';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+
 
 // ========================================================================
 //   Componentes do Painel
@@ -39,11 +40,13 @@ const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   </button>
 );
 
+
 const TerritoryHistory = ({ history }: { history: AssignmentHistoryLog[] }) => {
   if (history.length === 0) {
     return <p className="text-sm text-muted-foreground italic px-4 py-2">Nenhum histórico de designação encontrado.</p>;
   }
 
+  // Ordena por data de conclusão e pega os 8 mais recentes
   const sortedHistory = [...history]
     .sort((a, b) => b.completedAt.toMillis() - a.completedAt.toMillis())
     .slice(0, 8);
@@ -62,6 +65,7 @@ const TerritoryHistory = ({ history }: { history: AssignmentHistoryLog[] }) => {
     </div>
   );
 };
+
 
 // ========================================================================
 //   Componente Principal do Painel
@@ -218,22 +222,23 @@ export default function TerritoryAssignmentPanel() {
                 
                 return (
                   <AccordionItem value={t.id} key={t.id} className="border-b last:border-b-0">
-                    <div className="grid grid-cols-12 items-center px-4 py-3 hover:bg-accent/50 transition-colors">
-                      <div className="col-span-11 sm:col-span-5 font-semibold">
+                    <div className="flex flex-wrap items-center px-4 py-3 hover:bg-accent/50 transition-colors">
+
+                      <div className="w-full sm:w-5/12 font-semibold flex-grow mb-2 sm:mb-0">
                         <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`} className="hover:text-primary transition-colors">
                           {t.number} - {t.name}
                         </Link>
                       </div>
                       
-                      <div className="col-span-6 sm:col-span-2 text-sm text-muted-foreground">
+                      <div className="w-1/2 sm:w-2/12 text-sm text-muted-foreground">
                         {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
                       </div>
 
-                      <div className="col-span-6 sm:col-span-3 text-sm text-muted-foreground">
+                      <div className="w-1/2 sm:w-3/12 text-sm text-muted-foreground truncate">
                         {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}
                       </div>
                       
-                      <div className="col-span-12 sm:col-span-2 flex items-center justify-end gap-2 mt-2 sm:mt-0">
+                      <div className="w-full sm:w-2/12 flex items-center justify-end gap-2 mt-2 sm:mt-0">
                          {hasHistory && <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4" />}
                          <Menu as="div" className="relative inline-block text-left">
                            <Menu.Button className="p-2 rounded-full hover:bg-white/10">
