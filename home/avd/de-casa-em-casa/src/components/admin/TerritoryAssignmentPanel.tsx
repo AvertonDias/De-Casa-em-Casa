@@ -6,13 +6,19 @@ import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, Timestamp, deleteField, orderBy } from 'firebase/firestore';
 import Link from 'next/link';
-import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser } from 'lucide-react';
+import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, Bell, CalendarClock, History } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AssignTerritoryModal from './AssignTerritoryModal';
 import ReturnTerritoryModal from './ReturnTerritoryModal';
-import type { Territory, AppUser } from '@/types/types';
+import type { Territory, AppUser, AssignmentHistoryLog } from '@/types/types';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+
+
+// ========================================================================
+//   Componentes do Painel
+// ========================================================================
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   label: string;
@@ -35,79 +41,34 @@ const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
 );
 
 
-const TerritoryListItem = ({ territory, onAssign, onReturn, onReassign }: { territory: Territory, onAssign: () => void, onReturn: () => void, onReassign: () => void }) => {
-    const isDesignado = territory.status === 'designado' && territory.assignment;
-    const assignment = territory.assignment;
-    const isOverdue = isDesignado && assignment && assignment.dueDate.toDate() < new Date();
+const TerritoryHistory = ({ history }: { history: AssignmentHistoryLog[] }) => {
+  if (history.length === 0) {
+    return <p className="text-sm text-muted-foreground italic px-4 py-2">Nenhum histórico de designação encontrado.</p>;
+  }
 
-    const getStatusInfo = () => {
-        if (isOverdue) return { text: 'Atrasado', color: 'bg-red-500' };
-        if (isDesignado) return { text: 'Designado', color: 'bg-yellow-400' };
-        return { text: 'Disponível', color: 'bg-green-400' };
-    };
+  // Ordena por data de conclusão e pega os 8 mais recentes
+  const sortedHistory = [...history]
+    .sort((a, b) => b.completedAt.toMillis() - a.completedAt.toMillis())
+    .slice(0, 8);
 
-    const statusInfo = getStatusInfo();
-
-    return (
-        <div className="bg-card p-4 rounded-lg shadow-sm border-l-4 border-transparent hover:border-primary/50 transition-all">
-            <div className="flex justify-between items-start">
-                <Link
-                  href={territory.type === 'rural' ? `/dashboard/rural/${territory.id}` : `/dashboard/territorios/${territory.id}`}
-                  className="font-bold hover:text-primary transition-colors flex-1 min-w-0"
-                >
-                  <p className="truncate">{territory.number} - {territory.name}</p>
-                </Link>
-                 <Menu as="div" className="relative ml-2 flex-shrink-0">
-                    <Menu.Button className="p-1 rounded-full hover:bg-white/10">
-                        <MoreVertical size={20} />
-                    </Menu.Button>
-                    <Transition
-                        as={Fragment}
-                        enter="transition ease-out duration-100"
-                        enterFrom="transform opacity-0 scale-95"
-                        enterTo="transform opacity-100 scale-100"
-                        leave="transition ease-in duration-75"
-                        leaveFrom="transform opacity-100 scale-100"
-                        leaveTo="transform opacity-0 scale-95"
-                    >
-                        <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-popover text-popover-foreground rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5 focus:outline-none">
-                            <div className="p-1">
-                                {isDesignado ? (
-                                    <>
-                                        <Menu.Item>
-                                            {({ active }) => (<button onClick={onReturn} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <CheckCircle size={16} className="mr-2"/>Devolver</button>)}
-                                        </Menu.Item>
-                                        <Menu.Item>
-                                            {({ active }) => (<button onClick={onReassign} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <RotateCw size={16} className="mr-2"/>Reatribuir</button>)}
-                                        </Menu.Item>
-                                    </>
-                                ) : (
-                                     <Menu.Item>
-                                        {({ active }) => (<button onClick={onAssign} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <BookUser size={16} className="mr-2"/>Designar</button>)}
-                                    </Menu.Item>
-                                )}
-                            </div>
-                        </Menu.Items>
-                    </Transition>
-                </Menu>
-            </div>
-            <div className="mt-2 text-sm text-muted-foreground space-y-1">
-                <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${statusInfo.color}`}></span>
-                    <span>Status:</span>
-                    <span className="font-semibold">{statusInfo.text}</span>
-                </div>
-                 {isDesignado && assignment && (
-                    <div className="flex items-center gap-2">
-                        <span>→</span>
-                        <span>{assignment.name} (até {format(assignment.dueDate.toDate(), 'dd/MM/yy')})</span>
-                    </div>
-                )}
-            </div>
+  return (
+    <div className="space-y-2 text-sm">
+      {sortedHistory.map((log, index) => (
+        <div key={index} className="grid grid-cols-3 gap-2">
+          <span className="font-semibold col-span-1">{log.name}</span>
+          <span className="text-muted-foreground col-span-1">
+            {format(log.assignedAt.toDate(), "dd/MM/yy")} → {format(log.completedAt.toDate(), "dd/MM/yy")}
+          </span>
         </div>
-    );
+      ))}
+    </div>
+  );
 };
 
+
+// ========================================================================
+//   Componente Principal do Painel
+// ========================================================================
 
 export default function TerritoryAssignmentPanel() {
   const { user: currentUser } = useUser();
@@ -198,11 +159,20 @@ export default function TerritoryAssignmentPanel() {
       const type = t.type || 'urban';
       const matchesType = typeFilter === 'all' || type === typeFilter;
       
-      const isOverdue = t.status === 'designado' && t.assignment && t.assignment.dueDate.toDate() < new Date();
       let matchesStatus = true;
-      if (filterStatus === 'disponivel') matchesStatus = t.status !== 'designado';
-      else if (filterStatus === 'designado') matchesStatus = t.status === 'designado' && !isOverdue;
-      else if (filterStatus === 'atrasado') matchesStatus = isOverdue;
+      let isOverdue: boolean = false;
+      
+      if (t.status === 'designado' && t.assignment?.dueDate) {
+          isOverdue = t.assignment.dueDate.toDate() < new Date();
+      }
+
+      if (filterStatus === 'disponivel') {
+          matchesStatus = t.status !== 'designado';
+      } else if (filterStatus === 'designado') {
+          matchesStatus = t.status === 'designado' && !isOverdue;
+      } else if (filterStatus === 'atrasado') {
+          matchesStatus = isOverdue;
+      }
 
       const matchesSearch = searchTerm === '' || t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.number.toLowerCase().includes(searchTerm.toLowerCase());
       
@@ -235,86 +205,82 @@ export default function TerritoryAssignmentPanel() {
           </select>
         </div>
         
-        {/* Lista para Mobile, Tabela para Desktop */}
-        <div className="space-y-3 sm:hidden">
-            {filteredTerritories.map(t => (
-                <TerritoryListItem 
-                    key={t.id} 
-                    territory={t} 
-                    onAssign={() => handleOpenAssignModal(t)}
-                    onReturn={() => handleOpenReturnModal(t)}
-                    onReassign={() => handleOpenAssignModal(t)}
-                />
-            ))}
-        </div>
-
-        <div className="overflow-x-auto hidden sm:block">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="p-2">Território</th>
-                <th className="p-2">Status</th>
-                <th className="p-2">Designado a</th>
-                <th className="p-2 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTerritories.map(t => {
+        <div className="border border-border rounded-lg">
+          <div className="grid-cols-12 px-4 py-2 font-semibold text-muted-foreground hidden sm:grid">
+            <div className="col-span-5">Território</div>
+            <div className="col-span-2">Status</div>
+            <div className="col-span-3">Designado a</div>
+            <div className="col-span-2 text-right">Ações</div>
+          </div>
+          <Accordion type="multiple" className="w-full">
+            {filteredTerritories.map(t => {
                 const isDesignado = t.status === 'designado' && t.assignment;
                 const isOverdue = isDesignado && t.assignment && t.assignment.dueDate.toDate() < new Date();
                 
                 return (
-                  <tr key={t.id} className="border-b border-border last:border-b-0">
-                    <td className="p-2 font-semibold">
-                      <Link
-                        href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`}
-                        className="hover:text-primary transition-colors"
-                      >
-                        {t.number} - {t.name}
-                      </Link>
-                    </td>
-                    <td className="p-2">
-                      {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
-                    </td>
-                    <td className="p-2">
-                      {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}
-                    </td>
-                    <td className="p-2 text-right">
-                      {isDesignado ? (
-                          <Menu as="div" className="relative inline-block text-left">
-                              <Menu.Button className="p-1 rounded-full hover:bg-white/10">
-                                  <MoreVertical size={20} />
-                              </Menu.Button>
-                              <Transition
-                                  as={Fragment}
-                                  enter="transition ease-out duration-100"
-                                  enterFrom="transform opacity-0 scale-95"
-                                  enterTo="transform opacity-100 scale-100"
-                                  leave="transition ease-in duration-75"
-                                  leaveFrom="transform opacity-100 scale-100"
-                                  leaveTo="transform opacity-0 scale-95"
-                              >
-                                  <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-popover text-popover-foreground rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5 focus:outline-none">
-                                      <div className="p-1">
-                                          <Menu.Item>
-                                              {({ active }) => (<button onClick={() => handleOpenReturnModal(t)} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <CheckCircle size={16} className="mr-2"/>Devolver</button>)}
-                                          </Menu.Item>
-                                          <Menu.Item>
-                                              {({ active }) => (<button onClick={() => handleOpenAssignModal(t)} className={`${active ? 'bg-accent text-accent-foreground' : ''} group flex rounded-md items-center w-full px-2 py-2 text-sm`}> <RotateCw size={16} className="mr-2"/>Reatribuir</button>)}
-                                          </Menu.Item>
-                                      </div>
-                                  </Menu.Items>
-                              </Transition>
-                          </Menu>
-                      ) : (
-                          <button onClick={() => handleOpenAssignModal(t)} className="text-primary hover:underline font-semibold text-sm">Designar</button>
-                      )}
-                    </td>
-                  </tr>
+                  <AccordionItem value={t.id} key={t.id} className="border-b last:border-b-0">
+                    <div className="grid grid-cols-1 sm:grid-cols-12 items-center px-4 py-1 hover:bg-accent/50 transition-colors">
+                      {/* Mobile Title */}
+                      <div className="sm:hidden col-span-12 font-bold my-2">
+                        <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`} className="hover:text-primary transition-colors">
+                          {t.number} - {t.name}
+                        </Link>
+                      </div>
+                      
+                      {/* Desktop Title */}
+                      <div className="hidden sm:block col-span-5 font-semibold">
+                         <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`} className="hover:text-primary transition-colors">
+                          {t.number} - {t.name}
+                        </Link>
+                      </div>
+                      
+                      {/* Status */}
+                      <div className="col-span-6 sm:col-span-2 text-sm">
+                        {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
+                      </div>
+
+                      {/* Assigned To */}
+                      <div className="col-span-12 sm:col-span-3 text-sm text-muted-foreground">
+                        {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="col-span-6 sm:col-span-2 flex items-center justify-end gap-2">
+                         {t.assignmentHistory && t.assignmentHistory.length > 0 && (
+                            <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&[data-state=open]>svg]:text-primary"/>
+                         )}
+                         <Menu as="div" className="relative inline-block text-left">
+                           <Menu.Button className="p-2 rounded-full hover:bg-white/10">
+                               <MoreVertical size={20} />
+                           </Menu.Button>
+                           <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+                               <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-popover text-popover-foreground rounded-md shadow-lg z-20 ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                   <div className="p-1">
+                                       {isDesignado ? (
+                                           <>
+                                               <Menu.Item><button onClick={() => handleOpenReturnModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <CheckCircle size={16} className="mr-2"/>Devolver</button></Menu.Item>
+                                               <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <RotateCw size={16} className="mr-2"/>Reatribuir</button></Menu.Item>
+                                               {isOverdue && <Menu.Item><button onClick={() => alert('Função de notificação em breve!')} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground'> <Bell size={16} className="mr-2"/>Notificar Atraso</button></Menu.Item>}
+                                           </>
+                                       ) : (
+                                            <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <BookUser size={16} className="mr-2"/>Designar</button></Menu.Item>
+                                       )}
+                                   </div>
+                               </Menu.Items>
+                           </Transition>
+                         </Menu>
+                      </div>
+                    </div>
+                    <AccordionContent className="bg-black/10 dark:bg-black/20">
+                      <div className="p-4 border-t border-border">
+                        <h4 className="font-semibold mb-2 flex items-center gap-2"><History size={16}/> Histórico Recente</h4>
+                        <TerritoryHistory history={t.assignmentHistory || []} />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
                 )
-              })}
-            </tbody>
-          </table>
+            })}
+          </Accordion>
         </div>
       </div>
       
