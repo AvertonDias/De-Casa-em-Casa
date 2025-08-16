@@ -287,7 +287,7 @@ export const onHouseChange = onDocumentWritten("congregations/{congregationId}/t
                                           .get();
 
           if (todayActivitiesSnap.empty) {
-              const finalDescriptionForAutoLog = "Primeiro trabalho do dia registrado.(Registro Automático)\nRegistrado por: Sistema";
+              const finalDescriptionForAutoLog = "Primeiro trabalho do dia registrado. (Registro Automático)";
               await activityHistoryRef.add({
                   type: 'work',
                   activityDate: admin.firestore.FieldValue.serverTimestamp(),
