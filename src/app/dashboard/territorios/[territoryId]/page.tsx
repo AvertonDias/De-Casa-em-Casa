@@ -358,6 +358,7 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
           {isManagerView ? (
             <>
               {isUrban && <ProgressSection territory={territory} />}
+              <ActivityHistory territoryId={territory.id} history={activityHistory} />
               
               <Accordion type="single" collapsible className="w-full bg-card rounded-lg shadow-md">
                     <AccordionItem value="item-1">
@@ -425,6 +426,3 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
 }
 
 export default withAuth(TerritoryDetailPage);
-
-    
-    
