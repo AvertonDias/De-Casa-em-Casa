@@ -1,8 +1,7 @@
 // Configure dotenv to load environment variables at the very top
-import dotenv from 'dotenv';
-dotenv.config({ path: './.env.local' });
+require('dotenv').config({ path: './.env.local' });
 
-import withPWAInit from "@ducanh2912/next-pwa";
+const withPWAInit = require("@ducanh2912/next-pwa");
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -20,6 +19,7 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'placehold.co' },
+      { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
     ],
   },
   experimental: {
@@ -27,4 +27,4 @@ const nextConfig = {
   },
 };
 
-export default withPWA(nextConfig);
+module.exports = withPWA(nextConfig);
