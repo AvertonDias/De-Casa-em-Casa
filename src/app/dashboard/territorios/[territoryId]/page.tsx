@@ -25,7 +25,7 @@ import AddEditAssignmentLogModal from "@/components/admin/AddEditAssignmentLogMo
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 
-const functions = getFunctions(app);
+const functions = getFunctions(app, 'southamerica-east1');
 const resetTerritoryFunction = httpsCallable(functions, 'resetTerritoryProgress');
 
 // ========================================================================
@@ -426,4 +426,5 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
 
 export default withAuth(TerritoryDetailPage);
 
+    
     
