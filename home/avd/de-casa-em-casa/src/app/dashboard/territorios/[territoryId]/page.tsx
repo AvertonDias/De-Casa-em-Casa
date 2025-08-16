@@ -8,8 +8,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory, Activity, Quadra, AssignmentHistoryLog } from "@/types/types"; 
-import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart } from "lucide-react";
+import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, UserCheck, Clock } from "lucide-react";
 import Link from 'next/link';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 import ActivityHistory from '@/components/ActivityHistory';
 import AssignmentHistory from '@/components/AssignmentHistory';
@@ -323,6 +325,7 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
   if (loading || !territory || !user) return <div className="p-8 text-center">Carregando...</div>;
   
   const isManagerView = user.role === 'Administrador' || user.role === 'Dirigente';
+  const isAdmin = user.role === 'Administrador';
   const isUrban = territory.type !== 'rural';
 
   return (
@@ -402,16 +405,16 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
       {confirmAction && <ConfirmationModal isOpen={isConfirmModalOpen} onClose={handleCloseAllModals} onConfirm={confirmAction.action} title={confirmAction.title} message={confirmAction.message} isLoading={isProcessingAction} />}
       <ImagePreviewModal isOpen={isPreviewModalOpen} onClose={() => setIsPreviewModalOpen(false)} imageUrl={selectedImageUrl} />
 
-      <AddEditAssignmentLogModal 
-        isOpen={isEditLogModalOpen}
-        onClose={handleCloseAllModals}
-        logToEdit={historyLogToEdit}
-        onSave={handleSaveHistoryLog}
-      />
+      {isAdmin && (
+        <AddEditAssignmentLogModal 
+          isOpen={isEditLogModalOpen}
+          onClose={handleCloseAllModals}
+          logToEdit={historyLogToEdit}
+          onSave={handleSaveHistoryLog}
+        />
+      )}
     </>
   );
 }
 
 export default withAuth(TerritoryDetailPage);
-
-    
