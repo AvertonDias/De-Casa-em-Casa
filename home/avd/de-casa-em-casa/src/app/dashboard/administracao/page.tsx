@@ -1,15 +1,48 @@
 "use client";
 
 import { useState } from 'react';
-import { Send, BookUser, FileText, House } from 'lucide-react'; // Importa novo ícone
+import dynamic from 'next/dynamic';
+import { BookUser, FileText, Edit, Loader } from 'lucide-react';
 import Link from 'next/link';
-import TerritoryAssignmentPanel from '@/components/admin/TerritoryAssignmentPanel';
 import { useUser } from '@/contexts/UserContext';
-import { EditCongregationModal } from '@/components/EditCongregationModal';
+import withAuth from '@/components/withAuth';
 
-export default function AdminPage() {
+// --- Dynamic Imports ---
+// Estes componentes serão carregados apenas quando forem necessários.
+const TerritoryAssignmentPanel = dynamic(
+  () => import('@/components/admin/TerritoryAssignmentPanel'),
+  { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
+);
+
+const CongregationEditForm = dynamic(
+  () => import('@/components/admin/CongregationEditForm'),
+  { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
+);
+
+
+function AdminPage() {
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState('assignment');
+
+  // Verifica se o usuário tem permissão para ver esta página
+  if (!user || !['Administrador', 'Dirigente'].includes(user.role)) {
+    return (
+      <div className="p-4 text-center">
+        <h1 className="font-bold text-xl">Acesso Negado</h1>
+        <p className="text-muted-foreground">Você não tem permissão para acessar esta área.</p>
+      </div>
+    );
+  }
+  
+  const TabButton = ({ id, label, icon: Icon }: { id: string, label: string, icon: React.ElementType }) => (
+    <button
+      onClick={() => setActiveTab(id)}
+      className={`whitespace-nowrap px-3 py-2 text-sm font-semibold transition-colors flex items-center gap-2 ${activeTab === id ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}
+    >
+      <Icon size={16} />
+      <span>{label}</span>
+    </button>
+  );
 
   return (
     <div className="p-4 md:p-8 space-y-6">
@@ -18,46 +51,28 @@ export default function AdminPage() {
         <p className="text-muted-foreground">Ferramentas para gerenciar a congregação.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-card p-6 rounded-lg shadow-md flex flex-col col-span-1 lg:col-span-1">
-            <div className="flex items-center mb-4">
-                <House className="h-6 w-6 mr-3 text-primary" />
-                <h2 className="text-2xl font-bold">Minha Congregação</h2>
-            </div>
-            <p className="text-muted-foreground mb-6 flex-grow">
-                Edite o nome e o número da sua congregação. Apenas administradores podem realizar esta ação.
-            </p>
-            <EditCongregationModal disabled={user?.role !== 'Administrador'} />
+      <div className="border-b border-border overflow-x-auto">
+        <div className="flex items-center">
+            <TabButton id="assignment" label="Designar Territórios" icon={BookUser} />
+            {user.role === 'Administrador' && (
+              <TabButton id="congregation" label="Editar Congregação" icon={Edit} />
+            )}
+            
+            <Link 
+                href="/dashboard/administracao/relatorio-s13"
+                className="whitespace-nowrap px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors ml-auto flex items-center gap-2"
+            >
+              <FileText size={16} />
+              <span>Relatório S-13</span>
+            </Link>
         </div>
-      </div>
-
-      <div className="flex border-b border-border">
-        <button
-          onClick={() => setActiveTab('assignment')}
-          className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'assignment' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}
-        >
-          <BookUser size={16} className="inline-block mr-2" /> Designar Territórios
-        </button>
-        <button
-          onClick={() => setActiveTab('notifications')}
-          className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'notifications' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}
-        >
-          <Send size={16} className="inline-block mr-2" /> Enviar Notificação
-        </button>
-        
-        {/* ▼▼▼ NOVO BOTÃO/LINK AQUI ▼▼▼ */}
-        <Link 
-            href="/dashboard/administracao/relatorio-s13"
-            className="px-4 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors ml-auto flex items-center"
-        >
-          <FileText size={16} className="inline-block mr-2" />
-          Gerar Relatório S-13
-        </Link>
       </div>
       <div className="mt-6">
         {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
-        {activeTab === 'notifications' && <div>Painel de Notificações (em breve)</div>}
+        {activeTab === 'congregation' && user.role === 'Administrador' && <CongregationEditForm />}
       </div>
     </div>
   );
 }
+
+export default withAuth(AdminPage);
