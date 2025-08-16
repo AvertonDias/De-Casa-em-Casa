@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -13,19 +13,17 @@ import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { type Casa, type Quadra, type Territory } from '@/types/types';
 import withAuth from '@/components/withAuth';
 import { useRouter } from 'next/navigation';
-import React from 'react';
 
 interface QuadraDetailPageProps {
-  params: Promise<{
+  params: {
     territoryId: string;
     quadraId: string;
-  }>;
+  };
 }
 
 function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const { user, loading: userLoading } = useUser();
-  const resolvedParams = React.use(params);
-  const { territoryId, quadraId } = resolvedParams;
+  const { territoryId, quadraId } = params;
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [quadra, setQuadra] = useState<Quadra | null>(null);
   const [casas, setCasas] = useState<Casa[]>([]);

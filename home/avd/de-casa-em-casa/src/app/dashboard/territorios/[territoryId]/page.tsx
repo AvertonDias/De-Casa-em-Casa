@@ -4,14 +4,12 @@
 import { doc, onSnapshot, collection, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "@/lib/firebase";
-import { useEffect, useState, use } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory, Activity, Quadra, AssignmentHistoryLog } from "@/types/types"; 
-import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, UserCheck, Clock } from "lucide-react";
+import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart } from "lucide-react";
 import Link from 'next/link';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 import ActivityHistory from '@/components/ActivityHistory';
 import AssignmentHistory from '@/components/AssignmentHistory';
@@ -24,7 +22,6 @@ import QuadraListItem from "@/components/QuadraListItem";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import withAuth from "@/components/withAuth";
 import AddEditAssignmentLogModal from "@/components/admin/AddEditAssignmentLogModal";
-import React from 'react';
 
 
 const functions = getFunctions(app);
@@ -121,14 +118,13 @@ const QuadrasSection = ({ territoryId, quadras, isManagerView, onAddQuadra, onEd
 );
 
 interface TerritoryDetailPageProps {
-  params: Promise<{
+  params: {
     territoryId: string;
-  }>;
+  };
 }
 
 function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
-  const resolvedParams = React.use(params);
-  const { territoryId } = resolvedParams;
+  const { territoryId } = params;
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
   const [quadras, setQuadras] = useState<Quadra[]>([]);
@@ -327,7 +323,6 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
   if (loading || !territory || !user) return <div className="p-8 text-center">Carregando...</div>;
   
   const isManagerView = user.role === 'Administrador' || user.role === 'Dirigente';
-  const isAdmin = user.role === 'Administrador';
   const isUrban = territory.type !== 'rural';
 
   return (
