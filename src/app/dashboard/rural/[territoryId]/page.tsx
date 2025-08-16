@@ -19,8 +19,8 @@ import withAuth from "@/components/withAuth";
 
 function RuralTerritoryDetailPage() {
   const { user, loading: userLoading } = useUser();
-  const params = useParams();
-  const territoryId = params.territoryId as string;
+  const rawParams = useParams();
+  const territoryId = typeof rawParams?.territoryId === 'string' ? rawParams.territoryId : undefined;
   const router = useRouter();
 
   const [territory, setTerritory] = useState<RuralTerritory | null>(null);
@@ -284,5 +284,3 @@ function RuralTerritoryDetailPage() {
 }
 
 export default withAuth(RuralTerritoryDetailPage);
-
-    
