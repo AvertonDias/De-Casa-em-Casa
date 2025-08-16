@@ -23,6 +23,7 @@ interface QuadraDetailPageProps {
 
 function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const { user, loading: userLoading } = useUser();
+  const { territoryId, quadraId } = params;
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [quadra, setQuadra] = useState<Quadra | null>(null);
   const [casas, setCasas] = useState<Casa[]>([]);
@@ -44,11 +45,10 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 
 
   useEffect(() => {
-    if (userLoading || !user?.congregationId || !params) {
+    if (userLoading || !user?.congregationId || !territoryId || !quadraId) {
         if(!userLoading) setLoading(false);
         return;
     }
-    const { territoryId, quadraId } = params;
 
     const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
     getDoc(territoryRef).then(snap => snap.exists() && setTerritory(snap.data() as Territory));
@@ -89,19 +89,19 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
       unsubQuadra();
       unsubCasas();
     };
-  }, [user, userLoading, params, isReordering]);
+  }, [user, userLoading, territoryId, quadraId, isReordering]);
   
   useEffect(() => {
     if (!loading && quadra === null) {
       setTimeout(() => {
-        if (params) {
-            router.push(`/dashboard/territorios/${params.territoryId}`);
+        if (territoryId) {
+            router.push(`/dashboard/territorios/${territoryId}`);
         } else {
             router.push('/dashboard/territorios');
         }
       }, 2000);
     }
-  }, [loading, quadra, router, params]);
+  }, [loading, quadra, router, territoryId]);
 
   useEffect(() => {
     if (highlightedHouseId) {
@@ -143,10 +143,10 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   };
   
   const handleConfirmStatusChange = () => {
-    if (!statusAction || !user?.congregationId || !params) return;
+    if (!statusAction || !user?.congregationId || !territoryId || !quadraId) return;
 
     const { casaId, newStatus } = statusAction;
-    const casaRef = doc(db, 'congregations', user.congregationId, 'territories', params.territoryId, 'quadras', params.quadraId, 'casas', casaId);
+    const casaRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casaId);
     
     const updateData: { status: boolean, lastWorkedBy?: { uid: string, name: string } } = { status: newStatus };
     if (newStatus === true) {
@@ -174,9 +174,9 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   };
 
   const executeDelete = async () => {
-    if (!casaToDelete || !user?.congregationId || !params) return;
+    if (!casaToDelete || !user?.congregationId || !territoryId || !quadraId) return;
 
-    const casaRef = doc(db, 'congregations', user.congregationId, 'territories', params.territoryId, 'quadras', params.quadraId, 'casas', casaToDelete.id);
+    const casaRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casaToDelete.id);
     await deleteDoc(casaRef);
     
     setIsConfirmDeleteOpen(false);
@@ -195,12 +195,12 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   );
 
   const finishReordering = async () => {
-    if (!user?.congregationId || !params) return;
+    if (!user?.congregationId || !territoryId || !quadraId) return;
     setLoading(true);
 
     const batch = writeBatch(db);
     casas.forEach((casa, index) => {
-      const casaRef = doc(db, 'congregations', user.congregationId!, 'territories', params.territoryId, 'quadras', params.quadraId, 'casas', casa.id);
+      const casaRef = doc(db, 'congregations', user.congregationId!, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
       batch.update(casaRef, { order: index }); 
     });
 
@@ -224,7 +224,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     return <div className="flex items-center justify-center h-full"><Loader className="animate-spin text-purple-600" size={48} /></div>;
   }
   
-  if (!quadra || !params) {
+  if (!quadra || !territoryId) {
     return (
         <div className="flex flex-col items-center justify-center h-full text-center p-8">
             <h1 className="text-2xl font-bold text-destructive">Quadra Excluída</h1>
@@ -242,7 +242,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
       <div className="min-h-full">
         <div className="flex justify-between items-center mb-6">
             <div>
-              <Link href={`/dashboard/territorios/${params.territoryId}`} className="text-sm text-blue-600 hover:text-blue-800 dark:text-purple-400 dark:hover:text-purple-300 flex items-center mb-2">
+              <Link href={`/dashboard/territorios/${territoryId}`} className="text-sm text-blue-600 hover:text-blue-800 dark:text-purple-400 dark:hover:text-purple-300 flex items-center mb-2">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar para {territory ? `${territory.number} - ${territory.name}` : 'o Território'}
               </Link>
@@ -265,7 +265,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         </div>
 
         <div className="flex justify-between items-center mb-4">
-          {user.congregationId && <AddCasaModal territoryId={params.territoryId} quadraId={params.quadraId} onCasaAdded={() => {}} congregationId={user.congregationId} />}
+          {user.congregationId && <AddCasaModal territoryId={territoryId} quadraId={quadraId} onCasaAdded={() => {}} congregationId={user.congregationId} />}
           
           {isReordering ? (
               <button onClick={finishReordering} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm">
@@ -355,13 +355,13 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         </div>
       </div>
       
-      {selectedCasa && user.congregationId && params && (
+      {selectedCasa && user.congregationId && territoryId && quadraId && (
         <EditCasaModal
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           casa={selectedCasa}
-          territoryId={params.territoryId}
-          quadraId={params.quadraId}
+          territoryId={territoryId}
+          quadraId={quadraId}
           onCasaUpdated={() => {}}
           congregationId={user.congregationId}
           onDeleteRequest={handleDeleteRequestFromModal}
@@ -403,5 +403,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 }
 
 export default withAuth(QuadraDetailPage);
+
+    
 
     

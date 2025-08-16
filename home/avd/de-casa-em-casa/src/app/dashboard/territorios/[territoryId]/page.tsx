@@ -8,8 +8,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory, Activity, Quadra, AssignmentHistoryLog } from "@/types/types"; 
-import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart } from "lucide-react";
+import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, UserCheck, Clock } from "lucide-react";
 import Link from 'next/link';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 import ActivityHistory from '@/components/ActivityHistory';
 import AssignmentHistory from '@/components/AssignmentHistory';
@@ -124,6 +126,7 @@ interface TerritoryDetailPageProps {
 }
 
 function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
+  const { territoryId } = params;
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
   const [quadras, setQuadras] = useState<Quadra[]>([]);
@@ -147,7 +150,7 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
   useEffect(() => {
     if (!user?.congregationId) { if (!user) setLoading(true); else setLoading(false); return; }
     
-    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', params.territoryId);
+    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
     
     const unsubTerritory = onSnapshot(territoryRef, (docSnap) => { 
         setTerritory(docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Territory : null);
@@ -165,7 +168,7 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
     });
     
     return () => { unsubTerritory(); unsubHistory(); unsubQuadras(); };
-  }, [params.territoryId, user]);
+  }, [territoryId, user]);
   
   const handleOpenEditQuadraModal = (quadra: Quadra) => { setSelectedQuadra(quadra); setIsEditQuadraModalOpen(true); };
 
@@ -180,31 +183,31 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
     setIsEditLogModalOpen(false);
   };
 
-  const handleSaveTerritory = async (territoryId: string, updatedData: Partial<Territory>) => {
+  const handleSaveTerritory = async (updatedTerritoryId: string, updatedData: Partial<Territory>) => {
       if(!user?.congregationId) return;
-      const territoryDocRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
+      const territoryDocRef = doc(db, 'congregations', user.congregationId, 'territories', updatedTerritoryId);
       await updateDoc(territoryDocRef, { ...updatedData, lastUpdate: serverTimestamp() });
   };
 
   const handleAddQuadra = async (data: { name: string, description: string }) => {
     if(!user?.congregationId) return;
-    const quadrasRef = collection(db, 'congregations', user.congregationId, 'territories', params.territoryId, 'quadras');
+    const quadrasRef = collection(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras');
     await addDoc(quadrasRef, { ...data, totalHouses: 0, housesDone: 0, createdAt: serverTimestamp() });
   };
   
   const handleEditQuadra = async (quadraId: string, data: { name: string, description: string }) => {
     if(!user?.congregationId) return;
-    const quadraRef = doc(db, 'congregations', user.congregationId, 'territories', params.territoryId, 'quadras', quadraId);
+    const quadraRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId);
     await updateDoc(quadraRef, data);
   };
   
-  const handleResetTerritory = (territoryId: string) => {
+  const handleResetTerritory = (territoryToResetId: string) => {
     setConfirmAction({
       action: async () => {
         if (!user?.congregationId) return;
         setIsProcessingAction(true);
         try {
-            await resetTerritoryFunction({ congregationId: user.congregationId, territoryId });
+            await resetTerritoryFunction({ congregationId: user.congregationId, territoryId: territoryToResetId });
         } catch (error) {
             console.error("Erro ao limpar território:", error);
         } finally {
@@ -218,13 +221,13 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
     setIsConfirmModalOpen(true);
   };
   
-  const handleDeleteTerritory = (territoryId: string) => {
+  const handleDeleteTerritory = (territoryToDeleteId: string) => {
     setConfirmAction({
       action: async () => {
         if(!user?.congregationId) return;
         setIsProcessingAction(true);
         try {
-            const territoryDocRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
+            const territoryDocRef = doc(db, 'congregations', user.congregationId, 'territories', territoryToDeleteId);
             await deleteDoc(territoryDocRef);
             router.push('/dashboard/territorios');
         } catch(error) {
@@ -370,7 +373,7 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
               <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
               {isUrban && 
                 <QuadrasSection 
-                  territoryId={params.territoryId}
+                  territoryId={territoryId}
                   quadras={quadras} 
                   isManagerView={isManagerView} 
                   onAddQuadra={() => setIsAddQuadraModalOpen(true)} 
@@ -382,7 +385,7 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
             <>
               {isUrban && 
                 <QuadrasSection 
-                  territoryId={params.territoryId}
+                  territoryId={territoryId}
                   quadras={quadras} 
                   isManagerView={isManagerView} 
                   onAddQuadra={() => setIsAddQuadraModalOpen(true)} 

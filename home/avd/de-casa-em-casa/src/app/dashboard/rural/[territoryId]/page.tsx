@@ -25,7 +25,7 @@ interface RuralTerritoryDetailPageProps {
 
 function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
   const { user, loading: userLoading } = useUser();
-  const territoryId = params?.territoryId;
+  const { territoryId } = params;
   const router = useRouter();
 
   const [territory, setTerritory] = useState<RuralTerritory | null>(null);
@@ -289,5 +289,7 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
 }
 
 export default withAuth(RuralTerritoryDetailPage);
+
+    
 
     
