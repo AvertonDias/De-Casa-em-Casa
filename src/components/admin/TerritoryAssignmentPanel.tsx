@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -207,7 +208,7 @@ export default function TerritoryAssignmentPanel() {
         
         <div className="border border-border rounded-lg">
           {/* Cabeçalho da Tabela para Desktop */}
-          <div className="grid-cols-12 px-4 py-2 font-semibold text-muted-foreground hidden sm:grid">
+          <div className="grid-cols-12 px-4 py-2 font-semibold text-muted-foreground hidden sm:grid border-b border-border">
             <div className="col-span-5 text-left">Território</div>
             <div className="col-span-3 text-left">Status</div>
             <div className="col-span-3 text-left">Designado a</div>
