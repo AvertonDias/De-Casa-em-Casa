@@ -253,9 +253,9 @@ export default function TerritoryAssignmentPanel() {
         
         <div className="border border-border rounded-lg">
           <div className="grid-cols-12 px-4 py-2 font-semibold text-muted-foreground hidden sm:grid border-b border-border">
-            <div className="col-span-5 text-left">Território</div>
+            <div className="col-span-4 text-left">Território</div>
             <div className="col-span-2 text-left">Status</div>
-            <div className="col-span-3 text-left">Designado a</div>
+            <div className="col-span-4 text-left">Designado a</div>
             <div className="col-span-2 text-right">Ações</div>
           </div>
           <Accordion type="multiple" className="w-full">
@@ -267,7 +267,7 @@ export default function TerritoryAssignmentPanel() {
                   <AccordionItem value={t.id} key={t.id} className="border-b last:border-b-0">
                     <div className="flex items-center hover:bg-accent/50 transition-colors px-4 py-3">
                        <div className="flex-grow grid grid-cols-1 sm:grid-cols-12 items-center gap-y-2 gap-x-4">
-                          <div className="col-span-12 sm:col-span-5 font-semibold text-left">
+                          <div className="col-span-12 sm:col-span-4 font-semibold text-left">
                               <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`} className="hover:text-primary transition-colors">
                                   {t.number} - {t.name}
                               </Link>
@@ -277,14 +277,11 @@ export default function TerritoryAssignmentPanel() {
                                   {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
                               </span>
                           </div>
-                          <div className="col-span-12 sm:col-span-3 text-sm text-muted-foreground truncate text-left">
+                          <div className="col-span-12 sm:col-span-4 text-sm text-muted-foreground text-left">
                               {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}
                           </div>
                        </div>
                        <div className="flex items-center justify-end flex-shrink-0 ml-2 sm:col-span-2">
-                           <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4">
-                              <History />
-                            </AccordionTrigger>
                            <Menu as="div" className="relative inline-block text-left">
                              <Menu.Button className="p-2 rounded-full hover:bg-white/10">
                                  <MoreVertical size={20} />
@@ -305,6 +302,9 @@ export default function TerritoryAssignmentPanel() {
                                  </Menu.Items>
                              </Transition>
                            </Menu>
+                           <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4">
+                              <History />
+                            </AccordionTrigger>
                        </div>
                     </div>
                     <AccordionContent>
