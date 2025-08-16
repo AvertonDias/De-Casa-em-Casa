@@ -14,6 +14,7 @@ import AssignTerritoryModal from './AssignTerritoryModal';
 import ReturnTerritoryModal from './ReturnTerritoryModal';
 import type { Territory, AppUser, AssignmentHistoryLog } from '@/types/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import AssignmentHistory from '../AssignmentHistory';
 
 
 // ========================================================================
@@ -39,33 +40,6 @@ const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
     {label}
   </button>
 );
-
-
-const TerritoryHistory = ({ history }: { history: AssignmentHistoryLog[] }) => {
-  if (history.length === 0) {
-    return <p className="text-sm text-muted-foreground italic px-4 py-2">Nenhum histórico de designação encontrado.</p>;
-  }
-
-  // Ordena por data de conclusão e pega os 8 mais recentes
-  const sortedHistory = [...history]
-    .sort((a, b) => b.completedAt.toMillis() - a.completedAt.toMillis())
-    .slice(0, 8);
-
-  return (
-    <div className="space-y-2 text-sm p-4 bg-black/10 dark:bg-black/20 rounded-md">
-      <h4 className="font-semibold mb-2 flex items-center gap-2"><History size={16}/> Histórico Recente</h4>
-      {sortedHistory.map((log, index) => (
-        <div key={index} className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          <span className="font-semibold col-span-1 truncate">{log.name}</span>
-          <span className="text-muted-foreground col-span-2 sm:col-span-2">
-            {format(log.assignedAt.toDate(), "dd/MM/yy")} → {log.completedAt ? format(log.completedAt.toDate(), "dd/MM/yy") : '...'}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-};
-
 
 // ========================================================================
 //   Componente Principal do Painel
@@ -207,7 +181,6 @@ export default function TerritoryAssignmentPanel() {
         </div>
         
         <div className="border border-border rounded-lg">
-          {/* Cabeçalho da Tabela para Desktop */}
           <div className="grid-cols-12 px-4 py-2 font-semibold text-muted-foreground hidden sm:grid border-b border-border">
             <div className="col-span-5 text-left">Território</div>
             <div className="col-span-3 text-left">Status</div>
@@ -243,7 +216,7 @@ export default function TerritoryAssignmentPanel() {
                         </div>
 
                         <div className="flex items-center justify-end flex-shrink-0 ml-2">
-                             {hasHistory && <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4" />}
+                             {(hasHistory || isDesignado) && <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4" />}
                              <Menu as="div" className="relative inline-block text-left">
                                <Menu.Button className="p-2 rounded-full hover:bg-white/10">
                                    <MoreVertical size={20} />
@@ -267,11 +240,15 @@ export default function TerritoryAssignmentPanel() {
                         </div>
                     </div>
 
-                    {hasHistory && (
-                      <AccordionContent>
-                        <TerritoryHistory history={t.assignmentHistory || []} />
-                      </AccordionContent>
-                    )}
+                    <AccordionContent>
+                      <AssignmentHistory 
+                          currentAssignment={t.assignment} 
+                          pastAssignments={t.assignmentHistory || []} 
+                          // onEdit e onDelete não são necessários aqui, pois já estão no modal principal.
+                          onEdit={() => {}}
+                          onDelete={() => {}}
+                      />
+                    </AccordionContent>
                   </AccordionItem>
                 )
             })}

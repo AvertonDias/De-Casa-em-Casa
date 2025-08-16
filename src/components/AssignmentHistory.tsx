@@ -18,6 +18,7 @@ interface AssignmentHistoryProps {
 export default function AssignmentHistory({ currentAssignment, pastAssignments, onEdit, onDelete }: AssignmentHistoryProps) {
   const { user } = useUser();
   const isAdmin = user?.role === 'Administrador';
+  const isManager = isAdmin || user?.role === 'Dirigente';
   const [isOpen, setIsOpen] = useState(false);
   
   const sortedHistory = [...(pastAssignments || [])].sort((a, b) => {
@@ -25,6 +26,8 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
     const dateB = b.completedAt?.toMillis() || 0;
     return dateB - dateA;
   }).slice(0, 8);
+
+  if (!isManager) return null;
 
   return (
     <div className="bg-card p-4 rounded-lg shadow-md">
@@ -34,7 +37,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
       >
         <div className="flex items-center">
           <BookUser className="mr-3 text-primary" />
-          Histórico e Designação Atual
+          Histórico e Designação
         </div>
         <ChevronDown className={`transform transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -42,7 +45,6 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
       {isOpen && (
         <div className="mt-4 pt-4 border-t border-border">
           <ul className="space-y-4">
-            {/* Seção para a Designação Atual */}
             {currentAssignment && (
               <li className="flex justify-between items-start p-3 bg-primary/10 rounded-lg border-l-4 border-primary">
                 <div>
@@ -56,15 +58,14 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                 </div>
               </li>
             )}
-            {/* Seção para o Histórico Passado */}
-            {sortedHistory.map((log) => (
-              <li key={(log as any).id || log.assignedAt.toString()} className="flex justify-between items-start pl-4 border-l-2 border-border">
+
+            {sortedHistory.map((log, index) => (
+              <li key={index} className="flex justify-between items-start pl-4 border-l-2 border-border">
                 <div>
                   <p className="font-semibold">{log.name}</p>
                   <p className="text-sm text-muted-foreground">Designado: {format(log.assignedAt.toDate(), "dd/MM/yy")}</p>
                   <p className="text-sm text-muted-foreground">Devolvido: {log.completedAt ? format(log.completedAt.toDate(), "dd/MM/yy") : 'Não devolvido'}</p>
                 </div>
-                {/* Edit and Delete actions are only available for Admins */}
                 {isAdmin && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => onEdit(log)} className="text-muted-foreground hover:text-white" title="Editar"><Edit size={14} /></button>
