@@ -1,24 +1,21 @@
 {
-  "name": "De Casa em Casa",
-  "short_name": "Casa em Casa",
-  "description": "Painel de Controle de Territórios",
-  "start_url": "/",
-  "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#1E1B29",
-  "theme_color": "#8E44AD",
-  "icons": [
-    {
-      "src": "/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ]
+    "name": "De Casa em Casa",
+    "short_name": "Casa em Casa",
+    "description": "Aplicativo de gerenciamento de territórios.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#1E1B29",
+    "theme_color": "#8E44AD",
+    "icons": [
+        {
+            "src": "/icon-192x192.jpg",
+            "sizes": "192x192",
+            "type": "image/jpeg"
+        },
+        {
+            "src": "/icon-512x512.jpg",
+            "sizes": "512x512",
+            "type": "image/jpeg"
+        }
+    ]
 }
