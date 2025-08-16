@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -46,7 +45,6 @@ const TerritoryHistory = ({ history }: { history: AssignmentHistoryLog[] }) => {
     return <p className="text-sm text-muted-foreground italic px-4 py-2">Nenhum histórico de designação encontrado.</p>;
   }
 
-  // Ordena por data de conclusão e pega os 8 mais recentes
   const sortedHistory = [...history]
     .sort((a, b) => b.completedAt.toMillis() - a.completedAt.toMillis())
     .slice(0, 8);
@@ -207,10 +205,11 @@ export default function TerritoryAssignmentPanel() {
         </div>
         
         <div className="border border-border rounded-lg">
+          {/* Cabeçalho da Tabela para Desktop */}
           <div className="grid-cols-12 px-4 py-2 font-semibold text-muted-foreground hidden sm:grid">
             <div className="col-span-5">Território</div>
-            <div className="col-span-3">Status</div>
-            <div className="col-span-4 text-right">Ações</div>
+            <div className="col-span-5">Status</div>
+            <div className="col-span-2 text-right">Ações</div>
           </div>
 
           <Accordion type="multiple" className="w-full">
@@ -220,26 +219,27 @@ export default function TerritoryAssignmentPanel() {
                 const hasHistory = t.assignmentHistory && t.assignmentHistory.length > 0;
                 
                 return (
-                  <AccordionItem value={t.id} key={t.id} className="border-b last:border-b-0">
-                    <div className="flex items-center hover:bg-accent/50 transition-colors p-4">
-                      {/* Main Info */}
+                  <AccordionItem value={t.id} key={t.id} className="border-b last:border-b-0 hover:bg-accent/50 transition-colors">
+                    <div className="flex items-center p-4">
+                      {/* Grid principal para alinhar os conteúdos */}
                       <div className="flex-grow grid grid-cols-2 sm:grid-cols-12 items-center gap-2">
+                        {/* Coluna 1: Nome do Território */}
                         <div className="col-span-2 sm:col-span-5 font-semibold">
                            <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`} className="hover:text-primary transition-colors">
                             {t.number} - {t.name}
-                          </Link>
+                           </Link>
                         </div>
-                        <div className="col-span-2 sm:col-span-7 flex flex-col items-start sm:items-center sm:flex-row text-sm">
-                           <div className="sm:w-1/2">
+                        {/* Coluna 2: Status e Designação */}
+                        <div className="col-span-2 sm:col-span-5 text-sm flex flex-col sm:flex-row items-start sm:items-center">
+                           <div className="sm:w-1/3 font-semibold">
                             {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
                            </div>
-                           <div className="sm:w-1/2 text-muted-foreground truncate">
+                           <div className="sm:w-2/3 text-muted-foreground truncate">
                               {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : ''}
                            </div>
                         </div>
                       </div>
-
-                      {/* Actions */}
+                      {/* Coluna 3: Ações e Trigger do Acordeão */}
                       <div className="flex items-center justify-end flex-shrink-0 ml-4">
                          {hasHistory && <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4" />}
                          <Menu as="div" className="relative inline-block text-left">
