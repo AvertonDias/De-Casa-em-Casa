@@ -19,7 +19,8 @@ const toInputDateString = (date: Date): string => {
 
 const fromInputDateString = (dateString: string): Date => {
   const [year, month, day] = dateString.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  // Adiciona T12:00:00 para evitar problemas de fuso horário que podem alterar o dia
+  return new Date(year, month - 1, day, 12, 0, 0);
 };
 
 export default function AddEditAssignmentLogModal({ isOpen, onClose, onSave, logToEdit }: AddEditAssignmentLogModalProps) {
@@ -32,7 +33,9 @@ export default function AddEditAssignmentLogModal({ isOpen, onClose, onSave, log
     if (isOpen && logToEdit) {
       setName(logToEdit.name);
       setAssignedAt(toInputDateString(logToEdit.assignedAt.toDate()));
-      setCompletedAt(toInputDateString(logToEdit.completedAt.toDate()));
+      // Garante que a data de devolução seja tratada corretamente
+      const completedDate = logToEdit.completedAt instanceof Timestamp ? logToEdit.completedAt.toDate() : new Date();
+      setCompletedAt(toInputDateString(completedDate));
       setError('');
     }
   }, [isOpen, logToEdit]);

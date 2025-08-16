@@ -4,7 +4,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, Timestamp, deleteField, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, Bell, History } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
@@ -12,14 +12,11 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AssignTerritoryModal from './AssignTerritoryModal';
 import ReturnTerritoryModal from './ReturnTerritoryModal';
+import AddEditAssignmentLogModal from './AddEditAssignmentLogModal';
+import { ConfirmationModal } from '../ConfirmationModal';
 import type { Territory, AppUser, AssignmentHistoryLog } from '@/types/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import AssignmentHistory from '../AssignmentHistory';
-
-
-// ========================================================================
-//   Componentes do Painel
-// ========================================================================
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   label: string;
@@ -41,10 +38,6 @@ const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   </button>
 );
 
-// ========================================================================
-//   Componente Principal do Painel
-// ========================================================================
-
 export default function TerritoryAssignmentPanel() {
   const { user: currentUser } = useUser();
   const [territories, setTerritories] = useState<Territory[]>([]);
@@ -58,6 +51,13 @@ export default function TerritoryAssignmentPanel() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false); 
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
+
+  const [isEditLogModalOpen, setIsEditLogModalOpen] = useState(false);
+  const [logToEdit, setLogToEdit] = useState<AssignmentHistoryLog | null>(null);
+  
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [logToDelete, setLogToDelete] = useState<{territoryId: string, log: AssignmentHistoryLog} | null>(null);
+
 
   useEffect(() => {
     if (!currentUser?.congregationId) return;
@@ -129,6 +129,76 @@ export default function TerritoryAssignmentPanel() {
       assignmentHistory: arrayUnion(historyLog)
     });
   };
+
+  const handleOpenEditLogModal = (log: AssignmentHistoryLog) => {
+    setLogToEdit(log);
+    setIsEditLogModalOpen(true);
+  };
+
+  const handleSaveHistoryLog = async (originalLog: AssignmentHistoryLog, updatedData: { name: string; assignedAt: Date; completedAt: Date; }) => {
+    if (!currentUser?.congregationId || !selectedTerritory) return;
+    const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', selectedTerritory.id);
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const territoryDoc = await transaction.get(territoryRef);
+            if (!territoryDoc.exists()) throw "Território não encontrado";
+            
+            const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
+            
+            const newHistory = currentHistory.map(log => {
+                if (log.name === originalLog.name && log.assignedAt.isEqual(originalLog.assignedAt)) {
+                    return {
+                        ...log,
+                        name: updatedData.name,
+                        assignedAt: Timestamp.fromDate(updatedData.assignedAt),
+                        completedAt: Timestamp.fromDate(updatedData.completedAt),
+                    };
+                }
+                return log;
+            });
+            transaction.update(territoryRef, { assignmentHistory: newHistory });
+        });
+    } catch (e) {
+        console.error("Erro ao salvar histórico:", e);
+    }
+  };
+  
+  const handleOpenDeleteLogModal = (territoryId: string, log: AssignmentHistoryLog) => {
+    setLogToDelete({ territoryId, log });
+    setIsConfirmDeleteOpen(true);
+  };
+
+  const handleConfirmDeleteLog = async () => {
+    if (!logToDelete || !currentUser?.congregationId) return;
+
+    const { territoryId, log: logToDeleteData } = logToDelete;
+    const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
+    
+    try {
+        const territoryDoc = await getDoc(territoryRef);
+        if (territoryDoc.exists()) {
+            const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
+            
+            const logToRemove = currentHistory.find(log => 
+                log.name === logToDeleteData.name && 
+                log.assignedAt.isEqual(logToDeleteData.assignedAt)
+            );
+            
+            if (logToRemove) {
+                await updateDoc(territoryRef, {
+                    assignmentHistory: arrayRemove(logToRemove)
+                });
+            }
+        }
+    } catch (e) {
+        console.error("Erro ao deletar o registro do histórico:", e);
+    } finally {
+        setIsConfirmDeleteOpen(false);
+        setLogToDelete(null);
+    }
+  };
+  
   
   const filteredTerritories = territories.filter(t => {
       const type = t.type || 'urban';
@@ -210,9 +280,6 @@ export default function TerritoryAssignmentPanel() {
                           </div>
                        </div>
                        <div className="flex items-center justify-end flex-shrink-0 ml-2">
-                           <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4">
-                              <History />
-                            </AccordionTrigger>
                            <Menu as="div" className="relative inline-block text-left">
                              <Menu.Button className="p-2 rounded-full hover:bg-white/10">
                                  <MoreVertical size={20} />
@@ -233,14 +300,17 @@ export default function TerritoryAssignmentPanel() {
                                  </Menu.Items>
                              </Transition>
                            </Menu>
+                           <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4">
+                              <History />
+                            </AccordionTrigger>
                        </div>
                     </div>
                     <AccordionContent>
                       <AssignmentHistory 
                           currentAssignment={t.assignment} 
                           pastAssignments={t.assignmentHistory || []} 
-                          onEdit={() => {}}
-                          onDelete={() => {}}
+                          onEdit={(log) => { setSelectedTerritory(t); handleOpenEditLogModal(log); }}
+                          onDelete={(log) => handleOpenDeleteLogModal(t.id, log)}
                       />
                     </AccordionContent>
                   </AccordionItem>
@@ -262,6 +332,19 @@ export default function TerritoryAssignmentPanel() {
         onClose={() => setIsReturnModalOpen(false)}
         onConfirm={handleConfirmReturn}
         territory={selectedTerritory}
+      />
+      <AddEditAssignmentLogModal
+        isOpen={isEditLogModalOpen}
+        onClose={() => setIsEditLogModalOpen(false)}
+        onSave={handleSaveHistoryLog}
+        logToEdit={logToEdit}
+      />
+       <ConfirmationModal
+        isOpen={isConfirmDeleteOpen}
+        onClose={() => setIsConfirmDeleteOpen(false)}
+        onConfirm={handleConfirmDeleteLog}
+        title="Confirmar Exclusão"
+        message={`Tem certeza que deseja excluir o registro de ${logToDelete?.log.name}? Esta ação não pode ser desfeita.`}
       />
     </>
   );

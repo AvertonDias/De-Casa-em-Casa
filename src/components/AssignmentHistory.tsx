@@ -3,7 +3,7 @@
 
 import { useUser } from '@/contexts/UserContext';
 import { Assignment, AssignmentHistoryLog } from '@/types/types';
-import { BookUser, Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -26,7 +26,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
 
 
   return (
-    <div className="bg-card p-4 rounded-lg shadow-md">
+    <div className="bg-card p-4">
         <div className="mt-4 pt-4 border-t border-border">
           <ul className="space-y-4">
             {/* Seção para a Designação Atual */}
