@@ -358,13 +358,11 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
           {isManagerView ? (
             <>
               {isUrban && <ProgressSection territory={territory} />}
-              <ActivityHistory territoryId={territory.id} history={activityHistory} />
               
-              {isManagerView && (
-                <Accordion type="single" collapsible className="w-full bg-card rounded-lg shadow-md">
+              <Accordion type="single" collapsible className="w-full bg-card rounded-lg shadow-md">
                     <AccordionItem value="item-1">
                         <AccordionTrigger className="p-4 font-semibold text-lg hover:no-underline">
-                           <div className="flex items-center"><History className="mr-3 text-primary" />Histórico de Designações</div>
+                           <div className="flex items-center"><History className="mr-3 text-primary" />Histórico e Designação Atual</div>
                         </AccordionTrigger>
                         <AccordionContent>
                            <div className="p-4 pt-0">
@@ -378,7 +376,6 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>
-              )}
               
               <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
               {isUrban && 
@@ -428,3 +425,5 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
 }
 
 export default withAuth(TerritoryDetailPage);
+
+    

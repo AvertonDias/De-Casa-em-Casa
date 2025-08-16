@@ -17,15 +17,10 @@ import { Button } from '@/components/ui/button';
 import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
 import withAuth from "@/components/withAuth";
 
-interface RuralTerritoryDetailPageProps {
-  params: {
-    territoryId: string;
-  };
-}
-
-function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
+function RuralTerritoryDetailPage() {
   const { user, loading: userLoading } = useUser();
-  const { territoryId } = params;
+  const params = useParams();
+  const territoryId = params.territoryId as string;
   const router = useRouter();
 
   const [territory, setTerritory] = useState<RuralTerritory | null>(null);
@@ -289,3 +284,5 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
 }
 
 export default withAuth(RuralTerritoryDetailPage);
+
+    
