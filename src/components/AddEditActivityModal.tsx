@@ -34,7 +34,8 @@ export default function AddEditActivityModal({ isOpen, onClose, onSave, activity
     if (isOpen) {
       if (isEditing && activityToEdit) {
         setDate(toInputDateString(activityToEdit.activityDate));
-        setNotes(activityToEdit.notes || '');
+        // Use a descrição para preencher as notas, com fallback para o campo 'notes'
+        setNotes(activityToEdit.description || activityToEdit.notes || '');
       } else {
         setDate(toInputDateString(new Date()));
         setNotes('');
