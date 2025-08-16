@@ -209,9 +209,8 @@ export default function TerritoryAssignmentPanel() {
         <div className="border border-border rounded-lg">
           <div className="grid-cols-12 px-4 py-2 font-semibold text-muted-foreground hidden sm:grid">
             <div className="col-span-5">Território</div>
-            <div className="col-span-2">Status</div>
-            <div className="col-span-3">Designado a</div>
-            <div className="col-span-2 text-right">Ações</div>
+            <div className="col-span-3">Status</div>
+            <div className="col-span-4 text-right">Ações</div>
           </div>
 
           <Accordion type="multiple" className="w-full">
@@ -222,23 +221,28 @@ export default function TerritoryAssignmentPanel() {
                 
                 return (
                   <AccordionItem value={t.id} key={t.id} className="border-b last:border-b-0">
-                    <div className="flex items-center hover:bg-accent/50 transition-colors">
-                      <div className="flex-grow grid grid-cols-1 sm:grid-cols-12 items-center p-4">
-                        <div className="sm:col-span-5 font-semibold mb-2 sm:mb-0">
-                          <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`} className="hover:text-primary transition-colors">
+                    <div className="flex items-center hover:bg-accent/50 transition-colors p-4">
+                      {/* Main Info */}
+                      <div className="flex-grow grid grid-cols-2 sm:grid-cols-12 items-center gap-2">
+                        <div className="col-span-2 sm:col-span-5 font-semibold">
+                           <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`} className="hover:text-primary transition-colors">
                             {t.number} - {t.name}
                           </Link>
                         </div>
-                        <div className="sm:col-span-2 text-sm">
-                          {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
-                        </div>
-                        <div className="sm:col-span-3 text-sm text-muted-foreground truncate">
-                          {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}
+                        <div className="col-span-2 sm:col-span-7 flex flex-col items-start sm:items-center sm:flex-row text-sm">
+                           <div className="sm:w-1/2">
+                            {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
+                           </div>
+                           <div className="sm:w-1/2 text-muted-foreground truncate">
+                              {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : ''}
+                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center pr-4">
-                        {hasHistory && <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4" />}
-                        <Menu as="div" className="relative inline-block text-left">
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-end flex-shrink-0 ml-4">
+                         {hasHistory && <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4" />}
+                         <Menu as="div" className="relative inline-block text-left">
                            <Menu.Button className="p-2 rounded-full hover:bg-white/10">
                                <MoreVertical size={20} />
                            </Menu.Button>
@@ -261,7 +265,7 @@ export default function TerritoryAssignmentPanel() {
                       </div>
                     </div>
                     {hasHistory && (
-                      <AccordionContent>
+                      <AccordionContent className="px-4 pb-4">
                         <TerritoryHistory history={t.assignmentHistory || []} />
                       </AccordionContent>
                     )}
