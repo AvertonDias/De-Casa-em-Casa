@@ -161,7 +161,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
                               </>
                             )}
                          </div>
-                         {isAdmin && user.status !== 'pendente' && (
+                         {isAdmin && user.status !== 'pendente' && user.uid !== currentUser.uid && (
                            <div className="p-1">
                               <Menu.Item>
                                 {({ active }) => (
@@ -474,5 +474,3 @@ function UsersPage() {
 }
 
 export default withAuth(UsersPage);
-
-    
