@@ -232,10 +232,12 @@ export default function TerritoryAssignmentPanel() {
                             </div>
 
                             <div className="col-span-6 sm:col-span-3 text-sm font-semibold text-left">
-                                {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
+                                <span className="flex w-full">
+                                    {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
+                                </span>
                             </div>
 
-                            <div className="col-span-6 sm:col-span-3 text-sm text-muted-foreground truncate text-left">
+                            <div className="col-span-12 sm:col-span-3 text-sm text-muted-foreground truncate text-left">
                                 {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}
                             </div>
                         </div>
