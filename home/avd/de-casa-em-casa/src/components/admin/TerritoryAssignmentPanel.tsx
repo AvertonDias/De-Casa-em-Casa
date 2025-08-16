@@ -13,9 +13,6 @@ import { ptBR } from 'date-fns/locale';
 import AssignTerritoryModal from './AssignTerritoryModal';
 import ReturnTerritoryModal from './ReturnTerritoryModal';
 import type { Territory, AppUser, AssignmentHistoryLog } from '@/types/types';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import AssignmentHistory from '../AssignmentHistory';
-
 
 // ========================================================================
 //   Componentes do Painel
@@ -187,57 +184,57 @@ export default function TerritoryAssignmentPanel() {
             <div className="col-span-3 text-left">Designado a</div>
             <div className="col-span-1 text-right">Ações</div>
           </div>
-            {filteredTerritories.map(t => {
-                const isDesignado = t.status === 'designado' && t.assignment;
-                const isOverdue = isDesignado && t.assignment && t.assignment.dueDate.toDate() < new Date();
-                
-                return (
-                    <div className="grid grid-cols-1 sm:grid-cols-12 items-center px-4 py-3 gap-y-2" key={t.id}>
-                        {/* Title */}
-                        <div className="col-span-12 sm:col-span-5 font-semibold text-left">
-                            <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`} className="hover:text-primary transition-colors">
-                                {t.number} - {t.name}
-                            </Link>
-                        </div>
-                        
-                        {/* Status */}
-                        <div className="col-span-6 sm:col-span-3 text-sm font-semibold text-left">
-                            <span className="flex w-full">
-                                {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
-                            </span>
-                        </div>
+          {filteredTerritories.map(t => {
+              const isDesignado = t.status === 'designado' && t.assignment;
+              const isOverdue = isDesignado && t.assignment && t.assignment.dueDate.toDate() < new Date();
+              
+              return (
+                  <div className="grid grid-cols-1 sm:grid-cols-12 items-center px-4 py-3 gap-y-2 hover:bg-accent/50 transition-colors" key={t.id}>
+                      {/* Title */}
+                      <div className="col-span-12 sm:col-span-5 font-semibold text-left">
+                          <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`} className="hover:text-primary transition-colors">
+                              {t.number} - {t.name}
+                          </Link>
+                      </div>
+                      
+                      {/* Status */}
+                      <div className="col-span-6 sm:col-span-3 text-sm font-semibold text-left">
+                          <span className="flex w-full">
+                              {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
+                          </span>
+                      </div>
 
-                        {/* Assigned To */}
-                        <div className="col-span-12 sm:col-span-3 text-sm text-muted-foreground truncate text-left">
-                            {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}
-                        </div>
-                        
-                        {/* Actions */}
-                        <div className="col-span-6 sm:col-span-1 flex items-center justify-end">
-                            <Menu as="div" className="relative inline-block text-left">
-                                <Menu.Button className="p-2 rounded-full hover:bg-white/10">
-                                    <MoreVertical size={20} />
-                                </Menu.Button>
-                                <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                                    <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-popover text-popover-foreground rounded-md shadow-lg z-20 ring-1 ring-black ring-opacity-5 focus:outline-none">
-                                        <div className="p-1">
-                                            {isDesignado ? (
-                                                <>
-                                                    <Menu.Item><button onClick={() => handleOpenReturnModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <CheckCircle size={16} className="mr-2"/>Devolver</button></Menu.Item>
-                                                    <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <RotateCw size={16} className="mr-2"/>Reatribuir</button></Menu.Item>
-                                                    {isOverdue && <Menu.Item><button onClick={() => alert('Função de notificação em breve!')} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground'> <Bell size={16} className="mr-2"/>Notificar Atraso</button></Menu.Item>}
-                                                </>
-                                            ) : (
-                                                    <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <BookUser size={16} className="mr-2"/>Designar</button></Menu.Item>
-                                            )}
-                                        </div>
-                                    </Menu.Items>
-                                </Transition>
-                            </Menu>
-                        </div>
-                    </div>
-                )
-            })}
+                      {/* Assigned To */}
+                      <div className="col-span-12 sm:col-span-3 text-sm text-muted-foreground truncate text-left">
+                          {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="col-span-6 sm:col-span-1 flex items-center justify-end">
+                          <Menu as="div" className="relative inline-block text-left">
+                              <Menu.Button className="p-2 rounded-full hover:bg-white/10">
+                                  <MoreVertical size={20} />
+                              </Menu.Button>
+                              <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+                                  <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-popover text-popover-foreground rounded-md shadow-lg z-20 ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                      <div className="p-1">
+                                          {isDesignado ? (
+                                              <>
+                                                  <Menu.Item><button onClick={() => handleOpenReturnModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <CheckCircle size={16} className="mr-2"/>Devolver</button></Menu.Item>
+                                                  <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <RotateCw size={16} className="mr-2"/>Reatribuir</button></Menu.Item>
+                                                  {isOverdue && <Menu.Item><button onClick={() => alert('Função de notificação em breve!')} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground'> <Bell size={16} className="mr-2"/>Notificar Atraso</button></Menu.Item>}
+                                              </>
+                                          ) : (
+                                                  <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <BookUser size={16} className="mr-2"/>Designar</button></Menu.Item>
+                                          )}
+                                      </div>
+                                  </Menu.Items>
+                              </Transition>
+                          </Menu>
+                      </div>
+                  </div>
+              )
+          })}
         </div>
       </div>
       
