@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -16,11 +17,15 @@ import { Button } from '@/components/ui/button';
 import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
 import withAuth from "@/components/withAuth";
 
+interface RuralTerritoryDetailPageProps {
+  params: {
+    territoryId: string;
+  };
+}
 
-function RuralTerritoryDetailPage() {
+function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
   const { user, loading: userLoading } = useUser();
-  const params = useParams<{ territoryId?: string }>();
-  const territoryId = params?.territoryId;
+  const { territoryId } = params;
   const router = useRouter();
 
   const [territory, setTerritory] = useState<RuralTerritory | null>(null);
@@ -284,5 +289,3 @@ function RuralTerritoryDetailPage() {
 }
 
 export default withAuth(RuralTerritoryDetailPage);
-
-    
