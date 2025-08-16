@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,12 +9,18 @@ import { Timestamp } from "firebase/firestore";
 interface AddEditAssignmentLogModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (logId: string, updatedData: { name: string; assignedAt: string; completedAt: string }) => void;
+  onSave: (originalLog: AssignmentHistoryLog, updatedData: { name: string; assignedAt: Date; completedAt: Date; }) => void;
   logToEdit: AssignmentHistoryLog | null;
 }
 
-const toInputDateString = (date: Timestamp): string => {
-  return date.toDate().toISOString().split('T')[0];
+const toInputDateString = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
+
+const fromInputDateString = (dateString: string): Date => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  // Adiciona T12:00:00 para evitar problemas de fuso horário que podem alterar o dia
+  return new Date(year, month - 1, day, 12, 0, 0);
 };
 
 export default function AddEditAssignmentLogModal({ isOpen, onClose, onSave, logToEdit }: AddEditAssignmentLogModalProps) {
@@ -25,8 +32,10 @@ export default function AddEditAssignmentLogModal({ isOpen, onClose, onSave, log
   useEffect(() => {
     if (isOpen && logToEdit) {
       setName(logToEdit.name);
-      setAssignedAt(toInputDateString(logToEdit.assignedAt));
-      setCompletedAt(toInputDateString(logToEdit.completedAt));
+      setAssignedAt(toInputDateString(logToEdit.assignedAt.toDate()));
+      // Garante que a data de devolução seja tratada corretamente
+      const completedDate = logToEdit.completedAt instanceof Timestamp ? logToEdit.completedAt.toDate() : new Date();
+      setCompletedAt(toInputDateString(completedDate));
       setError('');
     }
   }, [isOpen, logToEdit]);
@@ -38,9 +47,11 @@ export default function AddEditAssignmentLogModal({ isOpen, onClose, onSave, log
     }
     if (!logToEdit) return;
     
-    const logId = (logToEdit as any).id || Date.now().toString();
-
-    onSave(logId, { name, assignedAt, completedAt });
+    onSave(logToEdit, { 
+        name, 
+        assignedAt: fromInputDateString(assignedAt), 
+        completedAt: fromInputDateString(completedAt) 
+    });
     onClose();
   };
 
