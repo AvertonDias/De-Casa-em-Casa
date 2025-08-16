@@ -210,6 +210,9 @@ export default function TerritoryAssignmentPanel() {
                           </div>
                        </div>
                        <div className="flex items-center justify-end flex-shrink-0 ml-2">
+                           <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4">
+                              <History />
+                            </AccordionTrigger>
                            <Menu as="div" className="relative inline-block text-left">
                              <Menu.Button className="p-2 rounded-full hover:bg-white/10">
                                  <MoreVertical size={20} />
@@ -226,9 +229,6 @@ export default function TerritoryAssignmentPanel() {
                                          ) : (
                                               <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <BookUser size={16} className="mr-2"/>Designar</button></Menu.Item>
                                          )}
-                                          <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4">
-                                            <History size={16} className="mr-2"/>Histórico
-                                          </AccordionTrigger>
                                      </div>
                                  </Menu.Items>
                              </Transition>
@@ -239,7 +239,6 @@ export default function TerritoryAssignmentPanel() {
                       <AssignmentHistory 
                           currentAssignment={t.assignment} 
                           pastAssignments={t.assignmentHistory || []} 
-                          // onEdit e onDelete não são necessários aqui, pois já estão no modal principal.
                           onEdit={() => {}}
                           onDelete={() => {}}
                       />
