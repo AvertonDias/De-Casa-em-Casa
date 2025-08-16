@@ -8,10 +8,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory, Activity, Quadra, AssignmentHistoryLog } from "@/types/types"; 
-import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, UserCheck, Clock } from "lucide-react";
+import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, History } from "lucide-react";
 import Link from 'next/link';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 import ActivityHistory from '@/components/ActivityHistory';
 import AssignmentHistory from '@/components/AssignmentHistory';
@@ -24,6 +22,7 @@ import QuadraListItem from "@/components/QuadraListItem";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import withAuth from "@/components/withAuth";
 import AddEditAssignmentLogModal from "@/components/admin/AddEditAssignmentLogModal";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 
 const functions = getFunctions(app);
@@ -362,12 +361,23 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
               <ActivityHistory territoryId={territory.id} history={activityHistory} />
               
               {isManagerView && (
-                <AssignmentHistory
-                  currentAssignment={territory.assignment}
-                  pastAssignments={territory.assignmentHistory || []}
-                  onEdit={handleOpenEditLogModal}
-                  onDelete={handleDeleteHistoryLog}
-                />
+                <Accordion type="single" collapsible className="w-full bg-card rounded-lg shadow-md">
+                    <AccordionItem value="item-1">
+                        <AccordionTrigger className="p-4 font-semibold text-lg hover:no-underline">
+                           <div className="flex items-center"><History className="mr-3 text-primary" />Histórico de Designações</div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                           <div className="p-4 pt-0">
+                               <AssignmentHistory
+                                 currentAssignment={territory.assignment}
+                                 pastAssignments={territory.assignmentHistory || []}
+                                 onEdit={handleOpenEditLogModal}
+                                 onDelete={handleDeleteHistoryLog}
+                               />
+                           </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
               )}
               
               <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
@@ -405,12 +415,14 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
       {confirmAction && <ConfirmationModal isOpen={isConfirmModalOpen} onClose={handleCloseAllModals} onConfirm={confirmAction.action} title={confirmAction.title} message={confirmAction.message} isLoading={isProcessingAction} />}
       <ImagePreviewModal isOpen={isPreviewModalOpen} onClose={() => setIsPreviewModalOpen(false)} imageUrl={selectedImageUrl} />
 
-      <AddEditAssignmentLogModal 
-        isOpen={isEditLogModalOpen}
-        onClose={handleCloseAllModals}
-        logToEdit={historyLogToEdit}
-        onSave={handleSaveHistoryLog}
-      />
+      {isAdmin && (
+        <AddEditAssignmentLogModal 
+          isOpen={isEditLogModalOpen}
+          onClose={handleCloseAllModals}
+          logToEdit={historyLogToEdit}
+          onSave={handleSaveHistoryLog}
+        />
+      )}
     </>
   );
 }
