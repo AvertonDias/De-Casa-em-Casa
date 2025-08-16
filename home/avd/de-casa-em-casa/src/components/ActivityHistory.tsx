@@ -4,16 +4,13 @@
 import { useState } from 'react';
 import { Activity } from '@/types/types';
 import { useUser } from '@/contexts/UserContext';
-import { db, functions } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { ChevronDown, Plus, Edit, Trash2, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AddEditActivityModal from './AddEditActivityModal';
 import { ConfirmationModal } from './ConfirmationModal'; 
-
-const updateLastUpdateFunction = httpsCallable(functions, 'updateTerritoryLastUpdate');
 
 interface ActivityHistoryProps {
   territoryId: string;
@@ -29,37 +26,36 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
   const [activityToDelete, setActivityToDelete] = useState<string | null>(null);
 
   const canManage = user?.role === 'Administrador' || user?.role === 'Dirigente';
-  const historyCollectionRef = user?.congregationId ? collection(db, `congregations/${user?.congregationId}/territories/${territoryId}/activityHistory`) : null;
-  
-  const triggerLastUpdateSync = () => {
-    if (!user?.congregationId) return;
-    updateLastUpdateFunction({ congregationId: user.congregationId, territoryId: territoryId });
-  };
-
+  const historyCollectionRef = user?.congregationId ? collection(db, `congregations/${user.congregationId}/territories/${territoryId}/activityHistory`) : null;
+  const territoryDocRef = user?.congregationId ? doc(db, `congregations/${user.congregationId}/territories/${territoryId}`) : null;
 
   const handleSaveActivity = async (
     activityData: { activityDate: Date, notes: string }, 
     activityId?: string
   ) => {
-    if (!user || !historyCollectionRef) return;
+    if (!user || !historyCollectionRef || !territoryDocRef) return;
     
+    const now = serverTimestamp();
+
     try {
       if (activityId) {
         const activityDocRef = doc(historyCollectionRef, activityId);
         await updateDoc(activityDocRef, {
           activityDate: Timestamp.fromDate(activityData.activityDate),
-          notes: activityData.notes,
+          description: activityData.notes, // Atualiza description para consistência
         });
       } else {
         await addDoc(historyCollectionRef, {
+          type: 'manual', // Indica que é um registro manual
           activityDate: Timestamp.fromDate(activityData.activityDate),
-          notes: activityData.notes,
+          description: activityData.notes,
           userName: user.name,
           userId: user.uid,
-          createdAt: serverTimestamp(),
+          createdAt: now,
         });
       }
-      triggerLastUpdateSync();
+      await updateDoc(territoryDocRef, { lastUpdate: now });
+
     } catch (error) {
       console.error("Erro ao salvar atividade:", error);
     }
@@ -70,7 +66,6 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
     try {
       const activityDocRef = doc(historyCollectionRef, activityToDelete);
       await deleteDoc(activityDocRef);
-      triggerLastUpdateSync();
     } catch (error) {
       console.error("Erro ao deletar atividade:", error);
     } finally {
@@ -93,6 +88,10 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
     setActivityToDelete(id);
     setIsConfirmModalOpen(true);
   };
+  
+  const cleanDescription = (description: string) => {
+    return description.replace(/\n?Registrado por: Sistema/g, '').trim();
+  }
 
   return (
     <>
@@ -106,7 +105,7 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
           <div className="mt-4 pt-4 border-t border-border">
             {canManage && (
               <div className="mb-4">
-                <button onClick={openAddModal} className="w-full flex items-center justify-center p-2 bg-primary/20 text-primary rounded-md hover:bg-primary/30 transition-colors">
+                <button onClick={openAddModal} className="w-full flex items-center justify-center p-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">
                   <Plus className="mr-2 h-4 w-4" /> Adicionar Registro
                 </button>
               </div>
@@ -118,12 +117,20 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
                   <li key={activity.id} className="flex items-start justify-between">
                     <div>
                       <p className="font-semibold text-base">
-                        {activity.activityDate ? format(activity.activityDate.toDate(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : 'Data não registrada'}
+                        {activity.activityDate ? format(activity.activityDate.toDate(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : 'Data não registrada'}
                       </p>
-                      {activity.notes && <p className="text-sm mt-1 text-muted-foreground italic">"{activity.notes}"</p>}
-                      <p className="text-xs text-muted-foreground mt-2">Registrado por: {activity.userName}</p>
+                      {activity.description && (
+                        <p className="text-sm mt-1 text-muted-foreground italic" style={{ whiteSpace: 'pre-line' }}>
+                            {cleanDescription(activity.description)}
+                        </p>
+                      )}
+                      
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Registrado por: {' '}
+                        {activity.userId === 'automatic_system_log' ? 'Sistema' : activity.userName || 'Desconhecido'}
+                      </p>
                     </div>
-                    {canManage && (
+                    {canManage && activity.type !== 'work' && ( // Impede a edição do log automático do sistema
                       <div className="flex space-x-2">
                         <button onClick={() => openEditModal(activity)} className="p-1 text-muted-foreground hover:text-white"><Edit size={16}/></button>
                         <button onClick={() => openConfirmModal(activity.id)} className="p-1 text-muted-foreground hover:text-red-500"><Trash2 size={16}/></button>
