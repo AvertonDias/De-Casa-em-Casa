@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { doc, onSnapshot, Timestamp, runTransaction, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
@@ -16,16 +16,18 @@ import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Button } from '@/components/ui/button';
 import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
 import withAuth from "@/components/withAuth";
+import React from 'react';
 
 interface RuralTerritoryDetailPageProps {
-  params: {
+  params: Promise<{
     territoryId: string;
-  };
+  }>;
 }
 
 function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
   const { user, loading: userLoading } = useUser();
-  const { territoryId } = params;
+  const resolvedParams = React.use(params);
+  const { territoryId } = resolvedParams;
   const router = useRouter();
 
   const [territory, setTerritory] = useState<RuralTerritory | null>(null);
@@ -289,7 +291,5 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
 }
 
 export default withAuth(RuralTerritoryDetailPage);
-
-    
 
     

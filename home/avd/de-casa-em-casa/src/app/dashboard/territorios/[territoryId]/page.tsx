@@ -4,7 +4,7 @@
 import { doc, onSnapshot, collection, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "@/lib/firebase";
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import { useRouter } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory, Activity, Quadra, AssignmentHistoryLog } from "@/types/types"; 
@@ -24,6 +24,7 @@ import QuadraListItem from "@/components/QuadraListItem";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import withAuth from "@/components/withAuth";
 import AddEditAssignmentLogModal from "@/components/admin/AddEditAssignmentLogModal";
+import React from 'react';
 
 
 const functions = getFunctions(app);
@@ -120,13 +121,14 @@ const QuadrasSection = ({ territoryId, quadras, isManagerView, onAddQuadra, onEd
 );
 
 interface TerritoryDetailPageProps {
-  params: {
+  params: Promise<{
     territoryId: string;
-  };
+  }>;
 }
 
 function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
-  const { territoryId } = params;
+  const resolvedParams = React.use(params);
+  const { territoryId } = resolvedParams;
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
   const [quadras, setQuadras] = useState<Quadra[]>([]);
