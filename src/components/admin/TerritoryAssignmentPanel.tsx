@@ -192,7 +192,6 @@ export default function TerritoryAssignmentPanel() {
             {filteredTerritories.map(t => {
                 const isDesignado = t.status === 'designado' && t.assignment;
                 const isOverdue = isDesignado && t.assignment && t.assignment.dueDate.toDate() < new Date();
-                const hasHistory = t.assignmentHistory && t.assignmentHistory.length > 0;
                 
                 return (
                   <AccordionItem value={t.id} key={t.id} className="border-b last:border-b-0">
@@ -216,7 +215,6 @@ export default function TerritoryAssignmentPanel() {
                         </div>
 
                         <div className="flex items-center justify-end flex-shrink-0 ml-2">
-                             {(hasHistory || isDesignado) && <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4" />}
                              <Menu as="div" className="relative inline-block text-left">
                                <Menu.Button className="p-2 rounded-full hover:bg-white/10">
                                    <MoreVertical size={20} />
@@ -272,3 +270,4 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
+
