@@ -8,10 +8,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory, Activity, Quadra, AssignmentHistoryLog } from "@/types/types"; 
-import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, UserCheck, Clock } from "lucide-react";
+import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart } from "lucide-react";
 import Link from 'next/link';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 import ActivityHistory from '@/components/ActivityHistory';
 import AssignmentHistory from '@/components/AssignmentHistory';
@@ -119,7 +117,13 @@ const QuadrasSection = ({ territoryId, quadras, isManagerView, onAddQuadra, onEd
   </div>
 );
 
-function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
+interface TerritoryDetailPageProps {
+  params: {
+    territoryId: string;
+  };
+}
+
+function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
   const [quadras, setQuadras] = useState<Quadra[]>([]);
@@ -270,41 +274,41 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
     setIsEditLogModalOpen(true);
   };
 
-  const handleSaveHistoryLog = async (logId: string, updatedData: { name: string; assignedAt: string; completedAt: string }) => {
-    if (!user?.congregationId || !territory) return;
-    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
+  const handleSaveHistoryLog = async (originalLog: AssignmentHistoryLog, updatedData: { name: string; assignedAt: Date; completedAt: Date; }) => {
+      if (!user?.congregationId || !territory) return;
+      const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
 
-    try {
-      await runTransaction(db, async (transaction) => {
-        const territoryDoc = await transaction.get(territoryRef);
-        if (!territoryDoc.exists()) throw "Território não encontrado";
-        
-        const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
-        const newHistory = currentHistory.map(log => {
-          if ((log as any).id === logId) { 
-            return {
-              ...log,
-              name: updatedData.name,
-              assignedAt: Timestamp.fromDate(new Date(updatedData.assignedAt)),
-              completedAt: Timestamp.fromDate(new Date(updatedData.completedAt)),
-            };
-          }
-          return log;
-        });
-        transaction.update(territoryRef, { assignmentHistory: newHistory });
-      });
-    } catch (e) {
-      console.error("Erro ao salvar histórico:", e);
-    }
+      try {
+          await runTransaction(db, async (transaction) => {
+              const territoryDoc = await transaction.get(territoryRef);
+              if (!territoryDoc.exists()) throw "Território não encontrado";
+              
+              const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
+              const newHistory = currentHistory.map(log => {
+                  if (log.name === originalLog.name && log.assignedAt.isEqual(originalLog.assignedAt)) {
+                      return {
+                          ...log,
+                          name: updatedData.name,
+                          assignedAt: Timestamp.fromDate(updatedData.assignedAt),
+                          completedAt: Timestamp.fromDate(updatedData.completedAt),
+                      };
+                  }
+                  return log;
+              });
+              transaction.update(territoryRef, { assignmentHistory: newHistory });
+          });
+      } catch (e) {
+          console.error("Erro ao salvar histórico:", e);
+      }
   };
-  
+
   const handleDeleteHistoryLog = (logToDelete: AssignmentHistoryLog) => {
     if (!user?.congregationId || !territory) return;
     setConfirmAction({
       action: async () => {
         const territoryRef = doc(db, 'congregations', user!.congregationId!, 'territories', territory.id);
         const currentHistory: AssignmentHistoryLog[] = territory.assignmentHistory || [];
-        const newHistory = currentHistory.filter(log => (log as any).id !== (logToDelete as any).id);
+        const newHistory = currentHistory.filter(log => !(log.name === logToDelete.name && log.assignedAt.isEqual(logToDelete.assignedAt)));
         await updateDoc(territoryRef, { assignmentHistory: newHistory });
         handleCloseAllModals();
       },
@@ -354,12 +358,14 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
               {isUrban && <ProgressSection territory={territory} />}
               <ActivityHistory territoryId={territory.id} history={activityHistory} />
               
-              <AssignmentHistory
-                currentAssignment={territory.assignment}
-                pastAssignments={territory.assignmentHistory || []}
-                onEdit={handleOpenEditLogModal}
-                onDelete={handleDeleteHistoryLog}
-              />
+              {isManagerView && (
+                <AssignmentHistory
+                  currentAssignment={territory.assignment}
+                  pastAssignments={territory.assignmentHistory || []}
+                  onEdit={handleOpenEditLogModal}
+                  onDelete={handleDeleteHistoryLog}
+                />
+              )}
               
               <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
               {isUrban && 
@@ -407,3 +413,5 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
 }
 
 export default withAuth(TerritoryDetailPage);
+
+    

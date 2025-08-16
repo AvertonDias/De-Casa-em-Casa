@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState, useEffect, useContext } from 'react';
-import { doc, onSnapshot, Timestamp, runTransaction } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import { doc, onSnapshot, Timestamp, runTransaction, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { UserContext } from '@/contexts/UserContext';
+import { useUser } from '@/contexts/UserContext';
 import { RuralTerritory, RuralWorkLog } from '@/types/types';
-import { useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Link as LinkIcon, Loader, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -15,10 +15,19 @@ import AddEditWorkLogModal from '@/components/AddEditWorkLogModal';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Button } from '@/components/ui/button';
 import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
+import withAuth from "@/components/withAuth";
 
-export default function RuralTerritoryDetailPage() {
-  const { user } = useContext(UserContext);
-  const params = useParams<{ territoryId: string }>();
+interface RuralTerritoryDetailPageProps {
+  params: {
+    territoryId: string;
+  };
+}
+
+function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
+  const { user, loading: userLoading } = useUser();
+  const territoryId = params?.territoryId;
+  const router = useRouter();
+
   const [territory, setTerritory] = useState<RuralTerritory | null>(null);
   const [loading, setLoading] = useState(true);
   
@@ -31,13 +40,19 @@ export default function RuralTerritoryDetailPage() {
   const [workLogToEdit, setWorkLogToEdit] = useState<RuralWorkLog | null>(null);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [workLogToDelete, setWorkLogToDelete] = useState<RuralWorkLog | null>(null);
+  const [isTerritoryDeleteConfirmOpen, setIsTerritoryDeleteConfirmOpen] = useState(false);
+
 
   useEffect(() => {
-    if (!user?.congregationId || !params.territoryId) {
-        if (user) setLoading(false);
+    if (userLoading) return;
+
+    if (!territoryId || !user?.congregationId) {
+        setLoading(false);
         return;
     }
-    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', params.territoryId);
+    
+    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
+    
     const unsubscribe = onSnapshot(territoryRef, (docSnap) => {
       if (docSnap.exists() && docSnap.data().type === 'rural') {
         setTerritory({ id: docSnap.id, ...docSnap.data() } as RuralTerritory);
@@ -47,7 +62,7 @@ export default function RuralTerritoryDetailPage() {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [user, params.territoryId]);
+  }, [territoryId, user, userLoading]);
 
   const handleAddWorkLog = async () => {
     if (!workNote.trim() || !user || !territory) return;
@@ -113,13 +128,28 @@ export default function RuralTerritoryDetailPage() {
             transaction.update(territoryRef, { workLogs: newLogsArray });
         });
     } catch (error) {
-        console.error("Erro na transação de excluir registro:", error);
+      console.error("Erro na transação de excluir registro:", error);
     } finally {
         setIsConfirmDeleteOpen(false);
         setWorkLogToDelete(null);
     }
   };
   
+   const handleDeleteTerritory = async () => {
+    if (!user?.congregationId || !territory) return;
+
+    try {
+      const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
+      await deleteDoc(territoryRef);
+      router.push('/dashboard/rural');
+    } catch (error) {
+      console.error("Erro ao excluir território:", error);
+    } finally {
+      setIsTerritoryDeleteConfirmOpen(false);
+    }
+  };
+
+
   const openEditWorkLogModal = (log: RuralWorkLog) => {
     setWorkLogToEdit(log);
     setIsWorkLogModalOpen(true);
@@ -132,10 +162,10 @@ export default function RuralTerritoryDetailPage() {
 
   const sortedWorkLogs = territory?.workLogs?.sort((a, b) => b.date.seconds - a.date.seconds) || [];
 
-  if (loading || !user) return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" size={32} /></div>;
+  if (userLoading || loading || !territoryId) return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" size={32} /></div>;
   if (!territory) return <p className="text-center mt-10">Território não encontrado ou não é um território rural.</p>;
 
-  const isAdmin = user.role === 'Administrador';
+  const isAdmin = user?.role === 'Administrador';
 
   return (
     <>
@@ -192,7 +222,7 @@ export default function RuralTerritoryDetailPage() {
             <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
               {sortedWorkLogs.length > 0 ? (
                   sortedWorkLogs.map(log => {
-                      const canManageLog = user.uid === log.userId || isAdmin;
+                      const canManageLog = user?.uid === log.userId || isAdmin;
 
                       return (
                       <div key={log.id} className="border-l-2 border-primary/50 pl-4">
@@ -220,13 +250,14 @@ export default function RuralTerritoryDetailPage() {
         </div>
       </div>
 
-      {isAdmin && user.congregationId && (
+      {isAdmin && user.congregationId && territory && (
         <EditRuralTerritoryModal
           isOpen={isEditTerritoryModalOpen}
           onClose={() => setIsEditTerritoryModalOpen(false)}
           territory={territory} 
           congregationId={user.congregationId} 
           onTerritoryUpdated={() => setIsEditTerritoryModalOpen(false)}
+          onDeleteRequest={() => setIsTerritoryDeleteConfirmOpen(true)}
         />
       )}
 
@@ -245,6 +276,18 @@ export default function RuralTerritoryDetailPage() {
         message={`Tem certeza que deseja excluir o registro: "${workLogToDelete?.notes}"?`}
         confirmText="Sim, Excluir"
       />
+      
+       <ConfirmationModal
+        isOpen={isTerritoryDeleteConfirmOpen}
+        onClose={() => setIsTerritoryDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteTerritory}
+        title="Excluir Território Rural"
+        message={`Tem certeza que deseja excluir permanentemente o território "${territory?.name}"? Esta ação não pode ser desfeita.`}
+      />
     </>
   );
 }
+
+export default withAuth(RuralTerritoryDetailPage);
+
+    
