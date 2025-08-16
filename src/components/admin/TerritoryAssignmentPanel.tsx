@@ -147,6 +147,7 @@ export default function TerritoryAssignmentPanel() {
             const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
             
             const newHistory = currentHistory.map(log => {
+                // Use `isEqual` for comparing Firestore Timestamps
                 if (log.name === originalLog.name && log.assignedAt.isEqual(originalLog.assignedAt)) {
                     return {
                         ...log,
@@ -253,8 +254,9 @@ export default function TerritoryAssignmentPanel() {
         <div className="border border-border rounded-lg">
           <div className="grid-cols-12 px-4 py-2 font-semibold text-muted-foreground hidden sm:grid border-b border-border">
             <div className="col-span-5 text-left">Território</div>
-            <div className="col-span-3 text-left">Status</div>
-            <div className="col-span-4 text-left">Designado a</div>
+            <div className="col-span-2 text-left">Status</div>
+            <div className="col-span-3 text-left">Designado a</div>
+            <div className="col-span-2 text-right">Ações</div>
           </div>
           <Accordion type="multiple" className="w-full">
             {filteredTerritories.map(t => {
@@ -270,7 +272,7 @@ export default function TerritoryAssignmentPanel() {
                                   {t.number} - {t.name}
                               </Link>
                           </div>
-                          <div className="col-span-6 sm:col-span-3 text-sm font-semibold text-left">
+                          <div className="col-span-6 sm:col-span-2 text-sm font-semibold text-left">
                               <span className="flex w-full">
                                   {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
                               </span>
@@ -279,7 +281,10 @@ export default function TerritoryAssignmentPanel() {
                               {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}
                           </div>
                        </div>
-                       <div className="flex items-center justify-end flex-shrink-0 ml-2">
+                       <div className="flex items-center justify-end flex-shrink-0 ml-2 sm:col-span-2">
+                           <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4">
+                              <History />
+                            </AccordionTrigger>
                            <Menu as="div" className="relative inline-block text-left">
                              <Menu.Button className="p-2 rounded-full hover:bg-white/10">
                                  <MoreVertical size={20} />
@@ -300,9 +305,6 @@ export default function TerritoryAssignmentPanel() {
                                  </Menu.Items>
                              </Transition>
                            </Menu>
-                           <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4">
-                              <History />
-                            </AccordionTrigger>
                        </div>
                     </div>
                     <AccordionContent>
