@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -53,9 +54,9 @@ const TerritoryHistory = ({ history }: { history: AssignmentHistoryLog[] }) => {
     <div className="space-y-2 text-sm p-4 bg-black/10 dark:bg-black/20 rounded-md">
       <h4 className="font-semibold mb-2 flex items-center gap-2"><History size={16}/> Histórico Recente</h4>
       {sortedHistory.map((log, index) => (
-        <div key={index} className="grid grid-cols-3 gap-2">
+        <div key={index} className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           <span className="font-semibold col-span-1 truncate">{log.name}</span>
-          <span className="text-muted-foreground col-span-2">
+          <span className="text-muted-foreground col-span-2 sm:col-span-2">
             {format(log.assignedAt.toDate(), "dd/MM/yy")} → {log.completedAt ? format(log.completedAt.toDate(), "dd/MM/yy") : '...'}
           </span>
         </div>
@@ -208,8 +209,9 @@ export default function TerritoryAssignmentPanel() {
           {/* Cabeçalho da Tabela para Desktop */}
           <div className="grid-cols-12 px-4 py-2 font-semibold text-muted-foreground hidden sm:grid">
             <div className="col-span-5">Território</div>
-            <div className="col-span-5">Status</div>
-            <div className="col-span-2 text-right">Ações</div>
+            <div className="col-span-3">Status</div>
+            <div className="col-span-3">Designado a</div>
+            <div className="col-span-1 text-right">Ações</div>
           </div>
 
           <Accordion type="multiple" className="w-full">
@@ -219,53 +221,51 @@ export default function TerritoryAssignmentPanel() {
                 const hasHistory = t.assignmentHistory && t.assignmentHistory.length > 0;
                 
                 return (
-                  <AccordionItem value={t.id} key={t.id} className="border-b last:border-b-0 hover:bg-accent/50 transition-colors">
-                    <div className="flex items-center p-4">
-                      {/* Grid principal para alinhar os conteúdos */}
-                      <div className="flex-grow grid grid-cols-2 sm:grid-cols-12 items-center gap-2">
-                        {/* Coluna 1: Nome do Território */}
-                        <div className="col-span-2 sm:col-span-5 font-semibold">
-                           <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`} className="hover:text-primary transition-colors">
-                            {t.number} - {t.name}
-                           </Link>
+                  <AccordionItem value={t.id} key={t.id} className="border-b last:border-b-0">
+                     <div className="flex items-center hover:bg-accent/50 transition-colors px-4 py-3">
+                        <div className="flex-grow grid grid-cols-1 sm:grid-cols-12 items-center gap-2">
+                            <div className="col-span-12 sm:col-span-5 font-semibold">
+                                <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`} className="hover:text-primary transition-colors">
+                                    {t.number} - {t.name}
+                                </Link>
+                            </div>
+
+                            <div className="col-span-6 sm:col-span-3 text-sm font-semibold">
+                                {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
+                            </div>
+
+                            <div className="col-span-6 sm:col-span-3 text-sm text-muted-foreground truncate">
+                                {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}
+                            </div>
                         </div>
-                        {/* Coluna 2: Status e Designação */}
-                        <div className="col-span-2 sm:col-span-5 text-sm flex flex-col sm:flex-row items-start sm:items-center">
-                           <div className="sm:w-1/3 font-semibold">
-                            {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
-                           </div>
-                           <div className="sm:w-2/3 text-muted-foreground truncate">
-                              {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : ''}
-                           </div>
+
+                        <div className="flex items-center justify-end flex-shrink-0 ml-2">
+                             {hasHistory && <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4" />}
+                             <Menu as="div" className="relative inline-block text-left">
+                               <Menu.Button className="p-2 rounded-full hover:bg-white/10">
+                                   <MoreVertical size={20} />
+                               </Menu.Button>
+                               <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+                                   <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-popover text-popover-foreground rounded-md shadow-lg z-20 ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                       <div className="p-1">
+                                           {isDesignado ? (
+                                               <>
+                                                   <Menu.Item><button onClick={() => handleOpenReturnModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <CheckCircle size={16} className="mr-2"/>Devolver</button></Menu.Item>
+                                                   <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <RotateCw size={16} className="mr-2"/>Reatribuir</button></Menu.Item>
+                                                   {isOverdue && <Menu.Item><button onClick={() => alert('Função de notificação em breve!')} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground'> <Bell size={16} className="mr-2"/>Notificar Atraso</button></Menu.Item>}
+                                               </>
+                                           ) : (
+                                                <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <BookUser size={16} className="mr-2"/>Designar</button></Menu.Item>
+                                           )}
+                                       </div>
+                                   </Menu.Items>
+                               </Transition>
+                             </Menu>
                         </div>
-                      </div>
-                      {/* Coluna 3: Ações e Trigger do Acordeão */}
-                      <div className="flex items-center justify-end flex-shrink-0 ml-4">
-                         {hasHistory && <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4" />}
-                         <Menu as="div" className="relative inline-block text-left">
-                           <Menu.Button className="p-2 rounded-full hover:bg-white/10">
-                               <MoreVertical size={20} />
-                           </Menu.Button>
-                           <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                               <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-popover text-popover-foreground rounded-md shadow-lg z-20 ring-1 ring-black ring-opacity-5 focus:outline-none">
-                                   <div className="p-1">
-                                       {isDesignado ? (
-                                           <>
-                                               <Menu.Item><button onClick={() => handleOpenReturnModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <CheckCircle size={16} className="mr-2"/>Devolver</button></Menu.Item>
-                                               <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <RotateCw size={16} className="mr-2"/>Reatribuir</button></Menu.Item>
-                                               {isOverdue && <Menu.Item><button onClick={() => alert('Função de notificação em breve!')} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground'> <Bell size={16} className="mr-2"/>Notificar Atraso</button></Menu.Item>}
-                                           </>
-                                       ) : (
-                                            <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <BookUser size={16} className="mr-2"/>Designar</button></Menu.Item>
-                                       )}
-                                   </div>
-                               </Menu.Items>
-                           </Transition>
-                         </Menu>
-                      </div>
                     </div>
+
                     {hasHistory && (
-                      <AccordionContent className="px-4 pb-4">
+                      <AccordionContent>
                         <TerritoryHistory history={t.assignmentHistory || []} />
                       </AccordionContent>
                     )}
