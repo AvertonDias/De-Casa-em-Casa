@@ -1,4 +1,3 @@
-
 // functions/src/index.ts
 import { https, setGlobalOptions } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";

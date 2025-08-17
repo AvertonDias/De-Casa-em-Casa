@@ -6,11 +6,9 @@
   "functions": [
     {
       "source": "functions",
-      "codebase": "default",
-      "serviceAccount": "service-83629039662@gcp-sa-eventarc.iam.gserviceaccount.com"
+      "codebase": "default"
     }
   ]
 }
-
 
     
