@@ -2,6 +2,14 @@
 
 import { useState } from "react";
 import { X, FileImage } from 'lucide-react';
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { app } from '@/lib/firebase';
+import { useUser } from "@/contexts/UserContext";
+
+const storage = getStorage(app);
+const functions = getFunctions(app, 'southamerica-east1');
+const generateUploadUrl = httpsCallable(functions, 'generateUploadUrl');
 
 interface NewTerritoryData {
   number: string; name: string; description: string; mapLink: string; 
@@ -9,16 +17,18 @@ interface NewTerritoryData {
   type: 'urban';
 }
 interface AddTerritoryModalProps {
-  isOpen: boolean; onClose: () => void; onSave: (data: NewTerritoryData) => Promise<void>;
+  isOpen: boolean; onClose: () => void; onSave: (data: Partial<NewTerritoryData>) => Promise<void>;
 }
 
 export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerritoryModalProps) {
+  const { user } = useUser();
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [mapLink, setMapLink] = useState('');
   
-  const [cardDataUrl, setCardDataUrl] = useState<string>('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,41 +37,73 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
     setError(null);
     const file = event.target.files ? event.target.files[0] : null;
 
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
         setError("O arquivo é muito grande. O limite é de 5MB.");
         return;
       }
-      
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCardDataUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
     } else {
-      setCardDataUrl('');
+      setSelectedFile(null);
     }
   };
   
   const removeSelectedImage = () => {
-    setCardDataUrl('');
+    setSelectedFile(null);
+    if(previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
   }
 
   const handleSave = async () => {
-    if (!number || !name) { setError("Número e Nome são obrigatórios."); return; }
+    if (!number || !name || !user?.congregationId) { 
+      setError("Número e Nome são obrigatórios."); return; 
+    }
     setIsProcessing(true); setError(null);
     
-    const newTerritoryData: NewTerritoryData = {
-        number, name, description, mapLink, 
-        cardUrl: cardDataUrl,
-        type: 'urban' 
-    };
+    let uploadedCardUrl = '';
     
     try {
+      if (selectedFile) {
+        const filePath = `congregations/${user.congregationId}/territory_cards/${Date.now()}-${selectedFile.name}`;
+        
+        const { data: uploadData } : any = await generateUploadUrl({ filePath, contentType: selectedFile.type });
+        
+        if (!uploadData.success) {
+          throw new Error(uploadData.error || 'Falha ao obter URL de upload.');
+        }
+        
+        const uploadResponse = await fetch(uploadData.url, {
+          method: 'PUT',
+          headers: { 'Content-Type': selectedFile.type },
+          body: selectedFile
+        });
+        
+        if (!uploadResponse.ok) {
+          throw new Error('Falha no upload da imagem.');
+        }
+
+        const storageRef = ref(storage, filePath);
+        uploadedCardUrl = await getDownloadURL(storageRef);
+      }
+    
+      const newTerritoryData = {
+          number, name, description, mapLink, 
+          cardUrl: uploadedCardUrl,
+          type: 'urban' 
+      };
+    
       await onSave(newTerritoryData);
       handleClose();
-    } catch (saveError) {
-      setError("Erro ao salvar o território. Tente novamente.");
+
+    } catch (saveError: any) {
+      console.error("Erro ao salvar:", saveError);
+      setError(saveError.message || "Erro ao salvar o território. Tente novamente.");
     } finally {
         setIsProcessing(false);
     }
@@ -69,7 +111,11 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
 
   const handleClose = () => {
     setNumber(''); setName(''); setDescription(''); setMapLink('');
-    setCardDataUrl(''); setError(null); setIsProcessing(false);
+    setSelectedFile(null);
+    if(previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null); 
+    setError(null); 
+    setIsProcessing(false);
     onClose();
   };
 
@@ -91,7 +137,7 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
           <div>
             <label className="block text-sm font-medium mb-1">Imagem do Cartão (Opcional)</label>
             <div className="mt-1 flex justify-center items-center rounded-lg border border-dashed border-gray-500 min-h-[12rem] relative group">
-              {cardDataUrl ? (<><img src={cardDataUrl} alt="Preview" className="max-h-32 object-contain rounded-md" /><button onClick={removeSelectedImage} className="absolute top-2 right-2 bg-red-600/80 text-white rounded-full p-1 opacity-0 group-hover:opacity-100"><X size={16} /></button></>) : (<div className="text-center"><FileImage className="mx-auto h-12 w-12 text-gray-400" /><label htmlFor="file-upload" className="cursor-pointer font-semibold text-primary"><span>Selecione um arquivo</span><input id="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept="image/*"/></label><p className="text-xs text-gray-500">PNG, JPG até 5MB</p></div>)}
+              {previewUrl ? (<><img src={previewUrl} alt="Preview" className="max-h-32 object-contain rounded-md" /><button onClick={removeSelectedImage} className="absolute top-2 right-2 bg-red-600/80 text-white rounded-full p-1 opacity-0 group-hover:opacity-100"><X size={16} /></button></>) : (<div className="text-center"><FileImage className="mx-auto h-12 w-12 text-gray-400" /><label htmlFor="file-upload" className="cursor-pointer font-semibold text-primary"><span>Selecione um arquivo</span><input id="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept="image/*"/></label><p className="text-xs text-gray-500">PNG, JPG até 5MB</p></div>)}
             </div>
           </div>
           {error && (<p className="text-sm text-red-500 text-center">{error}</p>)}

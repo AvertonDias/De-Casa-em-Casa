@@ -126,10 +126,10 @@ function TerritoriosPage() {
     const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
     await addDoc(territoriesRef, {
       ...data,
+      status: 'disponivel',
       createdAt: serverTimestamp(),
       lastUpdate: serverTimestamp(),
-      totalHouses: 0,
-      housesDone: 0,
+      stats: { totalHouses: 0, housesDone: 0 },
       progress: 0,
       quadraCount: 0,
     });

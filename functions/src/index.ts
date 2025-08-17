@@ -11,6 +11,7 @@ admin.initializeApp();
 const db = admin.firestore();
 
 // Define as opções globais para todas as funções V2
+// Removida a serviceAccount daqui para usar a padrão do runtime
 setGlobalOptions({ 
   region: "southamerica-east1",
 });
@@ -37,6 +38,13 @@ export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
 
         let newUser: admin.auth.UserRecord | undefined;
         try {
+            // Verifica se a congregação já existe
+            const congQuery = await db.collection('congregations').where('number', '==', congregationNumber).get();
+            if (!congQuery.empty) {
+                res.status(409).json({ error: 'Uma congregação com este número já existe.' });
+                return;
+            }
+            
             newUser = await admin.auth().createUser({
                 email: adminEmail,
                 password: adminPassword,
