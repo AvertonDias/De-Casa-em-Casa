@@ -1,15 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useUser } from "@/contexts/UserContext"; 
 import { X, FileImage } from 'lucide-react';
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import { getStorage, ref, getDownloadURL } from "firebase/storage";
 import { app } from '@/lib/firebase';
-import { useUser } from "@/contexts/UserContext";
-
-const storage = getStorage(app);
-const functions = getFunctions(app, 'southamerica-east1');
-const generateUploadUrl = httpsCallable(functions, 'generateUploadUrl');
 
 interface NewTerritoryData {
   number: string; name: string; description: string; mapLink: string; 
@@ -19,6 +15,9 @@ interface NewTerritoryData {
 interface AddTerritoryModalProps {
   isOpen: boolean; onClose: () => void; onSave: (data: Partial<NewTerritoryData>) => Promise<void>;
 }
+
+const functions = getFunctions(app, 'southamerica-east1');
+const generateUploadUrl = httpsCallable(functions, 'generateUploadUrl');
 
 export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerritoryModalProps) {
   const { user } = useUser();
@@ -88,6 +87,7 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
           throw new Error('Falha no upload da imagem.');
         }
 
+        const storage = getStorage(app);
         const storageRef = ref(storage, filePath);
         uploadedCardUrl = await getDownloadURL(storageRef);
       }
@@ -95,7 +95,7 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
       const newTerritoryData = {
           number, name, description, mapLink, 
           cardUrl: uploadedCardUrl,
-          type: 'urban' 
+          type: 'urban' as const,
       };
     
       await onSave(newTerritoryData);
