@@ -2,22 +2,21 @@
 
 import { useState } from "react";
 import { useUser } from "@/contexts/UserContext"; 
-import { X, FileImage } from 'lucide-react';
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { getStorage, ref, getDownloadURL } from "firebase/storage";
+import { X, FileImage, Loader } from 'lucide-react';
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { app } from '@/lib/firebase';
+
+interface AddTerritoryModalProps {
+  isOpen: boolean; onClose: () => void; onSave: (data: Partial<NewTerritoryData>) => Promise<void>;
+}
 
 interface NewTerritoryData {
   number: string; name: string; description: string; mapLink: string; 
   cardUrl: string;
   type: 'urban';
 }
-interface AddTerritoryModalProps {
-  isOpen: boolean; onClose: () => void; onSave: (data: Partial<NewTerritoryData>) => Promise<void>;
-}
 
-const functions = getFunctions(app, 'southamerica-east1');
-const generateUploadUrl = httpsCallable(functions, 'generateUploadUrl');
+const storage = getStorage(app);
 
 export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerritoryModalProps) {
   const { user } = useUser();
@@ -70,32 +69,16 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
     try {
       if (selectedFile) {
         const filePath = `congregations/${user.congregationId}/territory_cards/${Date.now()}-${selectedFile.name}`;
-        
-        const { data: uploadData } : any = await generateUploadUrl({ filePath, contentType: selectedFile.type });
-        
-        if (!uploadData.success) {
-          throw new Error(uploadData.error || 'Falha ao obter URL de upload.');
-        }
-        
-        const uploadResponse = await fetch(uploadData.url, {
-          method: 'PUT',
-          headers: { 'Content-Type': selectedFile.type },
-          body: selectedFile
-        });
-        
-        if (!uploadResponse.ok) {
-          throw new Error('Falha no upload da imagem.');
-        }
-
-        const storage = getStorage(app);
         const storageRef = ref(storage, filePath);
-        uploadedCardUrl = await getDownloadURL(storageRef);
+        
+        const uploadResult = await uploadBytes(storageRef, selectedFile);
+        uploadedCardUrl = await getDownloadURL(uploadResult.ref);
       }
     
-      const newTerritoryData = {
+      const newTerritoryData: Partial<NewTerritoryData> = {
           number, name, description, mapLink, 
           cardUrl: uploadedCardUrl,
-          type: 'urban' as const,
+          type: 'urban',
       };
     
       await onSave(newTerritoryData);
@@ -143,7 +126,9 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
           {error && (<p className="text-sm text-red-500 text-center">{error}</p>)}
           <div className="flex justify-end space-x-3 pt-4">
             <button onClick={handleClose} className="px-4 py-2 rounded-md bg-muted">Cancelar</button>
-            <button onClick={handleSave} disabled={isProcessing} className="px-4 py-2 rounded-md bg-primary text-primary-foreground">{isProcessing ? "Salvando..." : "Salvar"}</button>
+            <button onClick={handleSave} disabled={isProcessing} className="px-4 py-2 rounded-md bg-primary text-primary-foreground">
+              {isProcessing ? <><Loader className="mr-2 h-4 w-4 animate-spin" /> Salvando...</> : "Salvar"}
+            </button>
           </div>
         </div>
       </div>
