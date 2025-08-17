@@ -11,7 +11,6 @@ admin.initializeApp();
 const db = admin.firestore();
 
 // Define as opções globais para todas as funções V2
-// Removida a serviceAccount daqui para usar a padrão do runtime
 setGlobalOptions({ 
   region: "southamerica-east1",
 });
@@ -102,33 +101,32 @@ export const deleteUserAccount = https.onCall(async (req) => {
     }
     
     const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-    const isAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
+    const isCallingUserAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
 
-    if (!isAdmin && callingUserUid !== userIdToDelete) {
-        throw new https.HttpsError("permission-denied", "Sem permissão.");
-    }
-
-    if (isAdmin && callingUserUid === userIdToDelete) {
-        throw new https.HttpsError("permission-denied", "Admin não pode se autoexcluir.");
+    // Regra 1: Apenas administradores podem deletar outros, e não a si mesmos
+    if (!isCallingUserAdmin || callingUserUid === userIdToDelete) {
+        throw new https.HttpsError("permission-denied", "Você não tem permissão para realizar esta ação.");
     }
 
     try {
         await admin.auth().deleteUser(userIdToDelete);
+    } catch (error: any) {
+        console.error("Erro ao excluir usuário da Auth:", error);
+        // Se o usuário não existe na Auth, continua para remover do Firestore
+        if (error.code !== 'auth/user-not-found') {
+            throw new https.HttpsError("internal", `Falha ao excluir da autenticação: ${error.message}`);
+        }
+    }
+    
+    try {
         const userDocRef = db.collection("users").doc(userIdToDelete);
         if ((await userDocRef.get()).exists) {
             await userDocRef.delete();
         }
-        return { success: true, message: "Operação de exclusão concluída." };
+        return { success: true, message: "Usuário excluído com sucesso." };
     } catch (error: any) {
-        console.error("Erro CRÍTICO ao excluir usuário:", error);
-        if (error.code === 'auth/user-not-found') {
-            const userDocRef = db.collection("users").doc(userIdToDelete);
-            if ((await userDocRef.get()).exists) {
-                await userDocRef.delete();
-            }
-            return { success: true, message: "Usuário não encontrado na Auth, mas removido do Firestore." };
-        }
-        throw new https.HttpsError("internal", `Falha na exclusão: ${error.message}`);
+        console.error("Erro ao excluir usuário do Firestore:", error);
+        throw new https.HttpsError("internal", `Falha ao excluir do banco de dados: ${error.message}`);
     }
 });
 

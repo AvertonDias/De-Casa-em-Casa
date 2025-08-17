@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect, useMemo, Fragment } from 'react';
+import { useState, useEffect, useMemo, Fragment, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db, app } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
@@ -250,31 +249,28 @@ function UsersPage() {
     }
   };
   
-  const openDeleteConfirm = (user: AppUser) => {
+  const openDeleteConfirm = useCallback((user: AppUser) => {
     if (currentUser?.role !== 'Administrador') return;
     setUserToDelete(user);
     setConfirmAction({
-      action: confirmDeleteUser,
+      action: async () => {
+        if (!user || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === user.uid) return;
+        
+        setIsConfirmModalOpen(false);
+        try {
+            await deleteUserFunction({ uid: user.uid });
+        } catch (error: any) {
+            console.error("Erro ao chamar a função para excluir usuário:", error);
+        } finally {
+            setUserToDelete(null);
+        }
+      },
       title: "Excluir Usuário",
       message: `Você tem certeza que deseja excluir permanentemente o usuário ${user.name}? Todos os seus dados serão perdidos e esta ação não pode ser desfeita.`,
       confirmText: "Sim, excluir",
     });
     setIsConfirmModalOpen(true);
-  };
-
-  const confirmDeleteUser = async () => {
-    if (!userToDelete || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
-    
-    setIsConfirmModalOpen(false);
-    try {
-        await deleteUserFunction({ uid: userToDelete.uid });
-        // A lista será atualizada automaticamente pelo onSnapshot
-    } catch (error: any) {
-        console.error("Erro ao chamar a função para excluir usuário:", error);
-    } finally {
-        setUserToDelete(null);
-    }
-  };
+  }, [currentUser]);
 
   const stats = useMemo(() => {
     const onlineCount = users.filter(u => u.isOnline === true).length;
