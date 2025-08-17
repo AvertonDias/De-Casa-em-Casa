@@ -1,116 +1,39 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { BookUser, FileText, Edit, Loader } from 'lucide-react';
 import Link from 'next/link';
-import TerritoryAssignmentPanel from '@/components/admin/TerritoryAssignmentPanel';
 import { useUser } from '@/contexts/UserContext';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import withAuth from '@/components/withAuth';
 
-// Componente para o formulário de edição da congregação
-const CongregationEditForm = () => {
+// --- Dynamic Imports ---
+// Estes componentes serão carregados apenas quando forem necessários.
+const TerritoryAssignmentPanel = dynamic(
+  () => import('@/components/admin/TerritoryAssignmentPanel'),
+  { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
+);
+
+const CongregationEditForm = dynamic(
+  () => import('@/components/admin/CongregationEditForm'),
+  { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
+);
+
+
+function AdminPage() {
   const { user } = useUser();
-  const [congregationName, setCongregationName] = useState('');
-  const [congregationNumber, setCongregationNumber] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  useState(() => {
-    if (user?.congregationId) {
-      const congRef = doc(db, 'congregations', user.congregationId);
-      getDoc(congRef).then(snap => {
-        if (snap.exists()) {
-          setCongregationName(snap.data().name || '');
-          setCongregationNumber(snap.data().number || '');
-        }
-      });
-    }
-  });
-
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-    setSuccess('');
-
-    if (!user || !user.congregationId) {
-      setError("Congregação não encontrada.");
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      if (user.role === 'Administrador') {
-        const congRef = doc(db, "congregations", user.congregationId);
-        await updateDoc(congRef, { name: congregationName, number: congregationNumber });
-      } else {
-        throw new Error("Você não tem permissão para editar a congregação.");
-      }
-      setSuccess("Congregação atualizada com sucesso!");
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err: any) {
-      setError(err.message || "Falha ao salvar as configurações.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const isDisabled = user?.role !== 'Administrador';
-
-  return (
-    <div className="bg-card p-6 rounded-lg shadow-md max-w-md mx-auto">
-      <div className="flex items-center mb-4">
-        <Edit className="h-6 w-6 mr-3 text-primary" />
-        <h2 className="text-2xl font-bold">Dados da Congregação</h2>
-      </div>
-      <p className="text-muted-foreground mb-6">
-        Edite o nome e o número da sua congregação. Apenas administradores podem realizar esta ação.
-      </p>
-      <form onSubmit={handleUpdate} className="space-y-4">
-        <div>
-          <label htmlFor="congregationName" className="text-sm font-medium">Nome da Congregação</label>
-          <Input 
-            id="congregationName"
-            value={congregationName} 
-            onChange={e => setCongregationName(e.target.value)} 
-            placeholder="Nome da Congregação" 
-            disabled={isDisabled}
-            className="mt-1"
-          />
-        </div>
-        <div>
-          <label htmlFor="congregationNumber" className="text-sm font-medium">Número da Congregação</label>
-          <Input 
-            id="congregationNumber"
-            type="tel" 
-            inputMode="numeric" 
-            value={congregationNumber} 
-            onChange={e => setCongregationNumber(e.target.value.replace(/\D/g, ''))} 
-            placeholder="Número" 
-            disabled={isDisabled}
-            className="mt-1"
-          />
-        </div>
-        
-        {error && <p className="text-sm text-center text-destructive">{error}</p>}
-        {success && <p className="text-sm text-center text-green-500">{success}</p>}
-        
-        <Button type="submit" disabled={isDisabled || isLoading} className="w-full">
-          {isLoading ? <Loader className="animate-spin" /> : "Salvar Alterações"}
-        </Button>
-      </form>
-    </div>
-  );
-};
-
-
-export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('assignment');
+
+  // Verifica se o usuário tem permissão para ver esta página
+  if (!user || !['Administrador', 'Dirigente'].includes(user.role)) {
+    return (
+      <div className="p-4 text-center">
+        <h1 className="font-bold text-xl">Acesso Negado</h1>
+        <p className="text-muted-foreground">Você não tem permissão para acessar esta área.</p>
+      </div>
+    );
+  }
   
   const TabButton = ({ id, label, icon: Icon }: { id: string, label: string, icon: React.ElementType }) => (
     <button
@@ -132,7 +55,9 @@ export default function AdminPage() {
       <div className="border-b border-border overflow-x-auto">
         <div className="flex items-center">
             <TabButton id="assignment" label="Designar Territórios" icon={BookUser} />
-            <TabButton id="congregation" label="Editar Congregação" icon={Edit} />
+            {user.role === 'Administrador' && (
+              <TabButton id="congregation" label="Editar Congregação" icon={Edit} />
+            )}
             
             <Link 
                 href="/dashboard/administracao/relatorio-s13"
@@ -145,8 +70,10 @@ export default function AdminPage() {
       </div>
       <div className="mt-6">
         {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
-        {activeTab === 'congregation' && <CongregationEditForm />}
+        {activeTab === 'congregation' && user.role === 'Administrador' && <CongregationEditForm />}
       </div>
     </div>
   );
 }
+
+export default withAuth(AdminPage);
