@@ -1,5 +1,5 @@
 // functions/src/index.ts
-import { https, setGlobalOptions } from "firebase-functions/v2";
+import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
@@ -448,4 +448,40 @@ export const mirrorUserStatus = onValueWritten(
         }
     }
     return null;
+});
+
+// ============================================================================
+//   FUNÇÕES AGENDADAS (Scheduled Functions)
+// ============================================================================
+export const checkInactiveUsers = pubsub.schedule("every 5 minutes").onRun(async (context) => {
+    console.log("Executando verificação de usuários inativos...");
+
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    
+    try {
+        const inactiveUsersQuery = db.collection('users')
+                                     .where('isOnline', '==', true)
+                                     .where('lastSeen', '<', twoHoursAgo);
+
+        const inactiveUsersSnap = await inactiveUsersQuery.get();
+        
+        if (inactiveUsersSnap.empty) {
+            console.log("Nenhum usuário inativo encontrado.");
+            return null;
+        }
+
+        const batch = db.batch();
+        inactiveUsersSnap.forEach(doc => {
+            console.log(`Marcando usuário ${doc.id} como offline.`);
+            batch.update(doc.ref, { isOnline: false });
+        });
+
+        await batch.commit();
+        console.log(`${inactiveUsersSnap.size} usuários inativos foram atualizados para offline.`);
+        return null;
+
+    } catch (error) {
+        console.error("Erro ao verificar e atualizar usuários inativos:", error);
+        return null;
+    }
 });
