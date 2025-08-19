@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useUser } from "@/contexts/UserContext"; 
 import { Quadra } from "@/types/types";
 import { X } from 'lucide-react';
@@ -19,11 +19,17 @@ export const EditQuadraModal = ({ quadra, isOpen, onClose, onSave, onDelete }: E
   
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (quadra && isOpen) {
       setName(quadra.name || '');
       setDescription(quadra.description || '');
+
+      setTimeout(() => {
+        nameInputRef.current?.focus();
+        nameInputRef.current?.select();
+      }, 100);
     }
   }, [quadra, isOpen]);
 
@@ -50,7 +56,13 @@ export const EditQuadraModal = ({ quadra, isOpen, onClose, onSave, onDelete }: E
         <div className="space-y-4">
           <div>
             <label htmlFor="quadra-name" className="block text-sm font-medium mb-1">Nome da Quadra</label>
-            <input id="quadra-name" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-input rounded-md p-2" />
+            <input 
+                id="quadra-name" 
+                ref={nameInputRef}
+                value={name} 
+                onChange={(e) => setName(e.target.value)} 
+                className="w-full bg-input rounded-md p-2" 
+            />
           </div>
           <div>
             <label htmlFor="quadra-desc" className="block text-sm font-medium mb-1">Descrição</label>
