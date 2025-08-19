@@ -1,15 +1,14 @@
 "use client";
 
-import { useState } from 'react';
-import { getFunctions, httpsCallable } from 'firebase/functions'; // Importar httpsCallable
+import { useState, useRef, useEffect } from 'react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
 import { Mail, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog"; // Adicionado DialogDescription
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
 
-// Inicializar a instância das funções uma vez
 const functionsInstance = getFunctions(app, 'southamerica-east1');
 const sendFeedbackFunction = httpsCallable(functionsInstance, 'sendFeedbackEmail');
 
@@ -21,6 +20,15 @@ export function FeedbackModal() {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
+  const subjectInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        subjectInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isOpen]);
 
   const handleOpenChange = (open: boolean) => {
     if (open) {
@@ -83,7 +91,6 @@ export function FeedbackModal() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Enviar Feedback</DialogTitle>
-            {/* DESCRIÇÃO ADICIONADA PARA ACESSIBILIDADE */}
             <DialogDescription>
               Use este formulário para nos enviar sua sugestão, relatar um problema ou fazer um elogio. Seu nome e e-mail serão enviados automaticamente.
             </DialogDescription>
@@ -93,11 +100,28 @@ export function FeedbackModal() {
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
             <div>
               <label htmlFor="subject" className="block text-sm font-medium">Assunto</label>
-              <input id="subject" type="text" value={subject} onChange={(e) => setSubject(e.target.value)} required placeholder="Ex: Sugestão para a tela de usuários" className="mt-1 block w-full border rounded-md p-2 bg-input" />
+              <input 
+                id="subject" 
+                ref={subjectInputRef}
+                type="text" 
+                value={subject} 
+                onChange={(e) => setSubject(e.target.value)} 
+                required 
+                placeholder="Ex: Sugestão para a tela de usuários" 
+                className="mt-1 block w-full border rounded-md p-2 bg-input focus:outline-none focus:ring-2 focus:ring-primary" 
+              />
             </div>
             <div>
               <label htmlFor="message" className="block text-sm font-medium">Mensagem</label>
-              <textarea id="message" value={message} onChange={(e) => setMessage(e.target.value)} required rows={5} placeholder="Descreva sua sugestão ou o problema que encontrou..." className="mt-1 block w-full border rounded-md p-2 bg-input"></textarea>
+              <textarea 
+                id="message" 
+                value={message} 
+                onChange={(e) => setMessage(e.target.value)} 
+                required 
+                rows={5} 
+                placeholder="Descreva sua sugestão ou o problema que encontrou..." 
+                className="mt-1 block w-full border rounded-md p-2 bg-input focus:outline-none focus:ring-2 focus:ring-primary"
+              ></textarea>
             </div>
             <Button type="submit" className="w-full" disabled={isSending || !subject.trim() || !message.trim()}>
               {isSending ? <Loader className="animate-spin" size={20}/> : 'Enviar Mensagem'}
