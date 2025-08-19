@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { useUser } from "@/contexts/UserContext"; 
 import { X, FileImage, Loader } from 'lucide-react';
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { app } from '@/lib/firebase';
 
 interface AddTerritoryModalProps {
   isOpen: boolean; onClose: () => void; onSave: (data: Partial<NewTerritoryData>) => Promise<void>;
@@ -16,7 +14,6 @@ interface NewTerritoryData {
   type: 'urban';
 }
 
-const storage = getStorage(app);
 
 export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerritoryModalProps) {
   const { user } = useUser();
@@ -25,8 +22,7 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
   const [description, setDescription] = useState('');
   const [mapLink, setMapLink] = useState('');
   
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [cardDataUrl, setCardDataUrl] = useState<string>('');
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,55 +31,42 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
     setError(null);
     const file = event.target.files ? event.target.files[0] : null;
 
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
-
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
         setError("O arquivo é muito grande. O limite é de 5MB.");
         return;
       }
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCardDataUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     } else {
-      setSelectedFile(null);
+      setCardDataUrl('');
     }
   };
   
   const removeSelectedImage = () => {
-    setSelectedFile(null);
-    if(previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(null);
+    setCardDataUrl('');
   }
 
   const handleSave = async () => {
-    if (!number || !name || !user?.congregationId) { 
-      setError("Número e Nome são obrigatórios."); return; 
-    }
+    if (!number || !name) { setError("Número e Nome são obrigatórios."); return; }
     setIsProcessing(true); setError(null);
     
-    let uploadedCardUrl = '';
+    const newTerritoryData = {
+        number, 
+        name, 
+        description, 
+        mapLink, 
+        cardUrl: cardDataUrl,
+        type: 'urban' as const
+    };
     
     try {
-      if (selectedFile) {
-        const filePath = `congregations/${user.congregationId}/territory_cards/${Date.now()}-${selectedFile.name}`;
-        const storageRef = ref(storage, filePath);
-        
-        const uploadResult = await uploadBytes(storageRef, selectedFile);
-        uploadedCardUrl = await getDownloadURL(uploadResult.ref);
-      }
-    
-      const newTerritoryData: Partial<NewTerritoryData> = {
-          number, name, description, mapLink, 
-          cardUrl: uploadedCardUrl,
-          type: 'urban',
-      };
-    
       await onSave(newTerritoryData);
       handleClose();
-
     } catch (saveError: any) {
       console.error("Erro ao salvar:", saveError);
       setError(saveError.message || "Erro ao salvar o território. Tente novamente.");
@@ -94,11 +77,7 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
 
   const handleClose = () => {
     setNumber(''); setName(''); setDescription(''); setMapLink('');
-    setSelectedFile(null);
-    if(previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(null); 
-    setError(null); 
-    setIsProcessing(false);
+    setCardDataUrl(''); setError(null); setIsProcessing(false);
     onClose();
   };
 
@@ -120,7 +99,7 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
           <div>
             <label className="block text-sm font-medium mb-1">Imagem do Cartão (Opcional)</label>
             <div className="mt-1 flex justify-center items-center rounded-lg border border-dashed border-gray-500 min-h-[12rem] relative group">
-              {previewUrl ? (<><img src={previewUrl} alt="Preview" className="max-h-32 object-contain rounded-md" /><button onClick={removeSelectedImage} className="absolute top-2 right-2 bg-red-600/80 text-white rounded-full p-1 opacity-0 group-hover:opacity-100"><X size={16} /></button></>) : (<div className="text-center"><FileImage className="mx-auto h-12 w-12 text-gray-400" /><label htmlFor="file-upload" className="cursor-pointer font-semibold text-primary"><span>Selecione um arquivo</span><input id="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept="image/*"/></label><p className="text-xs text-gray-500">PNG, JPG até 5MB</p></div>)}
+              {cardDataUrl ? (<><img src={cardDataUrl} alt="Preview" className="max-h-32 object-contain rounded-md" /><button onClick={removeSelectedImage} className="absolute top-2 right-2 bg-red-600/80 text-white rounded-full p-1 opacity-0 group-hover:opacity-100"><X size={16} /></button></>) : (<div className="text-center"><FileImage className="mx-auto h-12 w-12 text-gray-400" /><label htmlFor="file-upload" className="cursor-pointer font-semibold text-primary"><span>Selecione um arquivo</span><input id="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept="image/*"/></label><p className="text-xs text-gray-500">PNG, JPG até 5MB</p></div>)}
             </div>
           </div>
           {error && (<p className="text-sm text-red-500 text-center">{error}</p>)}
