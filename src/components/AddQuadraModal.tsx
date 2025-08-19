@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X } from 'lucide-react';
 
 interface AddQuadraModalProps {
@@ -14,12 +14,18 @@ export default function AddQuadraModal({ isOpen, onSave, onClose, existingQuadra
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       const nextQuadraNumber = (existingQuadrasCount + 1).toString().padStart(2, '0');
       setName(`Quadra ${nextQuadraNumber}`);
       setDescription('');
+      
+      setTimeout(() => {
+        nameInputRef.current?.focus();
+        nameInputRef.current?.select();
+      }, 100);
     }
   }, [isOpen, existingQuadrasCount]);
 
@@ -51,7 +57,13 @@ export default function AddQuadraModal({ isOpen, onSave, onClose, existingQuadra
         <div className="space-y-4">
           <div>
             <label htmlFor="quadra-name" className="block text-sm font-medium mb-1">Nome da Quadra</label>
-            <input id="quadra-name" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-input rounded-md p-2" />
+            <input 
+              id="quadra-name" 
+              ref={nameInputRef}
+              value={name} 
+              onChange={(e) => setName(e.target.value)} 
+              className="w-full bg-input rounded-md p-2" 
+            />
           </div>
           <div>
             <label htmlFor="quadra-desc" className="block text-sm font-medium mb-1">Observações (Opcional)</label>
