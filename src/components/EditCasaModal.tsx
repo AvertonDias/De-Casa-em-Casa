@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, Trash2 } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -22,11 +23,16 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
   const [formData, setFormData] = useState(casa);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const numberInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setFormData(casa);
       setError('');
+      setTimeout(() => {
+        numberInputRef.current?.focus();
+        numberInputRef.current?.select();
+      }, 100);
     }
   }, [isOpen, casa]);
 
@@ -86,6 +92,7 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
                 <label htmlFor="number" className="text-sm font-medium text-muted-foreground">Número</label>
                 <input 
                   id="number" 
+                  ref={numberInputRef}
                   value={formData.number} 
                   onChange={handleChange} 
                   placeholder="Número" 
