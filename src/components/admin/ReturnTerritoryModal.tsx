@@ -15,12 +15,10 @@ export default function ReturnTerritoryModal({ isOpen, onClose, onConfirm, terri
   const [returnDate, setReturnDate] = useState('');
   const [error, setError] = useState('');
 
-  // Define a data de hoje como o valor máximo selecionável
   const today = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     if (isOpen) {
-      // Define a data padrão como hoje ao abrir o modal
       setReturnDate(today);
       setError('');
     }
@@ -44,6 +42,7 @@ export default function ReturnTerritoryModal({ isOpen, onClose, onConfirm, terri
       <div className="bg-card text-card-foreground p-6 rounded-lg shadow-xl w-full max-w-md relative">
         <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground"><X /></button>
         <h2 className="text-xl font-bold flex items-center"><CalendarCheck className="mr-3 text-primary"/>Devolver Território</h2>
+        
         <p className="text-muted-foreground text-sm mt-2 mb-4">
           Confirme a devolução do território <span className="font-semibold text-primary">{territory.number} - {territory.name}</span> por <span className="font-semibold text-white">{territory.assignment?.name}</span>.
         </p>
@@ -56,9 +55,8 @@ export default function ReturnTerritoryModal({ isOpen, onClose, onConfirm, terri
               type="date"
               value={returnDate}
               onChange={(e) => setReturnDate(e.target.value)}
-              // A propriedade 'max' impede a seleção de datas futuras
               max={today} 
-              className="w-full bg-input rounded-md p-2 border border-border"
+              className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
           

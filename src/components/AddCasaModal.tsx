@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Plus, X } from 'lucide-react';
 import { addDoc, collection, serverTimestamp, getDocs } from 'firebase/firestore';
@@ -20,6 +20,15 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
   const [status, setStatus] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const numberInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        numberInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,6 +107,7 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
                     <label htmlFor="house-number" className="text-sm font-medium text-muted-foreground">Número (Necessário)</label>
                     <input 
                         id="house-number" 
+                        ref={numberInputRef}
                         value={number} 
                         onChange={(e) => setNumber(e.target.value)} 
                         required 
@@ -112,7 +122,7 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
                         value={observations} 
                         onChange={(e) => setObservations(e.target.value)} 
                         rows={3} 
-                        className="w-full mt-1 bg-input text-foreground rounded px-3 py-2 border border-border" 
+                        className="w-full mt-1 bg-input text-foreground rounded px-3 py-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary" 
                         placeholder="Ex: Casa de esquina na Rua dos Pioneiros"
                     ></textarea>
                     </div>

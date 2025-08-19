@@ -89,7 +89,7 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
                   value={formData.number} 
                   onChange={handleChange} 
                   placeholder="Número" 
-                  className="w-full mt-1 bg-input text-foreground rounded px-3 py-2 border border-border uppercase" 
+                  className="w-full mt-1 bg-input text-foreground rounded px-3 py-2 border border-border uppercase focus:outline-none focus:ring-2 focus:ring-primary" 
                 />
               </div>
               <div>
@@ -100,7 +100,7 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
                   onChange={handleChange} 
                   placeholder="Ex: Casa de esquina na Rua dos Pioneiros" 
                   rows={3} 
-                  className="w-full mt-1 bg-input text-foreground rounded px-3 py-2 border border-border"
+                  className="w-full mt-1 bg-input text-foreground rounded px-3 py-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"
                 ></textarea>
               </div>
               

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -23,7 +22,6 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
   const today = new Date().toISOString().split('T')[0];
   const isFreeChoice = selectedUid === 'free-choice';
 
-  // Reseta o estado quando o modal abre
   useEffect(() => {
     if (isOpen) {
       const newAssignmentDate = new Date();
@@ -39,10 +37,9 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
     }
   }, [isOpen]);
   
-  // Recalcula a data de devolução se a data de designação mudar
   useEffect(() => {
     if (assignmentDate) {
-      const newAssignmentDate = new Date(assignmentDate + 'T12:00:00'); // Adiciona tempo para evitar problemas de fuso
+      const newAssignmentDate = new Date(assignmentDate + 'T12:00:00');
       if (!isNaN(newAssignmentDate.getTime())) {
           const newDueDate = new Date(newAssignmentDate);
           newDueDate.setMonth(newDueDate.getMonth() + 2);
@@ -105,7 +102,7 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1">Designar para:</label>
-            <select value={selectedUid} onChange={(e) => setSelectedUid(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border">
+            <select value={selectedUid} onChange={(e) => setSelectedUid(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary">
               <option value="" disabled>Selecione um publicador...</option>
               {users.map(user => (
                 <option key={user.uid} value={user.uid}>
@@ -125,7 +122,7 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
                       value={customName}
                       onChange={(e) => setCustomName(e.target.value)}
                       placeholder="Ex: Campanha Especial, Grupo de Carro"
-                      className="w-full bg-input rounded-md p-2 border border-border"
+                      className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"
                   />
               </div>
           )}
@@ -133,11 +130,11 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
           <div className="flex gap-4">
             <div className="w-1/2">
               <label className="block text-sm font-medium mb-1">Data de Designação:</label>
-              <input type="date" value={assignmentDate} onChange={(e) => setAssignmentDate(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border"/>
+              <input type="date" value={assignmentDate} onChange={(e) => setAssignmentDate(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"/>
             </div>
             <div className="w-1/2">
               <label className="block text-sm font-medium mb-1">Data para Devolução:</label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border"/>
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"/>
             </div>
           </div>
           
@@ -145,7 +142,7 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
             <label className="block text-sm font-medium mb-1">Definir Devolução Rápida:</label>
             <select 
               onChange={handleDueDateSelect} 
-              className="w-full bg-input rounded-md p-2 border border-border text-muted-foreground"
+              className="w-full bg-input rounded-md p-2 border border-border text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               value=""
             >
               <option value="" disabled>Escolha um período...</option>

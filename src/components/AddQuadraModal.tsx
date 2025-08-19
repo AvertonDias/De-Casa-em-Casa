@@ -53,7 +53,7 @@ export default function AddQuadraModal({ isOpen, onSave, onClose, existingQuadra
       <div className="relative bg-card text-card-foreground p-6 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <button onClick={handleClose} disabled={isProcessing} className="absolute top-4 right-4 text-muted-foreground"><X /></button>
         <h2 className="text-xl font-bold">Adicionar Nova Quadra</h2>
-        <p className="text-sm text-muted-foreground mb-4">Digite o nome ou identificador da quadra.</p>
+        <p className="text-sm text-muted-foreground mb-4">Digite o nome ou identificador da quadra e adicione observações se necessário.</p>
         <div className="space-y-4">
           <div>
             <label htmlFor="quadra-name" className="block text-sm font-medium mb-1">Nome da Quadra</label>
@@ -62,12 +62,12 @@ export default function AddQuadraModal({ isOpen, onSave, onClose, existingQuadra
               ref={nameInputRef}
               value={name} 
               onChange={(e) => setName(e.target.value)} 
-              className="w-full bg-input rounded-md p-2" 
+              className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary" 
             />
           </div>
           <div>
             <label htmlFor="quadra-desc" className="block text-sm font-medium mb-1">Observações (Opcional)</label>
-            <textarea id="quadra-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full bg-input rounded-md p-2"></textarea>
+            <textarea id="quadra-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <button onClick={handleClose} disabled={isProcessing} className="px-4 py-2 rounded-md bg-muted hover:bg-muted/80">Cancelar</button>

@@ -91,11 +91,11 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
         <p className="text-sm text-muted-foreground mb-6">Preencha os detalhes do novo território abaixo.</p>
         <div className="space-y-4">
           <div className="flex items-center gap-4">
-            <div className="w-28"><label className="block text-sm mb-1">Número</label><input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Ex: 12" className="w-full bg-input p-2 rounded-md"/></div>
-            <div className="flex-grow"><label className="block text-sm mb-1">Nome</label><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Centro Comercial" className="w-full bg-input p-2 rounded-md"/></div>
+            <div className="w-28"><label className="block text-sm mb-1">Número</label><input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Ex: 12" className="w-full bg-input p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"/></div>
+            <div className="flex-grow"><label className="block text-sm mb-1">Nome</label><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Centro Comercial" className="w-full bg-input p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"/></div>
           </div>
-          <div><label>Observações (Opcional)</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Ex: Território da prefeitura..." className="w-full bg-input p-2 rounded-md"></textarea></div>
-          <div><label>Link do Mapa (Opcional)</label><input value={mapLink} onChange={(e) => setMapLink(e.target.value)} placeholder="https://maps.google.com/..." className="w-full bg-input p-2 rounded-md"/></div>
+          <div><label>Observações (Opcional)</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Ex: Território da prefeitura..." className="w-full bg-input p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"></textarea></div>
+          <div><label>Link do Mapa (Opcional)</label><input value={mapLink} onChange={(e) => setMapLink(e.target.value)} placeholder="https://maps.google.com/..." className="w-full bg-input p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"/></div>
           <div>
             <label className="block text-sm font-medium mb-1">Imagem do Cartão (Opcional)</label>
             <div className="mt-1 flex justify-center items-center rounded-lg border border-dashed border-gray-500 min-h-[12rem] relative group">

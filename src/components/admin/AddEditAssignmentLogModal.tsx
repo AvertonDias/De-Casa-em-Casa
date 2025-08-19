@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -19,7 +18,6 @@ const toInputDateString = (date: Date): string => {
 
 const fromInputDateString = (dateString: string): Date => {
   const [year, month, day] = dateString.split('-').map(Number);
-  // Adiciona T12:00:00 para evitar problemas de fuso horário que podem alterar o dia
   return new Date(year, month - 1, day, 12, 0, 0);
 };
 
@@ -33,7 +31,6 @@ export default function AddEditAssignmentLogModal({ isOpen, onClose, onSave, log
     if (isOpen && logToEdit) {
       setName(logToEdit.name);
       setAssignedAt(toInputDateString(logToEdit.assignedAt.toDate()));
-      // Garante que a data de devolução seja tratada corretamente
       const completedDate = logToEdit.completedAt instanceof Timestamp ? logToEdit.completedAt.toDate() : new Date();
       setCompletedAt(toInputDateString(completedDate));
       setError('');
@@ -62,22 +59,21 @@ export default function AddEditAssignmentLogModal({ isOpen, onClose, onSave, log
       <div className="bg-card text-card-foreground p-6 rounded-lg shadow-xl w-full max-w-md relative">
         <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground"><X /></button>
         <h2 className="text-xl font-bold">Editar Registro do Histórico</h2>
-        {/* DESCRIÇÃO ADICIONADA PARA ACESSIBILIDADE */}
         <p className="text-sm text-muted-foreground mb-4">Ajuste os detalhes desta designação passada.</p>
         
         <div className="space-y-4">
           <div>
             <label className="flex items-center"><User size={14} className="mr-2"/>Designado para:</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-input rounded-md p-2 mt-1"/>
+            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-input rounded-md p-2 mt-1 focus:outline-none focus:ring-2 focus:ring-primary"/>
           </div>
           <div className="flex gap-4">
             <div className="w-1/2">
               <label className="flex items-center"><Calendar size={14} className="mr-2"/>Designado em:</label>
-              <input type="date" value={assignedAt} onChange={(e) => setAssignedAt(e.target.value)} className="w-full bg-input rounded-md p-2 mt-1"/>
+              <input type="date" value={assignedAt} onChange={(e) => setAssignedAt(e.target.value)} className="w-full bg-input rounded-md p-2 mt-1 focus:outline-none focus:ring-2 focus:ring-primary"/>
             </div>
             <div className="w-1/2">
               <label className="flex items-center"><Calendar size={14} className="mr-2"/>Devolvido em:</label>
-              <input type="date" value={completedAt} onChange={(e) => setCompletedAt(e.target.value)} className="w-full bg-input rounded-md p-2 mt-1"/>
+              <input type="date" value={completedAt} onChange={(e) => setCompletedAt(e.target.value)} className="w-full bg-input rounded-md p-2 mt-1 focus:outline-none focus:ring-2 focus:ring-primary"/>
             </div>
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}

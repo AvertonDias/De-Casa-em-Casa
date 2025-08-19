@@ -58,11 +58,11 @@ export default function AddEditLinkModal({ isOpen, onClose, onSave, linkToEdit }
         <div className="space-y-4">
           <div>
             <label htmlFor="link-desc" className="block text-sm font-medium mb-1">Descrição</label>
-            <input id="link-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex: Mapa de Estradas Vicinais" className="w-full bg-input rounded-md p-2"/>
+            <input id="link-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex: Mapa de Estradas Vicinais" className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"/>
           </div>
           <div>
             <label htmlFor="link-url" className="block text-sm font-medium mb-1">URL</label>
-            <input id="link-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." className="w-full bg-input rounded-md p-2"/>
+            <input id="link-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"/>
           </div>
           
           {error && <p className="text-sm text-red-500">{error}</p>}

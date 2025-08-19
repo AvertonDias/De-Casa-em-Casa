@@ -38,24 +38,28 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
       setDescription(territory.description || '');
       setMapLink(territory.mapLink || '');
       setCardUrl(territory.cardUrl || '');
-      setPreviewUrl(null); // Limpa a pré-visualização ao abrir
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      setPreviewUrl(null);
       setError(null);
 
-      // Foco automático no campo número
       setTimeout(() => {
         numberInputRef.current?.focus();
         numberInputRef.current?.select();
       }, 100);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [territory, isOpen]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
     const file = event.target.files ? event.target.files[0] : null;
 
-    // Limpa a pré-visualização anterior para garantir a atualização da nova
-    setPreviewUrl(null); 
-    
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
     if (file) {
       if (file.size > 700 * 1024) { // Limite de 700KB
         setError("O arquivo excede 700KB.");
@@ -85,7 +89,7 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
     
     if (isAdmin) {
       dataToSave.mapLink = mapLink;
-      dataToSave.cardUrl = cardUrl;
+      dataToSave.cardUrl = previewUrl || cardUrl; // Usa a nova preview se houver
     }
     
     await onSave(territory.id, dataToSave);
@@ -114,16 +118,16 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
                     ref={numberInputRef}
                     value={number} 
                     onChange={(e) => setNumber(e.target.value)} 
-                    className="w-full bg-input rounded-md p-2"
+                    className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
                 />
             </div>
-            <div className="flex-grow"><label className="block text-sm font-medium mb-1">Nome</label><input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-input rounded-md p-2"/></div>
+            <div className="flex-grow"><label className="block text-sm font-medium mb-1">Nome</label><input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"/></div>
           </div>
-          <div><label>Observações (Opcional)</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full bg-input rounded-md p-2"></textarea></div>
+          <div><label>Observações (Opcional)</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"></textarea></div>
 
           {isAdmin && (
             <div className="border-t border-border pt-4 mt-4 space-y-4">
-              <div><label>Link do Mapa (Opcional)</label><input value={mapLink} onChange={(e) => setMapLink(e.target.value)} className="w-full bg-input rounded-md p-2"/></div>
+              <div><label>Link do Mapa (Opcional)</label><input value={mapLink} onChange={(e) => setMapLink(e.target.value)} className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"/></div>
               
               <div>
                 <label className="block text-sm mb-1">Imagem do Cartão (Opcional)</label>

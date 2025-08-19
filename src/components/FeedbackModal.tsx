@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDe
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
 
-// Inicializar a instância das funções uma vez, fora do componente
 const functionsInstance = getFunctions(app, 'southamerica-east1');
 const sendFeedbackFunction = httpsCallable(functionsInstance, 'sendFeedbackEmail');
 
@@ -43,7 +42,6 @@ export function FeedbackModal() {
     setIsSending(true);
 
     try {
-        // A chamada da função agora é mais simples e direta
         const result = await sendFeedbackFunction({ 
           name: user.name,
           email: user.email,
@@ -93,11 +91,11 @@ export function FeedbackModal() {
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
             <div>
               <label htmlFor="subject" className="block text-sm font-medium">Assunto</label>
-              <input id="subject" type="text" value={subject} onChange={(e) => setSubject(e.target.value)} required placeholder="Ex: Sugestão para a tela de usuários" className="mt-1 block w-full border rounded-md p-2 bg-input" />
+              <input id="subject" type="text" value={subject} onChange={(e) => setSubject(e.target.value)} required placeholder="Ex: Sugestão para a tela de usuários" className="mt-1 block w-full border rounded-md p-2 bg-input focus:outline-none focus:ring-2 focus:ring-primary" />
             </div>
             <div>
               <label htmlFor="message" className="block text-sm font-medium">Mensagem</label>
-              <textarea id="message" value={message} onChange={(e) => setMessage(e.target.value)} required rows={5} placeholder="Descreva sua sugestão ou o problema que encontrou..." className="mt-1 block w-full border rounded-md p-2 bg-input"></textarea>
+              <textarea id="message" value={message} onChange={(e) => setMessage(e.target.value)} required rows={5} placeholder="Descreva sua sugestão ou o problema que encontrou..." className="mt-1 block w-full border rounded-md p-2 bg-input focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
             </div>
             <Button type="submit" className="w-full" disabled={isSending || !subject.trim() || !message.trim()}>
               {isSending ? <Loader className="animate-spin" size={20}/> : 'Enviar Mensagem'}

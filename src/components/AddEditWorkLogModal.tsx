@@ -49,7 +49,7 @@ export default function AddEditWorkLogModal({ isOpen, onClose, onSave, workLogTo
         <div className="space-y-4">
           <div>
             <label htmlFor="log-notes" className="block text-sm font-medium mb-1">Observações</label>
-            <textarea id="log-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} placeholder="Ex: Visitamos o setor leste..." className="w-full bg-input rounded-md p-2"/>
+            <textarea id="log-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} placeholder="Ex: Visitamos o setor leste..." className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"/>
           </div>
           
           {error && <p className="text-sm text-red-500">{error}</p>}

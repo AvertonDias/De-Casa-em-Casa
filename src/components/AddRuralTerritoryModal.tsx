@@ -144,11 +144,11 @@ export function AddRuralTerritoryModal({ isOpen, onClose, onTerritoryAdded, cong
             <div className="flex items-end gap-2 border-t border-border pt-3">
               <div className="flex-grow">
                 <label className="text-xs">Descrição do Link</label>
-                <input value={linkDesc} onChange={(e) => setLinkDesc(e.target.value)} placeholder="Ex: Mapa da Estrada" className="w-full bg-input p-2 rounded-md text-sm"/>
+                <input value={linkDesc} onChange={(e) => setLinkDesc(e.target.value)} placeholder="Ex: Mapa da Estrada" className="w-full bg-input p-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"/>
               </div>
               <div className="flex-grow">
                 <label className="text-xs">URL</label>
-                <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://" className="w-full bg-input p-2 rounded-md text-sm"/>
+                <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://" className="w-full bg-input p-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"/>
               </div>
               <button onClick={handleAddLinkToList} type="button" className="p-2 bg-primary/20 text-primary rounded-md h-10"><Plus size={20}/></button>
             </div>

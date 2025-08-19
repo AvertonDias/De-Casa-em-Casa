@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -181,6 +180,3 @@ export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, o
       </Dialog>
   );
 }
-
-
-    

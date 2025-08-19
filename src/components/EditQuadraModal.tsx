@@ -61,12 +61,12 @@ export const EditQuadraModal = ({ quadra, isOpen, onClose, onSave, onDelete }: E
                 ref={nameInputRef}
                 value={name} 
                 onChange={(e) => setName(e.target.value)} 
-                className="w-full bg-input rounded-md p-2" 
+                className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary" 
             />
           </div>
           <div>
             <label htmlFor="quadra-desc" className="block text-sm font-medium mb-1">Descrição</label>
-            <textarea id="quadra-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full bg-input rounded-md p-2"></textarea>
+            <textarea id="quadra-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
           </div>
         </div>
 
