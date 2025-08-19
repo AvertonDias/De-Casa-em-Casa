@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory } from "@/types/types";
 import { X, AlertCircle, FileImage, Loader } from 'lucide-react';
@@ -28,6 +28,8 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const numberInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen && territory) {
@@ -36,19 +38,24 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
       setDescription(territory.description || '');
       setMapLink(territory.mapLink || '');
       setCardUrl(territory.cardUrl || '');
+      setPreviewUrl(null); // Limpa a pré-visualização ao abrir
       setError(null);
-      
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
+
+      // Foco automático no campo número
+      setTimeout(() => {
+        numberInputRef.current?.focus();
+        numberInputRef.current?.select();
+      }, 100);
     }
-  }, [territory, isOpen, previewUrl]);
+  }, [territory, isOpen]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
     const file = event.target.files ? event.target.files[0] : null;
 
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-
+    // Limpa a pré-visualização anterior para garantir a atualização da nova
+    setPreviewUrl(null); 
+    
     if (file) {
       if (file.size > 700 * 1024) { // Limite de 700KB
         setError("O arquivo excede 700KB.");
@@ -61,6 +68,8 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
         setCardUrl(newCardUrl);
       };
       reader.readAsDataURL(file);
+    } else {
+      setCardUrl(territory.cardUrl || ''); // Reverte para a URL original se o usuário cancelar
     }
   };
   
@@ -68,18 +77,24 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
     if (!number || !name) { setError("Número e Nome são obrigatórios."); return; }
     setIsProcessing(true); setError(null);
     
-    const baseData = { number, name, description };
-    const adminData = isAdmin ? { mapLink, cardUrl } : {};
+    const dataToSave: Partial<Territory> = {
+      number,
+      name,
+      description
+    };
     
-    await onSave(territory.id, { ...baseData, ...adminData });
+    if (isAdmin) {
+      dataToSave.mapLink = mapLink;
+      dataToSave.cardUrl = cardUrl;
+    }
+    
+    await onSave(territory.id, dataToSave);
     
     setIsProcessing(false);
     onClose();
   };
 
   const handleClose = () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(null);
     onClose();
   };
 
@@ -93,7 +108,15 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
         
         <div className="space-y-4 mt-4">
           <div className="flex items-center gap-4">
-            <div className="w-28"><label className="block text-sm font-medium mb-1">Número</label><input value={number} onChange={(e) => setNumber(e.target.value)} className="w-full bg-input rounded-md p-2"/></div>
+            <div className="w-28">
+                <label className="block text-sm font-medium mb-1">Número</label>
+                <input 
+                    ref={numberInputRef}
+                    value={number} 
+                    onChange={(e) => setNumber(e.target.value)} 
+                    className="w-full bg-input rounded-md p-2"
+                />
+            </div>
             <div className="flex-grow"><label className="block text-sm font-medium mb-1">Nome</label><input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-input rounded-md p-2"/></div>
           </div>
           <div><label>Observações (Opcional)</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full bg-input rounded-md p-2"></textarea></div>
