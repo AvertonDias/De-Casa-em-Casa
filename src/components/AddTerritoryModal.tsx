@@ -32,8 +32,8 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
     const file = event.target.files ? event.target.files[0] : null;
 
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setError("O arquivo é muito grande. O limite é de 5MB.");
+      if (file.size > 700 * 1024) { // Limite de 700KB
+        setError("O arquivo é muito grande. O limite é de 700KB.");
         return;
       }
       
@@ -99,7 +99,7 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
           <div>
             <label className="block text-sm font-medium mb-1">Imagem do Cartão (Opcional)</label>
             <div className="mt-1 flex justify-center items-center rounded-lg border border-dashed border-gray-500 min-h-[12rem] relative group">
-              {cardDataUrl ? (<><img src={cardDataUrl} alt="Preview" className="max-h-32 object-contain rounded-md" /><button onClick={removeSelectedImage} className="absolute top-2 right-2 bg-red-600/80 text-white rounded-full p-1 opacity-0 group-hover:opacity-100"><X size={16} /></button></>) : (<div className="text-center"><FileImage className="mx-auto h-12 w-12 text-gray-400" /><label htmlFor="file-upload" className="cursor-pointer font-semibold text-primary"><span>Selecione um arquivo</span><input id="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept="image/*"/></label><p className="text-xs text-gray-500">PNG, JPG até 5MB</p></div>)}
+              {cardDataUrl ? (<><img src={cardDataUrl} alt="Preview" className="max-h-32 object-contain rounded-md" /><button onClick={removeSelectedImage} className="absolute top-2 right-2 bg-red-600/80 text-white rounded-full p-1 opacity-0 group-hover:opacity-100"><X size={16} /></button></>) : (<div className="text-center"><FileImage className="mx-auto h-12 w-12 text-gray-400" /><label htmlFor="file-upload" className="cursor-pointer font-semibold text-primary"><span>Selecione um arquivo</span><input id="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept="image/*"/></label><p className="text-xs text-gray-500">PNG, JPG até 700KB</p></div>)}
             </div>
           </div>
           {error && (<p className="text-sm text-red-500 text-center">{error}</p>)}

@@ -41,7 +41,7 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
     }
-  }, [territory, isOpen]);
+  }, [territory, isOpen, previewUrl]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -50,7 +50,10 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
     if (previewUrl) URL.revokeObjectURL(previewUrl);
 
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { setError("O arquivo excede 5MB."); return; }
+      if (file.size > 700 * 1024) { // Limite de 700KB
+        setError("O arquivo excede 700KB.");
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         const newCardUrl = reader.result as string;
