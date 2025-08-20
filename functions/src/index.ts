@@ -245,64 +245,77 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
   }
 });
 
-export const sendOverdueNotification = https.onCall(async (req) => {
-    const callingUserUid = req.auth?.uid;
-    if (!callingUserUid) {
-      throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
-    }
-  
-    const { territoryId, userId } = req.data;
-    if (!territoryId || !userId) {
-      throw new https.HttpsError("invalid-argument", "IDs do território e do usuário são necessários.");
-    }
-    
-    // Verifica a permissão de quem está chamando
-    const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-    const callingUserData = callingUserSnap.data();
-    if (!callingUserData || !['Administrador', 'Dirigente'].includes(callingUserData.role)) {
-      throw new https.HttpsError("permission-denied", "Apenas administradores ou dirigentes podem enviar notificações.");
-    }
-    
-    const congregationId = callingUserData.congregationId;
-    if (!congregationId) {
-        throw new https.HttpsError("failed-precondition", "Usuário que chama não está associado a uma congregação.");
-    }
+export const sendOverdueNotification = https.onRequest({ cors: true }, async (req, res) => {
+    // A função onRequest necessita de tratamento manual de CORS
+    const cors = require('cors')({origin: true});
+    cors(req, res, async () => {
+        // Validação de segurança para onCall, agora manual
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
+        }
 
-    try {
-      const territoryDoc = await db.doc(`congregations/${congregationId}/territories/${territoryId}`).get();
-      const userToNotifyDoc = await db.collection("users").doc(userId).get();
-  
-      if (!territoryDoc.exists || !userToNotifyDoc.exists) {
-        throw new https.HttpsError("not-found", "Território ou usuário não encontrado.");
-      }
-  
-      const territory = territoryDoc.data()!;
-      const userToNotify = userToNotifyDoc.data()!;
+        const callingUserUid = (await admin.auth().verifyIdToken(req.headers.authorization?.split('Bearer ')[1] || '')).uid;
+        
+        if (!callingUserUid) {
+            res.status(401).json({ error: { message: "Ação não autorizada.", code: "unauthenticated" }});
+            return;
+        }
       
-      const tokens = userToNotify.fcmTokens;
-      if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
-        throw new https.HttpsError("not-found", "O usuário não possui dispositivos registrados para receber notificações.");
-      }
-  
-      const payload = {
-        notification: {
-          title: "Lembrete de Território Atrasado",
-          body: `Olá, ${userToNotify.name}. Um lembrete amigável de que o território "${territory.name}" está com a devolução atrasada.`,
-          icon: "/icon-192x192.jpg",
-          click_action: "/dashboard/meus-territorios",
-        },
-      };
+        const { territoryId, userId } = req.body.data;
+        if (!territoryId || !userId) {
+            res.status(400).json({ error: { message: "IDs do território e do usuário são necessários.", code: "invalid-argument" }});
+            return;
+        }
+        
+        const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
+        const callingUserData = callingUserSnap.data();
+        if (!callingUserData || !['Administrador', 'Dirigente'].includes(callingUserData.role)) {
+            res.status(403).json({ error: { message: "Apenas administradores ou dirigentes podem enviar notificações.", code: "permission-denied" }});
+            return;
+        }
+        
+        const congregationId = callingUserData.congregationId;
+        if (!congregationId) {
+            res.status(412).json({ error: { message: "Usuário que chama não está associado a uma congregação.", code: "failed-precondition" }});
+            return;
+        }
+
+        try {
+          const territoryDoc = await db.doc(`congregations/${congregationId}/territories/${territoryId}`).get();
+          const userToNotifyDoc = await db.collection("users").doc(userId).get();
       
-      await admin.messaging().sendToDevice(tokens, payload);
-      return { success: true, message: `Notificação enviada para ${userToNotify.name}.` };
-  
-    } catch (error: any) {
-      console.error("[Notification] Falha ao enviar notificação de atraso:", error);
-      if (error instanceof https.HttpsError) {
-          throw error;
-      }
-      throw new https.HttpsError("internal", "Falha interna ao enviar notificação.", error.message);
-    }
+          if (!territoryDoc.exists || !userToNotifyDoc.exists) {
+            res.status(404).json({ error: { message: "Território ou usuário não encontrado.", code: "not-found" }});
+            return;
+          }
+      
+          const territory = territoryDoc.data()!;
+          const userToNotify = userToNotifyDoc.data()!;
+          
+          const tokens = userToNotify.fcmTokens;
+          if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+            res.status(404).json({ error: { message: "O usuário não possui dispositivos registrados para receber notificações.", code: "not-found" }});
+            return;
+          }
+      
+          const payload = {
+            notification: {
+              title: "Lembrete de Território Atrasado",
+              body: `Olá, ${userToNotify.name}. Um lembrete amigável de que o território "${territory.name}" está com a devolução atrasada.`,
+              icon: "/icon-192x192.jpg",
+              click_action: "/dashboard/meus-territorios",
+            },
+          };
+          
+          await admin.messaging().sendToDevice(tokens, payload);
+          res.status(200).json({ data: { success: true, message: `Notificação enviada para ${userToNotify.name}.` }});
+      
+        } catch (error: any) {
+          console.error("[Notification] Falha ao enviar notificação de atraso:", error);
+          res.status(500).json({ error: { message: "Falha interna ao enviar notificação.", code: "internal", details: error.message }});
+        }
+    });
 });
 
 
