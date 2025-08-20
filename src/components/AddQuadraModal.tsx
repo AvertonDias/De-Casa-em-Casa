@@ -14,7 +14,7 @@ export default function AddQuadraModal({ isOpen, onSave, onClose, existingQuadra
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const nameInputRef = useRef<HTMLInputElement>(null);
+  const descriptionInputRef = useRef<HTMLTextAreaElement>(null); // Ref para a textarea
 
   useEffect(() => {
     if (isOpen) {
@@ -22,9 +22,10 @@ export default function AddQuadraModal({ isOpen, onSave, onClose, existingQuadra
       setName(`Quadra ${nextQuadraNumber}`);
       setDescription('');
       
+      // Foca na textarea de descrição quando o modal abre
       setTimeout(() => {
-        nameInputRef.current?.focus();
-        nameInputRef.current?.select();
+        descriptionInputRef.current?.focus();
+        descriptionInputRef.current?.select();
       }, 100);
     }
   }, [isOpen, existingQuadrasCount]);
@@ -59,7 +60,6 @@ export default function AddQuadraModal({ isOpen, onSave, onClose, existingQuadra
             <label htmlFor="quadra-name" className="block text-sm font-medium mb-1">Nome da Quadra</label>
             <input 
               id="quadra-name" 
-              ref={nameInputRef}
               value={name} 
               onChange={(e) => setName(e.target.value)} 
               className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary" 
@@ -67,7 +67,14 @@ export default function AddQuadraModal({ isOpen, onSave, onClose, existingQuadra
           </div>
           <div>
             <label htmlFor="quadra-desc" className="block text-sm font-medium mb-1">Observações (Opcional)</label>
-            <textarea id="quadra-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
+            <textarea 
+              id="quadra-desc" 
+              ref={descriptionInputRef}
+              value={description} 
+              onChange={(e) => setDescription(e.target.value)} 
+              rows={3} 
+              className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
+            ></textarea>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <button onClick={handleClose} disabled={isProcessing} className="px-4 py-2 rounded-md bg-muted hover:bg-muted/80">Cancelar</button>
