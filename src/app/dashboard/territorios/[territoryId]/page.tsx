@@ -56,16 +56,19 @@ const ProgressSection = ({ territory }: { territory: Territory }) => {
 
 const MapAndCardSection = ({ territory, onImageClick }: { territory: Territory, onImageClick: (url: string) => void }) => {
     const cardUrl = territory.cardUrl;
-    
-    const getMapEmbedUrl = (originalUrl?: string) => {
-        if (!originalUrl) return '';
-        try {
-            const url = new URL(originalUrl);
-            const mid = url.searchParams.get('mid');
-            return mid ? `https://www.google.com/maps/d/embed?mid=${mid}` : '';
-        } catch (e) { return ''; }
-    };
-    const mapEmbedUrl = getMapEmbedUrl(territory.mapLink);
+    const [mapEmbedUrl, setMapEmbedUrl] = useState('');
+
+    useEffect(() => {
+        const getMapEmbedUrl = (originalUrl?: string) => {
+            if (!originalUrl) return '';
+            try {
+                const url = new URL(originalUrl);
+                const mid = url.searchParams.get('mid');
+                return mid ? `https://www.google.com/maps/d/embed?mid=${mid}` : '';
+            } catch (e) { return ''; }
+        };
+        setMapEmbedUrl(getMapEmbedUrl(territory.mapLink));
+    }, [territory.mapLink]);
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -426,4 +429,3 @@ function TerritoryDetailPage() {
 }
 
 export default withAuth(TerritoryDetailPage);
-
