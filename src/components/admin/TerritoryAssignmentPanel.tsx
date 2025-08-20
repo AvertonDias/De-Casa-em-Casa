@@ -3,10 +3,11 @@
 
 import { useState, useEffect, Fragment } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db } from '@/lib/firebase';
+import { db, app } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, Bell, History } from 'lucide-react';
+import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, Bell, History, Loader } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -17,6 +18,10 @@ import { ConfirmationModal } from '../ConfirmationModal';
 import type { Territory, AppUser, AssignmentHistoryLog } from '@/types/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import AssignmentHistory from '../AssignmentHistory';
+import { useToast } from '@/hooks/use-toast';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const sendOverdueNotificationFunction = httpsCallable(functions, 'sendOverdueNotification');
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   label: string;
@@ -40,9 +45,11 @@ const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
 
 export default function TerritoryAssignmentPanel() {
   const { user: currentUser } = useUser();
+  const { toast } = useToast();
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notifyingTerritoryId, setNotifyingTerritoryId] = useState<string | null>(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'disponivel' | 'designado' | 'atrasado'>('all');
@@ -147,7 +154,6 @@ export default function TerritoryAssignmentPanel() {
             const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
             
             const newHistory = currentHistory.map(log => {
-                // Use `isEqual` for comparing Firestore Timestamps
                 if (log.name === originalLog.name && log.assignedAt.isEqual(originalLog.assignedAt)) {
                     return {
                         ...log,
@@ -200,6 +206,30 @@ export default function TerritoryAssignmentPanel() {
     }
   };
   
+  const handleNotifyOverdue = async (territory: Territory) => {
+    if (!territory.assignment) return;
+    setNotifyingTerritoryId(territory.id);
+    try {
+      const result = await sendOverdueNotificationFunction({ 
+        territoryId: territory.id, 
+        userId: territory.assignment.uid 
+      });
+      toast({
+        title: "Sucesso!",
+        description: (result.data as any).message || 'Notificação enviada.',
+        variant: "default",
+      });
+    } catch (error: any) {
+      console.error("Erro ao enviar notificação:", error);
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível enviar a notificação.",
+        variant: "destructive",
+      });
+    } finally {
+      setNotifyingTerritoryId(null);
+    }
+  };
   
   const filteredTerritories = territories.filter(t => {
       const type = t.type || 'urban';
@@ -262,6 +292,7 @@ export default function TerritoryAssignmentPanel() {
             {filteredTerritories.map(t => {
                 const isDesignado = t.status === 'designado' && t.assignment;
                 const isOverdue = isDesignado && t.assignment && t.assignment.dueDate.toDate() < new Date();
+                const isNotifying = notifyingTerritoryId === t.id;
                 
                 return (
                   <AccordionItem value={t.id} key={t.id} className="border-b last:border-b-0">
@@ -293,7 +324,7 @@ export default function TerritoryAssignmentPanel() {
                                              <>
                                                  <Menu.Item><button onClick={() => handleOpenReturnModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <CheckCircle size={16} className="mr-2"/>Devolver</button></Menu.Item>
                                                  <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <RotateCw size={16} className="mr-2"/>Reatribuir</button></Menu.Item>
-                                                 {isOverdue && <Menu.Item><button onClick={() => alert('Função de notificação em breve!')} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground'> <Bell size={16} className="mr-2"/>Notificar Atraso</button></Menu.Item>}
+                                                 {isOverdue && <Menu.Item><button onClick={() => handleNotifyOverdue(t)} disabled={isNotifying} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground disabled:opacity-50'> {isNotifying ? <Loader className="mr-2 animate-spin"/> : <Bell size={16} className="mr-2"/>}Notificar Atraso</button></Menu.Item>}
                                              </>
                                          ) : (
                                               <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <BookUser size={16} className="mr-2"/>Designar</button></Menu.Item>
