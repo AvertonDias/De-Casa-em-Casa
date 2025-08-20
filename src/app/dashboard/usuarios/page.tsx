@@ -20,13 +20,21 @@ const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserFunction = httpsCallable(functions, 'deleteUserAccount');
 
 
-const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser, currentUser: AppUser, onUpdate: (userId: string, data: object) => void, onDelete: (user: AppUser) => void }) => {
+const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser, currentUser: AppUser, onUpdate: (userId: string, data: object) => void, onDelete: (userId: string, userName: string) => void }) => {
   const isOnline = user.isOnline === true;
   const isAdmin = currentUser.role === 'Administrador';
   const isDirigente = currentUser.role === 'Dirigente';
   
   const canShowMenu = currentUser.uid !== user.uid && 
                       (isAdmin || (isDirigente && (user.status === 'pendente' || user.status === 'rejeitado')));
+
+  // Funções de manipulador de eventos estáveis
+  const handleApprove = () => onUpdate(user.uid, { status: 'ativo' });
+  const handleReject = () => onUpdate(user.uid, { status: 'rejeitado' });
+  const handleMakeAdmin = () => onUpdate(user.uid, { role: 'Administrador' });
+  const handleMakeDirigente = () => onUpdate(user.uid, { role: 'Dirigente' });
+  const handleMakePublicador = () => onUpdate(user.uid, { role: 'Publicador' });
+  const handleDelete = () => onDelete(user.uid, user.name);
 
 
   const getStatusClass = (status: AppUser['status']) => {
@@ -97,14 +105,14 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
                               <>
                                 <Menu.Item>
                                   {({ active }) => (
-                                    <button onClick={() => onUpdate(user.uid, { status: 'ativo' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                    <button onClick={handleApprove} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
                                       <Check className="mr-2 h-4 w-4"/>Aprovar
                                     </button>
                                   )}
                                 </Menu.Item>
                                 <Menu.Item>
                                   {({ active }) => (
-                                    <button onClick={() => onUpdate(user.uid, { status: 'rejeitado' })} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                    <button onClick={handleReject} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
                                       <XCircle className="mr-2 h-4 w-4"/>Rejeitar
                                     </button>
                                   )}
@@ -115,7 +123,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
                                 {user.status === 'rejeitado' && (
                                     <Menu.Item>
                                       {({ active }) => (
-                                        <button onClick={() => onUpdate(user.uid, { status: 'ativo' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                        <button onClick={handleApprove} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
                                           <Check className="mr-2 h-4 w-4"/>Aprovar Mesmo Assim
                                         </button>
                                       )}
@@ -125,7 +133,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
                                 {isAdmin && user.role !== 'Administrador' && (
                                   <Menu.Item>
                                     {({ active }) => (
-                                      <button onClick={() => onUpdate(user.uid, { role: 'Administrador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                      <button onClick={handleMakeAdmin} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
                                         <ShieldAlert className="mr-2 h-4 w-4"/>Tornar Administrador
                                       </button>
                                     )}
@@ -134,7 +142,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
                                 {isAdmin && user.role === 'Publicador' && (
                                     <Menu.Item>
                                       {({ active }) => (
-                                        <button onClick={() => onUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                        <button onClick={handleMakeDirigente} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
                                           <Shield className="mr-2 h-4 w-4"/>Tornar Dirigente
                                         </button>
                                       )}
@@ -143,7 +151,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
                                 {isAdmin && user.role === 'Dirigente' && (
                                     <Menu.Item>
                                       {({ active }) => (
-                                        <button onClick={() => onUpdate(user.uid, { role: 'Publicador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                        <button onClick={handleMakePublicador} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
                                           <User className="mr-2 h-4 w-4"/>Tornar Publicador
                                         </button>
                                       )}
@@ -152,7 +160,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
                                 {isAdmin && user.role === 'Administrador' && (
                                   <Menu.Item>
                                     {({ active }) => (
-                                      <button onClick={() => onUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                      <button onClick={handleMakeDirigente} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
                                         <Shield className="mr-2 h-4 w-4"/>Rebaixar para Dirigente
                                       </button>
                                     )}
@@ -165,7 +173,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
                            <div className="p-1">
                               <Menu.Item>
                                 {({ active }) => (
-                                  <button onClick={() => onDelete(user)} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                  <button onClick={handleDelete} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
                                     <Trash2 className="mr-2 h-4 w-4"/>Excluir Usuário
                                   </button>
                                 )}
@@ -197,27 +205,26 @@ function UsersPage() {
   const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive'>('all');
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
+  const [userToDelete, setUserToDelete] = useState<{uid: string, name: string} | null>(null);
   
-  const confirmDeleteUser = async () => {
+  const confirmDeleteUser = useCallback(async () => {
     if (!userToDelete || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
     
     setIsConfirmModalOpen(false);
     try {
         await deleteUserFunction({ uid: userToDelete.uid });
-        // A lista será atualizada automaticamente pelo onSnapshot
     } catch (error: any) {
         console.error("Erro ao chamar a função para excluir usuário:", error);
     } finally {
         setUserToDelete(null);
     }
-  };
+  }, [userToDelete, currentUser]);
   
-  const openDeleteConfirm = (user: AppUser) => {
+  const openDeleteConfirm = useCallback((userId: string, userName: string) => {
     if (currentUser?.role !== 'Administrador') return;
-    setUserToDelete(user);
+    setUserToDelete({uid: userId, name: userName});
     setIsConfirmModalOpen(true);
-  };
+  }, [currentUser?.role]);
 
 
   useEffect(() => {
@@ -249,16 +256,17 @@ function UsersPage() {
     }
   }, [currentUser, userLoading]);
   
-  const handleUserUpdate = async (userId: string, dataToUpdate: object) => {
+  const handleUserUpdate = useCallback(async (userId: string, dataToUpdate: object) => {
     try {
+      if (!currentUser) return;
       const permissions = dataToUpdate as Partial<AppUser>;
-      if (currentUser?.role !== 'Administrador') {
+      if (currentUser.role !== 'Administrador') {
         if (permissions.role) {
           console.error("Apenas administradores podem alterar perfis.");
           return;
         }
       }
-      if (currentUser?.uid === userId && permissions.role && permissions.role !== 'Administrador') {
+      if (currentUser.uid === userId && permissions.role && permissions.role !== 'Administrador') {
           alert("Você não pode rebaixar a si mesmo.");
           return;
       }
@@ -267,7 +275,7 @@ function UsersPage() {
     } catch (error) {
       console.error("Erro ao atualizar usuário:", error);
     }
-  };
+  }, [currentUser]);
 
   const stats = useMemo(() => {
     const onlineCount = users.filter(u => u.isOnline === true).length;
@@ -476,3 +484,5 @@ function UsersPage() {
 }
 
 export default withAuth(UsersPage);
+
+    
