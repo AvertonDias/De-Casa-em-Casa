@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -8,6 +9,7 @@ import { AddRuralTerritoryModal } from '@/components/AddRuralTerritoryModal';
 import { Map, PlusCircle, Search, Link as LinkIcon, Loader, Inbox, Edit2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import AddEditLinkModal from '@/components/AddEditLinkModal'; 
+import { ConfirmationModal } from '@/components/ConfirmationModal';
 import type { RuralTerritory, Congregation, RuralLink } from '@/types/types';
 import withAuth from '@/components/withAuth';
 
@@ -39,6 +41,10 @@ function RuralPage() {
 
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkToEdit, setLinkToEdit] = useState<RuralLink | null>(null);
+  
+  const [isConfirmDeleteLinkOpen, setIsConfirmDeleteLinkOpen] = useState(false);
+  const [linkToDelete, setLinkToDelete] = useState<RuralLink | null>(null);
+
 
   useEffect(() => {
     if (!user?.congregationId) {
@@ -87,10 +93,17 @@ function RuralPage() {
     }
   };
 
-  const handleDeleteLink = async (linkToDelete: RuralLink) => {
-    if (!user?.congregationId || !window.confirm(`Tem certeza que deseja excluir o link "${linkToDelete.description}"?`)) return;
+  const handleDeleteRequest = (link: RuralLink) => {
+    setLinkToDelete(link);
+    setIsConfirmDeleteLinkOpen(true);
+  };
+
+  const handleDeleteLink = async () => {
+    if (!user?.congregationId || !linkToDelete) return;
     const congRef = doc(db, 'congregations', user.congregationId);
     await updateDoc(congRef, { globalRuralLinks: arrayRemove(linkToDelete) });
+    setIsConfirmDeleteLinkOpen(false);
+    setLinkToDelete(null);
   };
 
   const filteredTerritories = territories.filter(t =>
@@ -144,7 +157,7 @@ function RuralPage() {
                   {isAdmin && (
                     <div className="flex items-center gap-2">
                       <button onClick={() => handleOpenEditLinkModal(link)} className="text-muted-foreground hover:text-white"><Edit2 size={14} /></button>
-                      <button onClick={() => handleDeleteLink(link)} className="text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
+                      <button onClick={() => handleDeleteRequest(link)} className="text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
                     </div>
                   )}
                 </div>
@@ -192,6 +205,15 @@ function RuralPage() {
         onClose={() => setIsLinkModalOpen(false)}
         onSave={handleSaveLink}
         linkToEdit={linkToEdit}
+      />
+
+      <ConfirmationModal
+        isOpen={isConfirmDeleteLinkOpen}
+        onClose={() => setIsConfirmDeleteLinkOpen(false)}
+        onConfirm={handleDeleteLink}
+        title="Confirmar Exclusão de Link"
+        message={`Tem certeza que deseja excluir o link "${linkToDelete?.description}"? Esta ação não pode ser desfeita.`}
+        confirmText="Sim, Excluir"
       />
     </>
   );
