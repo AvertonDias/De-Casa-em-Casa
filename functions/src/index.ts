@@ -7,6 +7,9 @@ import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import { HttpsError } from "firebase-functions/v2/https";
+import * as cors from 'cors';
+
+const corsHandler = cors({ origin: true });
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -245,7 +248,8 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
   }
 });
 
-export const sendOverdueNotification = https.onRequest({ cors: true }, async (req, res) => {
+export const sendOverdueNotification = https.onRequest((req, res) => {
+  corsHandler(req, res, async () => {
     try {
         const authorization = req.headers.authorization || "";
         if (!authorization.startsWith("Bearer ")) {
@@ -307,8 +311,13 @@ export const sendOverdueNotification = https.onRequest({ cors: true }, async (re
     
       } catch (error: any) {
         console.error("[Notification] Falha ao enviar notificação de atraso:", error);
-        res.status(500).json({ error: "Falha interna ao enviar notificação.", details: error.message });
+        if (error.code === 'auth/id-token-expired') {
+            res.status(401).json({ error: 'Sua sessão expirou, por favor, faça login novamente.' });
+        } else {
+            res.status(500).json({ error: "Falha interna ao enviar notificação.", details: error.message });
+        }
       }
+  });
 });
 
 
