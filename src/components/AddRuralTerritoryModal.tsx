@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { X, Plus, Trash2, Link as LinkIcon } from 'lucide-react';
@@ -25,6 +25,15 @@ export function AddRuralTerritoryModal({ isOpen, onClose, onTerritoryAdded, cong
 
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const numberInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        numberInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isOpen]);
 
   const handleAddLinkToList = () => {
     if (!linkDesc.trim() || !linkUrl.trim()) {
@@ -103,6 +112,7 @@ export function AddRuralTerritoryModal({ isOpen, onClose, onTerritoryAdded, cong
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input 
+                ref={numberInputRef}
                 type="text" value={number} onChange={(e) => setNumber(e.target.value)} 
                 placeholder="Número (Ex: R01)" required
                 className="w-full px-4 py-2 bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
