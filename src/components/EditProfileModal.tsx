@@ -5,10 +5,10 @@ import { useUser } from '@/contexts/UserContext';
 import { getAuth, updateProfile, reauthenticateWithCredential, EmailAuthProvider, updatePassword } from 'firebase/auth';
 import { auth, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 
 export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
@@ -143,9 +143,6 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
           <DialogDescription>
             Altere seu nome ou senha. Para excluir sua conta, use a seção "Zona de Perigo".
           </DialogDescription>
-          <DialogClose asChild>
-            <button className="absolute top-3 right-3 p-1 rounded-full hover:bg-muted"><X size={20} /></button>
-          </DialogClose>
         </DialogHeader>
         
         <form onSubmit={handleSaveChanges} className="mt-4 space-y-4">
@@ -190,7 +187,7 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
                 value={passwordForDelete}
                 onChange={(e) => setPasswordForDelete(e.target.value)}
                 placeholder="Digite sua senha para confirmar"
-                className="border-red-500/50 focus:outline-none focus:ring-2 focus:ring-destructive"
+                className="border-red-500/50 focus-visible:ring-destructive"
               />
               <button type="button" onClick={() => setShowPasswordForDelete(!showPasswordForDelete)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground">
                 {showPasswordForDelete ? <EyeOff size={20}/> : <Eye size={20}/>}
