@@ -1,101 +1,59 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // =================================
-    // Helper Functions
-    // =================================
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
-    }
 
+    // Helper functions
     function isUserAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
-      return isUserAuthenticated() && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
-    
-    function isCongregationMember(congregationId) {
-      return isUserAuthenticated() && getUserData(request.auth.uid).congregationId == congregationId;
-    }
-    
+
     function getUserRole(userId) {
-      return getUserData(userId).role;
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
     }
     
-    function isManager(congregationId) {
+    function isUserAdmin(userId) {
+        return isUserAuthenticated() && getUserRole(userId) == 'Administrador';
+    }
+
+    function userCongregationId(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.congregationId;
+    }
+    
+    function isSameCongregation(congregationId) {
+        return isUserAuthenticated() && userCongregationId(request.auth.uid) == congregationId;
+    }
+    
+    function canManageUsers() {
       let userRole = getUserRole(request.auth.uid);
-      return isCongregationMember(congregationId) && (userRole == 'Administrador' || userRole == 'Dirigente');
+      return userRole == 'Administrador' || userRole == 'Dirigente';
     }
 
-    function isAdmin(congregationId) {
-      return isCongregationMember(congregationId) && getUserRole(request.auth.uid) == 'Administrador';
+
+    // Allow public creation of congregations
+    match /congregations/{congregationId} {
+      allow read: if isUserAuthenticated() && isSameCongregation(congregationId);
+      allow create: if true; // Public can create, secured by Cloud Function
+      allow update: if isUserAuthenticated() && isUserAdmin(request.auth.uid) && isSameCongregation(congregationId);
     }
-
-    // =================================
-    // Collection Rules
-    // =================================
-
-    // --- Congregations ---
-    // Anyone authenticated can create a congregation (via the Cloud Function).
-    // Only admins of that congregation can modify it.
-    // All members of the congregation can read its data.
-    match /congregations/{congId} {
-      allow read: if isCongregationMember(congId);
-      allow create: if isUserAuthenticated();
-      allow write: if isAdmin(congId);
-
-      // --- Territories Subcollection ---
-      match /territories/{terrId} {
-        allow read: if isCongregationMember(congId);
-        allow write: if isManager(congId); // Managers can create/update/delete territories
-
-        // --- Quadras Subcollection ---
-        match /quadras/{quadraId} {
-          allow read: if isCongregationMember(congId);
-          allow write: if isManager(congId);
-
-          // --- Casas Subcollection ---
-          match /casas/{casaId} {
-            allow read: if isCongregationMember(congId);
-            // Any member can update a house (to mark it as done)
-            // but only managers can create or delete houses.
-            allow update: if isCongregationMember(congId);
-            allow create, delete: if isManager(congId);
-          }
-        }
-        
-        // --- Activity History Subcollection ---
-        match /activityHistory/{activityId} {
-           allow read: if isCongregationMember(congId);
-           // Only managers can create/delete manual history entries
-           allow write: if isManager(congId);
-        }
-      }
-    }
-
-    // --- Users ---
+    
+    // User collection rules
     match /users/{userId} {
-      // CRITICAL FIX: Allow any authenticated user to CREATE their OWN document.
-      // This is necessary for the sign-up flow to work.
-      allow create: if request.auth.uid == userId;
-      
-      // Allow a user to read their own profile.
-      // Allow managers of the same congregation to read other user profiles.
-      allow read: if isOwner(userId) || 
-                  (isUserAuthenticated() && 
-                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.congregationId == resource.data.congregationId &&
-                   (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Administrador' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Dirigente'));
+      // 1. A user can create their own user document.
+      allow create: if isOwner(userId);
+      // 2. A user can read/update their own profile. Admins/Dirigentes of the same congregation can also read/update.
+      allow read, update: if (isOwner(userId)) || (isSameCongregation(get(/databases/$(database)/documents/users/$(userId)).data.congregationId) && canManageUsers());
+      // 3. Only an admin of the same congregation (and not the user themselves) can delete a user.
+      allow delete: if isUserAdmin(request.auth.uid) && isSameCongregation(get(/databases/$(database)/documents/users/$(userId)).data.congregationId) && !isOwner(userId);
+    }
 
-      // Allow a user to update their own profile.
-      // Allow an admin to update any user in their congregation.
-      allow update: if isOwner(userId) || isAdmin(resource.data.congregationId);
-      
-      // Only an admin can delete a user (and not themselves).
-      allow delete: if isAdmin(resource.data.congregationId) && request.auth.uid != userId;
+    // Territories and subcollections
+    match /congregations/{congregationId}/{document=**} {
+      allow read: if isUserAuthenticated() && isSameCongregation(congregationId);
+      allow write: if isUserAuthenticated() && isSameCongregation(congregationId) && canManageUsers();
     }
   }
 }
