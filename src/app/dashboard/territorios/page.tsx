@@ -14,6 +14,9 @@ import AddTerritoryModal from '@/components/AddTerritoryModal';
 import { RestrictedContent } from '@/components/RestrictedContent';
 import withAuth from '@/components/withAuth';
 
+// Chave para salvar a posição da rolagem no sessionStorage
+const SCROLL_POSITION_KEY = 'territories_scroll_position';
+
 // ========================================================================
 //   Componentes de Lista (Com o Status de Designação)
 // ========================================================================
@@ -104,6 +107,33 @@ function TerritoriosPage() {
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+  // --- LÓGICA PARA RESTAURAR A POSIÇÃO DA ROLAGEM ---
+  useEffect(() => {
+    // Ao carregar a página, tenta restaurar a posição.
+    const scrollPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
+    if (scrollPosition && !loading) {
+      // Usamos um pequeno timeout para garantir que a lista foi renderizada.
+      setTimeout(() => {
+        window.scrollTo(0, parseInt(scrollPosition, 10));
+        sessionStorage.removeItem(SCROLL_POSITION_KEY); // Remove a chave após o uso
+      }, 100);
+    }
+  
+    // Define uma função para salvar a posição ao sair.
+    const handleBeforeUnload = () => {
+      sessionStorage.setItem(SCROLL_POSITION_KEY, window.scrollY.toString());
+    };
+  
+    // Adiciona o listener ao sair.
+    window.addEventListener('beforeunload', handleBeforeUnload);
+  
+    // Função de limpeza: remove o listener quando o componente é desmontado.
+    return () => {
+      handleBeforeUnload(); // Salva a posição também ao navegar dentro do app
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [loading]); // Depende do estado de loading para executar após os dados carregarem.
+
   useEffect(() => {
     if (user?.status === 'ativo' && user.congregationId) {
       const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
@@ -121,8 +151,6 @@ function TerritoriosPage() {
 
   // A função de adicionar foi movida para AddTerritoryModal, mas a lógica de chamada continua aqui.
   const handleAddTerritory = async () => {
-    // A lógica de adição real agora reside dentro do modal AddTerritoryModal
-    // Esta função poderia ser usada para um feedback, se necessário.
     console.log("Território será adicionado pelo modal.");
   };
 
@@ -130,7 +158,7 @@ function TerritoriosPage() {
     t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.number.includes(searchTerm)
   );
   
-  if ((userLoading || loading) && territories.length === 0) {
+  if (loading && territories.length === 0) {
     return <div className="flex items-center justify-center h-full"><Loader className="animate-spin text-purple-600" size={48} /></div>;
   }
 
