@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, Fragment, useCallback } from 'react';
@@ -10,7 +11,7 @@ import { Menu, Transition, Disclosure } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { formatDistanceToNow, subDays, subMonths } from 'date-fns';
+import { formatDistanceToNow, subDays, subMonths, subHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { AppUser, Congregation } from '@/types/types';
 import withAuth from '@/components/withAuth';
@@ -193,7 +194,7 @@ function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Publicador'>('all');
-  const [activityFilter, setActivityFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive'>('all');
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
@@ -294,7 +295,10 @@ function UsersPage() {
     }
     
     if (activityFilter !== 'all') {
-        if (activityFilter === 'active') {
+        if (activityFilter === 'active_hourly') {
+            const oneHourAgo = subHours(new Date(), 1);
+            filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneHourAgo);
+        } else if (activityFilter === 'active_weekly') {
             const oneWeekAgo = subDays(new Date(), 7);
             filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneWeekAgo);
         } else if (activityFilter === 'inactive') {
@@ -420,7 +424,8 @@ function UsersPage() {
                                 <p className="font-semibold mb-2">Atividade Recente (Visto por último)</p>
                                 <div className="flex flex-wrap gap-2">
                                     <FilterButton label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} />
-                                    <FilterButton label="Ativos na Semana" value="active" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                    <FilterButton label="Ativos na Última Hora" value="active_hourly" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                    <FilterButton label="Ativos na Semana" value="active_weekly" currentFilter={activityFilter} setFilter={setActivityFilter} />
                                     <FilterButton label="Inativos há um Mês" value="inactive" currentFilter={activityFilter} setFilter={setActivityFilter} />
                                 </div>
                             </div>
@@ -479,3 +484,5 @@ function UsersPage() {
 }
 
 export default withAuth(UsersPage);
+
+    
