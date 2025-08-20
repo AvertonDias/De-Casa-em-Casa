@@ -127,7 +127,7 @@ export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, o
               Faça alterações nos dados do território.
             </DialogDescription>
           </DialogHeader>
-          <form id="edit-rural-form" onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+          <form id="edit-rural-form" onSubmit={handleSubmit} className="space-y-4 py-4 px-1 max-h-[60vh] overflow-y-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="number">Número</Label>
