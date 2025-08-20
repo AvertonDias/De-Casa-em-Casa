@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
@@ -38,6 +39,8 @@ export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, o
 
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  const numberInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen && territory) {
@@ -51,6 +54,10 @@ export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, o
       setLinkDesc('');
       setLinkUrl('');
       setEditingLinkId(null);
+      
+      setTimeout(() => {
+        numberInputRef.current?.focus();
+      }, 100);
     }
   }, [territory, isOpen]);
 
@@ -124,7 +131,7 @@ export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, o
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="number">Número</Label>
-                <Input id="number" value={number} onChange={(e) => setNumber(e.target.value)} required />
+                <Input ref={numberInputRef} id="number" value={number} onChange={(e) => setNumber(e.target.value)} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="name">Nome</Label>
