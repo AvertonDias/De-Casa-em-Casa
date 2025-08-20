@@ -1,59 +1,59 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper functions
-    function isUserAuthenticated() {
-      return request.auth != null;
+    
+    // Regra para obter os dados do próprio usuário
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+    // Verifica se o usuário é Admin ou Dirigente
+    function isManager() {
+      return getUserData().role in ['Administrador', 'Dirigente'];
     }
 
-    function getUserRole(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+    // Verifica se o usuário é Administrador
+    function isAdmin() {
+      return getUserData().role == 'Administrador';
+    }
+
+    // Verifica se o usuário pertence a uma congregação específica
+    function belongsToCongregation(congId) {
+      return getUserData().congregationId == congId;
     }
     
-    function isUserAdmin(userId) {
-        return isUserAuthenticated() && getUserRole(userId) == 'Administrador';
-    }
-
-    function userCongregationId(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.congregationId;
-    }
-    
-    function isSameCongregation(congregationId) {
-        return isUserAuthenticated() && userCongregationId(request.auth.uid) == congregationId;
-    }
-    
-    function canManageUsers() {
-      let userRole = getUserRole(request.auth.uid);
-      return userRole == 'Administrador' || userRole == 'Dirigente';
-    }
-
-
-    // Allow public creation of congregations
-    match /congregations/{congregationId} {
-      allow read: if isUserAuthenticated() && isSameCongregation(congregationId);
-      allow create: if true; // Public can create, secured by Cloud Function
-      allow update: if isUserAuthenticated() && isUserAdmin(request.auth.uid) && isSameCongregation(congregationId);
-    }
-    
-    // User collection rules
+    // Regras para a Coleção de Usuários
     match /users/{userId} {
-      // 1. A user can create their own user document.
-      allow create: if isOwner(userId);
-      // 2. A user can read/update their own profile. Admins/Dirigentes of the same congregation can also read/update.
-      allow read, update: if (isOwner(userId)) || (isSameCongregation(get(/databases/$(database)/documents/users/$(userId)).data.congregationId) && canManageUsers());
-      // 3. Only an admin of the same congregation (and not the user themselves) can delete a user.
-      allow delete: if isUserAdmin(request.auth.uid) && isSameCongregation(get(/databases/$(database)/documents/users/$(userId)).data.congregationId) && !isOwner(userId);
-    }
+      // Permite que um usuário leia e atualize SEU PRÓPRIO perfil.
+      allow get, update: if request.auth.uid == userId;
 
-    // Territories and subcollections
-    match /congregations/{congregationId}/{document=**} {
-      allow read: if isUserAuthenticated() && isSameCongregation(congregationId);
-      allow write: if isUserAuthenticated() && isSameCongregation(congregationId) && canManageUsers();
+      // Permite que um usuário crie SEU PRÓPRIO perfil (essencial para o cadastro).
+      allow create: if request.auth.uid == userId;
+      
+      // Permite que um administrador exclua qualquer usuário, exceto a si mesmo.
+      allow delete: if isAdmin() && request.auth.uid != userId;
+      
+      // Permite que um admin/dirigente da mesma congregação liste TODOS os usuários.
+      // Esta é a regra que corrige o problema de "usuários sumidos".
+      allow list: if isManager() && belongsToCongregation(resource.data.congregationId);
+    }
+    
+    // Regras para a Coleção de Congregações
+    match /congregations/{congId} {
+      // Qualquer usuário autenticado pode ler os dados da congregação (necessário para obter o nome, etc.)
+      allow read: if request.auth != null && belongsToCongregation(congId);
+      
+      // Apenas administradores da congregação podem alterar os dados dela.
+      allow write: if isAdmin() && belongsToCongregation(congId);
+
+      // Regras para subcoleções
+      match /{document=**} {
+        // Permite que usuários da mesma congregação leiam e escrevam nos documentos aninhados
+        // (territórios, quadras, casas, histórico). As permissões mais granulares são tratadas
+        // pela UI, mas a regra de segurança garante o isolamento por congregação.
+        allow read, write: if request.auth != null && belongsToCongregation(congId);
+      }
     }
   }
 }
