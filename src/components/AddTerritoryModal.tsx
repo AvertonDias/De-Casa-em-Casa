@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext"; 
 import { X, FileImage, Loader } from 'lucide-react';
 
@@ -26,6 +26,16 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const numberInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        numberInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isOpen]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -91,7 +101,7 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
         <p className="text-sm text-muted-foreground mb-6">Preencha os detalhes do novo território abaixo.</p>
         <div className="space-y-4">
           <div className="flex items-center gap-4">
-            <div className="w-28"><label className="block text-sm mb-1">Número</label><input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Ex: 12" className="w-full bg-input p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"/></div>
+            <div className="w-28"><label className="block text-sm mb-1">Número</label><input ref={numberInputRef} value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Ex: 12" className="w-full bg-input p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"/></div>
             <div className="flex-grow"><label className="block text-sm mb-1">Nome</label><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Centro Comercial" className="w-full bg-input p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"/></div>
           </div>
           <div><label>Observações (Opcional)</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Ex: Território da prefeitura..." className="w-full bg-input p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"></textarea></div>
