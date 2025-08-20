@@ -94,7 +94,6 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
       <Dialog.Portal>
         <Dialog.Overlay className="bg-black/60 fixed inset-0 z-50" />
         <Dialog.Content 
-          onOpenAutoFocus={(e) => e.preventDefault()}
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
         >
             <div className="relative w-full max-w-md rounded-lg bg-card p-6 shadow-lg max-h-[90vh] overflow-y-auto">
