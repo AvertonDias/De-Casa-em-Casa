@@ -5,12 +5,12 @@ import { useUser } from '@/contexts/UserContext';
 import { db, app } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, Wifi, WifiOff, Users as UsersIcon, SlidersHorizontal, ChevronUp } from 'lucide-react';
+import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, Wifi, WifiOff, Users as UsersIcon, SlidersHorizontal, ChevronUp, Clock } from 'lucide-react';
 import { Menu, Transition, Disclosure } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, subDays, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { AppUser, Congregation } from '@/types/types';
 import withAuth from '@/components/withAuth';
@@ -193,7 +193,7 @@ function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Publicador'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pendente'>('all');
+  const [activityFilter, setActivityFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
@@ -292,9 +292,17 @@ function UsersPage() {
     if (roleFilter !== 'all') {
       filtered = filtered.filter(user => user.role === roleFilter);
     }
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(user => user.status === statusFilter);
+    
+    if (activityFilter !== 'all') {
+        if (activityFilter === 'active') {
+            const oneWeekAgo = subDays(new Date(), 7);
+            filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneWeekAgo);
+        } else if (activityFilter === 'inactive') {
+            const oneMonthAgo = subMonths(new Date(), 1);
+            filtered = filtered.filter(u => !u.lastSeen || u.lastSeen.toDate() < oneMonthAgo);
+        }
     }
+
     if (searchTerm) {
       const lowerCaseSearch = searchTerm.toLowerCase();
       filtered = filtered.filter(user =>
@@ -314,7 +322,7 @@ function UsersPage() {
       return a.name.localeCompare(b.name);
     });
 
-  }, [users, currentUser, searchTerm, presenceFilter, roleFilter, statusFilter]);
+  }, [users, currentUser, searchTerm, presenceFilter, roleFilter, activityFilter]);
   
   if (userLoading || loading) {
     return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
@@ -409,10 +417,11 @@ function UsersPage() {
                             </div>
 
                             <div>
-                                <p className="font-semibold mb-2">Status de Aprovação</p>
+                                <p className="font-semibold mb-2">Atividade Recente (Visto por último)</p>
                                 <div className="flex flex-wrap gap-2">
-                                    <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                    <FilterButton label={`Apenas Pendentes (${stats.pending})`} value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                    <FilterButton label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                    <FilterButton label="Ativos na Semana" value="active" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                    <FilterButton label="Inativos há um Mês" value="inactive" currentFilter={activityFilter} setFilter={setActivityFilter} />
                                 </div>
                             </div>
                         </Disclosure.Panel>
