@@ -2,65 +2,85 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // --- FUNÇÕES AUXILIARES ---
+    
+    // =====================================================================
+    //   Funções de Utilidade
+    // =====================================================================
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Verifica se o ID da congregação do usuário logado é o mesmo que o do recurso solicitado
-    function isUserInCongregation(congregationId) {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.congregationId == congregationId;
+    function isUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
     
-    // Verifica se o usuário tem a permissão de Administrador
-    function isAdmin(congregationId) {
-      return isUserInCongregation(congregationId) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Administrador';
+    function getUserData(userId) {
+        return get(/databases/$(database)/documents/users/$(userId)).data;
     }
 
-    // Verifica se o usuário tem a permissão de Dirigente
-    function isDirigente(congregationId) {
-      return isUserInCongregation(congregationId) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Administrador', 'Dirigente'];
+    function isCongregationMember(congregationId) {
+        return isSignedIn() && getUserData(request.auth.uid).congregationId == congregationId;
     }
 
-    // --- REGRAS PARA COLEÇÕES ---
+    function isRole(role) {
+        return isSignedIn() && getUserData(request.auth.uid).role == role;
+    }
 
-    // Permite que qualquer pessoa crie uma nova congregação (necessário para a tela de cadastro inicial)
-    // A leitura e atualização são restritas aos membros da congregação
+    function isAdmin() {
+        return isRole('Administrador');
+    }
+
+    function isDirigente() {
+        return isRole('Dirigente');
+    }
+
+    // =====================================================================
+    //   Regras para Coleções
+    // =====================================================================
+
+    // Coleção de Congregações
     match /congregations/{congregationId} {
-      allow create: if isSignedIn();
-      allow read, update: if isUserInCongregation(congregationId);
-      // A exclusão de congregação deve ser feita por um processo seguro no backend (Cloud Function)
-      allow delete: if false; 
+      // Qualquer membro autenticado da congregação pode ler os dados dela.
+      allow read: if isCongregationMember(congregationId);
+      // Apenas administradores podem criar ou atualizar os dados da congregação.
+      allow create, update: if isAdmin() && isCongregationMember(congregationId);
+      // Ninguém pode deletar uma congregação (segurança).
+      allow delete: if false;
+
+      // Subcoleções de Territórios
+      match /territories/{territoryId} {
+        // Membros da congregação podem ler e escrever nos territórios.
+        allow read, write: if isCongregationMember(congregationId) && (isAdmin() || isDirigente());
+        allow read: if isCongregationMember(congregationId);
+
+        // Subcoleções de Quadras
+        match /quadras/{quadraId} {
+            allow read, write: if isCongregationMember(congregationId);
+
+             // Subcoleções de Casas
+            match /casas/{casaId} {
+                allow read, write: if isCongregationMember(congregationId);
+            }
+        }
+        
+        // Histórico de Atividade
+        match /activityHistory/{activityId} {
+            allow read: if isCongregationMember(congregationId);
+            allow create, update, delete: if isCongregationMember(congregationId) && (isAdmin() || isDirigente());
+        }
+      }
     }
 
-    // Regras para a coleção 'users'
+    // Coleção de Usuários
     match /users/{userId} {
-      // Um usuário pode criar seu próprio documento (ao se cadastrar)
+      // Um usuário pode criar seu próprio documento (essencial para o cadastro).
       allow create: if request.auth.uid == userId;
-      
-      // Um usuário pode ler e atualizar seu próprio perfil.
-      // Dirigentes e Admins da mesma congregação também podem ler e atualizar perfis.
-      allow read, update: if request.auth.uid == userId || 
-                           isDirigente(get(/databases/$(database)/documents/users/$(userId)).data.congregationId);
-                           
-      // Apenas um Administrador pode excluir um usuário (e não a si mesmo)
-      allow delete: if isAdmin(get(/databases/$(database)/documents/users/$(userId)).data.congregationId) && request.auth.uid != userId;
-    }
-    
-    // Regras para subcoleções de congregações (territórios, etc.)
-    match /congregations/{congregationId}/{document=**} {
-        // Permite leitura e escrita para Dirigentes e Administradores da congregação
-        allow read, write: if isDirigente(congregationId);
-    }
-    
-    // Regras específicas para a subcoleção 'casas' (permitir que publicadores atualizem)
-    match /congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId} {
-        // Permite a leitura por qualquer membro da congregação
-        allow read: if isUserInCongregation(congregationId);
-        // Permite escrita (marcar/desmarcar) por qualquer membro da congregação
-        // A lógica de negócio mais complexa (como quem pode editar o nome) é tratada na UI
-        allow write: if isUserInCongregation(congregationId);
+      // Um usuário pode ler seu próprio documento.
+      allow read: if isUser(userId) || (isAdmin() && isCongregationMember(getUserData(userId).congregationId));
+      // Um usuário pode atualizar seu próprio nome. Dirigentes/Admins podem atualizar outros campos.
+      allow update: if isUser(userId) || (isCongregationMember(getUserData(userId).congregationId) && (isAdmin() || isDirigente()));
+      // Apenas Admins podem deletar outros usuários.
+      allow delete: if isAdmin() && isCongregationMember(getUserData(userId).congregationId) && request.auth.uid != userId;
     }
   }
 }
