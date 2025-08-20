@@ -1,17 +1,19 @@
 // functions/src/index.ts
-import { https, setGlobalOptions } from "firebase-functions/v2";
+import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import { HttpsError } from "firebase-functions/v2/https";
+import * as cors from 'cors';
+
+const corsHandler = cors({ origin: true });
 
 admin.initializeApp();
 const db = admin.firestore();
 
 // Define as opções globais para todas as funções V2
-// Removida a serviceAccount daqui para usar a padrão do runtime
 setGlobalOptions({ 
   region: "southamerica-east1",
 });
@@ -102,33 +104,32 @@ export const deleteUserAccount = https.onCall(async (req) => {
     }
     
     const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-    const isAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
+    const isCallingUserAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
 
-    if (!isAdmin && callingUserUid !== userIdToDelete) {
-        throw new https.HttpsError("permission-denied", "Sem permissão.");
-    }
-
-    if (isAdmin && callingUserUid === userIdToDelete) {
-        throw new https.HttpsError("permission-denied", "Admin não pode se autoexcluir.");
+    // Regra 1: Apenas administradores podem deletar outros, e não a si mesmos
+    if (!isCallingUserAdmin || callingUserUid === userIdToDelete) {
+        throw new https.HttpsError("permission-denied", "Você não tem permissão para realizar esta ação.");
     }
 
     try {
         await admin.auth().deleteUser(userIdToDelete);
+    } catch (error: any) {
+        console.error("Erro ao excluir usuário da Auth:", error);
+        // Se o usuário não existe na Auth, continua para remover do Firestore
+        if (error.code !== 'auth/user-not-found') {
+            throw new https.HttpsError("internal", `Falha ao excluir da autenticação: ${error.message}`);
+        }
+    }
+    
+    try {
         const userDocRef = db.collection("users").doc(userIdToDelete);
         if ((await userDocRef.get()).exists) {
             await userDocRef.delete();
         }
-        return { success: true, message: "Operação de exclusão concluída." };
+        return { success: true, message: "Usuário excluído com sucesso." };
     } catch (error: any) {
-        console.error("Erro CRÍTICO ao excluir usuário:", error);
-        if (error.code === 'auth/user-not-found') {
-            const userDocRef = db.collection("users").doc(userIdToDelete);
-            if ((await userDocRef.get()).exists) {
-                await userDocRef.delete();
-            }
-            return { success: true, message: "Usuário não encontrado na Auth, mas removido do Firestore." };
-        }
-        throw new https.HttpsError("internal", `Falha na exclusão: ${error.message}`);
+        console.error("Erro ao excluir usuário do Firestore:", error);
+        throw new https.HttpsError("internal", `Falha ao excluir do banco de dados: ${error.message}`);
     }
 });
 
@@ -244,6 +245,80 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
       }
       throw new https.HttpsError("internal", "Erro interno do servidor ao processar o feedback.");
   }
+});
+
+export const sendOverdueNotification = https.onRequest(async (req, res) => {
+    corsHandler(req, res, async () => {
+        // Validação do token de autenticação
+        const idToken = req.headers.authorization?.split('Bearer ')[1];
+        if (!idToken) {
+            res.status(401).json({ error: "Ação não autorizada. Token não fornecido." });
+            return;
+        }
+
+        let callingUserUid;
+        try {
+            const decodedToken = await admin.auth().verifyIdToken(idToken);
+            callingUserUid = decodedToken.uid;
+        } catch (error) {
+            res.status(401).json({ error: "Token inválido ou expirado." });
+            return;
+        }
+
+        const { territoryId, userId } = req.body.data;
+        if (!territoryId || !userId) {
+            res.status(400).json({ error: "IDs do território e do usuário são necessários." });
+            return;
+        }
+
+        const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
+        const callingUserData = callingUserSnap.data();
+        if (!callingUserData || !['Administrador', 'Dirigente'].includes(callingUserData.role)) {
+            res.status(403).json({ error: "Apenas administradores ou dirigentes podem enviar notificações." });
+            return;
+        }
+
+        const congregationId = callingUserData.congregationId;
+        if (!congregationId) {
+            res.status(412).json({ error: "Usuário que chama não está associado a uma congregação." });
+            return;
+        }
+
+        try {
+            const territoryDoc = await db.doc(`congregations/${congregationId}/territories/${territoryId}`).get();
+            const userToNotifyDoc = await db.collection("users").doc(userId).get();
+
+            if (!territoryDoc.exists() || !userToNotifyDoc.exists()) {
+                res.status(404).json({ error: "Território ou usuário não encontrado." });
+                return;
+            }
+
+            const territory = territoryDoc.data()!;
+            const userToNotify = userToNotifyDoc.data()!;
+
+            const tokens = userToNotify.fcmTokens;
+            if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+                res.status(404).json({ error: "O usuário não possui dispositivos registrados para receber notificações." });
+                return;
+            }
+
+            const payload = {
+                notification: {
+                    title: "Lembrete de Território Atrasado",
+                    body: `Olá, ${userToNotify.name}. Um lembrete amigável de que o território "${territory.name}" está com a devolução atrasada.`,
+                    icon: "/icon-192x192.jpg",
+                    click_action: "/dashboard/meus-territorios",
+                },
+            };
+
+            await admin.messaging().sendToDevice(tokens, payload);
+            res.status(200).json({ data: { success: true, message: `Notificação enviada para ${userToNotify.name}.` } });
+
+        } catch (error: any) {
+            console.error("[Notification] Falha ao enviar notificação de atraso:", error);
+            res.status(500).json({ error: `Falha interna ao enviar notificação: ${error.message}` });
+        }
+    });
 });
 
 
@@ -450,4 +525,40 @@ export const mirrorUserStatus = onValueWritten(
         }
     }
     return null;
+});
+
+// ============================================================================
+//   FUNÇÕES AGENDADAS (Scheduled Functions)
+// ============================================================================
+export const checkInactiveUsers = pubsub.schedule("every 5 minutes").onRun(async (context) => {
+    console.log("Executando verificação de usuários inativos...");
+
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    
+    try {
+        const inactiveUsersQuery = db.collection('users')
+                                     .where('isOnline', '==', true)
+                                     .where('lastSeen', '<', twoHoursAgo);
+
+        const inactiveUsersSnap = await inactiveUsersQuery.get();
+        
+        if (inactiveUsersSnap.empty) {
+            console.log("Nenhum usuário inativo encontrado.");
+            return null;
+        }
+
+        const batch = db.batch();
+        inactiveUsersSnap.forEach(doc => {
+            console.log(`Marcando usuário ${doc.id} como offline.`);
+            batch.update(doc.ref, { isOnline: false });
+        });
+
+        await batch.commit();
+        console.log(`${inactiveUsersSnap.size} usuários inativos foram atualizados para offline.`);
+        return null;
+
+    } catch (error) {
+        console.error("Erro ao verificar e atualizar usuários inativos:", error);
+        return null;
+    }
 });
