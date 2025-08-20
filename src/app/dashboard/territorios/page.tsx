@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, where, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 import { Territory } from '@/types/types';
@@ -119,27 +119,18 @@ function TerritoriosPage() {
     }
   }, [user, userLoading]);
 
-  const handleAddTerritory = async (data: any) => {
-    if (!user?.congregationId) {
-      throw new Error("Usuário não tem congregação associada.");
-    }
-    const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-    await addDoc(territoriesRef, {
-      ...data,
-      status: 'disponivel',
-      createdAt: serverTimestamp(),
-      lastUpdate: serverTimestamp(),
-      stats: { totalHouses: 0, housesDone: 0 },
-      progress: 0,
-      quadraCount: 0,
-    });
+  // A função de adicionar foi movida para AddTerritoryModal, mas a lógica de chamada continua aqui.
+  const handleAddTerritory = async () => {
+    // A lógica de adição real agora reside dentro do modal AddTerritoryModal
+    // Esta função poderia ser usada para um feedback, se necessário.
+    console.log("Território será adicionado pelo modal.");
   };
 
   const filteredTerritories = territories.filter(t =>
     t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.number.includes(searchTerm)
   );
   
-  if (userLoading || loading) {
+  if ((userLoading || loading) && territories.length === 0) {
     return <div className="flex items-center justify-center h-full"><Loader className="animate-spin text-purple-600" size={48} /></div>;
   }
 
@@ -197,11 +188,12 @@ function TerritoriosPage() {
         )}
       </div>
 
-      <AddTerritoryModal 
+      {user.congregationId && <AddTerritoryModal 
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onSave={handleAddTerritory}
-      />
+        congregationId={user.congregationId}
+        onTerritoryAdded={handleAddTerritory}
+      />}
     </>
   );
 }
