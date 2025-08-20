@@ -1,7 +1,7 @@
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, initializeFirestore, CACHE_SIZE_UNLIMITED, type Firestore } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getFunctions, type Functions } from "firebase/functions";
 import { getMessaging, type Messaging } from "firebase/messaging";
@@ -23,32 +23,27 @@ const firebaseConfig = {
 const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 const auth: Auth = getAuth(app);
+const db: Firestore = getFirestore(app);
 const storage: FirebaseStorage = getStorage(app);
 const functions: Functions = getFunctions(app, 'southamerica-east1');
 const messaging: Messaging | null = (typeof window !== 'undefined') ? getMessaging(app) : null;
 const rtdb: Database = getDatabase(app);
 
-// Inicialização do Firestore com a nova configuração de cache
-let db: Firestore;
-
+// Habilita a persistência de dados offline
 if (typeof window !== 'undefined') {
-    try {
-        db = initializeFirestore(app, {
-            cache: {
-                kind: 'indexeddb',
-                cacheSizeBytes: CACHE_SIZE_UNLIMITED,
-                synchronizeTabs: true
-            }
-        });
-    } catch (error) {
-        console.error("Erro ao inicializar Firestore com persistência, usando configuração padrão.", error);
-        db = getFirestore(app);
-    }
-} else {
-    // Para renderização no lado do servidor, não há persistência
-    db = getFirestore(app);
+  try {
+    enableIndexedDbPersistence(db)
+      .catch((err) => {
+        if (err.code == 'failed-precondition') {
+          console.warn("Múltiplas abas abertas, a persistência pode não funcionar corretamente.");
+        } else if (err.code == 'unimplemented') {
+          console.warn("O navegador não suporta persistência offline.");
+        }
+      });
+  } catch (error) {
+    console.error("Erro ao habilitar a persistência do Firestore", error);
+  }
 }
-
 
 // Exporta tudo para ser usado em outras partes do aplicativo
 export { app, auth, db, storage, functions, messaging, rtdb };
