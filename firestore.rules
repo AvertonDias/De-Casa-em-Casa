@@ -2,58 +2,67 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Regra para obter os dados do próprio usuário
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+
+    // Helper functions for concise rules
+    function isUserAuthenticated() {
+      return request.auth != null;
     }
 
-    // Verifica se o usuário é Admin ou Dirigente
-    function isManager() {
-      return getUserData().role in ['Administrador', 'Dirigente'];
+    function getRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
-    // Verifica se o usuário é Administrador
-    function isAdmin() {
-      return getUserData().role == 'Administrador';
+    function isRole(role) {
+      return isUserAuthenticated() && getRole() == role;
     }
 
-    // Verifica se o usuário pertence a uma congregação específica
-    function belongsToCongregation(congId) {
-      return getUserData().congregationId == congId;
-    }
-    
-    // Regras para a Coleção de Usuários
+    // Rules for the 'users' collection
     match /users/{userId} {
-      // Permite que um usuário leia e atualize SEU PRÓPRIO perfil.
-      allow get, update: if request.auth.uid == userId;
+      // Allow user creation ONLY if the user is creating their own document.
+      allow create: if isUserAuthenticated() && request.auth.uid == userId;
 
-      // Permite que um usuário crie SEU PRÓPRIO perfil (essencial para o cadastro).
-      allow create: if request.auth.uid == userId;
-      
-      // Permite que um administrador exclua qualquer usuário, exceto a si mesmo.
-      allow delete: if isAdmin() && request.auth.uid != userId;
-      
-      // Permite que um admin/dirigente da mesma congregação liste TODOS os usuários.
-      // Esta é a regra que corrige o problema de "usuários sumidos".
-      allow list: if isManager() && belongsToCongregation(resource.data.congregationId);
+      // Allow a user to read their own profile.
+      allow get: if isUserAuthenticated() && request.auth.uid == userId;
+
+      // Allow Admins and Overseers to list all users in their congregation.
+      allow list: if isRole('Administrador') || isRole('Dirigente');
+
+      // Allow a user to update their own profile.
+      // Allow Admins to update any user profile.
+      allow update: if isUserAuthenticated() && (request.auth.uid == userId || isRole('Administrador'));
+
+      // Allow only Admins to delete users.
+      allow delete: if isRole('Administrador');
     }
-    
-    // Regras para a Coleção de Congregações
-    match /congregations/{congId} {
-      // Qualquer usuário autenticado pode ler os dados da congregação (necessário para obter o nome, etc.)
-      allow read: if request.auth != null && belongsToCongregation(congId);
-      
-      // Apenas administradores da congregação podem alterar os dados dela.
-      allow write: if isAdmin() && belongsToCongregation(congId);
 
-      // Regras para subcoleções
-      match /{document=**} {
-        // Permite que usuários da mesma congregação leiam e escrevam nos documentos aninhados
-        // (territórios, quadras, casas, histórico). As permissões mais granulares são tratadas
-        // pela UI, mas a regra de segurança garante o isolamento por congregação.
-        allow read, write: if request.auth != null && belongsToCongregation(congId);
-      }
+    // Rules for data within a specific congregation
+    match /congregations/{congregationId}/{document=**} {
+      // Deny all access by default if the user is not authenticated
+      // or doesn't belong to this congregation.
+      allow read, write: if false; 
+    }
+     match /congregations/{congregationId} {
+      // Any authenticated user can read the congregation list to find their own.
+      allow list: if isUserAuthenticated();
+      // Allow reading a specific congregation document if the user belongs to it.
+      allow get: if isUserAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.congregationId == congregationId;
+
+      // Allow only Admins to update congregation data.
+      allow update: if isRole('Administrador') && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.congregationId == congregationId;
+      
+      // Default deny for create/delete
+      allow create, delete: if false;
+    }
+
+
+    match /congregations/{congregationId}/territories/{territoryId} {
+       allow read, list: if isUserAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.congregationId == congregationId;
+       allow create, update, delete: if (isRole('Administrador') || isRole('Dirigente')) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.congregationId == congregationId;
+    }
+
+    match /congregations/{congregationId}/territories/{territoryId}/{subcollection}/{docId} {
+       allow read, list: if isUserAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.congregationId == congregationId;
+       allow create, update, delete: if isUserAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.congregationId == congregationId;
     }
   }
 }
