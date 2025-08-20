@@ -1,7 +1,4 @@
 
-// Configure dotenv to load environment variables at the very top
-require('dotenv').config({ path: './.env.local' });
-
 const withPWAInit = require("@ducanh2912/next-pwa").default;
 
 const isDev = process.env.NODE_ENV === "development";
