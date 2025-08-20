@@ -101,6 +101,9 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
                 <Dialog.Title className="text-lg font-medium text-card-foreground">
                     Adicionar Item
                 </Dialog.Title>
+                <Dialog.Description className="text-sm text-muted-foreground mt-2">
+                  Preencha os detalhes do novo número a ser adicionado nesta quadra.
+                </Dialog.Description>
                 
                 <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                     <div>

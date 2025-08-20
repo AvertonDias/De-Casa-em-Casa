@@ -98,6 +98,7 @@ export function AddRuralTerritoryModal({ isOpen, onClose, onTerritoryAdded, cong
       <div className="relative bg-card text-card-foreground p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <button onClick={handleClose} className="absolute top-4 right-4"><X /></button>
         <h2 className="text-xl font-bold">Adicionar Território Rural</h2>
+        <p className="text-sm text-muted-foreground mb-4">Preencha os detalhes do novo território rural, incluindo links úteis.</p>
         
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Territory, AppUser } from "@/types/types";
-import { X } from 'lucide-react';
+import { X, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
 
 interface AssignTerritoryModalProps {
   isOpen: boolean;

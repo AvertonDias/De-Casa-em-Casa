@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -86,6 +85,9 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
             <Dialog.Title className="text-lg font-medium text-card-foreground">
               Editar Número
             </Dialog.Title>
+            <Dialog.Description className="text-sm text-muted-foreground mt-2">
+              Altere o número ou as observações deste item.
+            </Dialog.Description>
             
             <form onSubmit={handleUpdate} className="mt-4 space-y-4">
               <div>

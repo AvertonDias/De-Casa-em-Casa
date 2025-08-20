@@ -61,8 +61,8 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
     }
 
     if (file) {
-      if (file.size > 700 * 1024) { // Limite de 700KB
-        setError("O arquivo excede 700KB.");
+      if (file.size > 5 * 1024 * 1024) { // Limite de 5MB
+        setError("O arquivo excede 5MB.");
         return;
       }
       const reader = new FileReader();
@@ -109,7 +109,8 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
       <div className="relative bg-card text-card-foreground p-6 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <button onClick={handleClose} disabled={isProcessing} className="absolute top-4 right-4 text-muted-foreground"><X /></button>
         <h2 className="text-xl font-bold">Editar Território</h2>
-        
+        <p className="text-sm text-muted-foreground mb-4">Faça alterações nos dados do território. Ações de risco como limpar ou excluir só estão disponíveis para Administradores.</p>
+
         <div className="space-y-4 mt-4">
           <div className="flex items-center gap-4">
             <div className="w-28">
