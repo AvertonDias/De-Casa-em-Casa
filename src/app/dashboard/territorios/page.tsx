@@ -2,23 +2,94 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
-import { Territory } from '@/types/types';
+import { Territory, Quadra } from '@/types/types';
 import Link from 'next/link';
-import { Plus, Search, ChevronRight, Loader, UserCheck, CalendarClock, AlertTriangle } from 'lucide-react';
+import { Plus, Search, ChevronRight, Loader, UserCheck, CalendarClock, AlertTriangle, Download, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AddTerritoryModal from '@/components/AddTerritoryModal';
 import { RestrictedContent } from '@/components/RestrictedContent';
 import withAuth from '@/components/withAuth';
+import { useToast } from '@/hooks/use-toast';
 
-// Chave para salvar a posição da rolagem no sessionStorage
 const SCROLL_POSITION_KEY = 'territories_scroll_position';
 
 // ========================================================================
-//   Componentes de Lista (Com o Status de Designação)
+//   Componente de Download Offline
+// ========================================================================
+
+const OfflineDownloader = ({ territoryId }: { territoryId: string }) => {
+    const { user } = useUser();
+    const { toast } = useToast();
+    const [downloadState, setDownloadState] = useState<{ downloadedAt: Date | null }>({ downloadedAt: null });
+    const [isDownloading, setIsDownloading] = useState(false);
+
+    const storageKey = `territory_offline_${territoryId}`;
+
+    useEffect(() => {
+        const savedState = localStorage.getItem(storageKey);
+        if (savedState) {
+            setDownloadState({ downloadedAt: new Date(savedState) });
+        }
+    }, [storageKey]);
+
+    const handleDownload = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!user?.congregationId) return;
+        setIsDownloading(true);
+        toast({ title: 'Baixando Território...', description: 'Aguarde enquanto preparamos os dados para acesso offline.' });
+
+        try {
+            const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
+            await getDoc(territoryRef); // Pega o documento principal do território
+
+            const quadrasRef = collection(territoryRef, 'quadras');
+            const quadrasSnap = await getDocs(quadrasRef);
+
+            for (const quadraDoc of quadrasSnap.docs) {
+                const casasRef = collection(quadraDoc.ref, 'casas');
+                await getDocs(casasRef); // Pega todas as casas de cada quadra
+            }
+            
+            const now = new Date();
+            localStorage.setItem(storageKey, now.toISOString());
+            setDownloadState({ downloadedAt: now });
+
+            toast({ title: 'Download Concluído!', description: 'Este território agora está disponível offline.' });
+        } catch (error) {
+            console.error("Erro ao baixar território para offline:", error);
+            toast({ title: 'Erro no Download', description: 'Não foi possível baixar os dados. Verifique sua conexão.', variant: 'destructive' });
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
+    const isDownloaded = !!downloadState.downloadedAt;
+
+    return (
+        <button
+            onClick={handleDownload}
+            disabled={isDownloading}
+            className={`w-full mt-2 text-sm font-semibold p-2 rounded-md flex items-center justify-center transition-colors
+                ${isDownloading ? 'bg-gray-500 text-white cursor-wait' : ''}
+                ${!isDownloading && isDownloaded ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30' : ''}
+                ${!isDownloading && !isDownloaded ? 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30' : ''}
+            `}
+        >
+            {isDownloading ? <Loader className="animate-spin mr-2" size={16} /> : (isDownloaded ? <CheckCircle size={16} className="mr-2"/> : <Download size={16} className="mr-2"/>)}
+            {isDownloading ? 'Baixando...' : (isDownloaded ? `Baixado em ${format(downloadState.downloadedAt!, 'dd/MM HH:mm')}` : 'Baixar para Offline')}
+        </button>
+    );
+};
+
+
+// ========================================================================
+//   Componentes de Lista
 // ========================================================================
 
 const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
@@ -38,7 +109,6 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
   return (
     <Link href={`/dashboard/territorios/${territory.id}`} className="block group">
       <div className="bg-card p-4 rounded-lg shadow-md h-full group-hover:border-primary/50 border border-transparent transition-all flex flex-col space-y-4">
-        {/* Cabeçalho */}
         <div className="flex justify-between items-start">
           <h3 className="font-bold text-xl flex-1 pr-2">{territory.number} - {territory.name}</h3>
           <span className={`px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${statusInfo.color}`}>
@@ -46,7 +116,6 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
           </span>
         </div>
 
-        {/* Informações da Designação (se existir) */}
         {isDesignado && (
           <div className={`p-3 rounded-md text-sm space-y-2 ${isOverdue ? 'bg-red-500/10' : 'bg-input/50'}`}>
             <div className="flex items-center gap-2">
@@ -66,7 +135,6 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
           </div>
         )}
 
-        {/* Estatísticas (só renderiza se o território for urbano) */}
         {territory.type !== 'rural' && (
           <div className="pt-2">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
@@ -78,6 +146,7 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
             <div className="w-full bg-gray-700 rounded-full h-2.5 mt-4"><div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progresso}%` }}></div></div>
           </div>
         )}
+        <OfflineDownloader territoryId={territory.id} />
       </div>
     </Link>
   );
@@ -107,32 +176,26 @@ function TerritoriosPage() {
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // --- LÓGICA PARA RESTAURAR A POSIÇÃO DA ROLAGEM ---
   useEffect(() => {
-    // Ao carregar a página, tenta restaurar a posição.
     const scrollPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
     if (scrollPosition && !loading) {
-      // Usamos um pequeno timeout para garantir que a lista foi renderizada.
       setTimeout(() => {
         window.scrollTo(0, parseInt(scrollPosition, 10));
-        sessionStorage.removeItem(SCROLL_POSITION_KEY); // Remove a chave após o uso
+        sessionStorage.removeItem(SCROLL_POSITION_KEY);
       }, 100);
     }
   
-    // Define uma função para salvar a posição ao sair.
     const handleBeforeUnload = () => {
       sessionStorage.setItem(SCROLL_POSITION_KEY, window.scrollY.toString());
     };
   
-    // Adiciona o listener ao sair.
     window.addEventListener('beforeunload', handleBeforeUnload);
   
-    // Função de limpeza: remove o listener quando o componente é desmontado.
     return () => {
-      handleBeforeUnload(); // Salva a posição também ao navegar dentro do app
+      handleBeforeUnload();
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [loading]); // Depende do estado de loading para executar após os dados carregarem.
+  }, [loading]);
 
   useEffect(() => {
     if (user?.status === 'ativo' && user.congregationId) {
@@ -149,9 +212,8 @@ function TerritoriosPage() {
     }
   }, [user, userLoading]);
 
-  // A função de adicionar foi movida para AddTerritoryModal, mas a lógica de chamada continua aqui.
   const handleAddTerritory = async () => {
-    console.log("Território será adicionado pelo modal.");
+    console.log("Territory will be added via modal.");
   };
 
   const filteredTerritories = territories.filter(t =>
@@ -159,11 +221,11 @@ function TerritoriosPage() {
   );
   
   if (loading && territories.length === 0) {
-    return <div className="flex items-center justify-center h-full"><Loader className="animate-spin text-purple-600" size={48} /></div>;
+    return <div className="flex items-center justify-center h-full"><Loader className="animate-spin text-primary" size={48} /></div>;
   }
 
   if (!user) {
-    return null; // O layout principal redireciona
+    return null;
   }
 
   if (user.status === 'pendente') {
