@@ -25,9 +25,8 @@ setGlobalOptions({
 // ========================================================================
 
 export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
-    // Importa e aplica o CORS localmente, apenas para esta função onRequest.
-    const cors = require('cors')({origin: true});
-    cors(req, res, async () => {
+    // Usa o corsHandler para tratar a solicitação
+    corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
             res.status(405).json({ error: 'Método não permitido' });
             return;
@@ -41,7 +40,6 @@ export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
 
         let newUser: admin.auth.UserRecord | undefined;
         try {
-            // Verifica se a congregação já existe
             const congQuery = await db.collection('congregations').where('number', '==', congregationNumber).get();
             if (!congQuery.empty) {
                 res.status(409).json({ error: 'Uma congregação com este número já existe.' });
