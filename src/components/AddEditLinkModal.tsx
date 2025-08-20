@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { RuralLink } from '@/types/types';
 
@@ -16,6 +16,7 @@ export default function AddEditLinkModal({ isOpen, onClose, onSave, linkToEdit }
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const isEditing = !!linkToEdit;
+  const descriptionInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -27,6 +28,11 @@ export default function AddEditLinkModal({ isOpen, onClose, onSave, linkToEdit }
         setUrl('');
       }
       setError('');
+      
+      setTimeout(() => {
+        descriptionInputRef.current?.focus();
+        descriptionInputRef.current?.select();
+      }, 100);
     }
   }, [isOpen, linkToEdit, isEditing]);
 
@@ -58,7 +64,14 @@ export default function AddEditLinkModal({ isOpen, onClose, onSave, linkToEdit }
         <div className="space-y-4">
           <div>
             <label htmlFor="link-desc" className="block text-sm font-medium mb-1">Descrição</label>
-            <input id="link-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex: Mapa de Estradas Vicinais" className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"/>
+            <input 
+              ref={descriptionInputRef}
+              id="link-desc" 
+              value={description} 
+              onChange={(e) => setDescription(e.target.value)} 
+              placeholder="Ex: Mapa de Estradas Vicinais" 
+              className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
+            />
           </div>
           <div>
             <label htmlFor="link-url" className="block text-sm font-medium mb-1">URL</label>
