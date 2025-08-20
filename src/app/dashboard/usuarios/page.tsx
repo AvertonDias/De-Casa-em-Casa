@@ -198,7 +198,26 @@ function UsersPage() {
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ action: () => void, title: string, message: string, confirmText: string } | null>(null);
+  
+  const confirmDeleteUser = async () => {
+    if (!userToDelete || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
+    
+    setIsConfirmModalOpen(false);
+    try {
+        await deleteUserFunction({ uid: userToDelete.uid });
+        // A lista será atualizada automaticamente pelo onSnapshot
+    } catch (error: any) {
+        console.error("Erro ao chamar a função para excluir usuário:", error);
+    } finally {
+        setUserToDelete(null);
+    }
+  };
+  
+  const openDeleteConfirm = (user: AppUser) => {
+    if (currentUser?.role !== 'Administrador') return;
+    setUserToDelete(user);
+    setIsConfirmModalOpen(true);
+  };
 
 
   useEffect(() => {
@@ -249,29 +268,6 @@ function UsersPage() {
       console.error("Erro ao atualizar usuário:", error);
     }
   };
-  
-  const openDeleteConfirm = useCallback((user: AppUser) => {
-    if (currentUser?.role !== 'Administrador') return;
-    setUserToDelete(user);
-    setConfirmAction({
-      action: async () => {
-        if (!user || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === user.uid) return;
-        
-        setIsConfirmModalOpen(false);
-        try {
-            await deleteUserFunction({ uid: user.uid });
-        } catch (error: any) {
-            console.error("Erro ao chamar a função para excluir usuário:", error);
-        } finally {
-            setUserToDelete(null);
-        }
-      },
-      title: "Excluir Usuário",
-      message: `Você tem certeza que deseja excluir permanentemente o usuário ${user.name}? Todos os seus dados serão perdidos e esta ação não pode ser desfeita.`,
-      confirmText: "Sim, excluir",
-    });
-    setIsConfirmModalOpen(true);
-  }, [currentUser]);
 
   const stats = useMemo(() => {
     const onlineCount = users.filter(u => u.isOnline === true).length;
@@ -465,24 +461,18 @@ function UsersPage() {
       </div>
     </div>
     
-      {confirmAction && (
-          <ConfirmationModal
-            isOpen={isConfirmModalOpen}
-            onClose={() => setIsConfirmModalOpen(false)}
-            onConfirm={() => {
-                confirmAction.action();
-            }}
-            isLoading={false}
-            title={confirmAction.title}
-            message={confirmAction.message}
-            confirmText={confirmAction.confirmText}
-            cancelText="Cancelar"
-          />
-      )}
+      <ConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={confirmDeleteUser}
+        isLoading={false}
+        title="Excluir Usuário"
+        message={`Você tem certeza que deseja excluir permanentemente o usuário ${userToDelete?.name}? Todos os seus dados serão perdidos e esta ação não pode ser desfeita.`}
+        confirmText="Sim, excluir"
+        cancelText="Cancelar"
+      />
     </>
   );
 }
 
 export default withAuth(UsersPage);
-
-    
