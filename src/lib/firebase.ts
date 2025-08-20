@@ -1,11 +1,11 @@
 // src/lib/firebase.ts
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore, initializeFirestore, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
-import { getFunctions } from "firebase/functions";
-import { getMessaging } from "firebase/messaging";
-import { getDatabase } from "firebase/database";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
+import { getAuth, type Auth } from "firebase/auth";
+import { getFirestore, initializeFirestore, CACHE_SIZE_UNLIMITED, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
+import { getFunctions, type Functions } from "firebase/functions";
+import { getMessaging, type Messaging } from "firebase/messaging";
+import { getDatabase, type Database } from "firebase/database";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -20,16 +20,17 @@ const firebaseConfig = {
 
 
 // Inicializa o Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-const auth = getAuth(app);
-const storage = getStorage(app);
-const functions = getFunctions(app, 'southamerica-east1');
-const messaging = (typeof window !== 'undefined') ? getMessaging(app) : null;
-const rtdb = getDatabase(app);
+const auth: Auth = getAuth(app);
+const storage: FirebaseStorage = getStorage(app);
+const functions: Functions = getFunctions(app, 'southamerica-east1');
+const messaging: Messaging | null = (typeof window !== 'undefined') ? getMessaging(app) : null;
+const rtdb: Database = getDatabase(app);
 
 // Inicialização do Firestore com a nova configuração de cache
-let db;
+let db: Firestore;
+
 if (typeof window !== 'undefined') {
     try {
         db = initializeFirestore(app, {
