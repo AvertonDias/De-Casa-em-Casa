@@ -151,6 +151,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
                     width={80}
                     height={80}
                     className="rounded-lg"
+                    priority
                 />
                 <div className="flex-1 flex justify-end">
                     <div className="hidden md:block">
