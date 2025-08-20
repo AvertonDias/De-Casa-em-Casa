@@ -246,76 +246,69 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
 });
 
 export const sendOverdueNotification = https.onRequest({ cors: true }, async (req, res) => {
-    // A função onRequest necessita de tratamento manual de CORS
-    const cors = require('cors')({origin: true});
-    cors(req, res, async () => {
-        // Validação de segurança para onCall, agora manual
-        if (req.method === 'OPTIONS') {
-            res.status(204).send('');
+    try {
+        const authorization = req.headers.authorization || "";
+        if (!authorization.startsWith("Bearer ")) {
+            res.status(401).json({ error: "Ação não autorizada. Token ausente." });
             return;
         }
-
-        const callingUserUid = (await admin.auth().verifyIdToken(req.headers.authorization?.split('Bearer ')[1] || '')).uid;
         
-        if (!callingUserUid) {
-            res.status(401).json({ error: { message: "Ação não autorizada.", code: "unauthenticated" }});
-            return;
-        }
+        const idToken = authorization.split("Bearer ")[1];
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        const callingUserUid = decodedToken.uid;
       
-        const { territoryId, userId } = req.body.data;
+        const { territoryId, userId } = req.body;
         if (!territoryId || !userId) {
-            res.status(400).json({ error: { message: "IDs do território e do usuário são necessários.", code: "invalid-argument" }});
+            res.status(400).json({ error: "IDs do território e do usuário são necessários." });
             return;
         }
         
         const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
         const callingUserData = callingUserSnap.data();
         if (!callingUserData || !['Administrador', 'Dirigente'].includes(callingUserData.role)) {
-            res.status(403).json({ error: { message: "Apenas administradores ou dirigentes podem enviar notificações.", code: "permission-denied" }});
+            res.status(403).json({ error: "Apenas administradores ou dirigentes podem enviar notificações." });
             return;
         }
         
         const congregationId = callingUserData.congregationId;
         if (!congregationId) {
-            res.status(412).json({ error: { message: "Usuário que chama não está associado a uma congregação.", code: "failed-precondition" }});
+            res.status(412).json({ error: "Usuário que chama não está associado a uma congregação." });
             return;
         }
 
-        try {
-          const territoryDoc = await db.doc(`congregations/${congregationId}/territories/${territoryId}`).get();
-          const userToNotifyDoc = await db.collection("users").doc(userId).get();
-      
-          if (!territoryDoc.exists || !userToNotifyDoc.exists) {
-            res.status(404).json({ error: { message: "Território ou usuário não encontrado.", code: "not-found" }});
-            return;
-          }
-      
-          const territory = territoryDoc.data()!;
-          const userToNotify = userToNotifyDoc.data()!;
-          
-          const tokens = userToNotify.fcmTokens;
-          if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
-            res.status(404).json({ error: { message: "O usuário não possui dispositivos registrados para receber notificações.", code: "not-found" }});
-            return;
-          }
-      
-          const payload = {
-            notification: {
-              title: "Lembrete de Território Atrasado",
-              body: `Olá, ${userToNotify.name}. Um lembrete amigável de que o território "${territory.name}" está com a devolução atrasada.`,
-              icon: "/icon-192x192.jpg",
-              click_action: "/dashboard/meus-territorios",
-            },
-          };
-          
-          await admin.messaging().sendToDevice(tokens, payload);
-          res.status(200).json({ data: { success: true, message: `Notificação enviada para ${userToNotify.name}.` }});
-      
-        } catch (error: any) {
-          console.error("[Notification] Falha ao enviar notificação de atraso:", error);
-          res.status(500).json({ error: { message: "Falha interna ao enviar notificação.", code: "internal", details: error.message }});
+        const territoryDoc = await db.doc(`congregations/${congregationId}/territories/${territoryId}`).get();
+        const userToNotifyDoc = await db.collection("users").doc(userId).get();
+    
+        if (!territoryDoc.exists() || !userToNotifyDoc.exists()) {
+          res.status(404).json({ error: "Território ou usuário não encontrado." });
+          return;
         }
-    });
+    
+        const territory = territoryDoc.data()!;
+        const userToNotify = userToNotifyDoc.data()!;
+        
+        const tokens = userToNotify.fcmTokens;
+        if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+          res.status(404).json({ error: "O usuário não possui dispositivos para notificação." });
+          return;
+        }
+    
+        const payload = {
+          notification: {
+            title: "Lembrete de Território Atrasado",
+            body: `Olá, ${userToNotify.name}. Um lembrete amigável de que o território "${territory.name}" está com a devolução atrasada.`,
+            icon: "/icon-192x192.jpg",
+            click_action: "/dashboard/meus-territorios",
+          },
+        };
+        
+        await admin.messaging().sendToDevice(tokens, payload);
+        res.status(200).json({ data: { success: true, message: `Notificação enviada para ${userToNotify.name}.` }});
+    
+      } catch (error: any) {
+        console.error("[Notification] Falha ao enviar notificação de atraso:", error);
+        res.status(500).json({ error: "Falha interna ao enviar notificação.", details: error.message });
+      }
 });
 
 

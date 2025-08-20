@@ -3,7 +3,7 @@
 
 import { useState, useEffect, Fragment } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, app } from '@/lib/firebase';
+import { db, app, auth } from '@/lib/firebase'; // Import auth
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
@@ -21,7 +21,6 @@ import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const sendOverdueNotificationFunction = httpsCallable(functions, 'sendOverdueNotification');
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   label: string;
@@ -207,16 +206,31 @@ export default function TerritoryAssignmentPanel() {
   };
   
   const handleNotifyOverdue = async (territory: Territory) => {
-    if (!territory.assignment) return;
+    if (!territory.assignment || !auth.currentUser) return;
     setNotifyingTerritoryId(territory.id);
     try {
-      const result = await sendOverdueNotificationFunction({ 
-        territoryId: territory.id, 
-        userId: territory.assignment.uid 
+      const idToken = await auth.currentUser.getIdToken();
+      const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendOverdueNotification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ 
+          territoryId: territory.id, 
+          userId: territory.assignment.uid 
+        })
       });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Falha na rede');
+      }
+  
+      const result = await response.json();
       toast({
         title: "Sucesso!",
-        description: (result.data as any).message || 'Notificação enviada.',
+        description: result.data.message || 'Notificação enviada.',
         variant: "default",
       });
     } catch (error: any) {
