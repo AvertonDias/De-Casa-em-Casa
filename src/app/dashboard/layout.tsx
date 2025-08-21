@@ -175,7 +175,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
                       <span>{link.name}</span>
                     </div>
                     {link.name === "Usuários" && pendingUsersCount > 0 && (
-                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                      <span className="w-2.5 h-2.5 rounded-full animate-pending-pulse"></span>
                     )}
                   </Link>
                 </li>

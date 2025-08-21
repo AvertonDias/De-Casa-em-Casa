@@ -71,10 +71,21 @@ const config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: 0 },
         },
+        "pending-pulse": {
+          "0%, 100%": {
+            backgroundColor: 'hsl(var(--destructive))',
+            boxShadow: '0 0 0 0 hsla(var(--destructive), 0.7)',
+          },
+          "50%": {
+              backgroundColor: 'hsl(48 96% 53%)', // Amarelo
+              boxShadow: '0 0 10px 5px hsla(48, 96%, 53%, 0.4)',
+          }
+        }
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pending-pulse": "pending-pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1)",
       },
     },
   },
