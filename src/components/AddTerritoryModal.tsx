@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext"; 
 import { X, FileImage, Loader } from 'lucide-react';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, FieldValue } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Territory } from '@/types/types';
 
@@ -69,7 +69,7 @@ export default function AddTerritoryModal({ isOpen, onClose, onTerritoryAdded, c
 
     setIsProcessing(true); setError(null);
     
-    const newTerritoryData: Omit<Territory, "id"> = {
+    const newTerritoryData: Omit<Territory, "id" | "lastUpdate" | "createdAt"> & { lastUpdate: FieldValue, createdAt: FieldValue } = {
         number, 
         name, 
         description, 

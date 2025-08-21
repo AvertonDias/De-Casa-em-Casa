@@ -1,6 +1,6 @@
 // src/types/types.ts
 
-import { Timestamp } from "firebase/firestore";
+import { Timestamp, FieldValue } from "firebase/firestore";
 
 // Definição para um usuário do seu aplicativo
 export interface AppUser {
@@ -26,7 +26,8 @@ export interface Territory {
   mapLink?: string;
   cardUrl?: string;
   progress?: number;
-  lastUpdate?: Timestamp;
+  lastUpdate?: Timestamp | FieldValue;
+  createdAt?: Timestamp | FieldValue;
   quadraCount?: number;
 
   stats?: {
@@ -105,6 +106,7 @@ export interface Activity {
   userName: string;
   userId: string;
   createdAt: Timestamp; 
+  type?: 'work' | 'manual';
 }
 
 export interface CongregationStats {
@@ -120,7 +122,7 @@ export interface RecentTerritory {
   name: string;
   number: string;
   progress?: number;
-  lastUpdate?: { seconds: number };
+  lastUpdate?: Timestamp;
   lastWorkedTimestamp?: { seconds: number };
 }
 
