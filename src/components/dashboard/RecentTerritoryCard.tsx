@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -5,6 +6,7 @@ import { Territory } from '@/types/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ArrowRight } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
 
 interface RecentTerritoryCardProps {
   territory: Territory;
@@ -13,7 +15,7 @@ interface RecentTerritoryCardProps {
 export default function RecentTerritoryCard({ territory }: RecentTerritoryCardProps) {
   const progresso = territory.progress ? Math.round(territory.progress * 100) : 0;
   
-  const lastUpdateFormatted = territory.lastUpdate 
+  const lastUpdateFormatted = territory.lastUpdate && territory.lastUpdate instanceof Timestamp
     ? format(territory.lastUpdate.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
     : 'Nunca trabalhado';
 
