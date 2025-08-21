@@ -5,6 +5,7 @@ import { useUser } from "@/contexts/UserContext";
 import { X, FileImage, Loader } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { Territory } from '@/types/types';
 
 interface AddTerritoryModalProps {
   isOpen: boolean; 
@@ -12,13 +13,6 @@ interface AddTerritoryModalProps {
   onTerritoryAdded: () => void;
   congregationId: string;
 }
-
-interface NewTerritoryData {
-  number: string; name: string; description: string; mapLink: string; 
-  cardUrl: string;
-  type: 'urban';
-}
-
 
 export default function AddTerritoryModal({ isOpen, onClose, onTerritoryAdded, congregationId }: AddTerritoryModalProps) {
   const { user } = useUser();
