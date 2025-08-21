@@ -17,110 +17,6 @@ import { useToast } from '@/hooks/use-toast';
 
 const SCROLL_POSITION_KEY = 'territories_scroll_position';
 
-// ========================================================================
-//   Componente de Download Offline
-// ========================================================================
-
-const OfflineDownloader = ({ territoryId, isManagerView }: { territoryId: string, isManagerView: boolean }) => {
-    const { user } = useUser();
-    const { toast } = useToast();
-    const [downloadState, setDownloadState] = useState<{ downloadedAt: Date | null; isExpired: boolean }>({ downloadedAt: null, isExpired: false });
-    const [isDownloading, setIsDownloading] = useState(false);
-
-    const storageKey = `territory_offline_${territoryId}`;
-    const EXPIRATION_HOURS = 3;
-
-    useEffect(() => {
-        const savedTimestamp = localStorage.getItem(storageKey);
-        if (savedTimestamp) {
-            const downloadedDate = new Date(savedTimestamp);
-            const now = new Date();
-            const hoursDiff = (now.getTime() - downloadedDate.getTime()) / (1000 * 60 * 60);
-
-            if (hoursDiff > EXPIRATION_HOURS) {
-                setDownloadState({ downloadedAt: downloadedDate, isExpired: true });
-                localStorage.removeItem(storageKey); // Limpa o registro expirado
-            } else {
-                setDownloadState({ downloadedAt: downloadedDate, isExpired: false });
-            }
-        } else {
-            setDownloadState({ downloadedAt: null, isExpired: false });
-        }
-    }, [storageKey]);
-
-    const handleDownload = async (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        if (!user?.congregationId) return;
-        setIsDownloading(true);
-        toast({ title: 'Baixando Território...', description: 'Aguarde enquanto preparamos os dados para acesso offline.' });
-
-        try {
-            const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
-            await getDoc(territoryRef); // Pega o documento principal do território
-
-            const quadrasRef = collection(territoryRef, 'quadras');
-            const quadrasSnap = await getDocs(quadrasRef);
-
-            for (const quadraDoc of quadrasSnap.docs) {
-                const casasRef = collection(quadraDoc.ref, 'casas');
-                await getDocs(casasRef); // Pega todas as casas de cada quadra
-            }
-            
-            const now = new Date();
-            localStorage.setItem(storageKey, now.toISOString());
-            setDownloadState({ downloadedAt: now, isExpired: false });
-
-            toast({ title: 'Download Concluído!', description: 'Este território agora está disponível offline.' });
-        } catch (error) {
-            console.error("Erro ao baixar território para offline:", error);
-            toast({ title: 'Erro no Download', description: 'Não foi possível baixar os dados. Verifique sua conexão.', variant: 'destructive' });
-        } finally {
-            setIsDownloading(false);
-        }
-    };
-
-    const isDownloadedAndValid = downloadState.downloadedAt && !downloadState.isExpired;
-    
-    // Versão para Dirigentes (botão grande)
-    if (isManagerView) {
-        return (
-            <button
-                onClick={handleDownload}
-                disabled={isDownloading}
-                className={`w-full mt-2 text-sm font-semibold p-2 rounded-md flex items-center justify-center transition-colors
-                    ${isDownloading ? 'bg-gray-500 text-white cursor-wait' : ''}
-                    ${!isDownloading && isDownloadedAndValid ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30' : ''}
-                    ${!isDownloading && !isDownloadedAndValid ? 'bg-blue-600/20 text-blue-400 hover:bg-blue-600/30' : ''}
-                `}
-            >
-                {isDownloading ? <Loader className="animate-spin mr-2" size={16} /> : (isDownloadedAndValid ? <CheckCircle size={16} className="mr-2"/> : <Download size={16} className="mr-2"/>)}
-                {isDownloading ? 'Baixando...' : (isDownloadedAndValid ? `Baixado em ${format(downloadState.downloadedAt!, 'dd/MM HH:mm')}` : 'Baixar para Offline')}
-            </button>
-        );
-    }
-
-    // Versão para Publicadores (ícone discreto)
-    const title = isDownloadedAndValid 
-        ? `Baixado em ${format(downloadState.downloadedAt!, 'dd/MM HH:mm')}`
-        : (downloadState.isExpired ? "Download expirado, baixe novamente" : "Baixar para offline");
-
-    return (
-      <button
-        onClick={handleDownload}
-        disabled={isDownloading}
-        className="p-2 rounded-full hover:bg-white/10"
-        title={title}
-      >
-        {isDownloading 
-          ? <Loader className="animate-spin" size={18} /> 
-          : <Download size={18} className={isDownloadedAndValid ? 'text-green-400' : 'text-muted-foreground'} />
-        }
-      </button>
-    );
-};
-
 
 // ========================================================================
 //   Componentes de Lista
@@ -181,7 +77,6 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
           </div>
         )}
       </Link>
-      <OfflineDownloader territoryId={territory.id} isManagerView={true} />
     </div>
   );
 };
@@ -193,7 +88,6 @@ const TerritoryRowPublicador = ({ territory }: { territory: Territory }) => (
         <h3 className="font-semibold text-lg truncate">{territory.name}</h3>
       </Link>
       <div className="flex items-center">
-        <OfflineDownloader territoryId={territory.id} isManagerView={false} />
         <Link href={`/dashboard/territorios/${territory.id}`} className="p-2">
           <ChevronRight className="text-muted-foreground h-5 w-5" />
         </Link>
