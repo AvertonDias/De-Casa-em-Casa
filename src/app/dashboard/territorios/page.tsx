@@ -250,7 +250,8 @@ function TerritoriosPage() {
   }, [user, userLoading, loading]);
 
   const handleAddTerritory = async () => {
-    console.log("Territory will be added via modal.");
+    // A lógica de adição agora está dentro do modal.
+    // Esta função é apenas um gatilho para o modal.
   };
 
   const filteredTerritories = territories.filter(t =>

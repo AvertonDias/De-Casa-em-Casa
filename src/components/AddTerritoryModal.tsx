@@ -3,9 +3,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext"; 
 import { X, FileImage, Loader } from 'lucide-react';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface AddTerritoryModalProps {
-  isOpen: boolean; onClose: () => void; onSave: (data: Partial<NewTerritoryData>) => Promise<void>;
+  isOpen: boolean; 
+  onClose: () => void; 
+  onTerritoryAdded: () => void;
+  congregationId: string;
 }
 
 interface NewTerritoryData {
@@ -15,7 +20,7 @@ interface NewTerritoryData {
 }
 
 
-export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerritoryModalProps) {
+export default function AddTerritoryModal({ isOpen, onClose, onTerritoryAdded, congregationId }: AddTerritoryModalProps) {
   const { user } = useUser();
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
@@ -63,19 +68,32 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
 
   const handleSave = async () => {
     if (!number || !name) { setError("Número e Nome são obrigatórios."); return; }
+    if (!congregationId) {
+      setError("ID da Congregação não encontrado. Impossível salvar.");
+      return;
+    }
+
     setIsProcessing(true); setError(null);
     
-    const newTerritoryData = {
+    const newTerritoryData: Omit<Territory, "id"> = {
         number, 
         name, 
         description, 
         mapLink, 
         cardUrl: cardDataUrl,
-        type: 'urban' as const
+        type: 'urban' as const,
+        status: 'disponivel',
+        createdAt: serverTimestamp(),
+        lastUpdate: serverTimestamp(),
+        stats: { totalHouses: 0, housesDone: 0 },
+        progress: 0,
+        quadraCount: 0,
     };
     
     try {
-      await onSave(newTerritoryData);
+      const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
+      await addDoc(territoriesRef, newTerritoryData);
+      onTerritoryAdded();
       handleClose();
     } catch (saveError: any) {
       console.error("Erro ao salvar:", saveError);
