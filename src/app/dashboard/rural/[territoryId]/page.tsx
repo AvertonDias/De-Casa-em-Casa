@@ -6,7 +6,7 @@ import { doc, onSnapshot, Timestamp, runTransaction, deleteDoc, updateDoc } from
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 import { RuralTerritory, RuralWorkLog } from '@/types/types';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Link as LinkIcon, Loader, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -17,10 +17,15 @@ import { Button } from '@/components/ui/button';
 import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
 import withAuth from "@/components/withAuth";
 
-function RuralTerritoryDetailPage() {
+interface RuralTerritoryDetailPageProps {
+  params: {
+    territoryId: string;
+  };
+}
+
+function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
   const { user, loading: userLoading } = useUser();
-  const rawParams = useParams();
-  const territoryId = typeof rawParams?.territoryId === 'string' ? rawParams.territoryId : undefined;
+  const { territoryId } = params;
   const router = useRouter();
 
   const [territory, setTerritory] = useState<RuralTerritory | null>(null);
@@ -202,7 +207,7 @@ function RuralTerritoryDetailPage() {
           <textarea 
             value={workNote}
             onChange={(e) => setWorkNote(e.target.value)}
-            placeholder="Digite uma observação sobre o trabalho de hoje... (Ex: Visitamos o setor leste, muitos não estavam em casa.)"
+            placeholder="Digite uma observação sobre o trabalho de hoje... (Ex: Fizemos da estrada principal até a Fazenda Bela Vista.)"
             rows={3}
             className="w-full bg-input p-2 rounded-md mb-3"
           />
@@ -284,3 +289,4 @@ function RuralTerritoryDetailPage() {
 }
 
 export default withAuth(RuralTerritoryDetailPage);
+    
