@@ -78,25 +78,30 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
   };
   
   const handleSave = async () => {
-    if (!number || !name) { setError("Número e Nome são obrigatórios."); return; }
-    setIsProcessing(true); setError(null);
-    
-    const dataToSave: Partial<Territory> = {
-      number,
-      name,
-      description
-    };
-    
-    if (isAdmin) {
-      dataToSave.mapLink = mapLink;
-      dataToSave.cardUrl = previewUrl || cardUrl; // Usa a nova preview se houver
+    if (isAdmin && (!number || !name)) {
+      setError("Número e Nome são obrigatórios.");
+      return;
     }
-    
+    setIsProcessing(true);
+    setError(null);
+
+    const dataToSave: Partial<Territory> = {
+      description,
+    };
+
+    if (isAdmin) {
+      dataToSave.number = number;
+      dataToSave.name = name;
+      dataToSave.mapLink = mapLink;
+      dataToSave.cardUrl = previewUrl || cardUrl;
+    }
+
     await onSave(territory.id, dataToSave);
-    
+
     setIsProcessing(false);
     onClose();
   };
+
 
   const handleClose = () => {
     onClose();
@@ -119,10 +124,19 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
                     ref={numberInputRef}
                     value={number} 
                     onChange={(e) => setNumber(e.target.value)} 
-                    className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                    disabled={!isAdmin}
+                    className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-70 disabled:cursor-not-allowed"
                 />
             </div>
-            <div className="flex-grow"><label className="block text-sm font-medium mb-1">Nome</label><input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"/></div>
+            <div className="flex-grow">
+                <label className="block text-sm font-medium mb-1">Nome</label>
+                <input 
+                    value={name} 
+                    onChange={(e) => setName(e.target.value)} 
+                    disabled={!isAdmin}
+                    className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-70 disabled:cursor-not-allowed"
+                />
+            </div>
           </div>
           <div><label>Observações (Opcional)</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"></textarea></div>
 
