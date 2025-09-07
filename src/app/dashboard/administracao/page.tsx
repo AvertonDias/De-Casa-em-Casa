@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { BookUser, FileText, Edit, Loader } from 'lucide-react';
 import Link from 'next/link';
@@ -26,11 +26,11 @@ function AdminPage() {
   const [activeTab, setActiveTab] = useState('assignment');
 
   // Verifica se o usuário tem permissão para ver esta página
-  if (!user || !['Administrador', 'Dirigente'].includes(user.role)) {
+  if (!user || user.role !== 'Administrador') {
     return (
       <div className="p-4 text-center">
         <h1 className="font-bold text-xl">Acesso Negado</h1>
-        <p className="text-muted-foreground">Você não tem permissão para acessar esta área.</p>
+        <p className="text-muted-foreground">Apenas administradores podem acessar esta área.</p>
       </div>
     );
   }
