@@ -151,6 +151,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
                     width={80}
                     height={80}
                     className="rounded-lg"
+                    priority
                 />
                 <div className="flex-1 flex justify-end">
                     <div className="hidden md:block">
@@ -174,7 +175,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
                       <span>{link.name}</span>
                     </div>
                     {link.name === "Usuários" && pendingUsersCount > 0 && (
-                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                      <span className="w-2.5 h-2.5 rounded-full animate-pending-pulse"></span>
                     )}
                   </Link>
                 </li>
@@ -315,3 +316,5 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 }
 
 export default withAuth(DashboardLayout);
+
+    
