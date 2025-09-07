@@ -316,5 +316,3 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 }
 
 export default withAuth(DashboardLayout);
-
-    
