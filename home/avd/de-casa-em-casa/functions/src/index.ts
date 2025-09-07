@@ -7,6 +7,9 @@ import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import { HttpsError } from "firebase-functions/v2/https";
+import * as cors from 'cors';
+
+const corsHandler = cors({ origin: true });
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -22,9 +25,8 @@ setGlobalOptions({
 // ========================================================================
 
 export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
-    // Importa e aplica o CORS localmente, apenas para esta função onRequest.
-    const cors = require('cors')({origin: true});
-    cors(req, res, async () => {
+    // Usa o corsHandler para tratar a solicitação
+    corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
             res.status(405).json({ error: 'Método não permitido' });
             return;
@@ -38,7 +40,6 @@ export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
 
         let newUser: admin.auth.UserRecord | undefined;
         try {
-            // Verifica se a congregação já existe
             const congQuery = await db.collection('congregations').where('number', '==', congregationNumber).get();
             if (!congQuery.empty) {
                 res.status(409).json({ error: 'Uma congregação com este número já existe.' });
@@ -280,7 +281,7 @@ export const sendOverdueNotification = https.onCall(async (req) => {
       
       const tokens = userToNotify.fcmTokens;
       if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
-        throw new HttpsError("not-found", "O usuário não possui dispositivos registrados para receber notificações.");
+        return { success: false, message: "O usuário não possui dispositivos registrados para receber notificações." };
       }
   
       const payload = {
