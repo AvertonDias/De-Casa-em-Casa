@@ -21,6 +21,7 @@ import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
 
 const functions = getFunctions(app, 'southamerica-east1');
+const sendOverdueNotificationFunction = httpsCallable(functions, 'sendOverdueNotification');
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   label: string;
@@ -206,33 +207,23 @@ export default function TerritoryAssignmentPanel() {
   };
   
   const handleNotifyOverdue = async (territory: Territory) => {
-    if (!territory.assignment || !auth.currentUser) return;
+    if (!territory.assignment) return;
     setNotifyingTerritoryId(territory.id);
     try {
-      const idToken = await auth.currentUser.getIdToken();
-      const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendOverdueNotification', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({ 
-          territoryId: territory.id, 
-          userId: territory.assignment.uid 
-        })
+      const result: any = await sendOverdueNotificationFunction({ 
+        territoryId: territory.id, 
+        userId: territory.assignment.uid 
       });
-  
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Falha na rede');
+      
+      if(result.data.success){
+        toast({
+          title: "Sucesso!",
+          description: result.data.message || 'Notificação enviada.',
+          variant: "default",
+        });
+      } else {
+        throw new Error(result.data.message || 'Falha ao enviar notificação.');
       }
-  
-      const result = await response.json();
-      toast({
-        title: "Sucesso!",
-        description: result.data.message || 'Notificação enviada.',
-        variant: "default",
-      });
     } catch (error: any) {
       console.error("Erro ao enviar notificação:", error);
       toast({
