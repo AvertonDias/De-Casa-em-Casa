@@ -59,7 +59,7 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
     <li className={`p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b dark:border-gray-700 ${user.status === 'pendente' ? 'bg-yellow-500/10' : ''}`}>
       <div className="flex items-center flex-1 min-w-0">
           <div className="relative flex-shrink-0 mr-4">
-            <Avatar>
+            <Avatar className="border-2 border-primary">
               <AvatarFallback>
                 {getInitials(user.name) || <User size={20} />}
               </AvatarFallback>
@@ -484,5 +484,3 @@ function UsersPage() {
 }
 
 export default withAuth(UsersPage);
-
-    

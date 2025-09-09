@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { BookUser, FileText, Edit, Loader } from 'lucide-react';
+import { BookUser, FileText, Edit, Loader, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
@@ -25,12 +25,12 @@ function AdminPage() {
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState('assignment');
 
-  // Verifica se o usuário tem permissão para ver esta página
+  // Apenas Administradores e Dirigentes podem ver esta página.
   if (!user || !['Administrador', 'Dirigente'].includes(user.role)) {
     return (
       <div className="p-4 text-center">
         <h1 className="font-bold text-xl">Acesso Negado</h1>
-        <p className="text-muted-foreground">Apenas administradores e dirigentes podem acessar esta área.</p>
+        <p className="text-muted-foreground">Você não tem permissão para acessar esta área.</p>
       </div>
     );
   }
@@ -71,6 +71,15 @@ function AdminPage() {
       <div className="mt-6">
         {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
         {activeTab === 'congregation' && user.role === 'Administrador' && <CongregationEditForm />}
+        {activeTab === 'congregation' && user.role === 'Dirigente' && (
+          <div className="bg-card p-6 rounded-lg shadow-md max-w-md mx-auto text-center">
+             <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h2 className="text-xl font-bold">Acesso Restrito</h2>
+            <p className="text-muted-foreground mt-2">
+              Apenas administradores podem editar os dados da congregação.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
