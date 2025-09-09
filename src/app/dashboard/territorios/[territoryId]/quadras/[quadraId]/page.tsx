@@ -263,7 +263,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                 Voltar para {territory ? `${territory.number} - ${territory.name}` : 'o Território'}
               </Link>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" asChild disabled={!prevQuadra}>
+                <Button variant="secondary" size="icon" asChild disabled={!prevQuadra}>
                   <Link href={prevQuadra ? `/dashboard/territorios/${territoryId}/quadras/${prevQuadra.id}` : '#'}>
                     <ChevronLeft />
                   </Link>
@@ -271,7 +271,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                 <h1 className="text-xl sm:text-3xl font-bold text-gray-800 dark:text-white text-center">
                   {quadra.name || 'Detalhes da Quadra'}
                 </h1>
-                <Button variant="outline" size="icon" asChild disabled={!nextQuadra}>
+                <Button variant="secondary" size="icon" asChild disabled={!nextQuadra}>
                   <Link href={nextQuadra ? `/dashboard/territorios/${territoryId}/quadras/${nextQuadra.id}` : '#'}>
                     <ChevronRight />
                   </Link>
