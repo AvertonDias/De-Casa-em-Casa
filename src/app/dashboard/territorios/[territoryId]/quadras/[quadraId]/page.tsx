@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
 import { EditCasaModal } from '@/components/EditCasaModal';
 import { useUser } from '@/contexts/UserContext';
@@ -265,7 +265,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
               <div className="flex items-center gap-2">
                 <Button variant="secondary" size="icon" asChild disabled={!prevQuadra}>
                   <Link href={prevQuadra ? `/dashboard/territorios/${territoryId}/quadras/${prevQuadra.id}` : '#'}>
-                    <ChevronLeft />
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 15a1 1 0 0 0-1-1H5a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h7a1 1 0 0 0 1-1V5.061a1 1 0 0 0-1.811-.75L3.353 11.146a1.207 1.207 0 0 0 0 1.707l7.836 6.835A1 1 0 0 0 13 18.938z"/></svg>
                   </Link>
                 </Button>
                 <h1 className="text-xl sm:text-3xl font-bold text-gray-800 dark:text-white text-center">
@@ -273,7 +273,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                 </h1>
                 <Button variant="secondary" size="icon" asChild disabled={!nextQuadra}>
                   <Link href={nextQuadra ? `/dashboard/territorios/${territoryId}/quadras/${nextQuadra.id}` : '#'}>
-                    <ChevronRight />
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 9a1 1 0 0 0 1-1V5.061a1 1 0 0 1 1.811-.75l6.836 6.836a1.207 1.207 0 0 1 0 1.707l-6.836 6.835a1 1 0 0 1-1.811-.75V16a1 1 0 0 0-1-1H5a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z"/></svg>
                   </Link>
                 </Button>
               </div>
