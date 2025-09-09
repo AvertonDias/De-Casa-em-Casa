@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
 import { EditCasaModal } from '@/components/EditCasaModal';
 import { useUser } from '@/contexts/UserContext';
@@ -13,6 +13,8 @@ import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { type Casa, type Quadra, type Territory } from '@/types/types';
 import withAuth from '@/components/withAuth';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+
 
 interface QuadraDetailPageProps {
   params: {
@@ -26,6 +28,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const { territoryId, quadraId } = params;
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [quadra, setQuadra] = useState<Quadra | null>(null);
+  const [allQuadras, setAllQuadras] = useState<Quadra[]>([]);
   const [casas, setCasas] = useState<Casa[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -51,7 +54,15 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     }
 
     const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
+    const quadrasRef = collection(territoryRef, 'quadras');
+
     getDoc(territoryRef).then(snap => snap.exists() && setTerritory(snap.data() as Territory));
+
+    const qQuadras = query(quadrasRef, orderBy('name'));
+    const unsubAllQuadras = onSnapshot(qQuadras, (snapshot) => {
+        setAllQuadras(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Quadra)));
+    });
+
 
     const quadraPath = `congregations/${user.congregationId}/territories/${territoryId}/quadras/${quadraId}`;
     const quadraRef = doc(db, quadraPath);
@@ -88,6 +99,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     return () => {
       unsubQuadra();
       unsubCasas();
+      unsubAllQuadras();
     };
   }, [user, userLoading, territoryId, quadraId, isReordering]);
   
@@ -219,6 +231,10 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     setRecentlyMovedId(null);
   };
 
+  const currentQuadraIndex = allQuadras.findIndex(q => q.id === quadraId);
+  const prevQuadra = currentQuadraIndex > 0 ? allQuadras[currentQuadraIndex - 1] : null;
+  const nextQuadra = currentQuadraIndex < allQuadras.length - 1 ? allQuadras[currentQuadraIndex + 1] : null;
+
   
   if (userLoading || loading) {
     return <div className="flex items-center justify-center h-full"><Loader className="animate-spin text-purple-600" size={48} /></div>;
@@ -239,16 +255,28 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   
   return (
     <>
-      <div className="min-h-full">
+      <div className="p-4 md:p-8 min-h-full">
         <div className="flex justify-between items-center mb-6">
             <div>
               <Link href={`/dashboard/territorios/${territoryId}`} className="text-sm text-blue-600 hover:text-blue-800 dark:text-purple-400 dark:hover:text-purple-300 flex items-center mb-2">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar para {territory ? `${territory.number} - ${territory.name}` : 'o Território'}
               </Link>
-              <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-                {quadra.name || 'Detalhes da Quadra'}
-              </h1>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" asChild disabled={!prevQuadra}>
+                  <Link href={prevQuadra ? `/dashboard/territorios/${territoryId}/quadras/${prevQuadra.id}` : '#'}>
+                    <ChevronLeft />
+                  </Link>
+                </Button>
+                <h1 className="text-xl sm:text-3xl font-bold text-gray-800 dark:text-white text-center">
+                  {quadra.name || 'Detalhes da Quadra'}
+                </h1>
+                <Button variant="outline" size="icon" asChild disabled={!nextQuadra}>
+                  <Link href={nextQuadra ? `/dashboard/territorios/${territoryId}/quadras/${nextQuadra.id}` : '#'}>
+                    <ChevronRight />
+                  </Link>
+                </Button>
+              </div>
             </div>
         </div>
       
