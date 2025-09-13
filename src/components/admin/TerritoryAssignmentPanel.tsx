@@ -5,7 +5,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db, app } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getAuth } from 'firebase/auth';
 import Link from 'next/link';
 import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, Bell, History, Loader } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
@@ -19,10 +19,6 @@ import type { Territory, AppUser, AssignmentHistoryLog } from '@/types/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/firebase';
-
-const functions = getFunctions(app, 'southamerica-east1');
-const sendNotification = httpsCallable(functions, 'sendOverdueNotification');
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   label: string;
@@ -212,32 +208,56 @@ export default function TerritoryAssignmentPanel() {
     setNotifyingTerritoryId(territory.id);
 
     try {
-        const result = await sendNotification({
-            territoryId: territory.id,
-            userId: territory.assignment.uid,
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (!user) {
+            throw new Error("Usuário não autenticado.");
+        }
+        const idToken = await user.getIdToken();
+
+        const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendOverdueNotification';
+        
+        const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({
+                territoryId: territory.id,
+                userId: territory.assignment.uid,
+            }),
         });
 
-      const data = result.data as { success: boolean, message: string };
-      if (data.success) {
-        toast({
-          title: "Sucesso!",
-          description: data.message || 'Notificação enviada.',
-          variant: "default",
-        });
-      } else {
-        throw new Error(data.message || 'Falha ao enviar notificação.');
-      }
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Erro HTTP: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            toast({
+              title: "Sucesso!",
+              description: result.message || 'Notificação enviada.',
+              variant: "default",
+            });
+        } else {
+            throw new Error(result.message || 'Falha ao enviar notificação do backend.');
+        }
+
     } catch (error: any) {
-      console.error("Erro ao enviar notificação:", error);
-      toast({
-        title: "Erro",
-        description: error.message || "Não foi possível enviar a notificação.",
-        variant: "destructive",
-      });
+        console.error("Erro ao enviar notificação:", error);
+        toast({
+            title: "Erro",
+            description: error.message || "Não foi possível enviar a notificação.",
+            variant: "destructive",
+        });
     } finally {
-      setNotifyingTerritoryId(null);
+        setNotifyingTerritoryId(null);
     }
-  };
+};
+
   
   const filteredTerritories = territories.filter(t => {
       const type = t.type || 'urban';
@@ -390,3 +410,6 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
+
+
+    
