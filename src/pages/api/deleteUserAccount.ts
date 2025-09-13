@@ -4,7 +4,7 @@ import admin from "@/lib/firebaseAdmin";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!admin.apps.length) {
-    return res.status(500).json({ error: "Firebase Admin SDK não foi inicializado." });
+    return res.status(500).json({ error: "O Firebase Admin SDK não foi inicializado corretamente. Verifique as credenciais do servidor." });
   }
 
   if (req.method !== "POST") {
@@ -58,7 +58,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error: any) {
     console.error("Erro na API deleteUserAccount:", error);
     if (error.code === 'auth/user-not-found') {
-        // Se não encontrar na Auth, tenta remover do Firestore mesmo assim
         const userDocRef = admin.firestore().doc(`users/${userIdToDelete}`);
         if ((await userDocRef.get()).exists) {
             await userDocRef.delete();
