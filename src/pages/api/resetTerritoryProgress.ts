@@ -1,34 +1,13 @@
-
 // src/pages/api/resetTerritoryProgress.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import admin from "firebase-admin";
-
-function initializeAdmin() {
-  if (admin.apps.length > 0) {
-    return admin;
-  }
-  try {
-    const serviceAccountJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-    if (!serviceAccountJson) {
-      throw new Error("A variável de ambiente GOOGLE_APPLICATION_CREDENTIALS_JSON não está definida.");
-    }
-    const serviceAccount = JSON.parse(Buffer.from(serviceAccountJson, 'base64').toString('utf8'));
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-    return admin;
-  } catch (error: any) {
-    console.error("Falha ao inicializar o Firebase Admin SDK:", error);
-    return null;
-  }
-}
+import { initializeAdmin } from "@/lib/firebaseAdmin";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const adminInstance = initializeAdmin();
-  if (!adminInstance) {
-    return res.status(500).json({ error: "Firebase Admin SDK não inicializado corretamente." });
+  const admin = initializeAdmin();
+  if (!admin) {
+    return res.status(500).json({ error: "Firebase Admin SDK não foi inicializado." });
   }
-  const db = adminInstance.firestore();
+  const db = admin.firestore();
   
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -40,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const decodedToken = await adminInstance.auth().verifyIdToken(idToken);
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
     const uid = decodedToken.uid;
     
     const { congregationId, territoryId } = req.body;
@@ -61,7 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let housesUpdatedCount = 0;
     await db.runTransaction(async (transaction) => {
         const quadrasSnapshot = await transaction.get(quadrasRef);
-        const housesToUpdate: { ref: admin.firestore.DocumentReference, data: { status: boolean } }[] = [];
+        const housesToUpdate: { ref: FirebaseFirestore.DocumentReference, data: { status: boolean } }[] = [];
 
         for (const quadraDoc of quadrasSnapshot.docs) {
             const casasSnapshot = await transaction.get(quadraDoc.ref.collection("casas"));

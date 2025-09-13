@@ -14,15 +14,18 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 
+// Lista de origens permitidas
 const allowedOrigins = [
     "http://localhost:3000",
     "https://appterritorios-e5bb5.web.app",
     "https://appterritorios-e5bb5.firebaseapp.com",
-    "https://6000-firebase-studio-1750624095908.cluster-m7tpz3bmgjgoqrktlvd4ykrc2m.cloudworkstations.dev",
+    "https://6000-firebase-studio-1750624095908.cluster-m7tpz3bmgjgoqrktlvd4ykrc2m.cloudworkstations.dev", // Adicione a URL do seu ambiente de desenvolvimento aqui, se aplicável
 ];
 
+// Configuração do CORS
 const corsHandler = cors({
     origin: (origin, callback) => {
+        // Permite requisições sem 'origin' (ex: de mobile apps ou Postman) ou se a origem estiver na lista
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
@@ -44,6 +47,7 @@ setGlobalOptions({
 //   FUNÇÕES HTTPS (onCall e onRequest)
 // ========================================================================
 
+// Permanece como onRequest para permitir chamadas não autenticadas
 export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
     corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
@@ -110,6 +114,7 @@ export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
     });
 });
 
+// onCall é útil para chamadas autenticadas do cliente
 export const generateUploadUrl = https.onCall(async (req) => {
   if (!req.auth) {
     throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
@@ -189,6 +194,7 @@ export const onHouseChange = onDocumentWritten("congregations/{congregationId}/t
       console.error("onHouseChange: Erro na transação de atualização de estatísticas da quadra:", e);
   }
 
+  // Gera um log automático apenas na primeira casa trabalhada no dia
   if (beforeData?.status === false && afterData?.status === true) {
       const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
       const today = format(new Date(), 'yyyy-MM-dd');
@@ -276,6 +282,7 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
   const dataBefore = event.data?.before.data();
   const dataAfter = event.data?.after.data();
 
+  // Continua apenas se uma nova atribuição foi adicionada
   if (!dataAfter?.assignment || dataBefore?.assignment?.uid === dataAfter.assignment?.uid) {
       return null;
   }
@@ -347,7 +354,7 @@ export const onDeleteQuadra = onDocumentDeleted("congregations/{congregationId}/
 export const mirrorUserStatus = onValueWritten(
   {
     ref: "/status/{uid}",
-    region: "us-central1"
+    region: "us-central1" // RTDB pode ter regiões diferentes
   },
   async (event) => {
     const eventStatus = event.data.after.val();
@@ -361,6 +368,7 @@ export const mirrorUserStatus = onValueWritten(
             await userDocRef.update({ isOnline: true, lastSeen: admin.firestore.FieldValue.serverTimestamp() });
         }
     } catch(err: any) {
+        // Se o documento do usuário não for encontrado no Firestore, apenas ignore.
         if (err.code !== 'not-found') {
           console.error(`[Presence Mirror] Falha para ${uid}:`, err);
         }

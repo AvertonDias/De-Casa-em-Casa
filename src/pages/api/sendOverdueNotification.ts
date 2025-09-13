@@ -1,32 +1,18 @@
 // src/pages/api/sendOverdueNotification.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import admin from "@/lib/firebaseAdmin"; // Importa a referência do admin
+import { initializeAdmin } from "@/lib/firebaseAdmin";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // --- Inicialização Segura do Firebase Admin ---
-  if (!admin.apps.length) {
-    try {
-      const serviceAccountJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-      if (!serviceAccountJson) {
-        throw new Error("A variável de ambiente GOOGLE_APPLICATION_CREDENTIALS_JSON não está definida.");
-      }
-      const serviceAccount = JSON.parse(Buffer.from(serviceAccountJson, 'base64').toString('utf8'));
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
-    } catch (error: any) {
-      console.error("Falha ao inicializar o Firebase Admin SDK:", error);
-      return res.status(500).json({ error: "Firebase Admin SDK não foi inicializado corretamente." });
-    }
+  const admin = initializeAdmin();
+  if (!admin) {
+    return res.status(500).json({ error: "Firebase Admin SDK não foi inicializado." });
   }
-  // --- Fim da Inicialização ---
 
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // A verificação de autenticação do chamador (opcional, mas recomendado)
   const idToken = req.headers.authorization?.split('Bearer ')[1];
   if (!idToken) {
     return res.status(401).json({ error: 'Usuário não autenticado.' });
