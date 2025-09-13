@@ -3,7 +3,7 @@
 import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
-import * as admin from "firebase-admin";
+import * * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import * as cors from 'cors';
@@ -265,23 +265,27 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
 });
 
 export const sendOverdueNotification = https.onRequest(async (req, res) => {
-    const origin = req.headers.origin as string;
-    if (allowedOrigins.includes(origin)) {
-        res.set("Access-Control-Allow-Origin", origin);
-    }
-    res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  // CORS
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin || "")) {
+    res.set("Access-Control-Allow-Origin", origin!);
+  }
+  res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-    if (req.method === 'OPTIONS') {
-        res.status(204).send('');
-        return;
+  // Requisição OPTIONS
+  if (req.method === "OPTIONS") {
+    return res.status(204).send("");
+  }
+    
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Método não permitido.' });
     }
 
     try {
         const idToken = req.headers.authorization?.split('Bearer ')[1];
         if (!idToken) {
-            res.status(401).json({ error: 'Ação não autorizada. Token não fornecido.' });
-            return;
+            return res.status(401).json({ error: 'Ação não autorizada. Token não fornecido.' });
         }
 
         const decodedToken = await admin.auth().verifyIdToken(idToken);
@@ -289,29 +293,25 @@ export const sendOverdueNotification = https.onRequest(async (req, res) => {
 
         const { territoryId, userId } = req.body;
         if (!territoryId || !userId) {
-            res.status(400).json({ error: 'IDs do território e do usuário são necessários.' });
-            return;
+            return res.status(400).json({ error: 'IDs do território e do usuário são necessários.' });
         }
         
         const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
         const callingUserData = callingUserSnap.data();
         if (!callingUserData || !['Administrador', 'Dirigente'].includes(callingUserData.role)) {
-            res.status(403).json({ error: 'Permissão negada.' });
-            return;
+            return res.status(403).json({ error: 'Permissão negada.' });
         }
         
         const congregationId = callingUserData.congregationId;
         if (!congregationId) {
-            res.status(412).json({ error: 'Usuário não associado a uma congregação.' });
-            return;
+            return res.status(412).json({ error: 'Usuário não associado a uma congregação.' });
         }
 
         const territoryDoc = await db.doc(`congregations/${congregationId}/territories/${territoryId}`).get();
         const userToNotifyDoc = await db.collection("users").doc(userId).get();
     
         if (!territoryDoc.exists() || !userToNotifyDoc.exists()) {
-            res.status(404).json({ error: 'Território ou usuário não encontrado.' });
-            return;
+            return res.status(404).json({ error: 'Território ou usuário não encontrado.' });
         }
     
         const territory = territoryDoc.data()!;
@@ -319,8 +319,7 @@ export const sendOverdueNotification = https.onRequest(async (req, res) => {
         
         const tokens = userToNotify.fcmTokens;
         if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
-            res.status(200).json({ success: false, message: "O usuário não possui dispositivos para notificação." });
-            return;
+            return res.status(200).json({ success: false, message: "O usuário não possui dispositivos para notificação." });
         }
     
         const payload = {
@@ -333,18 +332,16 @@ export const sendOverdueNotification = https.onRequest(async (req, res) => {
         };
         
         await admin.messaging().sendToDevice(tokens, payload);
-        res.status(200).json({ success: true, message: `Notificação enviada para ${userToNotify.name}.` });
+        return res.status(200).json({ success: true, message: `Notificação enviada para ${userToNotify.name}.` });
 
     } catch (error: any) {
         console.error("[Notification] Falha ao enviar notificação de atraso:", error);
         if (error.code === 'auth/id-token-expired') {
-            res.status(401).json({ error: 'Sessão expirada, por favor, faça login novamente.' });
-        } else {
-            res.status(500).json({ error: `Falha interna: ${error.message}` });
+            return res.status(401).json({ error: 'Sessão expirada, por favor, faça login novamente.' });
         }
+        return res.status(500).json({ error: `Falha interna: ${error.message}` });
     }
 });
-
 
 
 // ========================================================================
