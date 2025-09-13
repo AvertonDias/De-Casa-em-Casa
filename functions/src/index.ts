@@ -1,3 +1,4 @@
+
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
@@ -7,13 +8,12 @@ import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import * as cors from 'cors';
 
-// Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
+// Inicializa o admin apenas uma vez.
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 const db = admin.firestore();
 
-// Lista de origens permitidas
 const allowedOrigins = [
     "http://localhost:3000",
     "https://appterritorios-e5bb5.web.app",
@@ -45,7 +45,6 @@ setGlobalOptions({
 // ========================================================================
 
 export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
-    // Usa o corsHandler para tratar a solicitação
     corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
             res.status(405).json({ error: 'Método não permitido' });
@@ -109,66 +108,6 @@ export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
             }
         }
     });
-});
-
-export const resetTerritoryProgress = https.onCall(async (req) => {
-    const uid = req.auth?.uid;
-    if (!uid) {
-        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
-    }
-
-    const { congregationId, territoryId } = req.data;
-    if (!congregationId || !territoryId) {
-        throw new https.HttpsError("invalid-argument", "IDs faltando.");
-    }
-
-    const adminUserSnap = await db.collection("users").doc(uid).get();
-    if (adminUserSnap.data()?.role !== "Administrador") {
-        throw new https.HttpsError("permission-denied", "Ação restrita a administradores.");
-    }
-
-    const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
-    const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
-    
-    try {
-        await db.recursiveDelete(db.collection(historyPath));
-        console.log(`[resetTerritory] Histórico para ${territoryId} deletado com sucesso.`);
-    } catch (error) {
-        console.error(`[resetTerritory] Falha ao deletar histórico para ${territoryId}:`, error);
-        throw new https.HttpsError("internal", "Falha ao limpar histórico do território.");
-    }
-    
-    try {
-        let housesUpdatedCount = 0;
-        await db.runTransaction(async (transaction) => {
-            const quadrasSnapshot = await transaction.get(quadrasRef);
-            
-            const housesToUpdate: { ref: FirebaseFirestore.DocumentReference, data: { status: boolean } }[] = [];
-
-            for (const quadraDoc of quadrasSnapshot.docs) {
-                const casasSnapshot = await transaction.get(quadraDoc.ref.collection("casas"));
-                casasSnapshot.forEach(casaDoc => {
-                    if (casaDoc.data().status === true) {
-                        housesToUpdate.push({ ref: casaDoc.ref, data: { status: false } });
-                        housesUpdatedCount++;
-                    }
-                });
-            }
-            
-            for (const houseUpdate of housesToUpdate) {
-                transaction.update(houseUpdate.ref, houseUpdate.data);
-            }
-        });
-
-        if (housesUpdatedCount > 0) {
-            return { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` };
-        } else {
-            return { success: true, message: "Nenhuma alteração necessária, nenhuma casa estava marcada como 'feita'." };
-        }
-    } catch (error) {
-        console.error(`[resetTerritory] FALHA CRÍTICA na transação ao limpar o território ${territoryId}:`, error);
-        throw new https.HttpsError("internal", "Falha ao processar a limpeza das casas do território.");
-    }
 });
 
 export const generateUploadUrl = https.onCall(async (req) => {

@@ -207,7 +207,7 @@ export default function TerritoryAssignmentPanel() {
     setNotifyingTerritoryId(territory.id);
 
     try {
-      const idToken = await auth.currentUser.getIdToken();
+      const idToken = await auth.currentUser.getIdToken(true); // Força a atualização do token
       
       const response = await fetch('/api/sendOverdueNotification', {
         method: 'POST',

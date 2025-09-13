@@ -1,9 +1,12 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { auth } from "@/lib/firebase";
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory } from "@/types/types";
 import { X, AlertCircle, FileImage, Loader } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 
 interface EditTerritoryModalProps {
   territory: Territory;
@@ -17,6 +20,7 @@ interface EditTerritoryModalProps {
 export default function EditTerritoryModal({ territory, isOpen, onClose, onSave, onReset, onDelete }: EditTerritoryModalProps) {
   const { user } = useUser();
   const isAdmin = user?.role === 'Administrador';
+  const { toast } = useToast();
 
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
@@ -101,6 +105,48 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
     setIsProcessing(false);
     onClose();
   };
+  
+  const handleResetRequest = async () => {
+    if (!isAdmin || !user?.congregationId || !auth.currentUser) return;
+
+    setIsProcessing(true);
+    try {
+      const idToken = await auth.currentUser.getIdToken(true); // Força atualização
+      const response = await fetch('/api/resetTerritoryProgress', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ 
+          congregationId: user.congregationId, 
+          territoryId: territory.id 
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Falha ao limpar o território.');
+      }
+      
+      toast({
+        title: "Sucesso!",
+        description: result.message,
+      });
+      onReset(territory.id); // Chama a função passada para o modal, que lida com a confirmação
+
+    } catch (error: any) {
+      console.error("Erro ao limpar território:", error);
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+      onClose();
+    }
+  };
 
 
   const handleClose = () => {
@@ -165,7 +211,7 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
               <div className="border-t border-red-500/30 pt-4 mt-4">
                 <h3 className="text-red-400 font-semibold flex items-center mb-2"><AlertCircle className="mr-2"/>Ações de Risco</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => onReset(territory.id)} className="p-2 border border-yellow-500 text-yellow-500 rounded-md hover:bg-yellow-500/20">Limpar Território</button>
+                  <button onClick={handleResetRequest} disabled={isProcessing} className="p-2 border border-yellow-500 text-yellow-500 rounded-md hover:bg-yellow-500/20">Limpar Território</button>
                   <button onClick={() => onDelete(territory.id)} className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700">Excluir Território</button>
                 </div>
               </div>
