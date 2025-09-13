@@ -49,7 +49,7 @@ function AdminPage() {
     <div className="p-4 md:p-8 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Administração</h1>
-        <p className="text-muted-foreground">Ferramentas para gerenciar a congregação.</p>
+        <p className="text-muted-foreground">Ferramentas para gerenciar os territórios e a congregação.</p>
       </div>
 
       <div className="border-b border-border overflow-x-auto">
