@@ -3,16 +3,17 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { getAuth, updateProfile, reauthenticateWithCredential, EmailAuthProvider, updatePassword } from 'firebase/auth';
-import { auth, functions } from '@/lib/firebase';
-import { httpsCallable } from 'firebase/functions';
+import { auth } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { X, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
+import { useToast } from '@/hooks/use-toast';
 
 export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-  const { user, updateUser } = useUser();
+  const { user, updateUser, logout } = useUser();
+  const { toast } = useToast();
   
   const [name, setName] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -113,25 +114,41 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
     setLoading(true);
     setError(null);
     try {
-        const credential = EmailAuthProvider.credential(auth.currentUser.email!, passwordForDelete);
-        await reauthenticateWithCredential(auth.currentUser, credential);
-        
-        const deleteUser = httpsCallable(functions, 'deleteUserAccount');
-        await deleteUser({ uid: user.uid });
-        
+        const idToken = await auth.currentUser.getIdToken();
+        const response = await fetch('/api/deleteUserAccount', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({ userIdToDelete: user.uid }),
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || 'Falha ao excluir conta.');
+        }
+
+        toast({
+          title: "Conta Excluída",
+          description: "Sua conta foi removida com sucesso. Você será desconectado.",
+        });
+
         onClose();
+        await logout(); // Desloga o usuário após a exclusão bem-sucedida
 
     } catch (error: any) {
          console.error("Erro na autoexclusão:", error);
          if (error.code === 'auth/wrong-password') {
             setError("Senha incorreta. A exclusão não foi realizada.");
-         } else if (error.code === 'functions/permission-denied' || error.details?.message.includes("administrador não pode se autoexcluir")) {
+         } else if (error.message.includes("administrador não pode se autoexcluir")) {
             setError("Um administrador não pode se autoexcluir.");
          } else {
             setError("Ocorreu um erro ao tentar excluir a conta.");
          }
     } finally {
         setLoading(false);
+        setIsConfirmModalOpen(false);
     }
   }
 
@@ -140,7 +157,6 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Editar Perfil</DialogTitle>
-           {/* DESCRIÇÃO ADICIONADA PARA ACESSIBILIDADE */}
           <DialogDescription>
             Altere seu nome ou senha. Para excluir sua conta, use a seção "Zona de Perigo".
           </DialogDescription>

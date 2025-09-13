@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { auth } from "@/lib/firebase";
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory } from "@/types/types";
-import { X, AlertCircle, FileImage } from 'lucide-react';
+import { X, AlertCircle, FileImage, Loader } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 
 interface EditTerritoryModalProps {
   territory: Territory;
@@ -17,6 +19,7 @@ interface EditTerritoryModalProps {
 export default function EditTerritoryModal({ territory, isOpen, onClose, onSave, onReset, onDelete }: EditTerritoryModalProps) {
   const { user } = useUser();
   const isAdmin = user?.role === 'Administrador';
+  const { toast } = useToast();
 
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
@@ -28,6 +31,8 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const numberInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen && territory) {
@@ -36,21 +41,33 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
       setDescription(territory.description || '');
       setMapLink(territory.mapLink || '');
       setCardUrl(territory.cardUrl || '');
-      setError(null);
-      
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
       setPreviewUrl(null);
+      setError(null);
+
+      setTimeout(() => {
+        numberInputRef.current?.focus();
+        numberInputRef.current?.select();
+      }, 100);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [territory, isOpen]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
     const file = event.target.files ? event.target.files[0] : null;
 
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
 
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { setError("O arquivo excede 5MB."); return; }
+      if (file.size > 5 * 1024 * 1024) { // Limite de 5MB
+        setError("O arquivo excede 5MB.");
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         const newCardUrl = reader.result as string;
@@ -58,25 +75,79 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
         setCardUrl(newCardUrl);
       };
       reader.readAsDataURL(file);
+    } else {
+      setCardUrl(territory.cardUrl || ''); // Reverte para a URL original se o usuário cancelar
     }
   };
   
   const handleSave = async () => {
-    if (!number || !name) { setError("Número e Nome são obrigatórios."); return; }
-    setIsProcessing(true); setError(null);
-    
-    const baseData = { number, name, description };
-    const adminData = isAdmin ? { mapLink, cardUrl } : {};
-    
-    await onSave(territory.id, { ...baseData, ...adminData });
-    
+    if (isAdmin && (!number || !name)) {
+      setError("Número e Nome são obrigatórios.");
+      return;
+    }
+    setIsProcessing(true);
+    setError(null);
+
+    const dataToSave: Partial<Territory> = {
+      description,
+    };
+
+    if (isAdmin) {
+      dataToSave.number = number;
+      dataToSave.name = name;
+      dataToSave.mapLink = mapLink;
+      dataToSave.cardUrl = previewUrl || cardUrl;
+    }
+
+    await onSave(territory.id, dataToSave);
+
     setIsProcessing(false);
     onClose();
   };
+  
+  const handleResetRequest = async () => {
+    if (!isAdmin || !user?.congregationId) return;
+
+    setIsProcessing(true);
+    try {
+      const idToken = await auth.currentUser?.getIdToken(true);
+      const response = await fetch('/api/resetTerritoryProgress', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ 
+          congregationId: user.congregationId, 
+          territoryId: territory.id 
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Falha ao limpar o território.');
+      }
+      
+      toast({
+        title: "Sucesso!",
+        description: result.message,
+      });
+
+    } catch (error: any) {
+      console.error("Erro ao limpar território:", error);
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+      onClose(); // Fecha o modal principal após a ação
+    }
+  };
+
 
   const handleClose = () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(null);
     onClose();
   };
 
@@ -87,19 +158,35 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
       <div className="relative bg-card text-card-foreground p-6 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <button onClick={handleClose} disabled={isProcessing} className="absolute top-4 right-4 text-muted-foreground"><X /></button>
         <h2 className="text-xl font-bold">Editar Território</h2>
-        {/* DESCRIÇÃO ADICIONADA PARA ACESSIBILIDADE */}
         <p className="text-sm text-muted-foreground mb-4">Faça alterações nos dados do território. Ações de risco como limpar ou excluir só estão disponíveis para Administradores.</p>
 
         <div className="space-y-4 mt-4">
           <div className="flex items-center gap-4">
-            <div className="w-28"><label className="block text-sm font-medium mb-1">Número</label><input value={number} onChange={(e) => setNumber(e.target.value)} className="w-full bg-input rounded-md p-2"/></div>
-            <div className="flex-grow"><label className="block text-sm font-medium mb-1">Nome</label><input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-input rounded-md p-2"/></div>
+            <div className="w-28">
+                <label className="block text-sm font-medium mb-1">Número</label>
+                <input 
+                    ref={numberInputRef}
+                    value={number} 
+                    onChange={(e) => setNumber(e.target.value)} 
+                    disabled={!isAdmin}
+                    className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-70 disabled:cursor-not-allowed"
+                />
+            </div>
+            <div className="flex-grow">
+                <label className="block text-sm font-medium mb-1">Nome</label>
+                <input 
+                    value={name} 
+                    onChange={(e) => setName(e.target.value)} 
+                    disabled={!isAdmin}
+                    className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-70 disabled:cursor-not-allowed"
+                />
+            </div>
           </div>
-          <div><label>Observações (Opcional)</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full bg-input rounded-md p-2"></textarea></div>
+          <div><label>Observações (Opcional)</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"></textarea></div>
 
           {isAdmin && (
             <div className="border-t border-border pt-4 mt-4 space-y-4">
-              <div><label>Link do Mapa (Opcional)</label><input value={mapLink} onChange={(e) => setMapLink(e.target.value)} className="w-full bg-input rounded-md p-2"/></div>
+              <div><label>Link do Mapa (Opcional)</label><input value={mapLink} onChange={(e) => setMapLink(e.target.value)} className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"/></div>
               
               <div>
                 <label className="block text-sm mb-1">Imagem do Cartão (Opcional)</label>
@@ -133,7 +220,9 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
 
           <div className="flex justify-end space-x-3 pt-4 border-t border-border mt-4">
             <button onClick={handleClose} disabled={isProcessing} className="px-4 py-2 rounded-md bg-muted hover:bg-muted/80">Cancelar</button>
-            <button onClick={handleSave} disabled={isProcessing} className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/80">{isProcessing ? "Salvando..." : "Salvar Alterações"}</button>
+            <button onClick={handleSave} disabled={isProcessing} className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/80">
+                {isProcessing ? <><Loader className="mr-2 h-4 w-4 animate-spin" /> Salvando...</> : "Salvar Alterações"}
+            </button>
           </div>
         </div>
       </div>
