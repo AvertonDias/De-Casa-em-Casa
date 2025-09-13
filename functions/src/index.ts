@@ -1,4 +1,3 @@
-
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
@@ -8,24 +7,21 @@ import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import * as cors from 'cors';
 
-// Inicializa o admin apenas uma vez.
+// Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 const db = admin.firestore();
 
-// Lista de origens permitidas
 const allowedOrigins = [
     "http://localhost:3000",
     "https://appterritorios-e5bb5.web.app",
     "https://appterritorios-e5bb5.firebaseapp.com",
-    "https://6000-firebase-studio-1750624095908.cluster-m7tpz3bmgjgoqrktlvd4ykrc2m.cloudworkstations.dev", // Adicione a URL do seu ambiente de desenvolvimento aqui, se aplicável
+    "https://6000-firebase-studio-1750624095908.cluster-m7tpz3bmgjgoqrktlvd4ykrc2m.cloudworkstations.dev",
 ];
 
-// Configuração do CORS
 const corsHandler = cors({
     origin: (origin, callback) => {
-        // Permite requisições sem 'origin' (ex: de mobile apps ou Postman) ou se a origem estiver na lista
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
@@ -36,25 +32,20 @@ const corsHandler = cors({
     allowedHeaders: ["Content-Type", "Authorization"],
 });
 
-
-// Define as opções globais para todas as funções V2
 setGlobalOptions({ 
   region: "southamerica-east1",
 });
-
 
 // ========================================================================
 //   FUNÇÕES HTTPS (onCall e onRequest)
 // ========================================================================
 
-// Permanece como onRequest para permitir chamadas não autenticadas
 export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
     corsHandler(req, res, async () => {
         if (req.method !== 'POST') {
             res.status(405).json({ error: 'Método não permitido' });
             return;
         }
-
         const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = req.body;
         if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
             res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
@@ -114,7 +105,155 @@ export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
     });
 });
 
-// onCall é útil para chamadas autenticadas do cliente
+export const deleteUserAccount = https.onCall(async (req) => {
+    const callingUserUid = req.auth?.uid;
+    if (!callingUserUid) {
+        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
+    }
+    
+    const { userIdToDelete } = req.data;
+    if (!userIdToDelete || typeof userIdToDelete !== 'string') {
+        throw new https.HttpsError("invalid-argument", "ID inválido.");
+    }
+
+    const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
+    const isCallingUserAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
+
+    if (isCallingUserAdmin && callingUserUid === userIdToDelete) {
+        throw new https.HttpsError("permission-denied", "Um administrador não pode se autoexcluir.");
+    }
+    if (!isCallingUserAdmin && callingUserUid !== userIdToDelete) { // Usuário só pode se auto-excluir ou ser excluído por admin
+        throw new https.HttpsError("permission-denied", "Você não tem permissão para excluir outros usuários.");
+    }
+
+    try {
+        await admin.auth().deleteUser(userIdToDelete);
+        const userDocRef = db.collection("users").doc(userIdToDelete);
+        if ((await userDocRef.get()).exists) {
+            await userDocRef.delete();
+        }
+        return { success: true, message: "Usuário excluído com sucesso." };
+    } catch (error: any) {
+        console.error("Erro CRÍTICO ao excluir usuário:", error);
+        if (error.code === 'auth/user-not-found') {
+            const userDocRef = db.collection("users").doc(userIdToDelete);
+            if ((await userDocRef.get()).exists) {
+                await userDocRef.delete();
+            }
+            return { success: true, message: "Usuário não encontrado na Auth, mas removido do Firestore." };
+        }
+        throw new https.HttpsError("internal", `Falha na exclusão: ${error.message}`);
+    }
+});
+
+
+export const resetTerritoryProgress = https.onCall(async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) {
+        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
+    }
+    
+    const { congregationId, territoryId } = req.data;
+    if (!congregationId || !territoryId) {
+        throw new https.HttpsError("invalid-argument", "IDs faltando.");
+    }
+
+    const adminUserSnap = await db.collection("users").doc(uid).get();
+    if (adminUserSnap.data()?.role !== "Administrador") {
+        throw new https.HttpsError("permission-denied", "Ação restrita a administradores.");
+    }
+
+    const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
+    const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
+    
+    try {
+        await db.recursiveDelete(db.collection(historyPath));
+        console.log(`[resetTerritory] Histórico para ${territoryId} deletado com sucesso.`);
+    } catch (error) {
+        console.error(`[resetTerritory] Falha ao deletar histórico para ${territoryId}:`, error);
+        throw new https.HttpsError("internal", "Falha ao limpar histórico do território.");
+    }
+
+    try {
+        let housesUpdatedCount = 0;
+        await db.runTransaction(async (transaction) => {
+            const quadrasSnapshot = await transaction.get(quadrasRef);
+            const housesToUpdate: { ref: admin.firestore.DocumentReference, data: { status: boolean } }[] = [];
+
+            for (const quadraDoc of quadrasSnapshot.docs) {
+                const casasSnapshot = await transaction.get(quadraDoc.ref.collection("casas"));
+                casasSnapshot.forEach(casaDoc => {
+                    if (casaDoc.data().status === true) {
+                        housesToUpdate.push({ ref: casaDoc.ref, data: { status: false } });
+                        housesUpdatedCount++;
+                    }
+                });
+            }
+            
+            for (const houseUpdate of housesToUpdate) {
+                transaction.update(houseUpdate.ref, houseUpdate.data);
+            }
+        });
+
+        if (housesUpdatedCount > 0) {
+            return { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` };
+        } else {
+            return { success: true, message: "Nenhuma alteração necessária, nenhuma casa estava marcada como 'feita'." };
+        }
+
+    } catch (error: any) {
+        console.error(`[resetTerritory] FALHA CRÍTICA na transação ao limpar o território ${territoryId}:`, error);
+        throw new https.HttpsError("internal", "Falha ao processar a limpeza das casas do território.");
+    }
+});
+
+
+export const sendOverdueNotification = https.onCall(async (req) => {
+    if (!req.auth) {
+        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
+    }
+    const callingUserDoc = await db.doc(`users/${req.auth.uid}`).get();
+    if (!callingUserDoc.exists() || !['Administrador', 'Dirigente'].includes(callingUserDoc.data()?.role)) {
+        throw new https.HttpsError('permission-denied', 'Permissão negada.');
+    }
+
+    const { userId, title, body } = req.data;
+    if (!userId || !title || !body) {
+        throw new https.HttpsError("invalid-argument", "userId, title e body são obrigatórios");
+    }
+
+    try {
+        const userDocRef = db.doc(`users/${userId}`);
+        const userDoc = await userDocRef.get();
+        const tokens: string[] = userDoc.data()?.fcmTokens || [];
+
+        if (!tokens.length) {
+            return { success: true, message: "O usuário não possui dispositivos registrados para notificação." };
+        }
+
+        const message = { notification: { title, body }, tokens };
+        const response = await admin.messaging().sendEachForMulticast(message);
+
+        const invalidTokens: string[] = [];
+        response.responses.forEach((r, idx) => {
+            if (!r.success && (r.error?.code === 'messaging/registration-token-not-registered' || r.error?.code === 'messaging/invalid-argument')) {
+                invalidTokens.push(tokens[idx]);
+            }
+        });
+
+        if (invalidTokens.length > 0) {
+            await userDocRef.update({ fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens) });
+        }
+        
+        return { success: true, message: "Notificação enviada com sucesso!", successCount: response.successCount };
+
+    } catch (error: any) {
+        console.error("Erro na sendOverdueNotification:", error);
+        throw new https.HttpsError("internal", error.message || "Erro interno do servidor.");
+    }
+});
+
+
 export const generateUploadUrl = https.onCall(async (req) => {
   if (!req.auth) {
     throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');

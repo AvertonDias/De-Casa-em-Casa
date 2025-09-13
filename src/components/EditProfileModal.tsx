@@ -1,16 +1,19 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { getAuth, updateProfile, reauthenticateWithCredential, EmailAuthProvider, updatePassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, app } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { X, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { useToast } from '@/hooks/use-toast';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
 
 export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { user, updateUser, logout } = useUser();
@@ -106,25 +109,15 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
   }
 
   const confirmSelfDelete = async () => {
-    if (!user || !auth.currentUser) return;
+    if (!user || !auth.currentUser?.email) return;
     
     setLoading(true);
     setError(null);
     try {
-        const idToken = await auth.currentUser.getIdToken(true); // Força atualização do token
-        const response = await fetch('/api/deleteUserAccount', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${idToken}`,
-            },
-            body: JSON.stringify({ userIdToDelete: user.uid, password: passwordForDelete }),
-        });
+        const credential = EmailAuthProvider.credential(auth.currentUser.email, passwordForDelete);
+        await reauthenticateWithCredential(auth.currentUser, credential);
 
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.error || 'Falha ao excluir conta.');
-        }
+        await deleteUserAccountFn({ userIdToDelete: user.uid });
 
         toast({
           title: "Conta Excluída",
@@ -132,11 +125,11 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
         });
 
         onClose();
-        await logout(); // Desloga o usuário após a exclusão bem-sucedida
+        await logout();
 
     } catch (error: any) {
          console.error("Erro na autoexclusão:", error);
-         if (error.message.includes("auth/wrong-password") || error.message.includes("invalid-credential")) {
+         if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
             setError("Senha incorreta. A exclusão não foi realizada.");
          } else if (error.message.includes("administrador não pode se autoexcluir")) {
             setError("Um administrador não pode se autoexcluir.");
