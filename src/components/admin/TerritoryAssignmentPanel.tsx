@@ -206,15 +206,15 @@ export default function TerritoryAssignmentPanel() {
   const handleNotifyOverdue = async (territory: Territory) => {
     if (!territory.assignment) return;
     setNotifyingTerritoryId(territory.id);
-
+  
     try {
-      const auth = getAuth();
+      const auth = getAuth(app);
       const user = auth.currentUser;
       if (!user) {
         throw new Error("Usuário não autenticado.");
       }
-      const idToken = await user.getIdToken();
-
+      const idToken = await user.getIdToken(true);
+  
       const response = await fetch(
         "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendOverdueNotification",
         {
@@ -232,16 +232,15 @@ export default function TerritoryAssignmentPanel() {
   
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("Erro resposta servidor:", errorData);
-        throw new Error(errorData.error || "Erro ao enviar notificação");
+        throw new Error(errorData.error || "Erro na resposta do servidor");
       }
   
       const result = await response.json();
       if(result.success) {
         toast({
-            title: "Sucesso!",
-            description: result.message || 'Notificação enviada.',
-            variant: "default",
+          title: "Sucesso!",
+          description: result.message || 'Notificação enviada.',
+          variant: "default",
         });
       } else {
         throw new Error(result.message || 'Falha ao enviar notificação do backend.');
@@ -249,9 +248,9 @@ export default function TerritoryAssignmentPanel() {
     } catch (err: any) {
       console.error("Erro ao enviar notificação:", err);
       toast({
-          title: "Erro",
-          description: err.message || "Não foi possível enviar a notificação.",
-          variant: "destructive",
+        title: "Erro",
+        description: err.message || "Não foi possível enviar a notificação.",
+        variant: "destructive",
       });
     } finally {
       setNotifyingTerritoryId(null);

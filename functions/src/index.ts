@@ -1,3 +1,4 @@
+
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
@@ -5,7 +6,6 @@ import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
-import { HttpsError } from "firebase-functions/v2/https";
 import * as cors from 'cors';
 
 const corsHandler = cors({ origin: true });
@@ -245,98 +245,80 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
   }
 });
 
-const allowedOrigins = [
-    'http://localhost:3000',
-    'https://appterritorios-e5bb5.web.app',
-    'https://6000-firebase-studio-1750624095908.cluster-m7tpz3bmgjgoqrktlvd4ykrc2m.cloudworkstations.dev'
-];
-
-export const sendOverdueNotification = https.onRequest(async (req, res) => {
-    // Definir cabeçalhos CORS em todas as respostas
-    const origin = req.headers.origin as string;
-    if (allowedOrigins.includes(origin)) {
-        res.set("Access-Control-Allow-Origin", origin);
-    }
-    res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-    // Responder à solicitação preflight OPTIONS
-    if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
-    }
-
-    if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Método não permitido' });
-        return;
-    }
-
-    const idToken = req.headers.authorization?.split('Bearer ')[1];
-    if (!idToken) {
-        res.status(401).json({ error: 'Ação não autorizada. Token não fornecido.' });
-        return;
-    }
-
-    try {
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
-        const callingUserUid = decodedToken.uid;
-
-        const { territoryId, userId } = req.body;
-        if (!territoryId || !userId) {
-            res.status(400).json({ error: 'IDs do território e do usuário são necessários.' });
+export const sendOverdueNotification = https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            res.status(405).json({ error: 'Método não permitido' });
             return;
         }
+
+        const idToken = req.headers.authorization?.split('Bearer ')[1];
+        if (!idToken) {
+            res.status(401).json({ error: 'Ação não autorizada. Token não fornecido.' });
+            return;
+        }
+
+        try {
+            const decodedToken = await admin.auth().verifyIdToken(idToken);
+            const callingUserUid = decodedToken.uid;
+
+            const { territoryId, userId } = req.body;
+            if (!territoryId || !userId) {
+                res.status(400).json({ error: 'IDs do território e do usuário são necessários.' });
+                return;
+            }
+            
+            const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
+            const callingUserData = callingUserSnap.data();
+            if (!callingUserData || !['Administrador', 'Dirigente'].includes(callingUserData.role)) {
+                res.status(403).json({ error: 'Permissão negada.' });
+                return;
+            }
+            
+            const congregationId = callingUserData.congregationId;
+            if (!congregationId) {
+                res.status(412).json({ error: 'Usuário não associado a uma congregação.' });
+                return;
+            }
+
+            const territoryDoc = await db.doc(`congregations/${congregationId}/territories/${territoryId}`).get();
+            const userToNotifyDoc = await db.collection("users").doc(userId).get();
         
-        const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-        const callingUserData = callingUserSnap.data();
-        if (!callingUserData || !['Administrador', 'Dirigente'].includes(callingUserData.role)) {
-            res.status(403).json({ error: 'Permissão negada.' });
-            return;
-        }
+            if (!territoryDoc.exists() || !userToNotifyDoc.exists()) {
+                res.status(404).json({ error: 'Território ou usuário não encontrado.' });
+                return;
+            }
         
-        const congregationId = callingUserData.congregationId;
-        if (!congregationId) {
-            res.status(412).json({ error: 'Usuário não associado a uma congregação.' });
-            return;
-        }
+            const territory = territoryDoc.data()!;
+            const userToNotify = userToNotifyDoc.data()!;
+            
+            const tokens = userToNotify.fcmTokens;
+            if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+                res.status(200).json({ success: false, message: "O usuário não possui dispositivos para notificação." });
+                return;
+            }
+        
+            const payload = {
+                notification: {
+                  title: "Lembrete de Território Atrasado",
+                  body: `Olá, ${userToNotify.name}. Um lembrete amigável de que o território "${territory.name}" está com a devolução atrasada.`,
+                  icon: "/icon-192x192.jpg",
+                  click_action: "/dashboard/meus-territorios",
+                },
+            };
+            
+            await admin.messaging().sendToDevice(tokens, payload);
+            res.status(200).json({ success: true, message: `Notificação enviada para ${userToNotify.name}.` });
 
-        const territoryDoc = await db.doc(`congregations/${congregationId}/territories/${territoryId}`).get();
-        const userToNotifyDoc = await db.collection("users").doc(userId).get();
-    
-        if (!territoryDoc.exists() || !userToNotifyDoc.exists()) {
-            res.status(404).json({ error: 'Território ou usuário não encontrado.' });
-            return;
+        } catch (error: any) {
+            console.error("[Notification] Falha ao enviar notificação de atraso:", error);
+            if (error.code === 'auth/id-token-expired') {
+                res.status(401).json({ error: 'Sessão expirada, por favor, faça login novamente.' });
+            } else {
+                res.status(500).json({ error: `Falha interna: ${error.message}` });
+            }
         }
-    
-        const territory = territoryDoc.data()!;
-        const userToNotify = userToNotifyDoc.data()!;
-        
-        const tokens = userToNotify.fcmTokens;
-        if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
-            res.status(200).json({ success: false, message: "O usuário não possui dispositivos para notificação." });
-            return;
-        }
-    
-        const payload = {
-            notification: {
-              title: "Lembrete de Território Atrasado",
-              body: `Olá, ${userToNotify.name}. Um lembrete amigável de que o território "${territory.name}" está com a devolução atrasada.`,
-              icon: "/icon-192x192.jpg",
-              click_action: "/dashboard/meus-territorios",
-            },
-        };
-        
-        await admin.messaging().sendToDevice(tokens, payload);
-        res.status(200).json({ success: true, message: `Notificação enviada para ${userToNotify.name}.` });
-
-    } catch (error: any) {
-        console.error("[Notification] Falha ao enviar notificação de atraso:", error);
-        if (error.code === 'auth/id-token-expired') {
-            res.status(401).json({ error: 'Sessão expirada, por favor, faça login novamente.' });
-        } else {
-            res.status(500).json({ error: `Falha interna: ${error.message}` });
-        }
-    }
+    });
 });
 
 
