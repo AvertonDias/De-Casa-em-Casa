@@ -1,26 +1,16 @@
+// src/lib/firebaseAdmin.ts
 "use server";
+import * as admin from "firebase-admin";
 
-import { initializeApp, getApps, cert } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
-import { getAuth } from "firebase-admin/auth";
-import { getMessaging } from "firebase-admin/messaging";
-
-if (!getApps().length) {
-  const credentialsBase64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-
-  if (!credentialsBase64) {
-    throw new Error("❌ Variável GOOGLE_APPLICATION_CREDENTIALS_JSON não configurada no ambiente.");
-  }
-
-  const credentials = JSON.parse(
-    Buffer.from(credentialsBase64, "base64").toString("utf-8")
+if (!admin.apps.length) {
+  const serviceAccount = JSON.parse(
+    Buffer.from(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON!, "base64").toString("utf8")
   );
 
-  initializeApp({
-    credential: cert(credentials),
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
   });
 }
 
-export const adminDb = getFirestore();
-export const adminAuth = getAuth();
-export const adminMessaging = getMessaging();
+export const adminFirestore = admin.firestore();
+export const adminMessaging = admin.messaging();

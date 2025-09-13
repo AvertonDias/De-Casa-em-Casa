@@ -3,9 +3,8 @@
 
 import { useState, useEffect, Fragment } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, app } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import Link from 'next/link';
 import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, Bell, History, Loader } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
@@ -19,8 +18,6 @@ import type { Territory, AppUser, AssignmentHistoryLog } from '@/types/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
-
-const functions = getFunctions(app, 'southamerica-east1');
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   label: string;
@@ -210,24 +207,37 @@ export default function TerritoryAssignmentPanel() {
     setNotifyingTerritoryId(territory.id);
 
     try {
-      const sendNotification = httpsCallable(functions, 'sendOverdueNotification');
-      const result = await sendNotification({
-        territoryId: territory.id,
-        userId: territory.assignment.uid,
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) {
+        throw new Error("Usuário não autenticado.");
+      }
+
+      const res = await fetch("/api/sendOverdueNotification", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ 
+          userId: territory.assignment.uid,
+          title: "Lembrete de Território Atrasado",
+          body: `Olá, ${territory.assignment.name}. Lembrete amigável de que o território "${territory.name}" está atrasado.`
+        }),
       });
 
-      const data = result.data as { success: boolean; message: string };
-      if (data.success) {
-        toast({
-          title: "Sucesso!",
-          description: data.message || 'Notificação enviada.',
-          variant: "default",
-        });
-      } else {
-        throw new Error(data.message || 'Falha ao enviar notificação.');
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Falha ao enviar notificação");
       }
+      
+      toast({
+        title: "Sucesso!",
+        description: data.message || `Notificação enviada para ${territory.assignment.name}.`,
+        variant: "default",
+      });
+
     } catch (error: any) {
-      console.error("Erro ao chamar a função para notificar:", error);
+      console.error("Erro ao enviar notificação:", error);
       toast({
         title: "Erro",
         description: error.message || "Não foi possível enviar a notificação.",

@@ -266,72 +266,8 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
   }
 });
 
-export const sendOverdueNotification = https.onCall(async (data, context) => {
-    // 1. Verificação de Autenticação e Autorização
-    if (!context.auth) {
-        throw new https.HttpsError("unauthenticated", "Ação não autorizada. O usuário precisa estar logado.");
-    }
-
-    const callingUserUid = context.auth.uid;
-    const { territoryId, userId } = data;
-
-    if (!territoryId || !userId) {
-        throw new https.HttpsError("invalid-argument", "IDs do território e do usuário a ser notificado são necessários.");
-    }
-
-    try {
-        const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-        const callingUserData = callingUserSnap.data();
-
-        if (!callingUserData || !['Administrador', 'Dirigente'].includes(callingUserData.role)) {
-            throw new https.HttpsError("permission-denied", "Apenas administradores ou dirigentes podem enviar notificações.");
-        }
-
-        const congregationId = callingUserData.congregationId;
-        if (!congregationId) {
-            throw new https.HttpsError("failed-precondition", "Usuário chamador não está associado a uma congregação.");
-        }
-
-        // 2. Busca de Dados
-        const territoryDoc = await db.doc(`congregations/${congregationId}/territories/${territoryId}`).get();
-        const userToNotifyDoc = await db.collection("users").doc(userId).get();
-
-        if (!territoryDoc.exists() || !userToNotifyDoc.exists()) {
-            throw new https.HttpsError("not-found", "Território ou usuário a ser notificado não foi encontrado.");
-        }
-
-        const territory = territoryDoc.data()!;
-        const userToNotify = userToNotifyDoc.data()!;
-
-        const tokens = userToNotify.fcmTokens;
-        if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
-            throw new https.HttpsError("not-found", "O usuário não possui dispositivos registrados para notificação.");
-        }
-
-        // 3. Lógica de Envio
-        const payload = {
-            notification: {
-                title: "Lembrete de Território Atrasado",
-                body: `Olá, ${userToNotify.name}. Um lembrete amigável de que o território "${territory.name}" está com a devolução atrasada.`,
-                icon: "/icon-192x192.jpg",
-                click_action: "/dashboard/meus-territorios",
-            },
-        };
-
-        const response = await admin.messaging().sendToDevice(tokens, payload);
-        
-        console.log(`Notificação enviada para ${userToNotify.name} com sucesso. Resposta:`, response);
-        return { success: true, message: `Notificação enviada para ${userToNotify.name}.` };
-
-    } catch (error: any) {
-        console.error("[Notification] Falha CRÍTICA ao enviar notificação de atraso:", error);
-        if (error instanceof https.HttpsError) {
-            throw error;
-        }
-        throw new https.HttpsError("internal", `Falha interna no servidor: ${error.message}`);
-    }
-});
-
+// Removida - será substituída por uma API route no Next.js
+// export const sendOverdueNotification = ...
 
 
 // ========================================================================
