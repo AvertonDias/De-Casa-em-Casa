@@ -206,26 +206,31 @@ export default function TerritoryAssignmentPanel() {
   const handleNotifyOverdue = async (territory: Territory) => {
     if (!territory.assignment || !auth.currentUser) return;
     setNotifyingTerritoryId(territory.id);
-
+  
     try {
-      const idToken = await auth.currentUser.getIdToken();
+      const idToken = await auth.currentUser.getIdToken(true);
       const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendOverdueNotification';
-
+  
       const response = await fetch(functionUrl, {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({
-            territoryId: territory.id, 
-            userId: territory.assignment.uid 
-          })
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          territoryId: territory.id,
+          userId: territory.assignment.uid,
+        }),
       });
-      
+  
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.message || 'Falha na requisição');
+      }
+  
       const result = await response.json();
-
-      if (response.ok && result.success) {
+  
+      if (result.success) {
         toast({
           title: "Sucesso!",
           description: result.message || 'Notificação enviada.',
