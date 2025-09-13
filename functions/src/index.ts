@@ -8,10 +8,29 @@ import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import * as cors from 'cors';
 
-const corsHandler = cors({ origin: true });
-
 admin.initializeApp();
 const db = admin.firestore();
+
+// Lista de origens permitidas
+const allowedOrigins = [
+    "http://localhost:3000",
+    "https://appterritorios-e5bb5.web.app",
+    "https://appterritorios-e5bb5.firebaseapp.com",
+    "https://6000-firebase-studio-1750624095908.cluster-m7tpz3bmgjgoqrktlvd4ykrc2m.cloudworkstations.dev",
+];
+
+const corsHandler = cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+});
+
 
 // Define as opções globais para todas as funções V2
 setGlobalOptions({ 
@@ -247,6 +266,11 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
 
 export const sendOverdueNotification = https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
+        }
+
         if (req.method !== 'POST') {
             res.status(405).json({ error: 'Método não permitido' });
             return;
