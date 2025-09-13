@@ -216,7 +216,7 @@ export default function TerritoryAssignmentPanel() {
         userId: territory.assignment.uid,
       });
 
-      const data = result.data as { success: boolean, message: string };
+      const data = result.data as { success: boolean; message: string };
       if (data.success) {
         toast({
           title: "Sucesso!",
@@ -224,14 +224,12 @@ export default function TerritoryAssignmentPanel() {
           variant: "default",
         });
       } else {
-        // Se a função callable retorna um erro conhecido, ele será capturado no `catch`
-        throw new Error(data.message || 'Falha ao enviar notificação do lado do servidor.');
+        throw new Error(data.message || 'Falha ao enviar notificação.');
       }
     } catch (error: any) {
       console.error("Erro ao chamar a função para notificar:", error);
       toast({
         title: "Erro",
-        // A mensagem de erro de uma HttpsError fica em 'error.message'
         description: error.message || "Não foi possível enviar a notificação.",
         variant: "destructive",
       });

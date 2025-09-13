@@ -267,11 +267,11 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
 });
 
 export const sendOverdueNotification = https.onCall(async (data, context) => {
-    // 1. Verificação de Autenticação
+    // 1. Verificação de Autenticação e Autorização
     if (!context.auth) {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada. O usuário precisa estar logado.");
     }
-    
+
     const callingUserUid = context.auth.uid;
     const { territoryId, userId } = data;
 
@@ -289,9 +289,10 @@ export const sendOverdueNotification = https.onCall(async (data, context) => {
 
         const congregationId = callingUserData.congregationId;
         if (!congregationId) {
-            throw new https.HttpsError("failed-precondition", "Usuário que está chamando não está associado a uma congregação.");
+            throw new https.HttpsError("failed-precondition", "Usuário chamador não está associado a uma congregação.");
         }
 
+        // 2. Busca de Dados
         const territoryDoc = await db.doc(`congregations/${congregationId}/territories/${territoryId}`).get();
         const userToNotifyDoc = await db.collection("users").doc(userId).get();
 
@@ -304,10 +305,10 @@ export const sendOverdueNotification = https.onCall(async (data, context) => {
 
         const tokens = userToNotify.fcmTokens;
         if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
-             // Lança um erro que o cliente pode tratar
             throw new https.HttpsError("not-found", "O usuário não possui dispositivos registrados para notificação.");
         }
 
+        // 3. Lógica de Envio
         const payload = {
             notification: {
                 title: "Lembrete de Território Atrasado",
@@ -324,14 +325,13 @@ export const sendOverdueNotification = https.onCall(async (data, context) => {
 
     } catch (error: any) {
         console.error("[Notification] Falha CRÍTICA ao enviar notificação de atraso:", error);
-        // Se já for um HttpsError, propaga o erro.
         if (error instanceof https.HttpsError) {
             throw error;
         }
-        // Para outros tipos de erro, encapsula em um HttpsError.
-        throw new https.HttpsError("internal", `Falha interna no servidor ao processar notificação: ${error.message}`);
+        throw new https.HttpsError("internal", `Falha interna no servidor: ${error.message}`);
     }
 });
+
 
 
 // ========================================================================
