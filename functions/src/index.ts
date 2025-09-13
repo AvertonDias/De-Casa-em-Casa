@@ -259,8 +259,6 @@ const corsWithOptions = cors({
             callback(new Error('Not allowed by CORS'));
         }
     },
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
 });
 
 export const sendOverdueNotification = https.onRequest((req, res) => {
