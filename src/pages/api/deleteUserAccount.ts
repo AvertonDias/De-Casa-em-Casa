@@ -1,11 +1,25 @@
 // src/pages/api/deleteUserAccount.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import admin from "@/lib/firebaseAdmin";
+import admin from "@/lib/firebaseAdmin"; // Importa a referência do admin
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // --- Inicialização Segura do Firebase Admin ---
   if (!admin.apps.length) {
-    return res.status(500).json({ error: "O Firebase Admin SDK não foi inicializado corretamente. Verifique as credenciais do servidor." });
+    try {
+      const serviceAccountJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+      if (!serviceAccountJson) {
+        throw new Error("A variável de ambiente GOOGLE_APPLICATION_CREDENTIALS_JSON não está definida.");
+      }
+      const serviceAccount = JSON.parse(Buffer.from(serviceAccountJson, 'base64').toString('utf8'));
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+    } catch (error: any) {
+      console.error("Falha ao inicializar o Firebase Admin SDK:", error);
+      return res.status(500).json({ error: "Firebase Admin SDK não foi inicializado corretamente." });
+    }
   }
+  // --- Fim da Inicialização ---
 
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
