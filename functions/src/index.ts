@@ -247,9 +247,10 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
 
 export const sendOverdueNotification = https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
+        // Handle preflight OPTIONS request
         if (req.method === 'OPTIONS') {
-            res.set("Access-Control-Allow-Origin", req.get("Origin") || "*");
-            res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            res.set("Access-Control-Allow-Origin", "*");
+            res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
             res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
             res.status(204).send("");
             return;
@@ -316,12 +317,10 @@ export const sendOverdueNotification = https.onRequest((req, res) => {
             };
             
             await admin.messaging().sendToDevice(tokens, payload);
-            res.set("Access-Control-Allow-Origin", req.get("Origin") || "*");
             res.status(200).json({ success: true, message: `Notificação enviada para ${userToNotify.name}.` });
 
         } catch (error: any) {
             console.error("[Notification] Falha ao enviar notificação de atraso:", error);
-            res.set("Access-Control-Allow-Origin", req.get("Origin") || "*");
             if (error.code === 'auth/id-token-expired') {
                 res.status(401).json({ error: 'Sessão expirada, por favor, faça login novamente.' });
             } else {
