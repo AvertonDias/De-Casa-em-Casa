@@ -3,8 +3,9 @@
 
 import { useState, useEffect, Fragment } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, auth } from '@/lib/firebase';
+import { db, app } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import Link from 'next/link';
 import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, Bell, History, Loader } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
@@ -18,6 +19,9 @@ import type { Territory, AppUser, AssignmentHistoryLog } from '@/types/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const sendNotification = httpsCallable(functions, 'sendOverdueNotification');
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   label: string;
@@ -183,7 +187,6 @@ export default function TerritoryAssignmentPanel() {
         if (territoryDoc.exists()) {
             const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
             
-            // Usando isEqual para comparar Timestamps
             const logToRemove = currentHistory.find(log => 
                 log.name === logToDeleteData.name && 
                 log.assignedAt.isEqual(logToDeleteData.assignedAt)
@@ -204,40 +207,24 @@ export default function TerritoryAssignmentPanel() {
   };
   
   const handleNotifyOverdue = async (territory: Territory) => {
-    if (!territory.assignment || !auth.currentUser) return;
+    if (!territory.assignment) return;
     setNotifyingTerritoryId(territory.id);
-  
+
     try {
-      const idToken = await auth.currentUser.getIdToken(true);
-      const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendOverdueNotification';
-  
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          territoryId: territory.id,
-          userId: territory.assignment.uid,
-        }),
+      const result = await sendNotification({
+        territoryId: territory.id,
+        userId: territory.assignment.uid,
       });
-  
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(errorData.message || 'Falha na requisição');
-      }
-  
-      const result = await response.json();
-  
-      if (result.success) {
+
+      const data = result.data as { success: boolean, message: string };
+      if (data.success) {
         toast({
           title: "Sucesso!",
-          description: result.message || 'Notificação enviada.',
+          description: data.message || 'Notificação enviada.',
           variant: "default",
         });
       } else {
-        throw new Error(result.message || 'Falha ao enviar notificação.');
+        throw new Error(data.message || 'Falha ao enviar notificação.');
       }
     } catch (error: any) {
       console.error("Erro ao enviar notificação:", error);
