@@ -247,8 +247,10 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
 
 export const sendOverdueNotification = https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
-        // Handle preflight OPTIONS request
         if (req.method === 'OPTIONS') {
+            res.set("Access-Control-Allow-Origin", req.get("Origin") || "*");
+            res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
             res.status(204).send('');
             return;
         }
@@ -257,6 +259,8 @@ export const sendOverdueNotification = https.onRequest((req, res) => {
             res.status(405).json({ error: 'Método não permitido' });
             return;
         }
+        
+        res.set("Access-Control-Allow-Origin", req.get("Origin") || "*");
 
         const idToken = req.headers.authorization?.split('Bearer ')[1];
         if (!idToken) {

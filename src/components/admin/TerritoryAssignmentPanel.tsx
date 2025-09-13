@@ -208,53 +208,53 @@ export default function TerritoryAssignmentPanel() {
     setNotifyingTerritoryId(territory.id);
 
     try {
-        const auth = getAuth();
-        const user = auth.currentUser;
-        if (!user) {
-            throw new Error("Usuário não autenticado.");
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("Usuário não autenticado.");
+      }
+      const idToken = await user.getIdToken();
+
+      const response = await fetch(
+        "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendOverdueNotification",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            territoryId: territory.id,
+            userId: territory.assignment.uid,
+          }),
         }
-        const idToken = await user.getIdToken();
-
-        const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendOverdueNotification';
-        
-        const response = await fetch(functionUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${idToken}`,
-            },
-            body: JSON.stringify({
-                territoryId: territory.id,
-                userId: territory.assignment.uid,
-            }),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `Erro HTTP: ${response.status}`);
-        }
-
-        const result = await response.json();
-
-        if (result.success) {
-            toast({
-              title: "Sucesso!",
-              description: result.message || 'Notificação enviada.',
-              variant: "default",
-            });
-        } else {
-            throw new Error(result.message || 'Falha ao enviar notificação do backend.');
-        }
-
-    } catch (error: any) {
-        console.error("Erro ao enviar notificação:", error);
+      );
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Erro resposta servidor:", errorData);
+        throw new Error(errorData.error || "Erro ao enviar notificação");
+      }
+  
+      const result = await response.json();
+      if(result.success) {
         toast({
-            title: "Erro",
-            description: error.message || "Não foi possível enviar a notificação.",
-            variant: "destructive",
+            title: "Sucesso!",
+            description: result.message || 'Notificação enviada.',
+            variant: "default",
         });
+      } else {
+        throw new Error(result.message || 'Falha ao enviar notificação do backend.');
+      }
+    } catch (err: any) {
+      console.error("Erro ao enviar notificação:", err);
+      toast({
+          title: "Erro",
+          description: err.message || "Não foi possível enviar a notificação.",
+          variant: "destructive",
+      });
     } finally {
-        setNotifyingTerritoryId(null);
+      setNotifyingTerritoryId(null);
     }
   };
 
