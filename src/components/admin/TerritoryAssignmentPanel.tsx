@@ -19,6 +19,7 @@ import type { Territory, AppUser, AssignmentHistoryLog } from '@/types/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
+import { auth } from '@/lib/firebase';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const sendNotification = httpsCallable(functions, 'sendOverdueNotification');
@@ -211,10 +212,10 @@ export default function TerritoryAssignmentPanel() {
     setNotifyingTerritoryId(territory.id);
 
     try {
-      const result = await sendNotification({
-        territoryId: territory.id,
-        userId: territory.assignment.uid,
-      });
+        const result = await sendNotification({
+            territoryId: territory.id,
+            userId: territory.assignment.uid,
+        });
 
       const data = result.data as { success: boolean, message: string };
       if (data.success) {
