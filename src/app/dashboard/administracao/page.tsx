@@ -9,14 +9,14 @@ import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
 
 // --- Dynamic Imports ---
-// Estes componentes serão carregados apenas quando forem necessários.
+// Corrigido: `dynamic` deve resolver o componente exportado como 'default'.
 const TerritoryAssignmentPanel = dynamic(
-  () => import('@/components/admin/TerritoryAssignmentPanel'),
+  () => import('@/components/admin/TerritoryAssignmentPanel').then((mod) => mod.default),
   { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
 );
 
 const CongregationEditForm = dynamic(
-  () => import('@/components/admin/CongregationEditForm'),
+  () => import('@/components/admin/CongregationEditForm').then((mod) => mod.default),
   { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
 );
 
