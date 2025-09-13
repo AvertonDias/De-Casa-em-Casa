@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -206,7 +207,7 @@ export default function TerritoryAssignmentPanel() {
     setNotifyingTerritoryId(territory.id);
 
     try {
-      const idToken = await auth.currentUser.getIdToken(true);
+      const idToken = await auth.currentUser.getIdToken();
       
       const response = await fetch('/api/sendOverdueNotification', {
         method: 'POST',
