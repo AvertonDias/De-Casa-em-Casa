@@ -1,3 +1,4 @@
+
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
