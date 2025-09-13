@@ -7,7 +7,10 @@ import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import * as cors from 'cors';
 
-admin.initializeApp();
+// Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 const db = admin.firestore();
 
 // Lista de origens permitidas
@@ -264,7 +267,7 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
 });
 
 export const sendOverdueNotification = https.onCall(async (data, context) => {
-    // 1. Verificação de Autenticação (onCall já faz isso e provê o context.auth)
+    // 1. Verificação de Autenticação
     if (!context.auth) {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada. O usuário precisa estar logado.");
     }
@@ -301,7 +304,8 @@ export const sendOverdueNotification = https.onCall(async (data, context) => {
 
         const tokens = userToNotify.fcmTokens;
         if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
-            return { success: false, message: "O usuário não possui dispositivos registrados para notificação." };
+             // Lança um erro que o cliente pode tratar
+            throw new https.HttpsError("not-found", "O usuário não possui dispositivos registrados para notificação.");
         }
 
         const payload = {
@@ -316,7 +320,7 @@ export const sendOverdueNotification = https.onCall(async (data, context) => {
         const response = await admin.messaging().sendToDevice(tokens, payload);
         
         console.log(`Notificação enviada para ${userToNotify.name} com sucesso. Resposta:`, response);
-        return { success: true, message: `Notificação enviada para ${userToNotify.name}.`, response };
+        return { success: true, message: `Notificação enviada para ${userToNotify.name}.` };
 
     } catch (error: any) {
         console.error("[Notification] Falha CRÍTICA ao enviar notificação de atraso:", error);

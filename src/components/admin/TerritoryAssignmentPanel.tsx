@@ -205,7 +205,7 @@ export default function TerritoryAssignmentPanel() {
     }
   };
   
-  const handleNotifyOverdue = async (territory: Territory) => {
+ const handleNotifyOverdue = async (territory: Territory) => {
     if (!territory.assignment) return;
     setNotifyingTerritoryId(territory.id);
 
@@ -224,12 +224,14 @@ export default function TerritoryAssignmentPanel() {
           variant: "default",
         });
       } else {
-        throw new Error(data.message || 'Falha ao enviar notificação.');
+        // Se a função callable retorna um erro conhecido, ele será capturado no `catch`
+        throw new Error(data.message || 'Falha ao enviar notificação do lado do servidor.');
       }
     } catch (error: any) {
-      console.error("Erro ao enviar notificação:", error);
+      console.error("Erro ao chamar a função para notificar:", error);
       toast({
         title: "Erro",
+        // A mensagem de erro de uma HttpsError fica em 'error.message'
         description: error.message || "Não foi possível enviar a notificação.",
         variant: "destructive",
       });
