@@ -1,4 +1,3 @@
-
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
@@ -265,16 +264,16 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
 });
 
 export const sendOverdueNotification = https.onCall(async (data, context) => {
-    // 1. Verificação de Autenticação (onCall já faz isso, mas podemos checar)
+    // 1. Verificação de Autenticação (onCall já faz isso e provê o context.auth)
     if (!context.auth) {
-        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
+        throw new https.HttpsError("unauthenticated", "Ação não autorizada. O usuário precisa estar logado.");
     }
     
     const callingUserUid = context.auth.uid;
     const { territoryId, userId } = data;
 
     if (!territoryId || !userId) {
-        throw new https.HttpsError("invalid-argument", "IDs do território e do usuário são necessários.");
+        throw new https.HttpsError("invalid-argument", "IDs do território e do usuário a ser notificado são necessários.");
     }
 
     try {
@@ -287,7 +286,7 @@ export const sendOverdueNotification = https.onCall(async (data, context) => {
 
         const congregationId = callingUserData.congregationId;
         if (!congregationId) {
-            throw new https.HttpsError("failed-precondition", "Usuário não está associado a uma congregação.");
+            throw new https.HttpsError("failed-precondition", "Usuário que está chamando não está associado a uma congregação.");
         }
 
         const territoryDoc = await db.doc(`congregations/${congregationId}/territories/${territoryId}`).get();
@@ -314,15 +313,19 @@ export const sendOverdueNotification = https.onCall(async (data, context) => {
             },
         };
 
-        await admin.messaging().sendToDevice(tokens, payload);
-        return { success: true, message: `Notificação enviada para ${userToNotify.name}.` };
+        const response = await admin.messaging().sendToDevice(tokens, payload);
+        
+        console.log(`Notificação enviada para ${userToNotify.name} com sucesso. Resposta:`, response);
+        return { success: true, message: `Notificação enviada para ${userToNotify.name}.`, response };
 
     } catch (error: any) {
-        console.error("[Notification] Falha ao enviar notificação de atraso:", error);
+        console.error("[Notification] Falha CRÍTICA ao enviar notificação de atraso:", error);
+        // Se já for um HttpsError, propaga o erro.
         if (error instanceof https.HttpsError) {
             throw error;
         }
-        throw new https.HttpsError("internal", `Falha interna no servidor: ${error.message}`);
+        // Para outros tipos de erro, encapsula em um HttpsError.
+        throw new https.HttpsError("internal", `Falha interna no servidor ao processar notificação: ${error.message}`);
     }
 });
 
@@ -567,5 +570,3 @@ export const checkInactiveUsers = pubsub.schedule("every 5 minutes").onRun(async
         return null;
     }
 });
-    
-    
