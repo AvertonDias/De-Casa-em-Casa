@@ -245,13 +245,27 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
   }
 });
 
+const allowedOrigins = [
+    'http://localhost:3000',
+    'https://appterritorios-e5bb5.web.app',
+    'https://6000-firebase-studio-1750624095908.cluster-m7tpz3bmgjgoqrktlvd4ykrc2m.cloudworkstations.dev'
+];
+
+const corsWithOptions = cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+});
+
 export const sendOverdueNotification = https.onRequest((req, res) => {
-    corsHandler(req, res, async () => {
-        // Handle preflight OPTIONS request
+    corsWithOptions(req, res, async () => {
         if (req.method === 'OPTIONS') {
-            res.set("Access-Control-Allow-Origin", "*");
-            res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-            res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
             res.status(204).send("");
             return;
         }
@@ -329,6 +343,7 @@ export const sendOverdueNotification = https.onRequest((req, res) => {
         }
     });
 });
+
 
 
 // ========================================================================
