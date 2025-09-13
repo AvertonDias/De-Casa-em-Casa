@@ -266,10 +266,6 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
   }
 });
 
-// Removida - será substituída por uma API route no Next.js
-// export const sendOverdueNotification = ...
-
-
 // ========================================================================
 //   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO
 // ========================================================================

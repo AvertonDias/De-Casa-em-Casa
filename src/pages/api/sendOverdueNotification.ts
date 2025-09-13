@@ -1,21 +1,26 @@
 // src/pages/api/sendOverdueNotification.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminFirestore, adminMessaging } from "@/lib/firebaseAdmin";
-import { getAuth } from "firebase-admin/auth";
+import { adminFirestore, adminMessaging, adminAuth } from "@/lib/firebaseAdmin";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Verificação de inicialização do Admin SDK
+  if (!adminFirestore || !adminMessaging || !adminAuth) {
+    return res.status(500).json({ error: "O Firebase Admin SDK não foi inicializado corretamente. Verifique as credenciais do servidor." });
+  }
+
   if (req.method !== "POST") {
+    res.setHeader("Allow", ["POST"]);
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Verificação de autenticação
+  // Verificação de autenticação do usuário que está chamando a API
   const idToken = req.headers.authorization?.split('Bearer ')[1];
   if (!idToken) {
     return res.status(401).json({ error: 'Usuário não autenticado.' });
   }
 
   try {
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
     const callingUserUid = decodedToken.uid;
     
     const callingUserDoc = await adminFirestore.doc(`users/${callingUserUid}`).get();
@@ -26,10 +31,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
   } catch (error) {
-    return res.status(401).json({ error: 'Token de autenticação inválido.' });
+    console.error("Erro na verificação do token de autenticação:", error);
+    return res.status(401).json({ error: 'Token de autenticação inválido ou expirado.' });
   }
-
-
+  
+  // Lógica principal da função
   const { userId, title, body } = req.body;
 
   if (!userId || !title || !body) {
@@ -47,14 +53,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const tokens: string[] = userDoc.data()?.fcmTokens || [];
 
     if (!tokens.length) {
-      return res.status(200).json({ message: "O usuário não possui dispositivos registrados para receber notificações." });
+      return res.status(200).json({ success: true, message: "O usuário não possui dispositivos registrados para receber notificações." });
     }
 
     const message = { notification: { title, body }, tokens };
 
     const response = await adminMessaging.sendMulticast(message);
 
-    // Tokens inválidos ou expirados serão removidos
+    // Limpeza de tokens inválidos
     const invalidTokens: string[] = [];
     response.responses.forEach((r, idx) => {
       if (!r.success) {
@@ -76,11 +82,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       success: true,
       messageCount: response.successCount,
       failureCount: response.failureCount,
-      invalidTokens,
     });
 
   } catch (error: any) {
-    console.error("Erro ao enviar notificação:", error);
-    res.status(500).json({ error: error.message || "Erro interno do servidor." });
+    console.error("Erro ao enviar notificação (lógica principal):", error);
+    res.status(500).json({ error: error.message || "Erro interno do servidor ao processar a notificação." });
   }
 }

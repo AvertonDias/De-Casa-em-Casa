@@ -2,15 +2,33 @@
 "use server";
 import * as admin from "firebase-admin";
 
-if (!admin.apps.length) {
-  const serviceAccount = JSON.parse(
-    Buffer.from(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON!, "base64").toString("utf8")
-  );
+let app: admin.app.App;
 
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+if (!admin.apps.length) {
+  const serviceAccountString = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+
+  if (!serviceAccountString) {
+    console.error("ERRO CRÍTICO: A variável de ambiente GOOGLE_APPLICATION_CREDENTIALS_JSON não está definida.");
+    // Não inicializa o app se a credencial não existir
+  } else {
+    try {
+      const serviceAccount = JSON.parse(
+        Buffer.from(serviceAccountString, "base64").toString("utf8")
+      );
+      
+      app = admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+      console.log("Firebase Admin inicializado com sucesso.");
+    } catch (error) {
+      console.error("Erro ao inicializar Firebase Admin:", error);
+    }
+  }
+} else {
+  app = admin.app();
 }
 
-export const adminFirestore = admin.firestore();
-export const adminMessaging = admin.messaging();
+// Exporta instâncias que podem falhar graciosamente se o app não foi inicializado
+export const adminFirestore = app ? app.firestore() : null;
+export const adminMessaging = app ? app.messaging() : null;
+export const adminAuth = app ? app.auth() : null;
