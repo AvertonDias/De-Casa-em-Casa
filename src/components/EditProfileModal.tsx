@@ -110,12 +110,12 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
   }
 
   const confirmSelfDelete = async () => {
-    if (!user || !auth.currentUser) return;
+    if (!user || !auth.currentUser || !auth.currentUser.email) return;
     
     setLoading(true);
     setError(null);
     try {
-        const credential = EmailAuthProvider.credential(auth.currentUser.email!, passwordForDelete);
+        const credential = EmailAuthProvider.credential(auth.currentUser.email, passwordForDelete);
         await reauthenticateWithCredential(auth.currentUser, credential);
         
         const idToken = await auth.currentUser.getIdToken();
@@ -139,11 +139,11 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
         });
 
         onClose();
-        await logout(); // Desloga o usuário após a exclusão bem-sucedida
+        await logout();
 
     } catch (error: any) {
          console.error("Erro na autoexclusão:", error);
-         if (error.code === 'auth/wrong-password') {
+         if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
             setError("Senha incorreta. A exclusão não foi realizada.");
          } else if (error.message.includes("administrador não pode se autoexcluir")) {
             setError("Um administrador não pode se autoexcluir.");
