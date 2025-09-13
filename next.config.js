@@ -1,3 +1,4 @@
+
 const withPWAInit = require("@ducanh2912/next-pwa").default;
 
 const isDev = process.env.NODE_ENV === "development";
@@ -13,6 +14,7 @@ const withPWA = withPWAInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  skipMiddlewareUrlNormalize: true,
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'placehold.co' },
