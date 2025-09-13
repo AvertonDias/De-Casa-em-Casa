@@ -11,12 +11,12 @@ import withAuth from '@/components/withAuth';
 // --- Dynamic Imports ---
 // Corrigido: `dynamic` deve resolver o componente exportado como 'default'.
 const TerritoryAssignmentPanel = dynamic(
-  () => import('@/components/admin/TerritoryAssignmentPanel').then((mod) => mod.default),
+  () => import('@/components/admin/TerritoryAssignmentPanel'),
   { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
 );
 
 const CongregationEditForm = dynamic(
-  () => import('@/components/admin/CongregationEditForm').then((mod) => mod.default),
+  () => import('@/components/admin/CongregationEditForm'),
   { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
 );
 
