@@ -237,7 +237,6 @@ export default function TerritoryAssignmentPanel() {
       setNotifyingTerritoryId(null);
     }
   };
-
   
   const filteredTerritories = territories.filter(t => {
       const type = t.type || 'urban';
@@ -263,7 +262,7 @@ export default function TerritoryAssignmentPanel() {
       return matchesType && matchesStatus && matchesSearch;
   }).sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
 
-  if(loading) return <div className="text-center p-8">Carregando dados...</div>
+  if(loading) return <div className="text-center p-8"><Loader className="animate-spin mx-auto text-primary" /></div>
 
   return (
     <>
