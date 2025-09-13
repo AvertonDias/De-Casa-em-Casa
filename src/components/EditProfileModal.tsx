@@ -1,18 +1,20 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { getAuth, updateProfile, reauthenticateWithCredential, EmailAuthProvider, updatePassword } from 'firebase/auth';
-import { auth, functions } from '@/lib/firebase';
-import { httpsCallable } from 'firebase/functions';
+import { auth } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { X, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
+import { useToast } from '@/hooks/use-toast';
 
 export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { user, updateUser, logout } = useUser();
+  const { toast } = useToast();
   
   const [name, setName] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -130,6 +132,11 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
         if (!response.ok) {
             throw new Error(result.error || 'Falha ao excluir conta.');
         }
+
+        toast({
+          title: "Conta Excluída",
+          description: "Sua conta foi removida com sucesso. Você será desconectado.",
+        });
 
         onClose();
         await logout(); // Desloga o usuário após a exclusão bem-sucedida
