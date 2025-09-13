@@ -256,7 +256,7 @@ export default function TerritoryAssignmentPanel() {
     } finally {
         setNotifyingTerritoryId(null);
     }
-};
+  };
 
   
   const filteredTerritories = territories.filter(t => {
@@ -410,6 +410,3 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
-
-
-    
