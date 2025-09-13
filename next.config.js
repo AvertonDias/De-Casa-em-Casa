@@ -1,5 +1,5 @@
 
-const withPWAInit = require("@ducanh2912/next-pwa").default;
+import withPWAInit from "@ducanh2912/next-pwa";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -26,4 +26,4 @@ const nextConfig = {
   },
 };
 
-module.exports = withPWA(nextConfig);
+export default withPWA(nextConfig);
