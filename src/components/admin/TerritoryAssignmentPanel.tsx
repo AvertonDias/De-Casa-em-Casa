@@ -202,34 +202,32 @@ export default function TerritoryAssignmentPanel() {
     }
   };
   
- const handleNotifyOverdue = async (territory: Territory) => {
-    if (!territory.assignment) return;
+  const handleNotifyOverdue = async (territory: Territory) => {
+    if (!territory.assignment || !auth.currentUser) return;
     setNotifyingTerritoryId(territory.id);
 
     try {
-      const idToken = await auth.currentUser?.getIdToken();
-      if (!idToken) {
-        throw new Error("Usuário não autenticado.");
-      }
-
-      const res = await fetch("/api/sendOverdueNotification", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${idToken}`
+      const idToken = await auth.currentUser.getIdToken();
+      
+      const response = await fetch('/api/sendOverdueNotification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           userId: territory.assignment.uid,
           title: "Lembrete de Território Atrasado",
-          body: `Olá, ${territory.assignment.name}. Lembrete amigável de que o território "${territory.name}" está atrasado.`
+          body: `Olá, ${territory.assignment.name}. Um lembrete amigável de que o território "${territory.name}" está com a devolução atrasada.`,
         }),
       });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Falha ao enviar notificação");
-      }
       
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Falha ao enviar notificação');
+      }
+
       toast({
         title: "Sucesso!",
         description: data.message || `Notificação enviada para ${territory.assignment.name}.`,

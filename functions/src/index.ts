@@ -111,48 +111,6 @@ export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
     });
 });
 
-export const deleteUserAccount = https.onCall(async (req) => {
-    const callingUserUid = req.auth?.uid;
-    if (!callingUserUid) {
-        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
-    }
-
-    const userIdToDelete = req.data.uid;
-    if (!userIdToDelete || typeof userIdToDelete !== 'string') {
-        throw new https.HttpsError("invalid-argument", "ID inválido.");
-    }
-    
-    const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-    const isCallingUserAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
-
-    // Regra 1: Apenas administradores podem deletar outros, e não a si mesmos
-    if (!isCallingUserAdmin || callingUserUid === userIdToDelete) {
-        throw new https.HttpsError("permission-denied", "Você não tem permissão para realizar esta ação.");
-    }
-
-    try {
-        await admin.auth().deleteUser(userIdToDelete);
-    } catch (error: any) {
-        console.error("Erro ao excluir usuário da Auth:", error);
-        // Se o usuário não existe na Auth, continua para remover do Firestore
-        if (error.code !== 'auth/user-not-found') {
-            throw new https.HttpsError("internal", `Falha ao excluir da autenticação: ${error.message}`);
-        }
-    }
-    
-    try {
-        const userDocRef = db.collection("users").doc(userIdToDelete);
-        if ((await userDocRef.get()).exists) {
-            await userDocRef.delete();
-        }
-        return { success: true, message: "Usuário excluído com sucesso." };
-    } catch (error: any) {
-        console.error("Erro ao excluir usuário do Firestore:", error);
-        throw new https.HttpsError("internal", `Falha ao excluir do banco de dados: ${error.message}`);
-    }
-});
-
-
 export const resetTerritoryProgress = https.onCall(async (req) => {
     const uid = req.auth?.uid;
     if (!uid) {
