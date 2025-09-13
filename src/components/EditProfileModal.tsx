@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -66,15 +65,11 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
     }
     
     try {
-      if (name.trim() !== auth.currentUser.displayName) {
-        await updateProfile(auth.currentUser, { displayName: name.trim() });
-      }
-      
       if (name.trim() !== user.name) {
+        await updateProfile(auth.currentUser, { displayName: name.trim() });
         await updateUser({ name: name.trim() });
+        setSuccess("Perfil atualizado com sucesso!");
       }
-
-      setSuccess("Perfil atualizado com sucesso!");
 
       if (newPassword && currentPassword && auth.currentUser.email) {
         const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
