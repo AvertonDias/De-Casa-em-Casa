@@ -1,4 +1,3 @@
-
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
@@ -248,6 +247,12 @@ export const sendFeedbackEmail = https.onCall(async (req) => {
 
 export const sendOverdueNotification = https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
+        // Handle preflight OPTIONS request
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
+        }
+
         if (req.method !== 'POST') {
             res.status(405).json({ error: 'Método não permitido' });
             return;
@@ -563,7 +568,4 @@ export const checkInactiveUsers = pubsub.schedule("every 5 minutes").onRun(async
         return null;
     }
 });
-
-
-
     
