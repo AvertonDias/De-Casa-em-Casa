@@ -14,6 +14,7 @@ const withPWA = withPWAInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  skipMiddlewareUrlNormalize: true,
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'placehold.co' },

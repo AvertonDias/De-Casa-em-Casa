@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -7,6 +8,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { KeyRound } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -22,9 +24,14 @@ export default function ForgotPasswordPage() {
 
     try {
       await sendPasswordResetEmail(auth, email);
-      setMessage('Link de recuperação enviado! Verifique seu e-mail.');
+      setMessage('Link de recuperação enviado! Verifique sua caixa de entrada e pasta de spam.');
     } catch (err: any) {
-      setError('Erro ao enviar o link. Verifique se o e-mail está correto.');
+      if (err.code === 'auth/user-not-found') {
+        setError('Nenhuma conta encontrada com este e-mail.');
+      } else {
+        setError('Erro ao enviar o link. Tente novamente mais tarde.');
+      }
+      console.error("Firebase password reset error:", err);
     } finally {
       setIsLoading(false);
     }
@@ -33,9 +40,10 @@ export default function ForgotPasswordPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
       <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
-        <div className="text-center">
+        <div className="text-center space-y-2">
+          <KeyRound className="mx-auto h-12 w-12 text-primary" />
           <h1 className="text-3xl font-bold">Recuperar Senha</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="text-muted-foreground">
             Digite seu e-mail para receber um link de redefinição.
           </p>
         </div>
