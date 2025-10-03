@@ -12,28 +12,8 @@ const withAuth = <P extends object>(WrappedComponent: ComponentType<P>) => {
     const router = useRouter();
     const pathname = usePathname(); // Pega o caminho da URL
 
-    useEffect(() => {
-      // Se estamos carregando os dados ou o pathname ainda não está pronto, não fazemos nada.
-      if (loading || !pathname) return;
-
-      const isProtectedPage = pathname.startsWith('/dashboard') || pathname.startsWith('/aguardando-aprovacao');
-
-      // Se não há usuário e a página é protegida, redireciona para a página de login raiz.
-      if (!user && isProtectedPage) {
-        router.replace('/'); // <-- CORRIGIDO AQUI
-      }
-      
-      if (user) {
-        // Se está pendente e não está na página de espera, redireciona.
-        if (user.status === 'pendente' && pathname !== '/aguardando-aprovacao') {
-          router.replace('/aguardando-aprovacao');
-        }
-        // Se está ativo e tenta acessar uma página de login, redireciona para o dashboard.
-        if (user.status === 'ativo' && !isProtectedPage && pathname !== '/sobre') {
-          router.replace('/dashboard');
-        }
-      }
-    }, [user, loading, router, pathname]);
+    // A lógica de redirecionamento agora é centralizada no UserContext.
+    // Este useEffect pode ser removido para evitar lógica duplicada.
 
     // Lógica de Renderização
     // Enquanto carrega, mostra uma tela de loading global.
