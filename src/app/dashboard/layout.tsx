@@ -70,6 +70,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
   const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false);
   const [isShareApiSupported, setIsShareApiSupported] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false); // Estado para o modal de perfil
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   useEffect(() => {
     // Roda apenas no cliente para acessar o 'navigator'
@@ -131,7 +132,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
     { name: "Rural", href: "/dashboard/rural", icon: Trees, roles: ['Administrador', 'Dirigente', 'Publicador'] },
     { name: "Meus Territórios", href: "/dashboard/meus-territorios", icon: UserCheck, roles: ['Administrador', 'Dirigente', 'Publicador'] },
     { name: "Usuários", href: "/dashboard/usuarios", icon: Users, roles: ['Administrador', 'Dirigente'] },
-    { name: "Administração", href: "/dashboard/administracao", icon: Shield, roles: ['Administrador'] },
+    { name: "Administração", href: "/dashboard/administracao", icon: Shield, roles: ['Administrador', 'Dirigente'] },
   ];
   const filteredNavLinks = navLinks.filter(link => user?.role && link.roles.includes(user.role));
   
@@ -238,7 +239,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
                 </Button>
               </Link>
               <Button
-                  onClick={handleLogout}
+                  onClick={() => setIsLogoutConfirmOpen(true)}
                   variant="outline"
                   className="w-full justify-center text-red-500 border-red-500/50 hover:bg-red-500/10 hover:text-red-500 dark:text-red-400 dark:border-red-400/50 dark:hover:bg-red-400/10 dark:hover:text-red-400"
               >
@@ -256,6 +257,15 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
           message={getInstructionsMessage()}
           confirmText="Entendi"
           showCancelButton={false}
+      />
+      <ConfirmationModal
+        isOpen={isLogoutConfirmOpen}
+        onClose={() => setIsLogoutConfirmOpen(false)}
+        onConfirm={handleLogout}
+        title="Confirmar Saída"
+        message="Tem certeza que deseja sair? Para entrar novamente, você precisará inserir seu e-mail e senha."
+        confirmText="Sim, Sair"
+        variant="destructive"
       />
       <EditProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
     </>
