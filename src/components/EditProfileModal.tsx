@@ -5,7 +5,7 @@ import { useUser } from '@/contexts/UserContext';
 import { getAuth, updateProfile, reauthenticateWithCredential, EmailAuthProvider, updatePassword } from 'firebase/auth';
 import { auth, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { X, Eye, EyeOff, Trash2 } from 'lucide-react';
@@ -163,9 +163,6 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
           <DialogDescription>
             Altere seu nome ou senha. Para excluir sua conta, use a seção "Zona de Perigo".
           </DialogDescription>
-          <DialogClose asChild>
-            <button className="absolute top-3 right-3 p-1 rounded-full hover:bg-muted"><X size={20} /></button>
-          </DialogClose>
         </DialogHeader>
         
         <form onSubmit={handleSaveChanges} className="mt-4 space-y-4">
