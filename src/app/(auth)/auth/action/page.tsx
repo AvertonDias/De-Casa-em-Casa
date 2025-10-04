@@ -15,23 +15,26 @@ function PasswordResetAction() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  const mode = searchParams.get('mode');
-  const oobCode = searchParams.get('oobCode');
-
   const [stage, setStage] = useState<'verifying' | 'form' | 'success' | 'error'>('verifying');
   const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [oobCode, setOobCode] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!oobCode || mode !== 'resetPassword') {
+    const mode = searchParams.get('mode');
+    const code = searchParams.get('oobCode');
+
+    if (!code || mode !== 'resetPassword') {
       setError('Link inválido ou ausente. Por favor, solicite um novo link de recuperação.');
       setStage('error');
       return;
     }
 
-    verifyPasswordResetCode(auth, oobCode)
+    setOobCode(code); // Armazena o código para uso posterior
+
+    verifyPasswordResetCode(auth, code)
       .then((verifiedEmail) => {
         setEmail(verifiedEmail);
         setStage('form');
@@ -41,7 +44,7 @@ function PasswordResetAction() {
         setError('O link de redefinição é inválido ou já expirou. Por favor, tente novamente.');
         setStage('error');
       });
-  }, [oobCode, mode]);
+  }, [searchParams]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +56,10 @@ function PasswordResetAction() {
         setError('A senha deve ter no mínimo 6 caracteres.');
         return;
     }
-    if (!oobCode) return;
+    if (!oobCode) {
+      setError('Código de verificação não encontrado. O link pode estar corrompido.');
+      return;
+    }
 
     setError('');
     setStage('verifying');
