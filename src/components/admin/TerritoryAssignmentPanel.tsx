@@ -7,7 +7,7 @@ import { db, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, Bell, History, Loader, X } from 'lucide-react';
+import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, Bell, History, Loader, X, MessageCircle } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -221,39 +221,36 @@ export default function TerritoryAssignmentPanel() {
   
   const handleNotifyOverdue = async (territory: Territory) => {
     if (!territory.assignment) return;
+    
+    const assignedUser = users.find(u => u.uid === territory.assignment!.uid);
+    if (!assignedUser || !assignedUser.whatsapp) {
+      toast({
+        title: "Usuário sem WhatsApp",
+        description: `Não foi possível notificar ${territory.assignment.name} pois não há um número de WhatsApp cadastrado.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setNotifyingTerritoryId(territory.id);
 
     try {
-      // Envia notificação PUSH
-      const result = await sendOverdueNotificationFn({
-        userId: territory.assignment.uid,
-        title: "Lembrete de Território Atrasado",
-        body: `Olá, ${territory.assignment.name}. Um lembrete amigável de que o território "${territory.name}" está com a devolução atrasada.`,
-      });
-
-      const data = result.data as { success: boolean; message: string; };
-      if (!data.success) throw new Error(data.message || 'Falha ao enviar notificação');
-
-      // Abre o WhatsApp
-      const assignedUser = users.find(u => u.uid === territory.assignment.uid);
-      if (assignedUser?.whatsapp) {
-          const message = `Olá, este é um lembrete de que o "${territory.name}" está com a devolução atrasada`;
-          const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
-          const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
-          window.open(whatsappUrl, '_blank');
-      }
-
-      toast({
-        title: "Sucesso!",
-        description: data.message || `Notificação enviada para ${territory.assignment.name}.`,
-        variant: "default",
-      });
+        const message = `Olá, este é um lembrete de que o "${territory.name}" está com a devolução atrasada`;
+        const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
+        const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+        
+        toast({
+          title: "WhatsApp Aberto",
+          description: `A mensagem para ${assignedUser.name} está pronta para ser enviada.`,
+          variant: "default",
+        });
 
     } catch (error: any) {
-      console.error("Erro ao enviar notificação:", error);
+      console.error("Erro ao abrir WhatsApp:", error);
       toast({
         title: "Erro",
-        description: error.message || "Não foi possível enviar a notificação.",
+        description: "Não foi possível abrir o WhatsApp.",
         variant: "destructive",
       });
     } finally {
@@ -362,13 +359,13 @@ export default function TerritoryAssignmentPanel() {
                                  <MoreVertical size={20} />
                              </Menu.Button>
                              <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                                 <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-popover text-popover-foreground rounded-md shadow-lg z-20 ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                 <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right bg-popover text-popover-foreground rounded-md shadow-lg z-20 ring-1 ring-black ring-opacity-5 focus:outline-none">
                                      <div className="p-1">
                                          {isDesignado ? (
                                              <>
                                                  <Menu.Item><button onClick={() => handleOpenReturnModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <CheckCircle size={16} className="mr-2"/>Devolver</button></Menu.Item>
                                                  <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <RotateCw size={16} className="mr-2"/>Reatribuir</button></Menu.Item>
-                                                 {isOverdue && <Menu.Item><button onClick={() => handleNotifyOverdue(t)} disabled={isNotifying} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground disabled:opacity-50'> {isNotifying ? <Loader className="mr-2 animate-spin"/> : <Bell size={16} className="mr-2"/>}Notificar Atraso</button></Menu.Item>}
+                                                 {isOverdue && <Menu.Item><button onClick={() => handleNotifyOverdue(t)} disabled={isNotifying} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground disabled:opacity-50'> {isNotifying ? <Loader className="mr-2 animate-spin"/> : <MessageCircle size={16} className="mr-2"/>}Notificar via WhatsApp</button></Menu.Item>}
                                              </>
                                          ) : (
                                               <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <BookUser size={16} className="mr-2"/>Designar</button></Menu.Item>
@@ -426,4 +423,3 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
-
