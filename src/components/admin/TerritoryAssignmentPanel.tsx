@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -6,7 +7,7 @@ import { db, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, Bell, History, Loader } from 'lucide-react';
+import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, Bell, History, Loader, X } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -101,14 +102,25 @@ export default function TerritoryAssignmentPanel() {
   
   const handleSaveAssignment = async (territoryId: string, user: { uid: string; name: string }, assignmentDate: string, dueDate: string) => {
     if (!currentUser?.congregationId) return;
+    
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
     const assignment = {
-      uid: user.uid,
-      name: user.name,
-      assignedAt: Timestamp.fromDate(new Date(assignmentDate + 'T12:00:00')),
-      dueDate: Timestamp.fromDate(new Date(dueDate + 'T12:00:00')),
+        uid: user.uid,
+        name: user.name,
+        assignedAt: Timestamp.fromDate(new Date(assignmentDate + 'T12:00:00')),
+        dueDate: Timestamp.fromDate(new Date(dueDate + 'T12:00:00')),
     };
     await updateDoc(territoryRef, { status: 'designado', assignment });
+
+    const assignedUser = users.find(u => u.uid === user.uid);
+    const territory = territories.find(t => t.id === territoryId);
+    
+    if (assignedUser?.whatsapp && territory) {
+        const message = `Olá, ${assignedUser.name}! Você recebeu o território *${territory.number} - ${territory.name}*.`;
+        const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, ''); // Remove non-digit characters
+        const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+    }
   };
 
   const handleOpenReturnModal = (territory: Territory) => {
@@ -281,7 +293,21 @@ export default function TerritoryAssignmentPanel() {
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
           <div className="relative flex-grow">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-            <input type="text" placeholder="Buscar por nome ou número..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-input rounded-md p-2 pl-10 border border-border"/>
+            <input 
+              type="text" 
+              placeholder="Buscar por nome ou número..." 
+              value={searchTerm} 
+              onChange={e => setSearchTerm(e.target.value)} 
+              className="w-full bg-input rounded-md p-2 pl-10 pr-10 border border-border"
+            />
+             {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')} 
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X size={20} />
+              </button>
+            )}
           </div>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="bg-input rounded-md p-2 border border-border">
             <option value="all">Todos os status</option>
