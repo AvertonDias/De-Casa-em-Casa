@@ -47,7 +47,7 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
           </span>
         </div>
 
-        {isDesignado && (
+        {isDesignado && territory.assignment && (
           <div className={`p-3 rounded-md text-sm space-y-2 mt-4 ${isOverdue ? 'bg-red-500/10' : 'bg-input/50'}`}>
             <div className="flex items-center gap-2">
               <UserCheck size={16} className="text-muted-foreground"/>
@@ -55,7 +55,7 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
             </div>
             <div className="flex items-center gap-2">
               <CalendarClock size={16} className="text-muted-foreground"/>
-              <span>Devolver até: {format(territory.assignment!.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              <span>Devolver até: {format(territory.assignment.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR })}</span>
             </div>
              {isOverdue && (
                 <div className="flex items-center gap-2 font-bold text-red-500">
