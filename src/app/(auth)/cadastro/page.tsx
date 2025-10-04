@@ -3,13 +3,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth'; 
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'; 
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-
+import { maskPhone } from '@/lib/utils'; // Importa a função de máscara
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -17,6 +17,7 @@ export default function SignUpPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [congregationNumber, setCongregationNumber] = useState('');
+  const [whatsapp, setWhatsapp] = useState(''); // Novo estado para WhatsApp
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -42,35 +43,17 @@ export default function SignUpPage() {
       }
       const congregationId = querySnapshot.docs[0].id;
       
-      // 1. Cria usuário no Auth
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      // 2. Espera a confirmação da autenticação e recarrega o usuário para sincronizar o token JWT
-      await new Promise<void>((resolve, reject) => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-          if (user) {
-            try {
-              // Força a atualização do token do usuário no cliente.
-              // Isso é crucial para que as regras do Firestore reconheçam a autenticação.
-              await user.reload();
-
-              // Agora que o usuário está autenticado e sincronizado, cria o documento.
-              await setDoc(doc(db, "users", user.uid), {
-                name: name.trim(), 
-                email, 
-                congregationId, 
-                role: "Publicador", 
-                status: "pendente"
-              });
-              resolve();
-            } catch (err) {
-              reject(err); // Rejeita a promise se o reload ou a escrita no Firestore falhar
-            } finally {
-              unsubscribe(); // Para de ouvir para evitar chamadas múltiplas
-            }
-          }
-          // Se o usuário for nulo, a promise continuará pendente até o timeout ou erro do Auth
-        });
+      await updateProfile(userCredential.user, { displayName: name.trim() });
+      
+      await setDoc(doc(db, "users", userCredential.user.uid), {
+        name: name.trim(), 
+        email, 
+        whatsapp, // Adicionado o WhatsApp aqui
+        congregationId, 
+        role: "Publicador", 
+        status: "pendente"
       });
 
       toast({
@@ -99,6 +82,14 @@ export default function SignUpPage() {
             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nome Completo" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" />
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="E-mail" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" />
             
+            <input 
+              type="tel" 
+              value={whatsapp} 
+              onChange={e => setWhatsapp(maskPhone(e.target.value))} 
+              placeholder="Seu WhatsApp" required 
+              className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" 
+            />
+
             <div className="relative">
               <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha (mín. 6 caracteres)" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring pr-10" />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground">
@@ -116,7 +107,7 @@ export default function SignUpPage() {
             <input type="tel" inputMode="numeric" value={congregationNumber} onChange={e => setCongregationNumber(e.target.value.replace(/\D/g, ''))} placeholder="Número da Congregação" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" />
             
             {error && <p className="text-destructive text-sm text-center">{error}</p>}
-            <button type="submit" disabled={loading} className="w-full px-4 py-2 font-semibold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-wait">
+            <button type="submit" disabled={loading || !name || !email || !whatsapp || password.length < 6 || password !== confirmPassword} className="w-full px-4 py-2 font-semibold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-wait">
               {loading ? 'Enviando...' : 'Solicitar Acesso'}
             </button>
         </form>
