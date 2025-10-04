@@ -194,7 +194,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
             </div>
 
             <div className="border-t border-border pt-4">
-                <p className="text-sm font-medium text-muted-foreground mb-2">Alterar Senha (Opcional)</p>
+                <p className="text-sm font-medium text-muted-foreground mb-2">Alterar Senha <span className="text-muted-foreground/70 font-normal">(Opcional)</span></p>
                  <div className="relative space-y-2">
                     <div className="relative">
                       <Input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Senha Atual" />
