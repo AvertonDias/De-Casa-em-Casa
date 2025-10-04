@@ -1,19 +1,21 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, query, where, orderBy, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 import { Territory, Quadra } from '@/types/types';
 import Link from 'next/link';
-import { Plus, Search, ChevronRight, Loader, UserCheck, CalendarClock, AlertTriangle, Download, CheckCircle, X } from 'lucide-react';
+import { Plus, Search, ChevronRight, Loader, UserCheck, CalendarClock, AlertTriangle, Download, CheckCircle, X, ArrowDownUp, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AddTerritoryModal from '@/components/AddTerritoryModal';
 import { RestrictedContent } from '@/components/RestrictedContent';
 import withAuth from '@/components/withAuth';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
 const SCROLL_POSITION_KEY = 'territories_scroll_position';
 
@@ -106,8 +108,14 @@ function TerritoriosPage() {
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
+  // States for filtering and sorting
+  const [statusFilter, setStatusFilter] = useState<'all' | 'disponivel' | 'designado' | 'atrasado'>('all');
+  const [sortBy, setSortBy] = useState('number');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+
   useEffect(() => {
-    // Restaura a posição da rolagem
+    // Restore scroll position
     if (!loading) {
       setTimeout(() => {
         const scrollPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
@@ -115,19 +123,24 @@ function TerritoriosPage() {
           window.scrollTo(0, parseInt(scrollPosition, 10));
           sessionStorage.removeItem(SCROLL_POSITION_KEY);
         }
-      }, 50); // Um pequeno atraso pode ajudar
+      }, 50); 
     }
 
-    // Salva a posição da rolagem ao sair da página
-    return () => {
+    const handleBeforeUnload = () => {
       sessionStorage.setItem(SCROLL_POSITION_KEY, window.scrollY.toString());
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [loading]);
 
   useEffect(() => {
     if (user?.status === 'ativo' && user.congregationId) {
       const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-      const q = query(territoriesRef, where("type", "in", ["urban", null, ""]), orderBy("number"));
+      const q = query(territoriesRef, where("type", "in", ["urban", null, ""]));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
         setTerritories(data);
@@ -139,14 +152,58 @@ function TerritoriosPage() {
     }
   }, [user, userLoading, loading]);
 
-  const handleAddTerritory = async () => {
-    // A lógica de adição agora está dentro do modal.
-    // Esta função é apenas um gatilho para o modal.
-  };
 
-  const filteredTerritories = territories.filter(t =>
-    t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.number.includes(searchTerm)
-  );
+  const filteredAndSortedTerritories = useMemo(() => {
+    let filtered = territories.filter(t =>
+      t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.number.includes(searchTerm)
+    );
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(t => {
+        const isDesignado = t.status === 'designado' && t.assignment;
+        const isOverdue = isDesignado && t.assignment.dueDate.toDate() < new Date();
+        if (statusFilter === 'disponivel') return !isDesignado;
+        if (statusFilter === 'designado') return isDesignado && !isOverdue;
+        if (statusFilter === 'atrasado') return isOverdue;
+        return true;
+      });
+    }
+
+    filtered.sort((a, b) => {
+      let valA: any, valB: any;
+
+      switch (sortBy) {
+        case 'name':
+          valA = a.name.toLowerCase();
+          valB = b.name.toLowerCase();
+          break;
+        case 'totalHouses':
+          valA = a.stats?.totalHouses || 0;
+          valB = b.stats?.totalHouses || 0;
+          break;
+        case 'housesDone':
+          valA = a.stats?.housesDone || 0;
+          valB = b.stats?.housesDone || 0;
+          break;
+        case 'progress':
+          valA = a.progress || 0;
+          valB = b.progress || 0;
+          break;
+        default: // 'number'
+          valA = a.number;
+          valB = b.number;
+          break;
+      }
+
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return sortDirection === 'asc' ? valA.localeCompare(valB, undefined, { numeric: true }) : valB.localeCompare(valA, undefined, { numeric: true });
+      }
+      return sortDirection === 'asc' ? valA - valB : valB - valA;
+    });
+
+    return filtered;
+  }, [territories, searchTerm, statusFilter, sortBy, sortDirection]);
+
   
   if (loading && territories.length === 0) {
     return <div className="flex items-center justify-center h-full"><Loader className="animate-spin text-primary" size={48} /></div>;
@@ -168,6 +225,15 @@ function TerritoriosPage() {
   const isManagerView = user?.role === 'Administrador' || user?.role === 'Dirigente';
   const isAdmin = user?.role === 'Administrador';
 
+  const FilterButton = ({ label, value }: { label: string; value: typeof statusFilter }) => (
+    <button
+      onClick={() => setStatusFilter(value)}
+      className={`px-3 py-1.5 text-sm rounded-full transition-colors ${statusFilter === value ? 'bg-primary text-primary-foreground font-semibold' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <>
       <div className="p-4 sm:p-6 lg:p-8">
@@ -186,7 +252,7 @@ function TerritoriosPage() {
           )}
         </div>
 
-        <div className="relative mb-6">
+        <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
             <input 
               type="text" 
@@ -205,16 +271,44 @@ function TerritoriosPage() {
             )}
         </div>
 
+        {isManagerView && (
+          <div className="my-6 p-4 bg-card rounded-lg flex flex-col sm:flex-row items-center gap-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <FilterButton label="Todos" value="all" />
+              <FilterButton label="Disponível" value="disponivel" />
+              <FilterButton label="Designado" value="designado" />
+              <FilterButton label="Atrasado" value="atrasado" />
+            </div>
+            <div className="sm:ml-auto flex items-center gap-2">
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-[180px] bg-muted border-none">
+                  <SelectValue placeholder="Ordenar por..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="number">Número</SelectItem>
+                  <SelectItem value="name">Nome</SelectItem>
+                  <SelectItem value="totalHouses">Total de Casas</SelectItem>
+                  <SelectItem value="housesDone">Casas Feitas</SelectItem>
+                  <SelectItem value="progress">Progresso</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="icon" onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}>
+                <ArrowDownUp className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
         {isManagerView ? (
             <div className="space-y-4">
-            {filteredTerritories.length > 0 ? (
-                filteredTerritories.map(t => <TerritoryRowManager key={t.id} territory={t} />)
+            {filteredAndSortedTerritories.length > 0 ? (
+                filteredAndSortedTerritories.map(t => <TerritoryRowManager key={t.id} territory={t} />)
             ) : (<p className="text-center text-muted-foreground py-8">Nenhum território encontrado.</p>)}
             </div>
         ) : (
             <div className="bg-card rounded-lg shadow-md px-4 divide-y divide-border">
-            {filteredTerritories.length > 0 ? (
-                filteredTerritories.map(t => <TerritoryRowPublicador key={t.id} territory={t} />)
+            {filteredAndSortedTerritories.length > 0 ? (
+                filteredAndSortedTerritories.map(t => <TerritoryRowPublicador key={t.id} territory={t} />)
             ) : (<p className="text-center text-muted-foreground py-8">Nenhum território disponível.</p>)}
             </div>
         )}
@@ -224,10 +318,12 @@ function TerritoriosPage() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         congregationId={user.congregationId}
-        onTerritoryAdded={handleAddTerritory}
+        onTerritoryAdded={() => {}}
       />}
     </>
   );
 }
 
 export default withAuth(TerritoriosPage);
+
+    
