@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader, KeyRound, CheckCircle, AlertTriangle } from 'lucide-react';
 
-function PasswordResetActionPage() {
+function PasswordResetAction() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -129,14 +129,6 @@ function PasswordResetActionPage() {
     }
   };
 
-  if (!searchParams) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <Loader className="animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
       <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
@@ -147,14 +139,14 @@ function PasswordResetActionPage() {
 }
 
 // O Suspense é necessário porque a página usa `useSearchParams`
-export default function PasswordResetActionPageWrapper() {
+export default function PasswordResetActionPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="animate-spin text-primary" />
       </div>
     }>
-      <PasswordResetActionPage />
+      <PasswordResetAction />
     </Suspense>
   );
 }
