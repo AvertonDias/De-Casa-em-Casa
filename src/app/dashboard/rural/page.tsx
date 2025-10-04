@@ -6,7 +6,7 @@ import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUni
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 import { AddRuralTerritoryModal } from '@/components/AddRuralTerritoryModal';
-import { Map, PlusCircle, Search, Link as LinkIcon, Loader, Inbox, Edit2, Trash2 } from 'lucide-react';
+import { Map, PlusCircle, Search, Link as LinkIcon, Loader, Inbox, Edit2, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
 import AddEditLinkModal from '@/components/AddEditLinkModal'; 
 import { ConfirmationModal } from '@/components/ConfirmationModal';
@@ -177,8 +177,16 @@ function RuralPage() {
                 placeholder="Buscar por nome ou número..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-card border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full pl-10 pr-10 py-3 bg-card border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')} 
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X size={20} />
+              </button>
+            )}
         </div>
 
         {filteredTerritories.length > 0 ? (
