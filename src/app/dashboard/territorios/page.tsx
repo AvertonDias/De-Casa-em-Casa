@@ -107,14 +107,18 @@ function TerritoriosPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
-    const scrollPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
-    if (scrollPosition && !loading) {
+    // Atraso para garantir que a renderização inicial termine
+    if (!loading) {
       setTimeout(() => {
-        window.scrollTo(0, parseInt(scrollPosition, 10));
-        sessionStorage.removeItem(SCROLL_POSITION_KEY);
+        const scrollPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
+        if (scrollPosition) {
+          window.scrollTo(0, parseInt(scrollPosition, 10));
+          sessionStorage.removeItem(SCROLL_POSITION_KEY);
+        }
       }, 100);
     }
   
+    // Salva a posição antes de descarregar a página (mudar de rota)
     const handleBeforeUnload = () => {
       sessionStorage.setItem(SCROLL_POSITION_KEY, window.scrollY.toString());
     };
@@ -122,7 +126,7 @@ function TerritoriosPage() {
     window.addEventListener('beforeunload', handleBeforeUnload);
   
     return () => {
-      handleBeforeUnload();
+      handleBeforeUnload(); // Garante que salva mesmo na navegação do Next.js
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [loading]);
