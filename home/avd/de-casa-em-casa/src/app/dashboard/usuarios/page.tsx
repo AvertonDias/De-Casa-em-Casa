@@ -1,16 +1,17 @@
+
 "use client";
 
-import { useState, useEffect, useMemo, Fragment } from 'react';
+import { useState, useEffect, useMemo, Fragment, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db, app } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, Wifi, WifiOff, Users as UsersIcon, SlidersHorizontal, ChevronUp } from 'lucide-react';
+import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, Wifi, WifiOff, Users as UsersIcon, SlidersHorizontal, ChevronUp, Clock, X } from 'lucide-react';
 import { Menu, Transition, Disclosure } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, subDays, subMonths, subHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { AppUser, Congregation } from '@/types/types';
 import withAuth from '@/components/withAuth';
@@ -19,13 +20,21 @@ const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserFunction = httpsCallable(functions, 'deleteUserAccount');
 
 
-const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser, currentUser: AppUser, onUpdate: (userId: string, data: object) => void, onDelete: (user: AppUser) => void }) => {
+const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser, currentUser: AppUser, onUpdate: (userId: string, data: object) => void, onDelete: (userId: string, userName: string) => void }) => {
   const isOnline = user.isOnline === true;
   const isAdmin = currentUser.role === 'Administrador';
   const isDirigente = currentUser.role === 'Dirigente';
   
   const canShowMenu = currentUser.uid !== user.uid && 
                       (isAdmin || (isDirigente && (user.status === 'pendente' || user.status === 'rejeitado')));
+
+  // Funções de manipulador de eventos estáveis
+  const handleApprove = () => onUpdate(user.uid, { status: 'ativo' });
+  const handleReject = () => onUpdate(user.uid, { status: 'rejeitado' });
+  const handleMakeAdmin = () => onUpdate(user.uid, { role: 'Administrador' });
+  const handleMakeDirigente = () => onUpdate(user.uid, { role: 'Dirigente' });
+  const handleMakePublicador = () => onUpdate(user.uid, { role: 'Publicador' });
+  const handleDelete = () => onDelete(user.uid, user.name);
 
 
   const getStatusClass = (status: AppUser['status']) => {
@@ -47,10 +56,10 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
   };
 
   return (
-    <li className={`p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-l-4 ${user.status === 'pendente' ? 'border-yellow-500' : 'border-transparent'}`}>
+    <li className={`p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b dark:border-gray-700 ${user.status === 'pendente' ? 'bg-yellow-500/10' : ''}`}>
       <div className="flex items-center flex-1 min-w-0">
           <div className="relative flex-shrink-0 mr-4">
-            <Avatar>
+            <Avatar className="border-2 border-primary">
               <AvatarFallback>
                 {getInitials(user.name) || <User size={20} />}
               </AvatarFallback>
@@ -74,7 +83,9 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
       
       <div className="flex items-center justify-end gap-3 shrink-0">
           <div className="flex items-center justify-end gap-3 shrink-0">
-            <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRoleClass(user.role)}`}>{user.role}</span>
+            {user.status !== 'pendente' && (
+              <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRoleClass(user.role)}`}>{user.role}</span>
+            )}
             {user.status !== 'ativo' && (
                 <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusClass(user.status)}`}>
                     {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
@@ -90,76 +101,79 @@ const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser
                   <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
                       <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right bg-white dark:bg-gray-800 divide-y dark:divide-gray-700 rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5 focus:outline-none">
                          <div className="p-1">
-                            {user.status === 'pendente' && (
+                            {user.status === 'pendente' ? (
                               <>
                                 <Menu.Item>
                                   {({ active }) => (
-                                    <button onClick={() => onUpdate(user.uid, { status: 'ativo' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                    <button onClick={handleApprove} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
                                       <Check className="mr-2 h-4 w-4"/>Aprovar
                                     </button>
                                   )}
                                 </Menu.Item>
                                 <Menu.Item>
                                   {({ active }) => (
-                                    <button onClick={() => onUpdate(user.uid, { status: 'rejeitado' })} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                    <button onClick={handleReject} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
                                       <XCircle className="mr-2 h-4 w-4"/>Rejeitar
                                     </button>
                                   )}
                                 </Menu.Item>
                               </>
-                            )}
-                            {user.status === 'rejeitado' && (
-                                <Menu.Item>
-                                  {({ active }) => (
-                                    <button onClick={() => onUpdate(user.uid, { status: 'ativo' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                      <Check className="mr-2 h-4 w-4"/>Aprovar Mesmo Assim
-                                    </button>
-                                  )}
-                                </Menu.Item>
-                            )}
-                            
-                            {isAdmin && user.role !== 'Administrador' && (
-                              <Menu.Item>
-                                {({ active }) => (
-                                  <button onClick={() => onUpdate(user.uid, { role: 'Administrador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                    <ShieldAlert className="mr-2 h-4 w-4"/>Tornar Administrador
-                                  </button>
+                            ) : (
+                              <>
+                                {user.status === 'rejeitado' && (
+                                    <Menu.Item>
+                                      {({ active }) => (
+                                        <button onClick={handleApprove} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                          <Check className="mr-2 h-4 w-4"/>Aprovar Mesmo Assim
+                                        </button>
+                                      )}
+                                    </Menu.Item>
                                 )}
-                              </Menu.Item>
-                            )}
-                            {isAdmin && user.role === 'Publicador' && (
-                                <Menu.Item>
-                                  {({ active }) => (
-                                    <button onClick={() => onUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                      <Shield className="mr-2 h-4 w-4"/>Tornar Dirigente
-                                    </button>
-                                  )}
-                                </Menu.Item>
-                            )}
-                            {isAdmin && user.role === 'Dirigente' && (
-                                <Menu.Item>
-                                  {({ active }) => (
-                                    <button onClick={() => onUpdate(user.uid, { role: 'Publicador' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                      <User className="mr-2 h-4 w-4"/>Tornar Publicador
-                                    </button>
-                                  )}
-                                </Menu.Item>
-                            )}
-                            {isAdmin && user.role === 'Administrador' && (
-                              <Menu.Item>
-                                {({ active }) => (
-                                  <button onClick={() => onUpdate(user.uid, { role: 'Dirigente' })} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                    <Shield className="mr-2 h-4 w-4"/>Rebaixar para Dirigente
-                                  </button>
+                                
+                                {isAdmin && user.role !== 'Administrador' && (
+                                  <Menu.Item>
+                                    {({ active }) => (
+                                      <button onClick={handleMakeAdmin} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                        <ShieldAlert className="mr-2 h-4 w-4"/>Tornar Administrador
+                                      </button>
+                                    )}
+                                  </Menu.Item>
                                 )}
-                              </Menu.Item>
+                                {isAdmin && user.role === 'Publicador' && (
+                                    <Menu.Item>
+                                      {({ active }) => (
+                                        <button onClick={handleMakeDirigente} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                          <Shield className="mr-2 h-4 w-4"/>Tornar Dirigente
+                                        </button>
+                                      )}
+                                    </Menu.Item>
+                                )}
+                                {isAdmin && user.role === 'Dirigente' && (
+                                    <Menu.Item>
+                                      {({ active }) => (
+                                        <button onClick={handleMakePublicador} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                          <User className="mr-2 h-4 w-4"/>Tornar Publicador
+                                        </button>
+                                      )}
+                                    </Menu.Item>
+                                )}
+                                {isAdmin && user.role === 'Administrador' && (
+                                  <Menu.Item>
+                                    {({ active }) => (
+                                      <button onClick={handleMakeDirigente} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                        <Shield className="mr-2 h-4 w-4"/>Rebaixar para Dirigente
+                                      </button>
+                                    )}
+                                  </Menu.Item>
+                                )}
+                              </>
                             )}
                          </div>
-                         {isAdmin && (
+                         {isAdmin && user.status !== 'pendente' && user.uid !== currentUser.uid && (
                            <div className="p-1">
                               <Menu.Item>
                                 {({ active }) => (
-                                  <button onClick={() => onDelete(user)} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                  <button onClick={handleDelete} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
                                     <Trash2 className="mr-2 h-4 w-4"/>Excluir Usuário
                                   </button>
                                 )}
@@ -188,11 +202,29 @@ function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Publicador'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pendente'>('all');
+  const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive'>('all');
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{ action: () => void, title: string, message: string, confirmText: string } | null>(null);
+  const [userToDelete, setUserToDelete] = useState<{uid: string, name: string} | null>(null);
+  
+  const confirmDeleteUser = useCallback(async () => {
+    if (!userToDelete || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
+    
+    setIsConfirmModalOpen(false);
+    try {
+        await deleteUserFunction({ uid: userToDelete.uid });
+    } catch (error: any) {
+        console.error("Erro ao chamar a função para excluir usuário:", error);
+    } finally {
+        setUserToDelete(null);
+    }
+  }, [userToDelete, currentUser]);
+  
+  const openDeleteConfirm = useCallback((userId: string, userName: string) => {
+    if (currentUser?.role !== 'Administrador') return;
+    setUserToDelete({uid: userId, name: userName});
+    setIsConfirmModalOpen(true);
+  }, [currentUser?.role]);
 
 
   useEffect(() => {
@@ -224,16 +256,17 @@ function UsersPage() {
     }
   }, [currentUser, userLoading]);
   
-  const handleUserUpdate = async (userId: string, dataToUpdate: object) => {
+  const handleUserUpdate = useCallback(async (userId: string, dataToUpdate: object) => {
     try {
+      if (!currentUser) return;
       const permissions = dataToUpdate as Partial<AppUser>;
-      if (currentUser?.role !== 'Administrador') {
+      if (currentUser.role !== 'Administrador') {
         if (permissions.role) {
           console.error("Apenas administradores podem alterar perfis.");
           return;
         }
       }
-      if (currentUser?.uid === userId && permissions.role && permissions.role !== 'Administrador') {
+      if (currentUser.uid === userId && permissions.role && permissions.role !== 'Administrador') {
           alert("Você não pode rebaixar a si mesmo.");
           return;
       }
@@ -242,33 +275,7 @@ function UsersPage() {
     } catch (error) {
       console.error("Erro ao atualizar usuário:", error);
     }
-  };
-  
-  const openDeleteConfirm = (user: AppUser) => {
-    if (currentUser?.role !== 'Administrador') return;
-    setUserToDelete(user);
-    setConfirmAction({
-      action: confirmDeleteUser,
-      title: "Excluir Usuário",
-      message: `Você tem certeza que deseja excluir permanentemente o usuário ${user.name}? Todos os seus dados serão perdidos e esta ação não pode ser desfeita.`,
-      confirmText: "Sim, excluir",
-    });
-    setIsConfirmModalOpen(true);
-  };
-
-  const confirmDeleteUser = async () => {
-    if (!userToDelete || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
-    
-    setIsConfirmModalOpen(false);
-    try {
-        await deleteUserFunction({ uid: userToDelete.uid });
-        // A lista será atualizada automaticamente pelo onSnapshot
-    } catch (error: any) {
-        console.error("Erro ao chamar a função para excluir usuário:", error);
-    } finally {
-        setUserToDelete(null);
-    }
-  };
+  }, [currentUser]);
 
   const stats = useMemo(() => {
     const onlineCount = users.filter(u => u.isOnline === true).length;
@@ -290,9 +297,20 @@ function UsersPage() {
     if (roleFilter !== 'all') {
       filtered = filtered.filter(user => user.role === roleFilter);
     }
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(user => user.status === statusFilter);
+    
+    if (activityFilter !== 'all') {
+        if (activityFilter === 'active_hourly') {
+            const oneHourAgo = subHours(new Date(), 1);
+            filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneHourAgo);
+        } else if (activityFilter === 'active_weekly') {
+            const oneWeekAgo = subDays(new Date(), 7);
+            filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneWeekAgo);
+        } else if (activityFilter === 'inactive') {
+            const oneMonthAgo = subMonths(new Date(), 1);
+            filtered = filtered.filter(u => !u.lastSeen || u.lastSeen.toDate() < oneMonthAgo);
+        }
     }
+
     if (searchTerm) {
       const lowerCaseSearch = searchTerm.toLowerCase();
       filtered = filtered.filter(user =>
@@ -312,7 +330,7 @@ function UsersPage() {
       return a.name.localeCompare(b.name);
     });
 
-  }, [users, currentUser, searchTerm, presenceFilter, roleFilter, statusFilter]);
+  }, [users, currentUser, searchTerm, presenceFilter, roleFilter, activityFilter]);
   
   if (userLoading || loading) {
     return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
@@ -320,7 +338,7 @@ function UsersPage() {
   
   if (!currentUser || !['Administrador', 'Dirigente'].includes(currentUser.role)) {
     return (
-        <div className="text-center">
+        <div className="text-center p-8">
             <h1 className="text-2xl font-bold">Acesso Negado</h1>
             <p>Você não tem permissão para visualizar esta página.</p>
         </div>
@@ -363,12 +381,12 @@ function UsersPage() {
             </div>
         </div>
         <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4">
-            <div className="bg-gray-500/20 text-gray-400 p-3 rounded-lg">
-                <WifiOff size={28} />
+            <div className="bg-yellow-500/20 text-yellow-400 p-3 rounded-lg">
+                <Check size={28}/>
             </div>
             <div>
-                <p className="text-muted-foreground text-sm">Offline</p>
-                <p className="text-2xl font-bold">{stats.offline}</p>
+                <p className="text-muted-foreground text-sm">Pendentes</p>
+                <p className="text-2xl font-bold">{stats.pending}</p>
             </div>
         </div>
       </div>
@@ -407,10 +425,12 @@ function UsersPage() {
                             </div>
 
                             <div>
-                                <p className="font-semibold mb-2">Status de Aprovação</p>
+                                <p className="font-semibold mb-2">Atividade Recente (Visto por último)</p>
                                 <div className="flex flex-wrap gap-2">
-                                    <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                    <FilterButton label={`Apenas Pendentes (${stats.pending})`} value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                    <FilterButton label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                    <FilterButton label="Ativos na Última Hora" value="active_hourly" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                    <FilterButton label="Ativos na Semana" value="active_weekly" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                    <FilterButton label="Inativos há um Mês" value="inactive" currentFilter={activityFilter} setFilter={setActivityFilter} />
                                 </div>
                             </div>
                         </Disclosure.Panel>
@@ -423,7 +443,21 @@ function UsersPage() {
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-        <input type="text" placeholder="Buscar por nome ou e-mail..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-card border border-input rounded-lg" />
+        <input 
+            type="text" 
+            placeholder="Buscar por nome ou e-mail..." 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+            className="w-full pl-10 pr-10 py-2 bg-card border border-input rounded-lg" 
+        />
+        {searchTerm && (
+          <button 
+            onClick={() => setSearchTerm('')} 
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
       
       <div className="bg-white dark:bg-[#2a2736] rounded-lg shadow-md">
@@ -449,20 +483,16 @@ function UsersPage() {
       </div>
     </div>
     
-      {confirmAction && (
-          <ConfirmationModal
-            isOpen={isConfirmModalOpen}
-            onClose={() => setIsConfirmModalOpen(false)}
-            onConfirm={() => {
-                confirmAction.action();
-            }}
-            isLoading={false}
-            title={confirmAction.title}
-            message={confirmAction.message}
-            confirmText={confirmAction.confirmText}
-            cancelText="Cancelar"
-          />
-      )}
+      <ConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={confirmDeleteUser}
+        isLoading={false}
+        title="Excluir Usuário"
+        message={`Você tem certeza que deseja excluir permanentemente o usuário ${userToDelete?.name}? Todos os seus dados serão perdidos e esta ação não pode ser desfeita.`}
+        confirmText="Sim, excluir"
+        cancelText="Cancelar"
+      />
     </>
   );
 }

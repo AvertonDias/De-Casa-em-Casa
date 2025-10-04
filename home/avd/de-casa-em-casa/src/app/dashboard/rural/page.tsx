@@ -6,10 +6,12 @@ import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUni
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 import { AddRuralTerritoryModal } from '@/components/AddRuralTerritoryModal';
-import { Map, PlusCircle, Search, Link as LinkIcon, Loader, Inbox, Edit2, Trash2 } from 'lucide-react';
+import { Map, PlusCircle, Search, Link as LinkIcon, Loader, Inbox, Edit2, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
 import AddEditLinkModal from '@/components/AddEditLinkModal'; 
+import { ConfirmationModal } from '@/components/ConfirmationModal';
 import type { RuralTerritory, Congregation, RuralLink } from '@/types/types';
+import withAuth from '@/components/withAuth';
 
 const RuralTerritoryCard = ({ territory }: { territory: RuralTerritory }) => (
   <Link href={`/dashboard/rural/${territory.id}`} className="block h-full">
@@ -29,7 +31,7 @@ const RuralTerritoryCard = ({ territory }: { territory: RuralTerritory }) => (
 );
 
 
-export default function RuralPage() {
+function RuralPage() {
   const { user, loading: userLoading } = useUser();
   const [territories, setTerritories] = useState<RuralTerritory[]>([]);
   const [congregation, setCongregation] = useState<Congregation | null>(null);
@@ -39,6 +41,10 @@ export default function RuralPage() {
 
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkToEdit, setLinkToEdit] = useState<RuralLink | null>(null);
+  
+  const [isConfirmDeleteLinkOpen, setIsConfirmDeleteLinkOpen] = useState(false);
+  const [linkToDelete, setLinkToDelete] = useState<RuralLink | null>(null);
+
 
   useEffect(() => {
     if (!user?.congregationId) {
@@ -87,10 +93,17 @@ export default function RuralPage() {
     }
   };
 
-  const handleDeleteLink = async (linkToDelete: RuralLink) => {
-    if (!user?.congregationId || !window.confirm(`Tem certeza que deseja excluir o link "${linkToDelete.description}"?`)) return;
+  const handleDeleteRequest = (link: RuralLink) => {
+    setLinkToDelete(link);
+    setIsConfirmDeleteLinkOpen(true);
+  };
+
+  const handleDeleteLink = async () => {
+    if (!user?.congregationId || !linkToDelete) return;
     const congRef = doc(db, 'congregations', user.congregationId);
     await updateDoc(congRef, { globalRuralLinks: arrayRemove(linkToDelete) });
+    setIsConfirmDeleteLinkOpen(false);
+    setLinkToDelete(null);
   };
 
   const filteredTerritories = territories.filter(t =>
@@ -114,7 +127,7 @@ export default function RuralPage() {
           </div>
           {isAdmin && user.congregationId && (
             <>
-              <button onClick={() => setIsAddModalOpen(true)} className="flex items-center px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90">
+              <button onClick={() => setIsAddModalOpen(true)} className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90">
                   <PlusCircle size={20} className="mr-2" /> Novo Território Rural
               </button>
               <AddRuralTerritoryModal 
@@ -144,7 +157,7 @@ export default function RuralPage() {
                   {isAdmin && (
                     <div className="flex items-center gap-2">
                       <button onClick={() => handleOpenEditLinkModal(link)} className="text-muted-foreground hover:text-white"><Edit2 size={14} /></button>
-                      <button onClick={() => handleDeleteLink(link)} className="text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
+                      <button onClick={() => handleDeleteRequest(link)} className="text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
                     </div>
                   )}
                 </div>
@@ -164,8 +177,16 @@ export default function RuralPage() {
                 placeholder="Buscar por nome ou número..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-card border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full pl-10 pr-10 py-3 bg-card border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')} 
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X size={20} />
+              </button>
+            )}
         </div>
 
         {filteredTerritories.length > 0 ? (
@@ -193,6 +214,17 @@ export default function RuralPage() {
         onSave={handleSaveLink}
         linkToEdit={linkToEdit}
       />
+
+      <ConfirmationModal
+        isOpen={isConfirmDeleteLinkOpen}
+        onClose={() => setIsConfirmDeleteLinkOpen(false)}
+        onConfirm={handleDeleteLink}
+        title="Confirmar Exclusão de Link"
+        message={`Tem certeza que deseja excluir o link "${linkToDelete?.description}"? Esta ação não pode ser desfeita.`}
+        confirmText="Sim, Excluir"
+      />
     </>
   );
 }
+
+export default withAuth(RuralPage);

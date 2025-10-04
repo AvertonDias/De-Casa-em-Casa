@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 import { Territory, Quadra } from '@/types/types';
 import Link from 'next/link';
-import { Plus, Search, ChevronRight, Loader, UserCheck, CalendarClock, AlertTriangle, Download, CheckCircle } from 'lucide-react';
+import { Plus, Search, ChevronRight, Loader, UserCheck, CalendarClock, AlertTriangle, Download, CheckCircle, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AddTerritoryModal from '@/components/AddTerritoryModal';
@@ -191,7 +191,21 @@ function TerritoriosPage() {
 
         <div className="relative mb-6">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-            <input type="text" placeholder="Buscar por nome ou número..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-card border border-border rounded-md pl-10 pr-4 py-2" />
+            <input 
+              type="text" 
+              placeholder="Buscar por nome ou número..." 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+              className="w-full bg-card border border-border rounded-md pl-10 pr-10 py-2" 
+            />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')} 
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X size={20} />
+              </button>
+            )}
         </div>
 
         {isManagerView ? (
