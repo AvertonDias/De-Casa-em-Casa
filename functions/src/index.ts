@@ -19,6 +19,7 @@ const allowedOrigins = [
     "https://appterritorios-e5bb5.web.app",
     "https://appterritorios-e5bb5.firebaseapp.com",
     "https://6000-firebase-studio-1750624095908.cluster-m7tpz3bmgjgoqrktlvd4ykrc2m.cloudworkstations.dev",
+    "https://de-casa-em-casa.vercel.app",
 ];
 
 const corsHandler = cors({
