@@ -107,7 +107,7 @@ function TerritoriosPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
-    // Atraso para garantir que a renderização inicial termine
+    // Restaura a posição da rolagem
     if (!loading) {
       setTimeout(() => {
         const scrollPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
@@ -115,19 +115,12 @@ function TerritoriosPage() {
           window.scrollTo(0, parseInt(scrollPosition, 10));
           sessionStorage.removeItem(SCROLL_POSITION_KEY);
         }
-      }, 100);
+      }, 50); // Um pequeno atraso pode ajudar
     }
-  
-    // Salva a posição antes de descarregar a página (mudar de rota)
-    const handleBeforeUnload = () => {
-      sessionStorage.setItem(SCROLL_POSITION_KEY, window.scrollY.toString());
-    };
-  
-    window.addEventListener('beforeunload', handleBeforeUnload);
-  
+
+    // Salva a posição da rolagem ao sair da página
     return () => {
-      handleBeforeUnload(); // Garante que salva mesmo na navegação do Next.js
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      sessionStorage.setItem(SCROLL_POSITION_KEY, window.scrollY.toString());
     };
   }, [loading]);
 
