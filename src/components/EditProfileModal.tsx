@@ -22,7 +22,8 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   const { toast } = useToast();
   
   const [name, setName] = useState('');
-  const [whatsapp, setWhatsapp] = useState(''); // Novo estado para o WhatsApp
+  const [whatsapp, setWhatsapp] = useState('');
+  const [confirmWhatsapp, setConfirmWhatsapp] = useState(''); // Novo estado para confirmação
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -38,7 +39,9 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   useEffect(() => {
     if (user && isOpen) {
       setName(user.name);
-      setWhatsapp(user.whatsapp || ''); // Carrega o WhatsApp
+      const initialWhatsapp = user.whatsapp || '';
+      setWhatsapp(initialWhatsapp);
+      setConfirmWhatsapp(initialWhatsapp); // Inicializa a confirmação com o mesmo valor
       setError(null);
       setSuccess(null);
       setCurrentPassword('');
@@ -53,6 +56,12 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setError(null);
     setSuccess(null);
     setLoading(true);
+
+    if (whatsapp !== confirmWhatsapp) {
+      setError("Os números de WhatsApp não coincidem.");
+      setLoading(false);
+      return;
+    }
 
     if (!user || !auth.currentUser) {
       setError("Usuário não encontrado. Por favor, faça login novamente.");
@@ -166,6 +175,8 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     }
   }
 
+  const whatsappMismatch = whatsapp !== confirmWhatsapp;
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -192,6 +203,20 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                 className="mt-1"
               />
             </div>
+            <div>
+              <label htmlFor="confirmWhatsapp" className="text-sm font-medium text-muted-foreground">Confirmar WhatsApp</label>
+              <Input 
+                id="confirmWhatsapp" 
+                type="tel" 
+                value={confirmWhatsapp} 
+                onChange={e => setConfirmWhatsapp(maskPhone(e.target.value))} 
+                placeholder="Repita seu WhatsApp" 
+                className={`mt-1 ${whatsappMismatch ? 'border-destructive' : ''}`}
+              />
+              {whatsappMismatch && (
+                  <p className="text-xs text-destructive mt-1">Os números de WhatsApp não coincidem.</p>
+              )}
+            </div>
 
             <div className="border-t border-border pt-4">
                 <p className="text-sm font-medium text-muted-foreground mb-2">Alterar Senha <span className="font-semibold text-muted-foreground">(Opcional)</span></p>
@@ -214,7 +239,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
             
           <div className="mt-6">
             {success && <p className="text-green-500 text-sm mb-2 text-center">{success}</p>}
-            <Button type="submit" disabled={loading} className="w-full">
+            <Button type="submit" disabled={loading || whatsappMismatch} className="w-full">
               {loading ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
           </div>
@@ -262,3 +287,4 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     </Dialog>
   );
 }
+
