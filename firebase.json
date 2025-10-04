@@ -6,11 +6,7 @@
   "functions": [
     {
       "source": "functions",
-      "codebase": "default",
-      "serviceAccount": "deploy-functions-sa@appterritorios-e5bb5.iam.gserviceaccount.com"
+      "codebase": "default"
     }
   ]
 }
-
-
-    

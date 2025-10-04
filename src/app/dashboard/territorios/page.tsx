@@ -152,7 +152,7 @@ function TerritoriosPage() {
     } else if (!userLoading) {
         setLoading(false);
     }
-  }, [user, userLoading]);
+  }, [user, userLoading, loading]);
 
 
   const filteredAndSortedTerritories = useMemo(() => {
@@ -163,14 +163,15 @@ function TerritoriosPage() {
     if (statusFilter !== 'all') {
       filtered = filtered.filter(t => {
         const isDesignado = t.status === 'designado' && t.assignment;
-        if (statusFilter === 'disponivel') {
-          return !isDesignado;
-        }
+        
+        if (statusFilter === 'disponivel') return !isDesignado;
+        
         if (isDesignado) {
-          const isOverdue = t.assignment.dueDate.toDate() < new Date();
-          if (statusFilter === 'designado') return !isOverdue;
-          if (statusFilter === 'atrasado') return isOverdue;
+            const isOverdue = t.assignment.dueDate.toDate() < new Date();
+            if (statusFilter === 'designado') return !isOverdue;
+            if (statusFilter === 'atrasado') return isOverdue;
         }
+        
         return false;
       });
     }
@@ -331,3 +332,5 @@ function TerritoriosPage() {
 }
 
 export default withAuth(TerritoriosPage);
+
+    
