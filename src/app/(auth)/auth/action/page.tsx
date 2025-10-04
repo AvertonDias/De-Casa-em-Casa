@@ -1,4 +1,4 @@
-// src/app/(auth)/auth/action/page.tsx
+// src/app/auth/action/page.tsx
 "use client";
 
 import { useState, useEffect, Suspense } from 'react';
@@ -128,6 +128,14 @@ function PasswordResetActionPage() {
         );
     }
   };
+
+  if (!searchParams) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader className="animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">

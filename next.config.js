@@ -1,20 +1,6 @@
 
-import withPWAInit from "@ducanh2912/next-pwa";
-
-const isDev = process.env.NODE_ENV === "development";
-
-const withPWA = withPWAInit({
-  dest: "public",
-  disable: isDev,
-  sw: "sw.js",
-  register: true,
-  skipWaiting: true,
-  importScripts: ["/firebase-messaging-sw.js"],
-});
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  skipMiddlewareUrlNormalize: true,
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'placehold.co' },
@@ -26,4 +12,4 @@ const nextConfig = {
   },
 };
 
-export default withPWA(nextConfig);
+export default nextConfig;
