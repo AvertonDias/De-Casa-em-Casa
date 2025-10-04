@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { verifyPasswordResetCode, confirmPasswordReset } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
@@ -12,8 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Loader, KeyRound, CheckCircle, AlertTriangle } from 'lucide-react';
 
 function PasswordResetAction() {
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const router = useRouter();
   
   const [stage, setStage] = useState<'verifying' | 'form' | 'success' | 'error'>('verifying');
   const [email, setEmail] = useState('');
@@ -23,6 +23,12 @@ function PasswordResetAction() {
   const [oobCode, setOobCode] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!searchParams) {
+      setError('Parâmetros de redefinição não encontrados.');
+      setStage('error');
+      return;
+    }
+
     const mode = searchParams.get('mode');
     const code = searchParams.get('oobCode');
 
@@ -144,12 +150,15 @@ function PasswordResetAction() {
   );
 }
 
-// O Suspense é necessário porque a página usa `useSearchParams`
+
 export default function PasswordResetActionPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <Loader className="animate-spin text-primary" />
+        <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg text-center">
+            <Loader className="mx-auto h-12 w-12 text-primary animate-spin" />
+            <p className="mt-4 text-muted-foreground">Carregando...</p>
+        </div>
       </div>
     }>
       <PasswordResetAction />
