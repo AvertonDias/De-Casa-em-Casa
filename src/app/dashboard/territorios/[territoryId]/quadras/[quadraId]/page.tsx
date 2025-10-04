@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil, X } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
 import { EditCasaModal } from '@/components/EditCasaModal';
 import { useUser } from '@/contexts/UserContext';
@@ -318,9 +318,17 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             placeholder="Buscar por número ou observações..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white dark:bg-[#2f2b3a] dark:text-white dark:placeholder-gray-400 border border-gray-300 dark:border-gray-700 rounded-lg pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-purple-500"
+            className="w-full bg-white dark:bg-[#2f2b3a] dark:text-white dark:placeholder-gray-400 border border-gray-300 dark:border-gray-700 rounded-lg pl-12 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-purple-500"
             disabled={isReordering}
           />
+           {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')} 
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X size={20} />
+              </button>
+            )}
         </div>
 
         <div className="bg-white dark:bg-[#2f2b3a] rounded-lg shadow-md overflow-hidden">
@@ -431,3 +439,5 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 }
 
 export default withAuth(QuadraDetailPage);
+
+    
