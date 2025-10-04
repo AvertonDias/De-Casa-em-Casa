@@ -25,7 +25,7 @@ const SCROLL_POSITION_KEY = 'territories_scroll_position';
 
 const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
   const isDesignado = territory.status === 'designado' && territory.assignment;
-  const isOverdue = isDesignado && territory.assignment.dueDate.toDate() < new Date();
+  const isOverdue = !!(isDesignado && territory.assignment.dueDate.toDate() < new Date());
   const totalCasas = territory.stats?.totalHouses || 0;
   const casasFeitas = territory.stats?.housesDone || 0;
   const progresso = territory.progress ? Math.round(territory.progress * 100) : 0;
@@ -115,6 +115,16 @@ function TerritoriosPage() {
 
 
   useEffect(() => {
+    const handleBeforeUnload = () => {
+      sessionStorage.setItem(SCROLL_POSITION_KEY, window.scrollY.toString());
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!loading) {
       setTimeout(() => {
         const scrollPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
@@ -124,18 +134,6 @@ function TerritoriosPage() {
         }
       }, 50); 
     }
-  
-    const handleBeforeUnload = () => {
-      sessionStorage.setItem(SCROLL_POSITION_KEY, window.scrollY.toString());
-    };
-    
-    // Attach event listener
-    window.addEventListener('beforeunload', handleBeforeUnload);
-  
-    // Cleanup function
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
   }, [loading]);
 
   useEffect(() => {
@@ -163,12 +161,12 @@ function TerritoriosPage() {
       filtered = filtered.filter(t => {
         const isDesignado = t.status === 'designado' && t.assignment;
         if (statusFilter === 'disponivel') {
-            return !isDesignado;
+          return !isDesignado;
         }
         if (isDesignado) {
-            const isOverdue = t.assignment.dueDate.toDate() < new Date();
-            if (statusFilter === 'designado') return !isOverdue;
-            if (statusFilter === 'atrasado') return isOverdue;
+          const isOverdue = t.assignment && t.assignment.dueDate.toDate() < new Date();
+          if (statusFilter === 'designado') return !isOverdue;
+          if (statusFilter === 'atrasado') return isOverdue;
         }
         return false;
       });
