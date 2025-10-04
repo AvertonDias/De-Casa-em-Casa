@@ -224,6 +224,7 @@ export default function TerritoryAssignmentPanel() {
     setNotifyingTerritoryId(territory.id);
 
     try {
+      // Envia notificação PUSH
       const result = await sendOverdueNotificationFn({
         userId: territory.assignment.uid,
         title: "Lembrete de Território Atrasado",
@@ -231,9 +232,15 @@ export default function TerritoryAssignmentPanel() {
       });
 
       const data = result.data as { success: boolean; message: string; };
+      if (!data.success) throw new Error(data.message || 'Falha ao enviar notificação');
 
-      if (!data.success) {
-        throw new Error(data.message || 'Falha ao enviar notificação');
+      // Abre o WhatsApp
+      const assignedUser = users.find(u => u.uid === territory.assignment.uid);
+      if (assignedUser?.whatsapp) {
+          const message = `Olá, ${assignedUser.name}. Um lembrete amigável de que o território "${territory.name}" está com a devolução atrasada.`;
+          const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
+          const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
+          window.open(whatsappUrl, '_blank');
       }
 
       toast({
@@ -419,3 +426,4 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
+
