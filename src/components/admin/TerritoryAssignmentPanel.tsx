@@ -116,7 +116,8 @@ export default function TerritoryAssignmentPanel() {
     const territory = territories.find(t => t.id === territoryId);
     
     if (assignedUser?.whatsapp && territory) {
-        const message = `Olá, ${assignedUser.name}! Você recebeu o território *${territory.number} - ${territory.name}*.`;
+        const formattedDueDate = format(assignment.dueDate.toDate(), 'dd/MM/yyyy');
+        const message = `O território *${territory.number} - ${territory.name}* foi designado para você! Devolva até ${formattedDueDate}.`;
         const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, ''); // Remove non-digit characters
         const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
