@@ -24,7 +24,9 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      await sendPasswordResetEmail(auth, email, {
+        url: `${window.location.origin}/auth/action`,
+      });
       setIsSubmitted(true); // Muda o estado para a tela de sucesso
       toast({
         title: "Verifique seu e-mail",
@@ -52,7 +54,7 @@ export default function ForgotPasswordPage() {
             <p className="text-muted-foreground">
               Enviamos um link de recuperação de senha para <span className="font-semibold text-foreground">{email}</span>.
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-green-600 dark:text-green-400 font-semibold">
               Se você não encontrar o e-mail, por favor, verifique sua pasta de spam.
             </p>
             <Button asChild className="w-full">
