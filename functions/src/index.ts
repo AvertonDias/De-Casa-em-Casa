@@ -443,7 +443,7 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
       const payload = {
           notification: {
               title: "Você recebeu um novo território!",
-              body: `O território "${territoryName}" está sob sua responsabilidade. Devolver até ${formattedDueDate}.`,
+              body: `O território "${territoryName}" foi designado para você! Devolva até ${formattedDueDate}.`,
               icon: "/icon-192x192.jpg",
               click_action: "/dashboard/meus-territorios",
           },
