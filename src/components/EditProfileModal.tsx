@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { X, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { useToast } from '@/hooks/use-toast';
+import { maskPhone } from '@/lib/utils'; // Importa a máscara
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
@@ -20,6 +21,7 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
   const { toast } = useToast();
   
   const [name, setName] = useState('');
+  const [whatsapp, setWhatsapp] = useState(''); // Novo estado para o WhatsApp
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -35,6 +37,7 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
   useEffect(() => {
     if (user && isOpen) {
       setName(user.name);
+      setWhatsapp(user.whatsapp || ''); // Carrega o WhatsApp
       setError(null);
       setSuccess(null);
       setCurrentPassword('');
@@ -69,25 +72,35 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
     }
     
     try {
+      let changesMade = false;
+      const dataToUpdate: Partial<{ name: string; whatsapp: string }> = {};
+
       if (name.trim() !== user.name) {
         await updateProfile(auth.currentUser, { displayName: name.trim() });
-        await updateUser({ name: name.trim() });
-        setSuccess("Perfil atualizado com sucesso!");
+        dataToUpdate.name = name.trim();
+        changesMade = true;
+      }
+      
+      if (whatsapp !== (user.whatsapp || '')) {
+        dataToUpdate.whatsapp = whatsapp;
+        changesMade = true;
+      }
+
+      if (Object.keys(dataToUpdate).length > 0) {
+        await updateUser(dataToUpdate);
       }
 
       if (newPassword && currentPassword && auth.currentUser.email) {
         const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
         await reauthenticateWithCredential(auth.currentUser, credential);
         await updatePassword(auth.currentUser, newPassword);
-        setSuccess(name.trim() !== user.name ? "Perfil e senha atualizados com sucesso!" : "Senha atualizada com sucesso!");
+        changesMade = true;
         setCurrentPassword('');
         setNewPassword('');
         setConfirmNewPassword('');
       }
-      
-      if (name.trim() === user.name && !newPassword) {
-        setSuccess("Nenhuma alteração para salvar.");
-      }
+
+      setSuccess(changesMade ? "Perfil atualizado com sucesso!" : "Nenhuma alteração para salvar.");
 
     } catch (error: any) {
       console.error("Erro ao salvar perfil:", error);
@@ -159,6 +172,17 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
            <div>
               <label htmlFor="name" className="text-sm font-medium text-muted-foreground">Nome Completo</label>
               <Input id="name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1"/>
+            </div>
+            <div>
+              <label htmlFor="whatsapp" className="text-sm font-medium text-muted-foreground">WhatsApp</label>
+              <Input 
+                id="whatsapp" 
+                type="tel" 
+                value={whatsapp} 
+                onChange={e => setWhatsapp(maskPhone(e.target.value))} 
+                placeholder="(XX) XXXXX-XXXX" 
+                className="mt-1"
+              />
             </div>
 
             <div className="border-t border-border pt-4">

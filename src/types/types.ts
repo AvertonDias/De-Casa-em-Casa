@@ -7,6 +7,7 @@ export interface AppUser {
   uid: string;
   name: string;
   email: string;
+  whatsapp?: string; // Campo para o WhatsApp
   role: 'Administrador' | 'Dirigente' | 'Publicador';
   status: 'ativo' | 'inativo' | 'pendente' | 'rejeitado';
   congregationId?: string;
