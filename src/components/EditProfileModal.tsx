@@ -101,14 +101,24 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         setConfirmNewPassword('');
       }
 
-      setSuccess(changesMade ? "Perfil atualizado com sucesso!" : "Nenhuma alteração para salvar.");
+      if (changesMade) {
+        toast({
+          title: "Sucesso!",
+          description: "Seu perfil foi atualizado com sucesso.",
+        });
+        onOpenChange(false); // Fecha o modal ao salvar
+      } else {
+         toast({
+          title: "Nenhuma alteração detectada",
+          description: "Não havia novas informações para salvar.",
+        });
+      }
 
     } catch (error: any) {
       console.error("Erro ao salvar perfil:", error);
       setError(error.code === 'auth/wrong-password' ? "Senha atual incorreta." : "Ocorreu um erro ao salvar as alterações.");
     } finally {
       setLoading(false);
-      setTimeout(() => setSuccess(null), 4000);
     }
   };
 
