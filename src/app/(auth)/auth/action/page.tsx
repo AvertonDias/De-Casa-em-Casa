@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader, KeyRound, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Loader, KeyRound, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 
 function PasswordResetAction() {
   const searchParams = useSearchParams();
@@ -21,6 +21,9 @@ function PasswordResetAction() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [oobCode, setOobCode] = useState<string | null>(null);
+
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (!searchParams) {
@@ -101,13 +104,19 @@ function PasswordResetAction() {
               </p>
             </div>
             <form onSubmit={handleResetPassword} className="space-y-4">
-              <div>
+              <div className="relative">
                 <Label htmlFor="new-password">Nova Senha</Label>
-                <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+                <Input id="new-password" type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+                 <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
+                    {showNewPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                </button>
               </div>
-              <div>
+              <div className="relative">
                 <Label htmlFor="confirm-password">Confirmar Nova Senha</Label>
-                <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                <Input id="confirm-password" type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
+                    {showConfirmPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                </button>
               </div>
               {error && <p className="text-sm text-center text-destructive">{error}</p>}
               <Button type="submit" className="w-full">Salvar Nova Senha</Button>
