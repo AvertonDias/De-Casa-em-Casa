@@ -235,7 +235,7 @@ export default function TerritoryAssignmentPanel() {
     setNotifyingTerritoryId(territory.id);
 
     try {
-        const message = `Olá, este é um lembrete de que o "${territory.name}" está com a devolução atrasada`;
+        const message = `Olá, este é um lembrete de que o território "${territory.name}" está com a devolução atrasada.`;
         const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
         const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
@@ -423,3 +423,4 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
+
