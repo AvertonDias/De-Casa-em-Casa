@@ -6,7 +6,7 @@ import { useUser } from '@/contexts/UserContext';
 import { db, app } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, Wifi, WifiOff, Users as UsersIcon, SlidersHorizontal, ChevronUp, Clock } from 'lucide-react';
+import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, Wifi, WifiOff, Users as UsersIcon, SlidersHorizontal, ChevronUp, Clock, X } from 'lucide-react';
 import { Menu, Transition, Disclosure } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -338,7 +338,7 @@ function UsersPage() {
   
   if (!currentUser || !['Administrador', 'Dirigente'].includes(currentUser.role)) {
     return (
-        <div className="text-center">
+        <div className="text-center p-8">
             <h1 className="text-2xl font-bold">Acesso Negado</h1>
             <p>Você não tem permissão para visualizar esta página.</p>
         </div>
@@ -381,12 +381,12 @@ function UsersPage() {
             </div>
         </div>
         <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4">
-            <div className="bg-gray-500/20 text-gray-400 p-3 rounded-lg">
-                <WifiOff size={28} />
+            <div className="bg-yellow-500/20 text-yellow-400 p-3 rounded-lg">
+                <Check size={28}/>
             </div>
             <div>
-                <p className="text-muted-foreground text-sm">Offline</p>
-                <p className="text-2xl font-bold">{stats.offline}</p>
+                <p className="text-muted-foreground text-sm">Pendentes</p>
+                <p className="text-2xl font-bold">{stats.pending}</p>
             </div>
         </div>
       </div>
@@ -443,7 +443,21 @@ function UsersPage() {
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-        <input type="text" placeholder="Buscar por nome ou e-mail..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-card border border-input rounded-lg" />
+        <input 
+            type="text" 
+            placeholder="Buscar por nome ou e-mail..." 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+            className="w-full pl-10 pr-10 py-2 bg-card border border-input rounded-lg" 
+        />
+        {searchTerm && (
+          <button 
+            onClick={() => setSearchTerm('')} 
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
       
       <div className="bg-white dark:bg-[#2a2736] rounded-lg shadow-md">
