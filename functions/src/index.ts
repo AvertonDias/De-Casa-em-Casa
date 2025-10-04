@@ -48,8 +48,8 @@ export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
             res.status(405).json({ error: 'Método não permitido' });
             return;
         }
-        const { adminName, adminEmail, adminPassword, congregationName, congregationNumber } = req.body;
-        if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
+        const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.body;
+        if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
             res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
             return;
         }
@@ -82,6 +82,7 @@ export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
             batch.set(userDocRef, {
                 name: adminName,
                 email: adminEmail,
+                whatsapp: whatsapp, // Salva o WhatsApp
                 congregationId: newCongregationRef.id,
                 role: "Administrador",
                 status: "ativo"
@@ -210,7 +211,7 @@ export const resetTerritoryProgress = https.onCall(async (req) => {
 });
 
 
-export const sendOverdueNotification = https.onCall(async (req) => {
+export const sendOverdueNotification = https.onCall({ cors: true }, async (req) => {
     if (!req.auth) {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
@@ -256,7 +257,7 @@ export const sendOverdueNotification = https.onCall(async (req) => {
 });
 
 
-export const generateUploadUrl = https.onCall(async (req) => {
+export const generateUploadUrl = https.onCall({ cors: true }, async (req) => {
   if (!req.auth) {
     throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
   }
@@ -283,7 +284,7 @@ export const generateUploadUrl = https.onCall(async (req) => {
 });
 
 
-export const sendFeedbackEmail = https.onCall(async (req) => {
+export const sendFeedbackEmail = https.onCall({ cors: true }, async (req) => {
   if (!req.auth) {
       throw new https.HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
   }
