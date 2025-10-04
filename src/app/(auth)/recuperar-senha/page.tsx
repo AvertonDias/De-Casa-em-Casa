@@ -8,34 +8,62 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, MailCheck } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage('');
     setError('');
     setIsLoading(true);
 
     try {
       await sendPasswordResetEmail(auth, email);
-      setMessage('Link de recuperação enviado! Verifique sua caixa de entrada e pasta de spam.');
+      setIsSubmitted(true); // Muda o estado para a tela de sucesso
+      toast({
+        title: "Verifique seu e-mail",
+        description: `Um link de recuperação foi enviado para ${email}.`,
+      });
     } catch (err: any) {
-      if (err.code === 'auth/user-not-found') {
-        setError('Nenhuma conta encontrada com este e-mail.');
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-email') {
+        setError('Nenhuma conta encontrada com este endereço de e-mail.');
       } else {
-        setError('Erro ao enviar o link. Tente novamente mais tarde.');
+        setError('Ocorreu um erro ao enviar o link. Tente novamente mais tarde.');
       }
       console.error("Firebase password reset error:", err);
     } finally {
       setIsLoading(false);
     }
   };
+  
+  if (isSubmitted) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
+          <div className="text-center space-y-4">
+            <MailCheck className="mx-auto h-16 w-16 text-green-500" />
+            <h1 className="text-2xl font-bold">Verifique sua Caixa de Entrada</h1>
+            <p className="text-muted-foreground">
+              Enviamos um link de recuperação de senha para <span className="font-semibold text-foreground">{email}</span>.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Se você não encontrar o e-mail, por favor, verifique sua pasta de spam.
+            </p>
+            <Button asChild className="w-full">
+              <Link href="/">Voltar para o Login</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
@@ -60,7 +88,6 @@ export default function ForgotPasswordPage() {
             />
           </div>
           
-          {message && <p className="text-sm text-center text-green-500">{message}</p>}
           {error && <p className="text-sm text-center text-destructive">{error}</p>}
           
           <Button
