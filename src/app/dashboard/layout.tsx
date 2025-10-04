@@ -28,6 +28,7 @@ import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
 import withAuth from "@/components/withAuth";
 import { usePresence } from "@/hooks/usePresence";
 import { EditProfileModal } from "@/components/EditProfileModal"; // Importar o modal de perfil
+import { UpdateProfileBanner } from "@/components/UpdateProfileBanner";
 
 
 // Componente para trocar o tema (agora mais robusto)
@@ -267,7 +268,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
         confirmText="Sim, Sair"
         variant="destructive"
       />
-      <EditProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
+      <EditProfileModal isOpen={isProfileModalOpen} onOpenChange={setIsProfileModalOpen} />
     </>
   );
 }
@@ -275,6 +276,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
 function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useUser();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
   // Ativa o sistema de presença para o usuário logado
   usePresence();
@@ -324,9 +326,13 @@ function DashboardLayout({ children }: { children: ReactNode }) {
               </header>
               <main className="flex-1 overflow-y-auto">
                   {user.status === 'pendente' && <PendingApprovalBanner />}
-                  {children}
+                  {user.status === 'ativo' && <UpdateProfileBanner onUpdateProfileClick={() => setIsProfileModalOpen(true)} />}
+                  <div className="p-4 md:p-8">
+                    {children}
+                  </div>
               </main>
           </div>
+          <EditProfileModal isOpen={isProfileModalOpen} onOpenChange={setIsProfileModalOpen} />
       </div>
   );
 }

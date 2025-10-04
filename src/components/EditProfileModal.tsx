@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -16,7 +17,7 @@ import { maskPhone } from '@/lib/utils'; // Importa a máscara
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
 
-export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
   const { toast } = useToast();
   
@@ -137,7 +138,7 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
           description: "Sua conta foi removida com sucesso. Você será desconectado.",
         });
 
-        onClose();
+        onOpenChange(false);
         await logout();
 
     } catch (error: any) {
@@ -156,7 +157,7 @@ export function EditProfileModal({ isOpen, onClose }: { isOpen: boolean, onClose
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Editar Perfil</DialogTitle>
