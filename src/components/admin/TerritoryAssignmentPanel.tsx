@@ -237,7 +237,7 @@ export default function TerritoryAssignmentPanel() {
       // Abre o WhatsApp
       const assignedUser = users.find(u => u.uid === territory.assignment.uid);
       if (assignedUser?.whatsapp) {
-          const message = `Olá, ${assignedUser.name}. Um lembrete amigável de que o território "${territory.name}" está com a devolução atrasada.`;
+          const message = `Olá, este é um lembrete de que o "${territory.name}" está com a devolução atrasada`;
           const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
           const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
           window.open(whatsappUrl, '_blank');
