@@ -3,30 +3,21 @@
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { User, Info, X } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
-const BANNER_DISMISSED_KEY = 'updateProfileBannerDismissed';
 
 export function UpdateProfileBanner({ onUpdateProfileClick }: { onUpdateProfileClick: () => void }) {
   const { user } = useUser();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    // O banner é visível se o usuário estiver logado e não tiver WhatsApp
     if (user && !user.whatsapp) {
-      const isDismissed = sessionStorage.getItem(BANNER_DISMISSED_KEY);
-      if (!isDismissed) {
-        setIsVisible(true);
-      }
+      setIsVisible(true);
     } else {
       setIsVisible(false);
     }
   }, [user]);
-
-  const handleDismiss = () => {
-    sessionStorage.setItem(BANNER_DISMISSED_KEY, 'true');
-    setIsVisible(false);
-  };
 
   if (!isVisible) {
     return null;
@@ -39,7 +30,7 @@ export function UpdateProfileBanner({ onUpdateProfileClick }: { onUpdateProfileC
         <div>
           <h3 className="font-bold text-blue-900 dark:text-blue-200">Complete seu Perfil</h3>
           <p className="text-sm text-blue-700 dark:text-blue-300">
-            Seu número de WhatsApp ainda não foi cadastrado. Adicioná-lo facilita o contato dos dirigentes.
+            Seu número de WhatsApp ainda não foi cadastrado. Para prosseguir, por favor, atualize seu perfil com esta informação.
           </p>
           <Button 
             variant="link" 
@@ -50,9 +41,6 @@ export function UpdateProfileBanner({ onUpdateProfileClick }: { onUpdateProfileC
           </Button>
         </div>
       </div>
-      <button onClick={handleDismiss} className="p-1 rounded-full text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/50">
-        <X size={18} />
-      </button>
     </div>
   );
 }
