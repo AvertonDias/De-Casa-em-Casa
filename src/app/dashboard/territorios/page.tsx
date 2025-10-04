@@ -325,5 +325,3 @@ function TerritoriosPage() {
 }
 
 export default withAuth(TerritoriosPage);
-
-    
