@@ -6,6 +6,7 @@ const isDev = process.env.NODE_ENV === "development";
 const withPWA = withPWAInit({
   dest: "public",
   disable: isDev,
+  // As configurações abaixo são aplicadas apenas em produção (quando `isDev` é false)
   sw: "sw.js",
   register: true,
   skipWaiting: true,
@@ -14,7 +15,6 @@ const withPWA = withPWAInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  skipMiddlewareUrlNormalize: true,
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'placehold.co' },
