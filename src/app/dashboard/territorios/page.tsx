@@ -25,7 +25,7 @@ const SCROLL_POSITION_KEY = 'territories_scroll_position';
 
 const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
   const isDesignado = territory.status === 'designado' && territory.assignment;
-  const isOverdue = !!(isDesignado && territory.assignment.dueDate.toDate() < new Date());
+  const isOverdue = isDesignado ? territory.assignment.dueDate.toDate() < new Date() : false;
   const totalCasas = territory.stats?.totalHouses || 0;
   const casasFeitas = territory.stats?.housesDone || 0;
   const progresso = territory.progress ? Math.round(territory.progress * 100) : 0;
@@ -144,12 +144,15 @@ function TerritoriosPage() {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
         setTerritories(data);
         if (loading) setLoading(false);
+      }, (err) => {
+        console.error("Error fetching territories:", err);
+        if (loading) setLoading(false);
       });
       return () => unsubscribe();
     } else if (!userLoading) {
         setLoading(false);
     }
-  }, [user, userLoading, loading]);
+  }, [user, userLoading]);
 
 
   const filteredAndSortedTerritories = useMemo(() => {
@@ -164,7 +167,7 @@ function TerritoriosPage() {
           return !isDesignado;
         }
         if (isDesignado) {
-          const isOverdue = t.assignment && t.assignment.dueDate.toDate() < new Date();
+          const isOverdue = t.assignment.dueDate.toDate() < new Date();
           if (statusFilter === 'designado') return !isOverdue;
           if (statusFilter === 'atrasado') return isOverdue;
         }
