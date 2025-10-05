@@ -1,40 +1,32 @@
+"use server";
+
 // src/lib/firebaseAdmin.ts
+import * as admin from "firebase-admin";
 
-// Este arquivo inicializa o Firebase Admin de forma segura no Next.js + Vercel
-// sem causar erros de compilação no build e sem rodar no cliente.
-
-let admin: typeof import("firebase-admin") | null = null;
-let app: import("firebase-admin").app.App | undefined;
-
+// Esta função garante que o SDK seja inicializado apenas uma vez.
 export function initializeAdmin() {
-  // Faz o import dinâmico apenas no ambiente de servidor
-  if (!admin) {
-    admin = require("firebase-admin");
+  if (admin.apps.length > 0) {
+    return admin;
   }
 
-  if (!admin.apps.length) {
-    const decoded = Buffer.from(
-      process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON!,
-      "base64"
-    ).toString();
-
-    const credentials = JSON.parse(decoded);
-
-    app = admin.initializeApp({
-      credential: admin.credential.cert(credentials),
+  try {
+    const serviceAccountJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    if (!serviceAccountJson) {
+      throw new Error("A variável de ambiente GOOGLE_APPLICATION_CREDENTIALS_JSON não está definida.");
+    }
+    
+    const serviceAccount = JSON.parse(Buffer.from(serviceAccountJson, 'base64').toString('utf8'));
+    
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
     });
+    
+    console.log("Firebase Admin SDK inicializado com sucesso.");
+    return admin;
 
-    console.log("✅ Firebase Admin inicializado");
-  } else {
-    app = admin.app();
+  } catch (error: any) {
+    console.error("Falha CRÍTICA ao inicializar o Firebase Admin SDK:", error);
+    // Retorna null ou lança o erro para que a API que chama possa tratar.
+    return null;
   }
-
-  return app;
-}
-
-export function getAdmin() {
-  if (!app) {
-    return initializeAdmin();
-  }
-  return app;
 }
