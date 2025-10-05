@@ -162,11 +162,11 @@ function TerritoriosPage() {
 
     if (statusFilter !== 'all') {
       filtered = filtered.filter(t => {
-        const isDesignado = t.status === 'designado' && t.assignment;
+        if (statusFilter === 'disponivel') {
+          return t.status !== 'designado' || !t.assignment;
+        }
         
-        if (statusFilter === 'disponivel') return !isDesignado;
-        
-        if (isDesignado) {
+        if (t.status === 'designado' && t.assignment) {
             const isOverdue = t.assignment.dueDate.toDate() < new Date();
             if (statusFilter === 'designado') return !isOverdue;
             if (statusFilter === 'atrasado') return isOverdue;
