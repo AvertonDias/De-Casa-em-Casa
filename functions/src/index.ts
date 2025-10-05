@@ -1,7 +1,7 @@
 
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
-import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
+import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { format } from 'date-fns';
@@ -419,6 +419,48 @@ export const onTerritoryChange = onDocumentWritten("congregations/{congregationI
 // ============================================================================
 //   OUTROS GATILHOS (Notificação, Exclusão)
 // ============================================================================
+export const onNewUserPending = onDocumentCreated("users/{userId}", async (event) => {
+    const newUser = event.data?.data();
+    if (!newUser || newUser.status !== 'pendente' || !newUser.congregationId) {
+        return null;
+    }
+
+    const adminsQuery = db.collection("users")
+        .where('congregationId', '==', newUser.congregationId)
+        .where('role', '==', 'Administrador');
+
+    try {
+        const adminsSnapshot = await adminsQuery.get();
+        if (adminsSnapshot.empty) return null;
+
+        let tokens: string[] = [];
+        adminsSnapshot.forEach(doc => {
+            const adminData = doc.data();
+            if (adminData.fcmTokens && Array.isArray(adminData.fcmTokens)) {
+                tokens = tokens.concat(adminData.fcmTokens);
+            }
+        });
+        
+        tokens = [...new Set(tokens)]; // Remove duplicados
+
+        if (tokens.length === 0) return null;
+
+        const payload = {
+            notification: {
+                title: "Novo Usuário Pendente",
+                body: `O publicador "${newUser.name}" solicitou acesso à congregação.`,
+                icon: "/icon-192x192.jpg",
+                click_action: "/dashboard/usuarios",
+            },
+        };
+        await admin.messaging().sendToDevice(tokens, payload);
+        return { success: true };
+    } catch (error) {
+        console.error(`[onNewUserPending] Falha ao enviar notificação para admins:`, error);
+        return { success: false, error };
+    }
+});
+
 
 export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/territories/{terrId}", async (event) => {
   const dataBefore = event.data?.before.data();
@@ -551,5 +593,51 @@ export const checkInactiveUsers = pubsub.schedule("every 5 minutes").onRun(async
     } catch (error) {
         console.error("Erro ao verificar e atualizar usuários inativos:", error);
         return null;
+    }
+});
+
+
+export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(async (context) => {
+    console.log("Executando verificação de territórios vencidos...");
+    const now = admin.firestore.Timestamp.now();
+
+    try {
+        const congregationsSnapshot = await db.collection('congregations').get();
+        
+        for (const congDoc of congregationsSnapshot.docs) {
+            const overdueTerritoriesQuery = db.collection(`congregations/${congDoc.id}/territories`)
+                .where('status', '==', 'designado')
+                .where('assignment.dueDate', '<', now);
+            
+            const overdueSnapshot = await overdueTerritoriesQuery.get();
+            if (overdueSnapshot.empty) continue;
+
+            for (const terrDoc of overdueSnapshot.docs) {
+                const territory = terrDoc.data();
+                const assignment = territory.assignment;
+                if (!assignment || !assignment.uid) continue;
+
+                const userDoc = await db.doc(`users/${assignment.uid}`).get();
+                if (!userDoc.exists) continue;
+
+                const tokens = userDoc.data()?.fcmTokens;
+                if (!tokens || tokens.length === 0) continue;
+
+                const payload = {
+                    notification: {
+                        title: "Território Vencido!",
+                        body: `Lembrete: O território "${territory.name}" está com o prazo de devolução vencido.`,
+                        icon: "/icon-192x192.jpg",
+                        click_action: "/dashboard/meus-territorios",
+                    },
+                };
+                await admin.messaging().sendToDevice(tokens, payload);
+                console.log(`Notificação de vencimento enviada para ${assignment.name} sobre o território ${territory.name}.`);
+            }
+        }
+        return { success: true, message: "Verificação de territórios vencidos concluída." };
+    } catch (error) {
+        console.error("Erro ao verificar territórios vencidos:", error);
+        return { success: false, error };
     }
 });
