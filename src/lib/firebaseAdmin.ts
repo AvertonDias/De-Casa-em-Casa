@@ -1,14 +1,25 @@
 // src/lib/firebaseAdmin.ts
 
-// Garantir que o código só rode no servidor
-import type { App } from "firebase-admin/app";
+// Este arquivo é responsável por inicializar o SDK do Firebase Admin
+// de forma segura e compatível com Next.js e Vercel.
+
+// ⚠️ Importação dinâmica — garante que o firebase-admin
+// só será carregado em ambiente de servidor, nunca no cliente.
+import type { app as AppNamespace } from "firebase-admin";
 
 let admin: typeof import("firebase-admin") | null = null;
-let app: App;
+let app: AppNamespace.App | undefined;
 
-export function initializeAdmin(): App {
+/**
+ * Inicializa e retorna uma instância única do Firebase Admin SDK.
+ * Este método garante:
+ * - Que o SDK seja inicializado apenas uma vez.
+ * - Que ele funcione corretamente tanto localmente quanto no Vercel.
+ * - Que as credenciais sejam lidas da variável codificada em Base64.
+ */
+export function initializeAdmin(): AppNamespace.App {
   if (!admin) {
-    // Faz o import dinâmico apenas no servidor
+    // Import dinâmico, evita erros de build do Next.js
     admin = require("firebase-admin");
   }
 
