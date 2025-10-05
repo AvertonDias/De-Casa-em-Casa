@@ -10,18 +10,21 @@ export function initializeAdmin() {
   }
 
   try {
+    // Espera uma única variável de ambiente com o JSON completo codificado em Base64.
     const serviceAccountJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    
     if (!serviceAccountJson) {
       throw new Error("A variável de ambiente GOOGLE_APPLICATION_CREDENTIALS_JSON não está definida.");
     }
     
+    // Decodifica a string Base64 para obter o JSON original.
     const serviceAccount = JSON.parse(Buffer.from(serviceAccountJson, 'base64').toString('utf8'));
     
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
     
-    console.log("Firebase Admin SDK inicializado com sucesso.");
+    console.log("Firebase Admin SDK inicializado com sucesso via credencial JSON.");
     return admin;
 
   } catch (error: any) {
