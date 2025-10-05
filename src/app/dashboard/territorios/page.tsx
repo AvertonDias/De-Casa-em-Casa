@@ -25,13 +25,13 @@ const SCROLL_POSITION_KEY = 'territories_scroll_position';
 
 const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
   const isDesignado = territory.status === 'designado' && territory.assignment;
-  const isOverdue = isDesignado ? territory.assignment.dueDate.toDate() < new Date() : false;
+  const isOverdue = territory.assignment ? territory.assignment.dueDate.toDate() < new Date() : false;
   const totalCasas = territory.stats?.totalHouses || 0;
   const casasFeitas = territory.stats?.housesDone || 0;
   const progresso = territory.progress ? Math.round(territory.progress * 100) : 0;
 
   const getStatusInfo = () => {
-    if (isOverdue) return { text: 'Atrasado', color: 'bg-red-500 text-white' };
+    if (isDesignado && isOverdue) return { text: 'Atrasado', color: 'bg-red-500 text-white' };
     if (isDesignado) return { text: 'Designado', color: 'bg-yellow-500 text-white' };
     return { text: 'Disponível', color: 'bg-green-500 text-white' };
   };
@@ -47,7 +47,7 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
           </span>
         </div>
 
-        {isDesignado && (
+        {isDesignado && territory.assignment && (
           <div className={`p-3 rounded-md text-sm space-y-2 mt-4 ${isOverdue ? 'bg-red-500/10' : 'bg-input/50'}`}>
             <div className="flex items-center gap-2">
               <UserCheck size={16} className="text-muted-foreground"/>
@@ -55,7 +55,7 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
             </div>
             <div className="flex items-center gap-2">
               <CalendarClock size={16} className="text-muted-foreground"/>
-              <span>Devolver até: {format(territory.assignment!.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              <span>Devolver até: {format(territory.assignment.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR })}</span>
             </div>
              {isOverdue && (
                 <div className="flex items-center gap-2 font-bold text-red-500">
@@ -332,5 +332,3 @@ function TerritoriosPage() {
 }
 
 export default withAuth(TerritoriosPage);
-
-    
