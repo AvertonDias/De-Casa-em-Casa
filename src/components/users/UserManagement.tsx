@@ -210,7 +210,7 @@ export default function UserManagement() {
     
     setIsConfirmModalOpen(false);
     try {
-        await deleteUserFunction({ userIdToDelete: userToDelete.uid });
+        await deleteUserFunction({ uid: userToDelete.uid });
     } catch (error: any) {
         console.error("Erro ao chamar a função para excluir usuário:", error);
     } finally {
@@ -351,7 +351,7 @@ export default function UserManagement() {
 
   return (
     <>
-    <div className="p-4 md:p-8 space-y-6">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
             <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
@@ -458,7 +458,7 @@ export default function UserManagement() {
         )}
       </div>
       
-      <div className="bg-white dark:bg-[#2a2736] rounded-lg shadow-md">
+      <div className="bg-card rounded-lg shadow-md">
         {loading ? (
            <div className="text-center p-8 text-muted-foreground"><Loader className="animate-spin mx-auto" /></div>
         ) : filteredAndSortedUsers.length > 0 ? (
