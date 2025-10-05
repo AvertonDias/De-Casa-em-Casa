@@ -1,18 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { X, FileImage } from 'lucide-react';
+import { useState, useRef, useEffect } from "react";
+import { useUser } from "@/contexts/UserContext"; 
+import { X, FileImage, Loader } from 'lucide-react';
+import { addDoc, collection, serverTimestamp, FieldValue } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Territory } from '@/types/types';
 
-interface NewTerritoryData {
-  number: string; name: string; description: string; mapLink: string; 
-  cardUrl: string;
-  type: 'urban';
-}
 interface AddTerritoryModalProps {
-  isOpen: boolean; onClose: () => void; onSave: (data: NewTerritoryData) => Promise<void>;
+  isOpen: boolean; 
+  onClose: () => void; 
+  onTerritoryAdded: () => void;
+  congregationId: string;
 }
 
-export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerritoryModalProps) {
+export default function AddTerritoryModal({ isOpen, onClose, onTerritoryAdded, congregationId }: AddTerritoryModalProps) {
+  const { user } = useUser();
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -23,12 +26,22 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const numberInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        numberInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isOpen]);
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
     const file = event.target.files ? event.target.files[0] : null;
 
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > 5 * 1024 * 1024) { // Limite de 5MB
         setError("O arquivo é muito grande. O limite é de 5MB.");
         return;
       }
@@ -49,19 +62,36 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
 
   const handleSave = async () => {
     if (!number || !name) { setError("Número e Nome são obrigatórios."); return; }
+    if (!congregationId) {
+      setError("ID da Congregação não encontrado. Impossível salvar.");
+      return;
+    }
+
     setIsProcessing(true); setError(null);
     
-    const newTerritoryData: NewTerritoryData = {
-        number, name, description, mapLink, 
+    const newTerritoryData: Omit<Territory, "id" | "lastUpdate" | "createdAt"> & { lastUpdate: FieldValue, createdAt: FieldValue } = {
+        number, 
+        name, 
+        description, 
+        mapLink, 
         cardUrl: cardDataUrl,
-        type: 'urban' 
+        type: 'urban' as const,
+        status: 'disponivel',
+        createdAt: serverTimestamp(),
+        lastUpdate: serverTimestamp(),
+        stats: { totalHouses: 0, housesDone: 0 },
+        progress: 0,
+        quadraCount: 0,
     };
     
     try {
-      await onSave(newTerritoryData);
+      const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
+      await addDoc(territoriesRef, newTerritoryData);
+      onTerritoryAdded();
       handleClose();
-    } catch (saveError) {
-      setError("Erro ao salvar o território. Tente novamente.");
+    } catch (saveError: any) {
+      console.error("Erro ao salvar:", saveError);
+      setError(saveError.message || "Erro ao salvar o território. Tente novamente.");
     } finally {
         setIsProcessing(false);
     }
@@ -80,15 +110,14 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
       <div className="relative bg-card text-card-foreground p-6 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <button onClick={handleClose} className="absolute top-4 right-4"><X/></button>
         <h2 className="text-xl font-bold">Adicionar Novo Território</h2>
-        {/* DESCRIÇÃO ADICIONADA PARA ACESSIBILIDADE */}
         <p className="text-sm text-muted-foreground mb-6">Preencha os detalhes do novo território abaixo.</p>
         <div className="space-y-4">
           <div className="flex items-center gap-4">
-            <div className="w-28"><label className="block text-sm mb-1">Número</label><input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Ex: 12" className="w-full bg-input p-2 rounded-md"/></div>
-            <div className="flex-grow"><label className="block text-sm mb-1">Nome</label><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Centro Comercial" className="w-full bg-input p-2 rounded-md"/></div>
+            <div className="w-28"><label className="block text-sm mb-1">Número</label><input ref={numberInputRef} value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Ex: 12" className="w-full bg-input p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"/></div>
+            <div className="flex-grow"><label className="block text-sm mb-1">Nome</label><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Centro Comercial" className="w-full bg-input p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"/></div>
           </div>
-          <div><label>Observações (Opcional)</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Ex: Território da prefeitura..." className="w-full bg-input p-2 rounded-md"></textarea></div>
-          <div><label>Link do Mapa (Opcional)</label><input value={mapLink} onChange={(e) => setMapLink(e.target.value)} placeholder="https://maps.google.com/..." className="w-full bg-input p-2 rounded-md"/></div>
+          <div><label>Observações (Opcional)</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Ex: Território da prefeitura..." className="w-full bg-input p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"></textarea></div>
+          <div><label>Link do Mapa (Opcional)</label><input value={mapLink} onChange={(e) => setMapLink(e.target.value)} placeholder="https://maps.google.com/..." className="w-full bg-input p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"/></div>
           <div>
             <label className="block text-sm font-medium mb-1">Imagem do Cartão (Opcional)</label>
             <div className="mt-1 flex justify-center items-center rounded-lg border border-dashed border-gray-500 min-h-[12rem] relative group">
@@ -98,7 +127,9 @@ export default function AddTerritoryModal({ isOpen, onClose, onSave }: AddTerrit
           {error && (<p className="text-sm text-red-500 text-center">{error}</p>)}
           <div className="flex justify-end space-x-3 pt-4">
             <button onClick={handleClose} className="px-4 py-2 rounded-md bg-muted">Cancelar</button>
-            <button onClick={handleSave} disabled={isProcessing} className="px-4 py-2 rounded-md bg-primary text-primary-foreground">{isProcessing ? "Salvando..." : "Salvar"}</button>
+            <button onClick={handleSave} disabled={isProcessing} className="px-4 py-2 rounded-md bg-primary text-primary-foreground">
+              {isProcessing ? <><Loader className="mr-2 h-4 w-4 animate-spin" /> Salvando...</> : "Salvar"}
+            </button>
           </div>
         </div>
       </div>
