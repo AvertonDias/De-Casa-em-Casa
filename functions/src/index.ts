@@ -309,7 +309,7 @@ export const sendFeedbackEmail = https.onCall({ cors: true }, async (req) => {
       
       const mailOptions = {
           from: `"App De Casa em Casa" <${process.env.GMAIL_EMAIL}>`,
-          to: "de.casa.em.casa.territorios@gmail.com", // E-mail do destinatário
+          to: "verton3@yahoo.com.br", // E-mail do destinatário
           subject: `Feedback: ${subject}`,
           html: `
               <p><strong>Nome:</strong> ${name}</p>
