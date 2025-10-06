@@ -1,36 +1,64 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Regra para a coleção 'congregations'
-    match /congregations/{congregationId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Administrador';
+
+    // Helper Functions
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    // Regra para a coleção 'users'
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow update: if request.auth.uid == userId; // Usuários podem atualizar seus próprios perfis
-      allow create: if request.auth != null;
-      allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Administrador';
-    }
+    // Regras para a Coleção de Congregações
+    match /congregations/{congId} {
+      // QUALQUER UM PODE LER a lista de congregações ou um documento específico.
+      // Isso é necessário para a página de cadastro verificar se um número de congregação existe.
+      // A informação (nome/número) não é sensível.
+      allow read: if true;
 
-    // Regras para as subcoleções de 'territories'
-    match /congregations/{congregationId}/territories/{territoryId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Administrador', 'Dirigente']);
+      // Apenas administradores podem criar, atualizar ou deletar congregações.
+      allow write: if getUserData().role == 'Administrador';
 
-      // Regras para subcoleções de um território (quadras, casas, histórico)
-      match /{document=**} {
-        allow read, write: if request.auth != null;
+      // Regras para subcoleções de Territórios
+      match /territories/{terrId} {
+        allow read, write: if getUserData().congregationId == congId;
+
+        match /quadras/{quadraId} {
+          allow read, write: if getUserData().congregationId == congId;
+
+          match /casas/{casaId} {
+            allow read, write: if getUserData().congregationId == congId;
+          }
+        }
+        
+        match /activityHistory/{activityId} {
+          allow read, write: if getUserData().congregationId == congId;
+        }
       }
     }
+
+    // Regras para a Coleção de Usuários
+    match /users/{userId} {
+      // Um usuário só pode ler seu próprio documento ou se for admin/dirigente da mesma congregação
+      allow get: if request.auth.uid == userId || (getUserData().role in ['Administrador', 'Dirigente'] && getUserData().congregationId == resource.data.congregationId);
+      // Admin/Dirigente podem listar todos os usuários da sua congregação
+      allow list: if getUserData().role in ['Administrador', 'Dirigente'];
+
+      // Permite que um novo usuário crie seu próprio perfil
+      allow create: if request.auth.uid == userId;
+
+      // Permite que o próprio usuário ou um admin/dirigente atualize o perfil
+      allow update: if request.auth.uid == userId || getUserData().role in ['Administrador', 'Dirigente'];
+      
+      // Apenas Admins podem deletar usuários (e não a si mesmos)
+      allow delete: if getUserData().role == 'Administrador' && request.auth.uid != userId;
+    }
     
-    // Regra para a coleção 'feedbacks'
+    // Regra para a coleção de Feedbacks
     match /feedbacks/{feedbackId} {
+      // Qualquer usuário autenticado pode criar um feedback.
+      // Ninguém pode ler, atualizar ou deletar feedbacks através do app.
       allow create: if request.auth != null;
-      allow read, write: if false; // Ninguém pode ler ou alterar feedbacks depois de criados
+      allow read, update, delete: if false;
     }
   }
 }
