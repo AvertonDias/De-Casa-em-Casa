@@ -62,7 +62,7 @@ export function FeedbackModal() {
     try {
         await emailjs.send(
             'service_w3xe95d',
-            'seu_template_id', // <-- SUBSTITUA AQUI QUANDO TIVER O ID
+            'template_jco2e6b',
             templateParams,
             'JdR2XKNICKcHc1jny'
         );
@@ -87,7 +87,6 @@ export function FeedbackModal() {
 
   return (
     <>
-      {/* Botão de feedback desabilitado temporariamente 
       <Button 
         variant="outline" 
         className="w-full justify-center text-yellow-600 border-yellow-500/50 hover:bg-yellow-500/10 hover:text-yellow-600 dark:text-yellow-400 dark:border-yellow-400/50 dark:hover:bg-yellow-400/10 dark:hover:text-yellow-400" 
@@ -96,7 +95,6 @@ export function FeedbackModal() {
         <Mail className="mr-2" size={20} />
         Enviar Feedback
       </Button>
-      */}
 
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-md">
