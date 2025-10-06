@@ -2,12 +2,17 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import emailjs from 'emailjs-com';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
 import { Mail, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
+import emailjs from 'emailjs-com';
+
+const functionsInstance = getFunctions(app, 'southamerica-east1');
+const sendFeedbackFunction = httpsCallable(functionsInstance, 'sendFeedbackEmail');
 
 
 export function FeedbackModal() {
@@ -50,17 +55,16 @@ export function FeedbackModal() {
     const templateParams = {
       from_name: user.name,
       from_email: user.email,
-      to_name: 'Admin De Casa em Casa',
       subject: subject,
       message: message,
     };
 
     try {
         await emailjs.send(
-            'service_w3xe95d', // ID do Serviço (Service ID)
-            'seu_template_id', // Substitua pelo seu Template ID
+            'service_w3xe95d',
+            'seu_template_id', // <-- SUBSTITUA AQUI QUANDO TIVER O ID
             templateParams,
-            'JdR2XKNICKcHc1jny' // User ID (Public Key)
+            'JdR2XKNICKcHc1jny'
         );
 
         toast({
@@ -83,6 +87,7 @@ export function FeedbackModal() {
 
   return (
     <>
+      {/* Botão de feedback desabilitado temporariamente 
       <Button 
         variant="outline" 
         className="w-full justify-center text-yellow-600 border-yellow-500/50 hover:bg-yellow-500/10 hover:text-yellow-600 dark:text-yellow-400 dark:border-yellow-400/50 dark:hover:bg-yellow-400/10 dark:hover:text-yellow-400" 
@@ -91,6 +96,7 @@ export function FeedbackModal() {
         <Mail className="mr-2" size={20} />
         Enviar Feedback
       </Button>
+      */}
 
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-md">
