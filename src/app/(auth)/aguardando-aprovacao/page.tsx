@@ -48,8 +48,11 @@ function AguardandoAprovacaoPage() {
 
     const handleNotify = (contact: AppUser) => {
         if (!user || !contact.whatsapp) return;
+        
+        const contactFirstName = contact.name.split(' ')[0];
+        const userFirstName = user.name.split(' ')[0];
 
-        const message = `Olá, ${contact.name}. O publicador "${user.name}" está aguardando aprovação de acesso no aplicativo de territórios.`;
+        const message = `Olá, ${contactFirstName}. O publicador "${userFirstName}" está aguardando aprovação de acesso no aplicativo de territórios.`;
         const whatsappNumber = contact.whatsapp.replace(/\D/g, ''); // Remove caracteres não numéricos
         const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
