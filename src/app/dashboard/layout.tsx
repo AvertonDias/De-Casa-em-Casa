@@ -315,6 +315,8 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     return null;
   }
   
+  const showUpdateProfileBanner = user.status === 'ativo' && !user.whatsapp;
+
   return (
       <div className="flex h-screen bg-background">
           <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -324,12 +326,16 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                   <h1 className="text-lg font-bold">De Casa em Casa</h1>
                   <ThemeSwitcher /> 
               </header>
+              <div className="sticky top-0 z-10 bg-background">
+                <div className="p-4 md:p-8 pb-0">
+                    {user.status === 'pendente' && <PendingApprovalBanner />}
+                    {showUpdateProfileBanner && <UpdateProfileBanner onUpdateProfileClick={() => setIsProfileModalOpen(true)} />}
+                </div>
+              </div>
               <main className="flex-1 overflow-y-auto">
-                  {user.status === 'pendente' && <PendingApprovalBanner />}
-                  {user.status === 'ativo' && <UpdateProfileBanner onUpdateProfileClick={() => setIsProfileModalOpen(true)} />}
-                  <div className="p-4 md:p-8">
-                    {children}
-                  </div>
+                <div className="p-4 md:p-8 pt-4">
+                  {children}
+                </div>
               </main>
           </div>
           <EditProfileModal isOpen={isProfileModalOpen} onOpenChange={setIsProfileModalOpen} />

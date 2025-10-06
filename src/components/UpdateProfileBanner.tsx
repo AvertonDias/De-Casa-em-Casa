@@ -24,7 +24,7 @@ export function UpdateProfileBanner({ onUpdateProfileClick }: { onUpdateProfileC
   }
 
   return (
-    <div className="mx-4 md:mx-8 mb-6 p-4 bg-blue-100 border border-l-4 border-blue-400 rounded-lg dark:bg-blue-900/30 dark:border-blue-500/60 dark:border-l-blue-500 flex items-start justify-between gap-4">
+    <div className="mb-6 p-4 bg-blue-100 border border-l-4 border-blue-400 rounded-lg dark:bg-blue-900/30 dark:border-blue-500/60 dark:border-l-blue-500 flex items-start justify-between gap-4">
       <div className="flex items-start">
         <Info className="h-5 w-5 mr-3 mt-0.5 text-blue-500 dark:text-blue-400" />
         <div>
