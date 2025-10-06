@@ -1,15 +1,14 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { getAuth, updateProfile, reauthenticateWithCredential, EmailAuthProvider, updatePassword } from 'firebase/auth';
+import { updateProfile, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { X, Eye, EyeOff, Trash2, KeyRound } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils'; // Importa a máscara
@@ -23,15 +22,11 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   
   const [name, setName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
-  const [confirmWhatsapp, setConfirmWhatsapp] = useState(''); // Novo estado para confirmação
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [confirmWhatsapp, setConfirmWhatsapp] = useState(''); 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
+  
   const [passwordForDelete, setPasswordForDelete] = useState('');
   const [showPasswordForDelete, setShowPasswordForDelete] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -41,12 +36,9 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       setName(user.name);
       const initialWhatsapp = user.whatsapp || '';
       setWhatsapp(initialWhatsapp);
-      setConfirmWhatsapp(initialWhatsapp); // Inicializa a confirmação com o mesmo valor
+      setConfirmWhatsapp(initialWhatsapp);
       setError(null);
       setSuccess(null);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmNewPassword('');
       setPasswordForDelete('');
     }
   }, [user, isOpen]);
@@ -69,18 +61,6 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       return;
     }
 
-    if (newPassword && newPassword !== confirmNewPassword) {
-      setError("A nova senha e a confirmação não coincidem.");
-      setLoading(false);
-      return;
-    }
-    
-    if (newPassword && !currentPassword) {
-        setError("Você precisa fornecer sua senha atual para alterar a senha.");
-        setLoading(false);
-        return;
-    }
-    
     try {
       let changesMade = false;
       const dataToUpdate: Partial<{ name: string; whatsapp: string }> = {};
@@ -100,22 +80,12 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         await updateUser(dataToUpdate);
       }
 
-      if (newPassword && currentPassword && auth.currentUser.email) {
-        const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
-        await reauthenticateWithCredential(auth.currentUser, credential);
-        await updatePassword(auth.currentUser, newPassword);
-        changesMade = true;
-        setCurrentPassword('');
-        setNewPassword('');
-        setConfirmNewPassword('');
-      }
-
       if (changesMade) {
         toast({
           title: "Sucesso!",
           description: "Seu perfil foi atualizado com sucesso.",
         });
-        onOpenChange(false); // Fecha o modal ao salvar
+        onOpenChange(false);
       } else {
          toast({
           title: "Nenhuma alteração detectada",
@@ -125,15 +95,36 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
     } catch (error: any) {
       console.error("Erro ao salvar perfil:", error);
-      setError(error.code === 'auth/wrong-password' ? "Senha atual incorreta." : "Ocorreu um erro ao salvar as alterações.");
+      setError("Ocorreu um erro ao salvar as alterações.");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSendPasswordReset = async () => {
+    if (!auth.currentUser?.email) {
+      toast({ title: "Erro", description: "E-mail do usuário não encontrado.", variant: "destructive" });
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, auth.currentUser.email, {
+        url: `${window.location.origin}/auth/action`,
+      });
+      toast({
+        title: "Link Enviado!",
+        description: "Um e-mail de redefinição de senha foi enviado para você.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao enviar e-mail",
+        description: "Não foi possível enviar o e-mail de redefinição. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSelfDelete = () => {
     if (!user || !auth.currentUser) return;
-
     if(!passwordForDelete) {
         setError("Para excluir sua conta, por favor, insira sua senha atual.");
         return;
@@ -147,27 +138,20 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setLoading(true);
     setError(null);
     try {
-        const credential = EmailAuthProvider.credential(auth.currentUser.email, passwordForDelete);
-        await reauthenticateWithCredential(auth.currentUser, credential);
-
         await deleteUserAccountFn({ userIdToDelete: user.uid });
-
         toast({
           title: "Conta Excluída",
           description: "Sua conta foi removida com sucesso. Você será desconectado.",
         });
-
         onOpenChange(false);
         await logout();
 
     } catch (error: any) {
          console.error("Erro na autoexclusão:", error);
-         if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-            setError("Senha incorreta. A exclusão não foi realizada.");
-         } else if (error.message.includes("administrador não pode se autoexcluir")) {
+         if (error.message.includes("administrador não pode se autoexcluir")) {
             setError("Um administrador não pode se autoexcluir.");
          } else {
-            setError("Ocorreu um erro ao tentar excluir a conta.");
+            setError("Ocorreu um erro ao tentar excluir a conta. A senha pode estar incorreta.");
          }
     } finally {
         setLoading(false);
@@ -183,7 +167,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         <DialogHeader>
           <DialogTitle>Editar Perfil</DialogTitle>
           <DialogDescription>
-            Altere seu nome ou senha. Para excluir sua conta, use a seção "Zona de Perigo".
+            Altere seu nome e WhatsApp. Para alterar sua senha, use o botão de redefinição por e-mail.
           </DialogDescription>
         </DialogHeader>
         
@@ -217,25 +201,6 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                   <p className="text-xs text-destructive mt-1">Os números de WhatsApp não coincidem.</p>
               )}
             </div>
-
-            <div className="border-t border-border pt-4">
-                <p className="text-sm font-medium text-muted-foreground mb-2">Alterar Senha <span className="font-semibold text-muted-foreground">(Opcional)</span></p>
-                 <div className="relative space-y-2">
-                    <div className="relative">
-                      <Input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Senha Atual" />
-                      <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground">
-                          {showCurrentPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
-                      </button>
-                    </div>
-                     <div className="relative">
-                        <Input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Nova Senha" />
-                        <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground">
-                            {showNewPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
-                        </button>
-                    </div>
-                    <Input type="password" value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} placeholder="Confirmar Nova Senha" />
-                </div>
-            </div>
             
           <div className="mt-6">
             {success && <p className="text-green-500 text-sm mb-2 text-center">{success}</p>}
@@ -245,6 +210,14 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
           </div>
         </form>
 
+        <div className="mt-6 pt-4 border-t border-border">
+          <Button variant="outline" onClick={handleSendPasswordReset} className="w-full">
+            <KeyRound className="mr-2" size={16} />
+            Enviar Link para Redefinir Senha
+          </Button>
+        </div>
+
+
         <div className="mt-6 pt-4 border-t border-red-500/30">
           <h4 className="text-md font-semibold text-destructive">Zona de Perigo</h4>
           <p className="text-sm text-muted-foreground mt-1">A ação abaixo é permanente e não pode ser desfeita.</p>
@@ -253,7 +226,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                 type={showPasswordForDelete ? "text" : "password"}
                 value={passwordForDelete}
                 onChange={(e) => setPasswordForDelete(e.target.value)}
-                placeholder="Digite sua senha para confirmar"
+                placeholder="Digite sua senha atual para confirmar"
                 className="border-red-500/50 focus-visible:ring-destructive"
               />
               <button type="button" onClick={() => setShowPasswordForDelete(!showPasswordForDelete)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground">
