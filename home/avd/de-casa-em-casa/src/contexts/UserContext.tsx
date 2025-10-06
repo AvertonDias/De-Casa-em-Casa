@@ -32,8 +32,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Ref para armazenar funções de unsubscribe de Firestore.
   const firestoreUnsubsRef = useRef<(() => void)[]>([]);
 
+  // Função auxiliar para desinscrever TODOS os listeners Firestore.
   const unsubscribeAllFirestoreListeners = () => {
     firestoreUnsubsRef.current.forEach(unsub => {
       try {
@@ -42,14 +44,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
         console.warn("Erro ao desinscrever listener Firestore:", e);
       }
     });
-    firestoreUnsubsRef.current = [];
+    firestoreUnsubsRef.current = []; // Limpa o array.
   };
 
   const logout = async () => {
     if (user) {
         const userStatusRTDBRef = ref(rtdb, `/status/${user.uid}`);
-        await set(userStatusRTDBRef, null);
+        await set(userStatusRTDBRef, null); // Remove o nó do RTDB
     }
+    // O onAuthStateChanged listener irá tratar da limpeza dos listeners do firestore
     await signOut(auth);
     router.push('/');
   };
@@ -64,24 +67,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
+      // Limpa listeners antigos antes de configurar novos.
       unsubscribeAllFirestoreListeners();
 
       if (firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
         
-        const userStatusRTDBRef = ref(rtdb, `/status/${firebaseUser.uid}`);
-        const isOfflineForDatabase = { state: 'offline', last_changed: serverTimestamp() };
-        const isOnlineForDatabase = { state: 'online', last_changed: serverTimestamp() };
-        
-        const connectedRef = ref(rtdb, '.info/connected');
-        const rtdbListener = onValue(connectedRef, (snap) => {
-            if (snap.val() === true) {
-                onDisconnect(userStatusRTDBRef).set(isOfflineForDatabase);
-                set(userStatusRTDBRef, isOnlineForDatabase);
-            }
-        });
-        firestoreUnsubsRef.current.push(rtdbListener);
-
         const userDocListener = onSnapshot(userRef, (docSnap) => {
           const userData = docSnap.exists() ? { uid: firebaseUser.uid, ...docSnap.data() } as AppUser : null;
           
@@ -91,13 +82,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
               const congData = congSnap.exists() ? { id: congSnap.id, ...congSnap.data() } as Congregation : null;
               setUser({...userData, congregationName: congData?.name});
               setCongregation(congData);
-              setLoading(false);
+              if(loading) setLoading(false);
             });
-            firestoreUnsubsRef.current.push(congListener);
+            firestoreUnsubsRef.current.push(congListener); // Armazena unsub da congregação
           } else {
              setUser(userData);
              setCongregation(null);
-             setLoading(false);
+             if(loading) setLoading(false);
           }
         }, (error) => {
             console.error("Erro no listener de usuário:", error);
@@ -105,7 +96,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
             setUser(null);
             unsubscribeAllFirestoreListeners();
         });
-        firestoreUnsubsRef.current.push(userDocListener);
+        firestoreUnsubsRef.current.push(userDocListener); // Armazena unsub do usuário
 
       } else {
         setUser(null);
@@ -123,30 +114,31 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (loading || !pathname) return;
-
-    const isAuthPage = ['/', '/cadastro', '/nova-congregacao', '/recuperar-senha', '/auth/action'].includes(pathname);
-    const isWaitingPage = pathname === '/aguardando-aprovacao';
-
+    const isProtectedPage = pathname.startsWith('/dashboard') || pathname.startsWith('/aguardando-aprovacao');
+    
     if (!user) {
-      if (!isAuthPage && !pathname.startsWith('/sobre')) {
+      if (isProtectedPage) {
         router.replace('/');
       }
-      return;
+      return; 
     }
 
     if (user.status === 'pendente') {
-      if (!isWaitingPage) {
+      if (pathname !== '/aguardando-aprovacao') {
         router.replace('/aguardando-aprovacao');
       }
       return;
     }
-    
+
     if (user.status === 'ativo') {
-      if (isWaitingPage || isAuthPage) {
-        router.replace('/dashboard');
+      if (pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre')) {
+        if (user.role === 'Publicador') {
+          router.replace('/dashboard/territorios');
+        } else {
+          router.replace('/dashboard');
+        }
       }
     }
-    
   }, [user, loading, pathname, router]);
 
   const value = { user, congregation, loading, logout, updateUser };
