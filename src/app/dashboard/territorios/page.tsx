@@ -286,9 +286,9 @@ function TerritoriosPage() {
               <FilterButton label="Designado" value="designado" />
               <FilterButton label="Atrasado" value="atrasado" />
             </div>
-            <div className="sm:ml-auto flex items-center gap-2">
+            <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-2">
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-[180px] bg-muted border-none">
+                <SelectTrigger className="w-full sm:w-[180px] bg-muted border-none">
                   <SelectValue placeholder="Ordenar por..." />
                 </SelectTrigger>
                 <SelectContent>
