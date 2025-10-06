@@ -1,12 +1,12 @@
 
 // functions/src/index.ts
-import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
+import { https, setGlobalOptions, pubsub, config } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
-import * as cors from 'cors';
+import * as nodemailer from 'nodemailer';
 
 // Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
 if (!admin.apps.length) {
@@ -14,98 +14,128 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 
-const allowedOrigins = [
-    "http://localhost:3000",
-    "https://appterritorios-e5bb5.web.app",
-    "https://appterritorios-e5bb5.firebaseapp.com",
-    "https://6000-firebase-studio-1750624095908.cluster-m7tpz3bmgjgoqrktlvd4ykrc2m.cloudworkstations.dev",
-    "https://de-casa-em-casa.vercel.app",
-];
 
-const corsHandler = cors({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
+// Configuração do Nodemailer com variáveis de ambiente do Firebase
+// Para configurar, use:
+// firebase functions:config:set gmail.email="seu-email@gmail.com"
+// firebase functions:config:set gmail.password="sua-senha-de-aplicativo"
+const gmailEmail = config().gmail?.email;
+const gmailPassword = config().gmail?.password;
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: gmailEmail,
+        pass: gmailPassword,
     },
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
 });
+
 
 setGlobalOptions({ 
   region: "southamerica-east1",
 });
 
 // ========================================================================
+//   NOVA FUNÇÃO DE GATILHO PARA FEEDBACK
+// ========================================================================
+export const enviarFeedbackEmail = onDocumentCreated("feedbacks/{feedbackId}", async (event) => {
+    const data = event.data?.data();
+    if (!data) {
+        console.error("Nenhum dado encontrado no feedback.");
+        return;
+    }
+
+    const mailOptions = {
+        from: `App De Casa em Casa <${gmailEmail}>`,
+        to: "verton3@yahoo.com.br",
+        subject: `Novo Feedback: ${data.subject}`,
+        html: `
+            <p><strong>Nome:</strong> ${data.name}</p>
+            <p><strong>E-mail:</strong> ${data.email}</p>
+            <p><strong>UID do Usuário:</strong> ${data.uid}</p>
+            <hr>
+            <p><strong>Mensagem:</strong></p>
+            <p>${data.message}</p>
+            <br>
+            <p><em>Enviado em: ${new Date(data.createdAt.toDate()).toLocaleString('pt-BR')}</em></p>
+        `,
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log(`E-mail de feedback de ${data.name} enviado com sucesso!`);
+    } catch (error) {
+        console.error("Erro ao enviar e-mail de feedback:", error);
+    }
+});
+
+
+// ========================================================================
 //   FUNÇÕES HTTPS (onCall e onRequest)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
-    corsHandler(req, res, async () => {
-        if (req.method !== 'POST') {
-            res.status(405).json({ error: 'Método não permitido' });
+export const createCongregationAndAdmin = https.onRequest({ cors: true }, async (req, res) => {
+    if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Método não permitido' });
+        return;
+    }
+    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.body;
+    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
+        res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
+        return;
+    }
+
+    let newUser: admin.auth.UserRecord | undefined;
+    try {
+        const congQuery = await db.collection('congregations').where('number', '==', congregationNumber).get();
+        if (!congQuery.empty) {
+            res.status(409).json({ error: 'Uma congregação com este número já existe.' });
             return;
         }
-        const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.body;
-        if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
-            res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
-            return;
+        
+        newUser = await admin.auth().createUser({
+            email: adminEmail,
+            password: adminPassword,
+            displayName: adminName,
+        });
+
+        const batch = db.batch();
+        const newCongregationRef = db.collection('congregations').doc();
+        batch.set(newCongregationRef, {
+            name: congregationName,
+            number: congregationNumber,
+            territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        const userDocRef = db.collection("users").doc(newUser.uid);
+        batch.set(userDocRef, {
+            name: adminName,
+            email: adminEmail,
+            whatsapp: whatsapp, // Salva o WhatsApp
+            congregationId: newCongregationRef.id,
+            role: "Administrador",
+            status: "ativo"
+        });
+        await batch.commit();
+
+        res.status(200).json({ success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' });
+
+    } catch (error: any) {
+        if (newUser) {
+            await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
+                console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`, deleteError);
+            });
         }
 
-        let newUser: admin.auth.UserRecord | undefined;
-        try {
-            const congQuery = await db.collection('congregations').where('number', '==', congregationNumber).get();
-            if (!congQuery.empty) {
-                res.status(409).json({ error: 'Uma congregação com este número já existe.' });
-                return;
-            }
-            
-            newUser = await admin.auth().createUser({
-                email: adminEmail,
-                password: adminPassword,
-                displayName: adminName,
-            });
-
-            const batch = db.batch();
-            const newCongregationRef = db.collection('congregations').doc();
-            batch.set(newCongregationRef, {
-                name: congregationName,
-                number: congregationNumber,
-                territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                lastUpdate: admin.firestore.FieldValue.serverTimestamp()
-            });
-
-            const userDocRef = db.collection("users").doc(newUser.uid);
-            batch.set(userDocRef, {
-                name: adminName,
-                email: adminEmail,
-                whatsapp: whatsapp, // Salva o WhatsApp
-                congregationId: newCongregationRef.id,
-                role: "Administrador",
-                status: "ativo"
-            });
-            await batch.commit();
-
-            res.status(200).json({ success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' });
-
-        } catch (error: any) {
-            if (newUser) {
-                await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
-                    console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`, deleteError);
-                });
-            }
-
-            console.error("Erro ao criar congregação e admin:", error);
-            if (error.code === 'auth/email-already-exists') {
-                res.status(409).json({ error: "Este e-mail já está em uso." });
-            } else {
-                res.status(500).json({ error: error.message || 'Erro interno no servidor' });
-            }
+        console.error("Erro ao criar congregação e admin:", error);
+        if (error.code === 'auth/email-already-exists') {
+            res.status(409).json({ error: "Este e-mail já está em uso." });
+        } else {
+            res.status(500).json({ error: error.message || 'Erro interno no servidor' });
         }
-    });
+    }
 });
 
 export const deleteUserAccount = https.onCall(async (req) => {
@@ -281,44 +311,6 @@ export const generateUploadUrl = https.onCall({ cors: true }, async (req) => {
       console.error("Erro ao gerar URL assinada:", error);
       throw new https.HttpsError('internal', 'Falha ao criar URL de upload.', error.message);
   }
-});
-
-
-export const sendFeedbackEmail = https.onCall({ cors: true }, async (req) => {
-    if (!req.auth) {
-        throw new https.HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
-    }
-    try {
-        const { name, email, subject, message } = req.data;
-        if (!name || !email || !subject || !message) {
-            throw new https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
-        }
-
-        // A lógica agora escreve em uma coleção 'mail' no Firestore
-        await db.collection("mail").add({
-            to: "verton3@yahoo.com.br",
-            message: {
-                subject: `Feedback: ${subject}`,
-                html: `
-                    <p><strong>Nome:</strong> ${name}</p>
-                    <p><strong>E-mail:</strong> ${email}</p>
-                    <p><strong>UID do Usuário:</strong> ${req.auth.uid}</p>
-                    <hr>
-                    <p><strong>Mensagem:</strong></p>
-                    <p>${message}</p>
-                `,
-            },
-        });
-        
-        return { success: true, message: 'Feedback enviado para processamento!' };
-
-    } catch (error: any) {
-        console.error("Erro ao processar feedback:", error);
-        if (error instanceof https.HttpsError) {
-            throw error;
-        }
-        throw new https.HttpsError("internal", "Erro interno do servidor ao processar o feedback.");
-    }
 });
 
 

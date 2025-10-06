@@ -2,16 +2,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { Mail, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
-
-const functionsInstance = getFunctions(app, 'southamerica-east1');
-const sendFeedbackFunction = httpsCallable(functionsInstance, 'sendFeedbackEmail');
 
 
 export function FeedbackModal() {
@@ -52,16 +49,18 @@ export function FeedbackModal() {
     setIsSending(true);
 
     try {
-        const result = await sendFeedbackFunction({ 
-          name: user.name,
-          email: user.email,
-          subject, 
-          message 
+        await addDoc(collection(db, "feedbacks"), {
+            name: user.name,
+            email: user.email,
+            uid: user.uid,
+            subject: subject,
+            message: message,
+            createdAt: serverTimestamp(),
         });
 
         toast({
             title: "Feedback Enviado!",
-            description: (result.data as any).message || "Agradecemos a sua mensagem.",
+            description: "Agradecemos a sua mensagem.",
             variant: "default",
         });
         setIsOpen(false);
