@@ -171,59 +171,63 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
           </DialogDescription>
         </DialogHeader>
         
-        <form id="edit-profile-form" onSubmit={handleSaveChanges} className="px-6 space-y-4 max-h-[60vh] overflow-y-auto">
-           <div>
-              <label htmlFor="name" className="text-sm font-medium text-muted-foreground">Nome Completo</label>
-              <Input id="name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1"/>
-            </div>
+        <div className="px-6 space-y-4 max-h-[60vh] overflow-y-auto">
+          <form id="edit-profile-form" onSubmit={handleSaveChanges} className="space-y-4">
             <div>
-              <label htmlFor="whatsapp" className="text-sm font-medium text-muted-foreground">WhatsApp</label>
-              <Input 
-                id="whatsapp" 
-                type="tel" 
-                value={whatsapp} 
-                onChange={e => setWhatsapp(maskPhone(e.target.value))} 
-                placeholder="(XX) XXXXX-XXXX" 
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <label htmlFor="confirmWhatsapp" className="text-sm font-medium text-muted-foreground">Confirmar WhatsApp</label>
-              <Input 
-                id="confirmWhatsapp" 
-                type="tel" 
-                value={confirmWhatsapp} 
-                onChange={e => setConfirmWhatsapp(maskPhone(e.target.value))} 
-                placeholder="Repita seu WhatsApp" 
-                className={`mt-1 ${whatsappMismatch ? 'border-destructive' : ''}`}
-              />
-              {whatsappMismatch && (
-                  <p className="text-xs text-destructive mt-1">Os números de WhatsApp não coincidem.</p>
-              )}
-            </div>
-            
-            <div className="pt-2 border-t border-border">
-              <Button 
-                variant="outline" 
-                onClick={handleSendPasswordReset} 
-                className="w-full text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400"
-              >
-                <KeyRound className="mr-2" size={16} />
-                Enviar Link para Redefinir Senha
-              </Button>
-               {passwordResetSuccess && (
-                <p className="text-sm text-green-600 dark:text-green-400 font-semibold text-center mt-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                  {passwordResetSuccess.split('SPAM').map((part, index) =>
-                    index < 1 ? part : <><strong key={index} className="underline">SPAM</strong>{part}</>
-                  )}
-                </p>
-              )}
-            </div>
-        </form>
+                <label htmlFor="name" className="text-sm font-medium text-muted-foreground">Nome Completo</label>
+                <Input id="name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1"/>
+              </div>
+              <div>
+                <label htmlFor="whatsapp" className="text-sm font-medium text-muted-foreground">WhatsApp</label>
+                <Input 
+                  id="whatsapp" 
+                  type="tel" 
+                  value={whatsapp} 
+                  onChange={e => setWhatsapp(maskPhone(e.target.value))} 
+                  placeholder="(XX) XXXXX-XXXX" 
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <label htmlFor="confirmWhatsapp" className="text-sm font-medium text-muted-foreground">Confirmar WhatsApp</label>
+                <Input 
+                  id="confirmWhatsapp" 
+                  type="tel" 
+                  value={confirmWhatsapp} 
+                  onChange={e => setConfirmWhatsapp(maskPhone(e.target.value))} 
+                  placeholder="Repita seu WhatsApp" 
+                  className={`mt-1 ${whatsappMismatch ? 'border-destructive' : ''}`}
+                />
+                {whatsappMismatch && (
+                    <p className="text-xs text-destructive mt-1">Os números de WhatsApp não coincidem.</p>
+                )}
+              </div>
+              
+              <div className="pt-2 border-t border-border">
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  onClick={handleSendPasswordReset} 
+                  className="w-full text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400"
+                >
+                  <KeyRound className="mr-2" size={16} />
+                  Enviar Link para Redefinir Senha
+                </Button>
+                {passwordResetSuccess && (
+                  <p className="text-sm text-green-600 dark:text-green-400 font-semibold text-center mt-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                    {passwordResetSuccess.split('SPAM').map((part, index) =>
+                      index < 1 ? part : <><strong key={index} className="underline">SPAM</strong>{part}</>
+                    )}
+                  </p>
+                )}
+              </div>
+          </form>
+        </div>
+
 
         <DialogFooter className="p-6 pt-4 border-t">
           <DialogClose asChild>
-              <Button type="button" variant="secondary">Cancelar</Button>
+              <Button type="button" variant="secondary" className="bg-muted hover:bg-muted/80">Cancelar</Button>
           </DialogClose>
           <Button type="submit" form="edit-profile-form" disabled={loading || whatsappMismatch}>
             {loading ? 'Salvando...' : 'Salvar Alterações'}
@@ -231,7 +235,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         </DialogFooter>
 
         <div className="px-6 pb-6">
-            <div className="mt-6 pt-4 border-t border-red-500/30">
+            <div className="pt-4 border-t border-red-500/30">
               <h4 className="text-md font-semibold text-destructive">Zona de Perigo</h4>
               <p className="text-sm text-muted-foreground mt-1">A ação abaixo é permanente e não pode ser desfeita.</p>
               <div className="relative mt-4">
@@ -274,5 +278,3 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     </Dialog>
   );
 }
-
-    
