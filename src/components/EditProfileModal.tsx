@@ -203,7 +203,11 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
             </div>
             
             <div className="pt-2 border-t border-border">
-              <Button variant="outline" onClick={handleSendPasswordReset} className="w-full">
+              <Button 
+                variant="outline" 
+                onClick={handleSendPasswordReset} 
+                className="w-full text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400"
+              >
                 <KeyRound className="mr-2" size={16} />
                 Enviar Link para Redefinir Senha
               </Button>
@@ -270,3 +274,5 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     </Dialog>
   );
 }
+
+    
