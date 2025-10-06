@@ -52,7 +52,7 @@ function AguardandoAprovacaoPage() {
         const contactFirstName = contact.name.split(' ')[0];
         const userFirstName = user.name.split(' ')[0];
 
-        const message = `Olá, ${contactFirstName}. O publicador "${userFirstName}" está aguardando aprovação de acesso no aplicativo de territórios.`;
+        const message = `Olá, ${contactFirstName}. O publicador "${userFirstName}" está aguardando aprovação de acesso no aplicativo De Casa em Casa.`;
         const whatsappNumber = contact.whatsapp.replace(/\D/g, ''); // Remove caracteres não numéricos
         const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
@@ -89,7 +89,7 @@ function AguardandoAprovacaoPage() {
                         <Loader className="animate-spin text-primary mx-auto my-4" />
                       ) : (
                         <div className="space-y-3 text-left">
-                          {adminsAndLeaders.map(contact => (
+                          {adminsAndLeaders.map((contact) => (
                             <div key={contact.uid} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
                               <div>
                                 <p className="font-semibold">{contact.name}</p>
