@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -24,7 +25,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   const [whatsapp, setWhatsapp] = useState('');
   const [confirmWhatsapp, setConfirmWhatsapp] = useState(''); 
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState<string | null>(null); // Novo estado
   const [loading, setLoading] = useState(false);
   
   const [passwordForDelete, setPasswordForDelete] = useState('');
@@ -38,7 +39,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       setWhatsapp(initialWhatsapp);
       setConfirmWhatsapp(initialWhatsapp);
       setError(null);
-      setSuccess(null);
+      setPasswordResetSuccess(null);
       setPasswordForDelete('');
     }
   }, [user, isOpen]);
@@ -46,7 +47,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   const handleSaveChanges = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(null);
+    setPasswordResetSuccess(null);
     setLoading(true);
 
     if (whatsapp !== confirmWhatsapp) {
@@ -110,11 +111,9 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       await sendPasswordResetEmail(auth, auth.currentUser.email, {
         url: `${window.location.origin}/auth/action`,
       });
-      toast({
-        title: "Verifique seu E-mail!",
-        description: "Enviamos um link de redefinição para você. Se não o encontrar, verifique sua caixa de spam.",
-        duration: 8000,
-      });
+      setPasswordResetSuccess(
+        `Link enviado para ${auth.currentUser.email}. Se não o encontrar, verifique sua caixa de SPAM.`
+      );
     } catch (error) {
       toast({
         title: "Erro ao enviar e-mail",
@@ -204,7 +203,6 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
             </div>
             
           <div className="mt-6">
-            {success && <p className="text-green-500 text-sm mb-2 text-center">{success}</p>}
             <Button type="submit" disabled={loading || whatsappMismatch} className="w-full">
               {loading ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
@@ -216,6 +214,13 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
             <KeyRound className="mr-2" size={16} />
             Enviar Link para Redefinir Senha
           </Button>
+           {passwordResetSuccess && (
+            <p className="text-sm text-green-600 dark:text-green-400 font-semibold text-center mt-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+              {passwordResetSuccess.split('SPAM').map((part, index) =>
+                index < 1 ? part : <><strong key={index} className="underline">SPAM</strong>{part}</>
+              )}
+            </p>
+          )}
         </div>
 
 
