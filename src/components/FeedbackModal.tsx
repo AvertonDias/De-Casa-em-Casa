@@ -1,9 +1,7 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import emailjs from 'emailjs-com';
 import { Mail, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
@@ -48,15 +46,21 @@ export function FeedbackModal() {
     }
     setIsSending(true);
 
+    const templateParams = {
+      from_name: user.name,
+      from_email: user.email,
+      to_name: 'Admin De Casa em Casa',
+      subject: subject,
+      message: message,
+    };
+
     try {
-        await addDoc(collection(db, "feedbacks"), {
-            name: user.name,
-            email: user.email,
-            uid: user.uid,
-            subject: subject,
-            message: message,
-            createdAt: serverTimestamp(),
-        });
+        await emailjs.send(
+            'seu_service_id', // Substitua pelo seu Service ID
+            'seu_template_id', // Substitua pelo seu Template ID
+            templateParams,
+            'seu_user_id' // Substitua pelo seu User ID (Public Key)
+        );
 
         toast({
             title: "Feedback Enviado!",
@@ -65,10 +69,10 @@ export function FeedbackModal() {
         });
         setIsOpen(false);
     } catch (error: any) {
-        console.error("Erro ao enviar feedback:", error);
+        console.error("Erro ao enviar feedback com EmailJS:", error);
         toast({
             title: "Erro ao enviar feedback",
-            description: error.message || "Tente novamente mais tarde.",
+            description: "Não foi possível enviar sua mensagem no momento. Tente novamente mais tarde.",
             variant: "destructive",
         });
     } finally {
@@ -92,7 +96,7 @@ export function FeedbackModal() {
           <DialogHeader>
             <DialogTitle>Enviar Feedback</DialogTitle>
             <DialogDescription>
-              Use este formulário para nos enviar sua sugestão, relatar um problema ou fazer um elogio. Seu nome e e-mail serão enviados automaticamente.
+              Use este formulário para nos enviar sua sugestão, relatar um problema ou fazer um elogio.
             </DialogDescription>
             <DialogClose />
           </DialogHeader>

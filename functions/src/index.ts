@@ -1,4 +1,3 @@
-
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub, config } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
@@ -18,44 +17,6 @@ const db = admin.firestore();
 setGlobalOptions({ 
   region: "southamerica-east1",
 });
-
-// ========================================================================
-//   NOVA FUNÇÃO DE GATILHO PARA FEEDBACK (USANDO EXTENSÃO)
-// ========================================================================
-export const enviarFeedbackEmail = onDocumentCreated("feedbacks/{feedbackId}", async (event) => {
-    const data = event.data?.data();
-    if (!data) {
-        console.error("Nenhum dado encontrado no feedback.");
-        return;
-    }
-
-    // Em vez de enviar e-mail diretamente, criamos um documento na coleção 'mail'
-    // que a extensão "Trigger Email" irá processar.
-    const mailCollectionRef = collection(db, "mail");
-    
-    try {
-        await addDoc(mailCollectionRef, {
-            to: ["verton3@yahoo.com.br"],
-            message: {
-                subject: `Novo Feedback: ${data.subject}`,
-                html: `
-                    <p><strong>Nome:</strong> ${data.name}</p>
-                    <p><strong>E-mail:</strong> ${data.email}</p>
-                    <p><strong>UID do Usuário:</strong> ${data.uid}</p>
-                    <hr>
-                    <p><strong>Mensagem:</strong></p>
-                    <p>${data.message}</p>
-                    <br>
-                    <p><em>Enviado em: ${new Date(data.createdAt.toDate()).toLocaleString('pt-BR')}</em></p>
-                `,
-            },
-        });
-        console.log("Documento de e-mail para feedback adicionado à fila com sucesso.");
-    } catch (error) {
-        console.error("Erro ao adicionar e-mail à fila da extensão:", error);
-    }
-});
-
 
 // ========================================================================
 //   FUNÇÕES HTTPS (onCall e onRequest)
@@ -632,5 +593,3 @@ export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(a
         return { success: false, error };
     }
 });
-
-    
