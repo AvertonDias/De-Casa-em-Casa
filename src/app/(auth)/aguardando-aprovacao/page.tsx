@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -90,7 +89,6 @@ function AguardandoAprovacaoPage() {
                             <div key={contact.uid} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
                               <div>
                                 <p className="font-semibold">{contact.name}</p>
-                                <p className="text-sm text-muted-foreground">{contact.role}</p>
                               </div>
                               <Button 
                                 size="sm" 
