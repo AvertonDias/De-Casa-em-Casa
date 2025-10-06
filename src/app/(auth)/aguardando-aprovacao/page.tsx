@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -74,7 +75,7 @@ function AguardandoAprovacaoPage() {
                     Sua solicitação de acesso para a congregação <span className="font-semibold text-foreground">{user?.congregationName || '...'}</span> foi enviada.
                 </p>
                 <p className="text-muted-foreground">
-                    Para agilizar, você pode notificar um dos dirigentes ou administradores abaixo.
+                    Para agilizar, você pode notificar um dos dirigentes abaixo.
                 </p>
 
                 <Accordion type="single" collapsible className="w-full">
