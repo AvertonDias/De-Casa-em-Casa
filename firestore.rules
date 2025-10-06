@@ -1,38 +1,36 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // REGRA PARA PERMITIR FEEDBACK
-    // Permite que qualquer usuário autenticado crie (escreva) um novo
-    // documento na coleção 'feedbacks'.
-    match /feedbacks/{feedbackId} {
-      allow create: if request.auth != null;
-    }
-
-    // Regras para congregações
-    match /congregations/{congregationId} {
-      allow read: if request.auth != null; // Qualquer usuário autenticado pode ler dados da congregação.
-      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Administrador'; // Apenas Admins podem editar.
     
-      // Regras para territórios dentro de uma congregação
-      match /territories/{territoryId} {
-        allow read: if request.auth != null;
-        allow create, update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Administrador';
-
-        // Subcoleções de territórios
-        match /{allSubcollections=**} {
-           allow read, write: if request.auth != null; // Regra aberta para quadras, casas, etc.
-        }
-      }
+    // Regra para a coleção 'congregations'
+    match /congregations/{congregationId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Administrador';
     }
 
-    // Regras para usuários
+    // Regra para a coleção 'users'
     match /users/{userId} {
       allow read: if request.auth != null;
-      allow create: if request.auth == null; // Permitir que novos usuários se cadastrem
-      allow update: if request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Administrador';
-      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Administrador';
+      allow update: if request.auth.uid == userId; // Usuários podem atualizar seus próprios perfis
+      allow create: if request.auth != null;
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Administrador';
+    }
+
+    // Regras para as subcoleções de 'territories'
+    match /congregations/{congregationId}/territories/{territoryId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Administrador', 'Dirigente']);
+
+      // Regras para subcoleções de um território (quadras, casas, histórico)
+      match /{document=**} {
+        allow read, write: if request.auth != null;
+      }
+    }
+    
+    // Regra para a coleção 'feedbacks'
+    match /feedbacks/{feedbackId} {
+      allow create: if request.auth != null;
+      allow read, write: if false; // Ninguém pode ler ou alterar feedbacks depois de criados
     }
   }
 }
