@@ -1,3 +1,4 @@
+
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
 import Image from 'next/image';
@@ -27,6 +28,7 @@ import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
 import withAuth from "@/components/withAuth";
 import { usePresence } from "@/hooks/usePresence";
 import { EditProfileModal } from "@/components/EditProfileModal"; // Importar o modal de perfil
+import { UpdateProfileBanner } from "@/components/UpdateProfileBanner";
 
 
 // Componente para trocar o tema (agora mais robusto)
@@ -69,6 +71,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
   const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false);
   const [isShareApiSupported, setIsShareApiSupported] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false); // Estado para o modal de perfil
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   useEffect(() => {
     // Roda apenas no cliente para acessar o 'navigator'
@@ -130,7 +133,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
     { name: "Rural", href: "/dashboard/rural", icon: Trees, roles: ['Administrador', 'Dirigente', 'Publicador'] },
     { name: "Meus Territórios", href: "/dashboard/meus-territorios", icon: UserCheck, roles: ['Administrador', 'Dirigente', 'Publicador'] },
     { name: "Usuários", href: "/dashboard/usuarios", icon: Users, roles: ['Administrador', 'Dirigente'] },
-    { name: "Administração", href: "/dashboard/administracao", icon: Shield, roles: ['Administrador'] },
+    { name: "Administração", href: "/dashboard/administracao", icon: Shield, roles: ['Administrador', 'Dirigente'] },
   ];
   const filteredNavLinks = navLinks.filter(link => user?.role && link.roles.includes(user.role));
   
@@ -138,7 +141,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
     <>
       <div className={cn("fixed inset-0 bg-black/60 z-30 md:hidden transition-opacity", isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none')} onClick={onClose} />
       <aside className={cn(
-          "fixed top-0 left-0 h-full w-64 bg-gray-50 dark:bg-[#2A2736] text-gray-800 dark:text-gray-200 p-4 flex flex-col border-r border-gray-200 dark:border-gray-700/50 z-40 transition-transform transform md:relative md:translate-x-0",
+          "fixed top-0 left-0 h-full w-64 bg-background text-foreground p-4 flex flex-col border-r border-border/60 z-40 transition-transform transform md:relative md:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}>
         
@@ -169,13 +172,18 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
               const isActive = pathname === link.href || (pathname && link.href !== "/dashboard" && pathname.startsWith(link.href));
               return (
                 <li key={link.name}>
-                  <Link href={link.href} onClick={onClose} className={cn('flex items-center justify-between text-md p-3 rounded-lg mb-2 transition-colors', isActive ? 'bg-primary text-white font-semibold' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-primary/20')}>
+                  <Link href={link.href} onClick={onClose} className={cn(
+                      'flex items-center justify-between text-md p-3 rounded-lg mb-2 transition-colors', 
+                      isActive 
+                        ? 'bg-primary text-primary-foreground font-semibold shadow' 
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    )}>
                     <div className="flex items-center gap-3">
                       <link.icon className="h-5 w-5" />
                       <span>{link.name}</span>
                     </div>
                     {link.name === "Usuários" && pendingUsersCount > 0 && (
-                      <span className="w-2.5 h-2.5 rounded-full animate-pending-pulse"></span>
+                      <span className="w-2.5 h-2.5 bg-destructive rounded-full animate-pending-pulse"></span>
                     )}
                   </Link>
                 </li>
@@ -184,20 +192,20 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
           </ul>
         </nav>
         
-         <div className="border-t border-gray-200 dark:border-gray-700/50 pt-4">
+         <div className="border-t border-border pt-4">
             {user && (
                 <button 
                   onClick={() => setIsProfileModalOpen(true)}
-                  className="flex items-center space-x-3 text-left p-2 rounded-md w-full mb-2 hover:bg-primary/10 transition-colors"
+                  className="flex items-center space-x-3 text-left p-2 rounded-md w-full mb-2 hover:bg-muted transition-colors"
                 >
-                    <Avatar>
+                    <Avatar className="border-2 border-border">
                         <AvatarFallback>
                         {getInitials(user.name)}
                         </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate text-gray-800 dark:text-white">{user.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        <p className="font-semibold truncate text-foreground">{user.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">
                           {user.role}
                         </p>
                     </div>
@@ -232,7 +240,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
                 </Button>
               </Link>
               <Button
-                  onClick={handleLogout}
+                  onClick={() => setIsLogoutConfirmOpen(true)}
                   variant="outline"
                   className="w-full justify-center text-red-500 border-red-500/50 hover:bg-red-500/10 hover:text-red-500 dark:text-red-400 dark:border-red-400/50 dark:hover:bg-red-400/10 dark:hover:text-red-400"
               >
@@ -251,7 +259,16 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
           confirmText="Entendi"
           showCancelButton={false}
       />
-      <EditProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
+      <ConfirmationModal
+        isOpen={isLogoutConfirmOpen}
+        onClose={() => setIsLogoutConfirmOpen(false)}
+        onConfirm={handleLogout}
+        title="Confirmar Saída"
+        message="Tem certeza que deseja sair? Para entrar novamente, você precisará inserir seu e-mail e senha."
+        confirmText="Sim, Sair"
+        variant="destructive"
+      />
+      <EditProfileModal isOpen={isProfileModalOpen} onOpenChange={setIsProfileModalOpen} />
     </>
   );
 }
@@ -259,6 +276,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
 function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useUser();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
   // Ativa o sistema de presença para o usuário logado
   usePresence();
@@ -297,20 +315,28 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     return null;
   }
   
+  const showUpdateProfileBanner = user.status === 'ativo' && !user.whatsapp;
+
   return (
-      <div className="flex h-screen bg-gray-100 dark:bg-[#1E1B29]">
+      <div className="flex h-screen bg-background">
           <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />
           <div className="flex-1 flex flex-col overflow-hidden">
-              <header className="md:hidden bg-gray-50 dark:bg-[#2A2736] p-4 text-gray-800 dark:text-white shadow-md flex justify-between items-center">
+              <header className="md:hidden bg-background p-4 text-foreground shadow-md flex justify-between items-center border-b border-border">
                   <button onClick={() => setSidebarOpen(true)} aria-label="Abrir menu"><Menu size={24} /></button>
                   <h1 className="text-lg font-bold">De Casa em Casa</h1>
                   <ThemeSwitcher /> 
               </header>
-              <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+              <main className="flex-1 overflow-y-auto relative">
+                <div className="sticky top-0 z-10 p-4 md:p-8 pb-0 bg-background">
                   {user.status === 'pendente' && <PendingApprovalBanner />}
+                  {showUpdateProfileBanner && <UpdateProfileBanner onUpdateProfileClick={() => setIsProfileModalOpen(true)} />}
+                </div>
+                <div className="p-4 md:p-8 pt-0">
                   {children}
+                </div>
               </main>
           </div>
+          <EditProfileModal isOpen={isProfileModalOpen} onOpenChange={setIsProfileModalOpen} />
       </div>
   );
 }
