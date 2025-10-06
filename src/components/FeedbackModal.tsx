@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
-import { Mail, Loader, Construction } from 'lucide-react';
+import { Mail, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
@@ -92,10 +92,8 @@ export function FeedbackModal() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Enviar Feedback</DialogTitle>
-            <DialogDescription className="pt-4 text-center">
-              <Construction className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
-              <p className="font-semibold text-foreground">Funcionalidade em desenvolvimento.</p>
-              <p>O envio de feedback ainda não está ativo. Agradecemos a sua paciência!</p>
+            <DialogDescription>
+              Use este formulário para nos enviar sua sugestão, relatar um problema ou fazer um elogio. Seu nome e e-mail serão enviados automaticamente.
             </DialogDescription>
             <DialogClose />
           </DialogHeader>
@@ -110,9 +108,8 @@ export function FeedbackModal() {
                 value={subject} 
                 onChange={(e) => setSubject(e.target.value)} 
                 required 
-                disabled
                 placeholder="Ex: Sugestão para a tela de usuários" 
-                className="mt-1 block w-full border rounded-md p-2 bg-input focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50" 
+                className="mt-1 block w-full border rounded-md p-2 bg-input focus:outline-none focus:ring-2 focus:ring-primary" 
               />
             </div>
             <div>
@@ -123,12 +120,11 @@ export function FeedbackModal() {
                 onChange={(e) => setMessage(e.target.value)} 
                 required 
                 rows={5} 
-                disabled
                 placeholder="Descreva sua sugestão ou o problema que encontrou..." 
-                className="mt-1 block w-full border rounded-md p-2 bg-input focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                className="mt-1 block w-full border rounded-md p-2 bg-input focus:outline-none focus:ring-2 focus:ring-primary"
               ></textarea>
             </div>
-            <Button type="submit" className="w-full" disabled>
+            <Button type="submit" className="w-full" disabled={isSending || !subject.trim() || !message.trim()}>
               {isSending ? <Loader className="animate-spin" size={20}/> : 'Enviar Mensagem'}
             </Button>
           </form>

@@ -7,12 +7,25 @@ import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import * as cors from 'cors';
+import * as nodemailer from 'nodemailer';
 
 // Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 const db = admin.firestore();
+
+// Configuração do Nodemailer (substitua com suas credenciais de e-mail)
+const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com", // Ex: smtp.gmail.com
+    port: 465,
+    secure: true,
+    auth: {
+        user: "de.casa.em.casa.territorios@gmail.com", // Seu e-mail de envio
+        pass: "zswu ybgw tpmv yxuo", // Sua senha de app ou senha normal
+    },
+});
+
 
 const allowedOrigins = [
     "http://localhost:3000",
@@ -293,16 +306,27 @@ export const sendFeedbackEmail = https.onCall({ cors: true }, async (req) => {
       if (!name || !email || !subject || !message) {
           throw new https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
       }
-      console.log('--- NOVO FEEDBACK RECEBIDO ---');
-      console.log(`De: ${name} (${email})`);
-      console.log(`UID: ${req.auth.uid}`);
-      console.log(`Assunto: ${subject}`);
-      console.log(`Mensagem: ${message}`);
-      console.log('------------------------------');
+      
+      const mailOptions = {
+          from: `"App De Casa em Casa" <${process.env.GMAIL_EMAIL}>`,
+          to: "de.casa.em.casa.territorios@gmail.com", // E-mail do destinatário
+          subject: `Feedback: ${subject}`,
+          html: `
+              <p><strong>Nome:</strong> ${name}</p>
+              <p><strong>E-mail:</strong> ${email}</p>
+              <p><strong>UID do Usuário:</strong> ${req.auth.uid}</p>
+              <hr>
+              <p><strong>Mensagem:</strong></p>
+              <p>${message}</p>
+          `,
+      };
+      
+      await transporter.sendMail(mailOptions);
+      
       return { success: true, message: 'Feedback enviado com sucesso!' };
 
   } catch (error: any) {
-      console.error("Erro ao processar feedback:", error);
+      console.error("Erro ao processar e enviar feedback:", error);
       if (error instanceof https.HttpsError) {
           throw error;
       }
