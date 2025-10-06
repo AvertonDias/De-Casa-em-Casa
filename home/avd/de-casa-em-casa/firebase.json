@@ -3,12 +3,22 @@
   "firestore": {
     "rules": "firestore.rules"
   },
+  "hosting": {
+    "source": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "frameworksBackend": {
+      "region": "southamerica-east1"
+    }
+  },
   "functions": [
     {
       "source": "functions",
-      "codebase": "default"
+      "codebase": "default",
+      "runtime": "nodejs20"
     }
   ]
 }
-
-    
