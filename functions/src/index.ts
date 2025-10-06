@@ -7,25 +7,12 @@ import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import * as cors from 'cors';
-import * as nodemailer from 'nodemailer';
 
 // Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 const db = admin.firestore();
-
-// Configuração do Nodemailer (substitua com suas credenciais de e-mail)
-const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com", // Ex: smtp.gmail.com
-    port: 465,
-    secure: true,
-    auth: {
-        user: "de.casa.em.casa.territorios@gmail.com", // Seu e-mail de envio
-        pass: "zswu ybgw tpmv yxuo", // Sua senha de app ou senha normal
-    },
-});
-
 
 const allowedOrigins = [
     "http://localhost:3000",
@@ -298,41 +285,42 @@ export const generateUploadUrl = https.onCall({ cors: true }, async (req) => {
 
 
 export const sendFeedbackEmail = https.onCall({ cors: true }, async (req) => {
-  if (!req.auth) {
-      throw new https.HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
-  }
-  try {
-      const { name, email, subject, message } = req.data;
-      if (!name || !email || !subject || !message) {
-          throw new https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
-      }
-      
-      const mailOptions = {
-          from: `"App De Casa em Casa" <${process.env.GMAIL_EMAIL}>`,
-          to: "verton3@yahoo.com.br", // E-mail do destinatário
-          subject: `Feedback: ${subject}`,
-          html: `
-              <p><strong>Nome:</strong> ${name}</p>
-              <p><strong>E-mail:</strong> ${email}</p>
-              <p><strong>UID do Usuário:</strong> ${req.auth.uid}</p>
-              <hr>
-              <p><strong>Mensagem:</strong></p>
-              <p>${message}</p>
-          `,
-      };
-      
-      await transporter.sendMail(mailOptions);
-      
-      return { success: true, message: 'Feedback enviado com sucesso!' };
+    if (!req.auth) {
+        throw new https.HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
+    }
+    try {
+        const { name, email, subject, message } = req.data;
+        if (!name || !email || !subject || !message) {
+            throw new https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
+        }
 
-  } catch (error: any) {
-      console.error("Erro ao processar e enviar feedback:", error);
-      if (error instanceof https.HttpsError) {
-          throw error;
-      }
-      throw new https.HttpsError("internal", "Erro interno do servidor ao processar o feedback.");
-  }
+        // A lógica agora escreve em uma coleção 'mail' no Firestore
+        await db.collection("mail").add({
+            to: "verton3@yahoo.com.br",
+            message: {
+                subject: `Feedback: ${subject}`,
+                html: `
+                    <p><strong>Nome:</strong> ${name}</p>
+                    <p><strong>E-mail:</strong> ${email}</p>
+                    <p><strong>UID do Usuário:</strong> ${req.auth.uid}</p>
+                    <hr>
+                    <p><strong>Mensagem:</strong></p>
+                    <p>${message}</p>
+                `,
+            },
+        });
+        
+        return { success: true, message: 'Feedback enviado para processamento!' };
+
+    } catch (error: any) {
+        console.error("Erro ao processar feedback:", error);
+        if (error instanceof https.HttpsError) {
+            throw error;
+        }
+        throw new https.HttpsError("internal", "Erro interno do servidor ao processar o feedback.");
+    }
 });
+
 
 // ========================================================================
 //   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO

@@ -19,12 +19,10 @@
     "firebase-functions": "^5.0.1",
     "date-fns": "^3.6.0",
     "@google-cloud/storage": "^7.11.0",
-    "cors": "^2.8.5",
-    "nodemailer": "^6.9.14"
+    "cors": "^2.8.5"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
-    "@types/nodemailer": "^6.4.15",
     "typescript": "^5.4.5"
   },
   "private": true
