@@ -56,7 +56,7 @@ export function FeedbackModal() {
 
     try {
         await emailjs.send(
-            'seu_service_id', // Substitua pelo seu Service ID
+            'service_w3xe95d', // ID do Serviço (Service ID)
             'seu_template_id', // Substitua pelo seu Template ID
             templateParams,
             'seu_user_id' // Substitua pelo seu User ID (Public Key)
@@ -72,7 +72,7 @@ export function FeedbackModal() {
         console.error("Erro ao enviar feedback com EmailJS:", error);
         toast({
             title: "Erro ao enviar feedback",
-            description: "Não foi possível enviar sua mensagem no momento. Tente novamente mais tarde.",
+            description: "Não foi possível enviar sua mensagem no momento. Verifique as credenciais do EmailJS.",
             variant: "destructive",
         });
     } finally {
