@@ -9,7 +9,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { KeyRound, Trash2 } from 'lucide-react';
+import { X, Eye, EyeOff, Trash2, KeyRound } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils'; // Importa a máscara
@@ -29,6 +29,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   const [loading, setLoading] = useState(false);
   
   const [passwordForDelete, setPasswordForDelete] = useState('');
+  const [showPasswordForDelete, setShowPasswordForDelete] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   
   useEffect(() => {
@@ -124,6 +125,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
   const handleSelfDelete = () => {
     if (!user || !auth.currentUser) return;
+    if(!passwordForDelete) {
+        setError("Para excluir sua conta, por favor, insira sua senha atual.");
+        return;
+    }
     setIsConfirmModalOpen(true);
   }
 
@@ -210,21 +215,6 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                 </p>
               )}
             </div>
-
-            <div className="pt-2 border-t border-red-500/30">
-              <h4 className="text-md font-semibold text-destructive">Zona de Perigo</h4>
-              <p className="text-sm text-muted-foreground mt-1">A ação abaixo é permanente e não pode ser desfeita.</p>
-              <Button
-                variant="destructive"
-                onClick={handleSelfDelete}
-                disabled={loading}
-                className="w-full mt-2"
-              >
-                <Trash2 size={16} className="mr-2"/>
-                Excluir Minha Conta
-              </Button>
-            </div>
-            {error && <p className="text-destructive text-sm mt-4 text-center">{error}</p>}
         </form>
 
         <DialogFooter className="p-6 pt-4 border-t">
@@ -235,6 +225,37 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
             {loading ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
         </DialogFooter>
+
+        <div className="px-6 pb-6">
+            <div className="mt-6 pt-4 border-t border-red-500/30">
+              <h4 className="text-md font-semibold text-destructive">Zona de Perigo</h4>
+              <p className="text-sm text-muted-foreground mt-1">A ação abaixo é permanente e não pode ser desfeita.</p>
+              <div className="relative mt-4">
+                  <Input
+                    type={showPasswordForDelete ? "text" : "password"}
+                    value={passwordForDelete}
+                    onChange={(e) => setPasswordForDelete(e.target.value)}
+                    placeholder="Digite sua senha atual para confirmar"
+                    className="border-red-500/50 focus-visible:ring-destructive"
+                  />
+                  <button type="button" onClick={() => setShowPasswordForDelete(!showPasswordForDelete)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground">
+                    {showPasswordForDelete ? <EyeOff size={20}/> : <Eye size={20}/>}
+                  </button>
+              </div>
+
+              <Button
+                variant="destructive"
+                onClick={handleSelfDelete}
+                disabled={loading || !passwordForDelete}
+                className="w-full mt-2"
+              >
+                <Trash2 size={16} className="mr-2"/>
+                Excluir Minha Conta
+              </Button>
+            </div>
+        </div>
+        
+        {error && <p className="text-destructive text-sm px-6 pb-4 text-center">{error}</p>}
         
         <ConfirmationModal
           isOpen={isConfirmModalOpen}
