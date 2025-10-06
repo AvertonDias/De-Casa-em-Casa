@@ -6,7 +6,7 @@ import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
-import * as nodemailer from 'nodemailer';
+
 
 // Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
 if (!admin.apps.length) {
@@ -15,28 +15,12 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 
-// Configuração do Nodemailer com variáveis de ambiente do Firebase
-// Para configurar, use:
-// firebase functions:config:set gmail.email="seu-email@gmail.com"
-// firebase functions:config:set gmail.password="sua-senha-de-aplicativo"
-const gmailEmail = config().gmail?.email;
-const gmailPassword = config().gmail?.password;
-
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: gmailEmail,
-        pass: gmailPassword,
-    },
-});
-
-
 setGlobalOptions({ 
   region: "southamerica-east1",
 });
 
 // ========================================================================
-//   NOVA FUNÇÃO DE GATILHO PARA FEEDBACK
+//   NOVA FUNÇÃO DE GATILHO PARA FEEDBACK (USANDO EXTENSÃO)
 // ========================================================================
 export const enviarFeedbackEmail = onDocumentCreated("feedbacks/{feedbackId}", async (event) => {
     const data = event.data?.data();
@@ -45,27 +29,30 @@ export const enviarFeedbackEmail = onDocumentCreated("feedbacks/{feedbackId}", a
         return;
     }
 
-    const mailOptions = {
-        from: `App De Casa em Casa <${gmailEmail}>`,
-        to: "verton3@yahoo.com.br",
-        subject: `Novo Feedback: ${data.subject}`,
-        html: `
-            <p><strong>Nome:</strong> ${data.name}</p>
-            <p><strong>E-mail:</strong> ${data.email}</p>
-            <p><strong>UID do Usuário:</strong> ${data.uid}</p>
-            <hr>
-            <p><strong>Mensagem:</strong></p>
-            <p>${data.message}</p>
-            <br>
-            <p><em>Enviado em: ${new Date(data.createdAt.toDate()).toLocaleString('pt-BR')}</em></p>
-        `,
-    };
-
+    // Em vez de enviar e-mail diretamente, criamos um documento na coleção 'mail'
+    // que a extensão "Trigger Email" irá processar.
+    const mailCollectionRef = collection(db, "mail");
+    
     try {
-        await transporter.sendMail(mailOptions);
-        console.log(`E-mail de feedback de ${data.name} enviado com sucesso!`);
+        await addDoc(mailCollectionRef, {
+            to: ["verton3@yahoo.com.br"],
+            message: {
+                subject: `Novo Feedback: ${data.subject}`,
+                html: `
+                    <p><strong>Nome:</strong> ${data.name}</p>
+                    <p><strong>E-mail:</strong> ${data.email}</p>
+                    <p><strong>UID do Usuário:</strong> ${data.uid}</p>
+                    <hr>
+                    <p><strong>Mensagem:</strong></p>
+                    <p>${data.message}</p>
+                    <br>
+                    <p><em>Enviado em: ${new Date(data.createdAt.toDate()).toLocaleString('pt-BR')}</em></p>
+                `,
+            },
+        });
+        console.log("Documento de e-mail para feedback adicionado à fila com sucesso.");
     } catch (error) {
-        console.error("Erro ao enviar e-mail de feedback:", error);
+        console.error("Erro ao adicionar e-mail à fila da extensão:", error);
     }
 });
 
@@ -645,3 +632,5 @@ export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(a
         return { success: false, error };
     }
 });
+
+    
