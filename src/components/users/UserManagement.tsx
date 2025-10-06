@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, Fragment, useCallback } from 'react';
@@ -7,16 +6,16 @@ import { db, app } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, Wifi, WifiOff, Users as UsersIcon, SlidersHorizontal, ChevronUp, Clock, X } from 'lucide-react';
-import { Disclosure } from '@headlessui/react';
+import { Disclosure, Transition } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
+import { UserListItem } from './UserListItem';
 import { formatDistanceToNow, subDays, subMonths, subHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { AppUser, Congregation } from '@/types/types';
-import { UserListItem } from './UserListItem';
-
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserFunction = httpsCallable(functions, 'deleteUserAccount');
+
 
 export default function UserManagement() {
   const { user: currentUser, loading: userLoading } = useUser(); 
