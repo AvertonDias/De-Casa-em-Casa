@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
@@ -59,7 +60,7 @@ export function FeedbackModal() {
             'service_w3xe95d', // ID do Serviço (Service ID)
             'seu_template_id', // Substitua pelo seu Template ID
             templateParams,
-            'seu_user_id' // Substitua pelo seu User ID (Public Key)
+            'JdR2XKNICKcHc1jny' // User ID (Public Key)
         );
 
         toast({
