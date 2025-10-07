@@ -2,7 +2,7 @@
 "use client";
 
 import { useUser } from '@/contexts/UserContext';
-import { useRouter, usePathname } from 'next/navigation'; // Adiciona usePathname
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, ComponentType } from 'react';
 import { Loader } from 'lucide-react';
 
@@ -15,20 +15,20 @@ const withAuth = <P extends object>(WrappedComponent: ComponentType<P>) => {
 
     // Lógica de Renderização
     if (loading) {
-      return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-          <Loader className="animate-spin text-primary" />
-        </div>
-      );
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-background">
+                <Loader className="animate-spin text-primary" />
+            </div>
+        );
     }
     
     // Se a página for a de ação de autenticação, sempre renderize-a
-    if (pathname.startsWith('/auth/action')) {
+    if (pathname?.startsWith('/auth/action')) {
       return <WrappedComponent {...props} />;
     }
 
     if (user) {
-      return <WrappedComponent {...props} />;
+        return <WrappedComponent {...props} />;
     }
 
     // Se não há usuário, o UserContext já está cuidando do redirecionamento.
