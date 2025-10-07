@@ -11,13 +11,9 @@ const withAuth = <P extends object>(WrappedComponent: ComponentType<P>) => {
   const AuthComponent = (props: P) => {
     const { user, loading } = useUser();
     const router = useRouter();
-    const pathname = usePathname(); // Pega o caminho da URL
-
-    // A lógica de redirecionamento agora é centralizada no UserContext.
-    // Este useEffect pode ser removido para evitar lógica duplicada.
+    const pathname = usePathname();
 
     // Lógica de Renderização
-    // Enquanto carrega, mostra uma tela de loading global.
     if (loading) {
       return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -26,21 +22,21 @@ const withAuth = <P extends object>(WrappedComponent: ComponentType<P>) => {
       );
     }
     
-    // Se o usuário existe e está ativo, ou se a página é para um usuário pendente
-    if (user && (user.status === 'ativo' || pathname === '/aguardando-aprovacao')) {
+    // Se a página for a de ação de autenticação, sempre renderize-a
+    if (pathname.startsWith('/auth/action')) {
       return <WrappedComponent {...props} />;
     }
-    
-    // Se não há usuário e a página é pública, permite a renderização
-    if (!user && !pathname?.startsWith('/dashboard')) {
-        return <WrappedComponent {...props} />;
+
+    if (user) {
+      return <WrappedComponent {...props} />;
     }
 
-    // Caso de fallback enquanto o redirecionamento acontece.
+    // Se não há usuário, o UserContext já está cuidando do redirecionamento.
+    // Retornamos o loader para evitar renderizações indesejadas durante a transição.
     return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
+      <div className="flex h-screen w-full items-center justify-center bg-background">
           <Loader className="animate-spin text-primary" />
-        </div>
+      </div>
     );
   };
   
