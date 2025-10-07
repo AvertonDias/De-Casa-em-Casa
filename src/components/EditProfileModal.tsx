@@ -50,6 +50,12 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
     setLoading(true);
 
+    if (!whatsapp.trim()) {
+        setError("O campo WhatsApp é obrigatório.");
+        setLoading(false);
+        return;
+    }
+
     if (whatsapp !== confirmWhatsapp) {
       setError("Os números de WhatsApp não coincidem.");
       setLoading(false);
@@ -178,24 +184,26 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                 <Input id="name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1"/>
               </div>
               <div>
-                <label htmlFor="whatsapp" className="text-sm font-medium text-muted-foreground">WhatsApp</label>
+                <label htmlFor="whatsapp" className="text-sm font-medium text-muted-foreground">WhatsApp <span className="text-red-500">*</span></label>
                 <Input 
                   id="whatsapp" 
                   type="tel" 
                   value={whatsapp} 
                   onChange={e => setWhatsapp(maskPhone(e.target.value))} 
                   placeholder="(XX) XXXXX-XXXX" 
+                  required
                   className="mt-1"
                 />
               </div>
               <div>
-                <label htmlFor="confirmWhatsapp" className="text-sm font-medium text-muted-foreground">Confirmar WhatsApp</label>
+                <label htmlFor="confirmWhatsapp" className="text-sm font-medium text-muted-foreground">Confirmar WhatsApp <span className="text-red-500">*</span></label>
                 <Input 
                   id="confirmWhatsapp" 
                   type="tel" 
                   value={confirmWhatsapp} 
                   onChange={e => setConfirmWhatsapp(maskPhone(e.target.value))} 
                   placeholder="Repita seu WhatsApp" 
+                  required
                   className={`mt-1 ${whatsappMismatch ? 'border-destructive' : ''}`}
                 />
                 {whatsappMismatch && (
@@ -216,7 +224,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                 {passwordResetSuccess && (
                   <p className="text-sm text-green-600 dark:text-green-400 font-semibold text-center mt-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
                     {passwordResetSuccess.split('SPAM').map((part, index) =>
-                      index < 1 ? part : <><strong key={index} className="underline">SPAM</strong>{part}</>
+                      <React.Fragment key={index}>
+                        {index > 0 && <strong className="underline">SPAM</strong>}
+                        {part}
+                      </React.Fragment>
                     )}
                   </p>
                 )}
@@ -229,7 +240,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
           <DialogClose asChild>
               <Button type="button" variant="secondary" className="bg-muted hover:bg-muted/80">Cancelar</Button>
           </DialogClose>
-          <Button type="submit" form="edit-profile-form" disabled={loading || whatsappMismatch}>
+          <Button type="submit" form="edit-profile-form" disabled={loading || whatsappMismatch || !whatsapp}>
             {loading ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
         </DialogFooter>
