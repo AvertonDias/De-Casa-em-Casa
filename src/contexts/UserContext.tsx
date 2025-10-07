@@ -123,24 +123,27 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (loading || !pathname) return;
+
+    const isAuthActionPage = pathname.startsWith('/auth/action');
     const isProtectedPage = pathname.startsWith('/dashboard') || pathname.startsWith('/aguardando-aprovacao');
     
     if (!user) {
-      if (isProtectedPage) {
+      // Se a página for protegida E NÃO for a página de ação de auth, redireciona.
+      if (isProtectedPage && !isAuthActionPage) {
         router.replace('/');
       }
       return; 
     }
 
     if (user.status === 'pendente') {
-      if (pathname !== '/aguardando-aprovacao') {
+      if (pathname !== '/aguardando-aprovacao' && !isAuthActionPage) {
         router.replace('/aguardando-aprovacao');
       }
       return;
     }
 
     if (user.status === 'ativo') {
-      if (pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre')) {
+      if (pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre' && !isAuthActionPage)) {
         if (user.role === 'Publicador') {
           router.replace('/dashboard/territorios');
         } else {
