@@ -29,6 +29,7 @@ import withAuth from "@/components/withAuth";
 import { usePresence } from "@/hooks/usePresence";
 import { EditProfileModal } from "@/components/EditProfileModal"; // Importar o modal de perfil
 import { UpdateProfileBanner } from "@/components/UpdateProfileBanner";
+import { FeedbackAnnouncementModal } from "@/components/FeedbackAnnouncementModal";
 
 
 // Componente para trocar o tema (agora mais robusto)
@@ -319,6 +320,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
       <div className="flex h-screen bg-background">
+          <FeedbackAnnouncementModal />
           <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />
           <div className="flex-1 flex flex-col overflow-hidden">
               <header className="md:hidden bg-background p-4 text-foreground shadow-md flex justify-between items-center border-b border-border">
