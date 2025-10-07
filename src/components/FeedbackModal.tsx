@@ -2,18 +2,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
+import emailjs from 'emailjs-com';
 import { Mail, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
-import emailjs from 'emailjs-com';
-
-const functionsInstance = getFunctions(app, 'southamerica-east1');
-const sendFeedbackFunction = httpsCallable(functionsInstance, 'sendFeedbackEmail');
-
 
 export function FeedbackModal() {
   const { user } = useUser();
@@ -101,7 +95,7 @@ export function FeedbackModal() {
           <DialogHeader>
             <DialogTitle>Enviar Feedback</DialogTitle>
             <DialogDescription>
-              Use este formulário para nos enviar sua sugestão, relatar um problema ou fazer um elogio.
+              Encontrou um problema, tem uma sugestão ou quer fazer um elogio? Use o formulário abaixo para nos enviar sua mensagem.
             </DialogDescription>
             <DialogClose />
           </DialogHeader>
@@ -119,6 +113,7 @@ export function FeedbackModal() {
                 placeholder="Ex: Sugestão para a tela de usuários" 
                 className="mt-1 block w-full border rounded-md p-2 bg-input focus:outline-none focus:ring-2 focus:ring-primary" 
               />
+               <p className="text-xs text-muted-foreground mt-1">Um breve resumo da sua mensagem.</p>
             </div>
             <div>
               <label htmlFor="message" className="block text-sm font-medium">Mensagem</label>
@@ -128,7 +123,7 @@ export function FeedbackModal() {
                 onChange={(e) => setMessage(e.target.value)} 
                 required 
                 rows={5} 
-                placeholder="Descreva sua sugestão ou o problema que encontrou..." 
+                placeholder="Descreva em detalhes sua sugestão ou o problema que encontrou..." 
                 className="mt-1 block w-full border rounded-md p-2 bg-input focus:outline-none focus:ring-2 focus:ring-primary"
               ></textarea>
             </div>
