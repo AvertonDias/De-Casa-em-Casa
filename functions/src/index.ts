@@ -86,6 +86,36 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
     }
 });
 
+
+export const sendPasswordResetEmail = https.onCall(async (req) => {
+    if (!req.auth) {
+        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
+    }
+    const email = req.auth.token.email;
+    if (!email) {
+        throw new https.HttpsError("invalid-argument", "E-mail não encontrado no token.");
+    }
+
+    try {
+        const actionLink = await admin.auth().generatePasswordResetLink(email, {
+             url: `https://${process.env.GCLOUD_PROJECT}.firebaseapp.com/auth/action`
+        });
+
+        // Este log é opcional, mas útil para debug
+        console.log(`Link de redefinição gerado para ${email}: ${actionLink}`);
+
+        return { success: true, message: `Link de redefinição enviado para ${email}.` };
+
+    } catch (error: any) {
+        console.error(`Erro ao gerar link de redefinição de senha para ${email}:`, error);
+        if (error.code === 'auth/user-not-found') {
+            throw new https.HttpsError("not-found", "Nenhum usuário encontrado com este e-mail.");
+        }
+        throw new https.HttpsError("internal", "Falha ao gerar o link de redefinição de senha.");
+    }
+});
+
+
 export const deleteUserAccount = https.onCall(async (req) => {
     const callingUserUid = req.auth?.uid;
     if (!callingUserUid) {

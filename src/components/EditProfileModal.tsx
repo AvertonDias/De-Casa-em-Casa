@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -16,6 +15,8 @@ import { maskPhone } from '@/lib/utils'; // Importa a máscara
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
+const sendPasswordResetEmailFn = httpsCallable(functions, 'sendPasswordResetEmail');
+
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
@@ -113,19 +114,30 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       toast({ title: "Erro", description: "E-mail do usuário não encontrado.", variant: "destructive" });
       return;
     }
+    setLoading(true);
+    setError(null);
+    setPasswordResetSuccess(null);
+
     try {
-      await sendPasswordResetEmail(auth, auth.currentUser.email, {
-        url: `${window.location.origin}/auth/action`,
-      });
+      const result = await sendPasswordResetEmailFn();
+      const data = result.data as { success: boolean; message: string; };
+
+      if (!data.success) {
+        throw new Error(data.message);
+      }
+      
       setPasswordResetSuccess(
         `Link enviado para ${auth.currentUser.email}. Se não o encontrar, verifique sua caixa de SPAM.`
       );
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Erro ao chamar a função de redefinição de senha:", error);
       toast({
         title: "Erro ao enviar e-mail",
-        description: "Não foi possível enviar o e-mail de redefinição. Tente novamente.",
+        description: error.message || "Não foi possível enviar o e-mail de redefinição. Tente novamente.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -216,6 +228,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                   type="button"
                   variant="outline" 
                   onClick={handleSendPasswordReset} 
+                  disabled={loading}
                   className="w-full text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400"
                 >
                   <KeyRound className="mr-2" size={16} />
