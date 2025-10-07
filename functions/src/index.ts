@@ -6,6 +6,7 @@ import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
+import * as nodemailer from 'nodemailer';
 
 
 // Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
@@ -88,6 +89,99 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
 });
 
 
+const generateEmailTemplate = (link: string, email: string) => {
+  return `
+  <!DOCTYPE html>
+  <html lang="pt-BR">
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Redefinir sua senha</title>
+      <style>
+          body {
+              margin: 0;
+              padding: 0;
+              background-color: #f4f4f4;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+          }
+          .container {
+              max-width: 600px;
+              margin: 40px auto;
+              background-color: #ffffff;
+              border-radius: 8px;
+              overflow: hidden;
+              box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+          }
+          .header {
+              background-color: #6d28d9; /* Cor primária roxa */
+              color: #ffffff;
+              padding: 40px;
+              text-align: center;
+          }
+          .header h1 {
+              margin: 0;
+              font-size: 28px;
+              font-weight: bold;
+          }
+          .content {
+              padding: 40px;
+              color: #333333;
+              line-height: 1.6;
+          }
+          .content p {
+              margin: 0 0 20px;
+          }
+          .button-container {
+              text-align: center;
+              margin: 30px 0;
+          }
+          .button {
+              background-color: #6d28d9; /* Cor primária roxa */
+              color: #ffffff !important;
+              padding: 15px 30px;
+              text-decoration: none;
+              border-radius: 5px;
+              font-weight: bold;
+              display: inline-block;
+          }
+          .footer {
+              background-color: #f4f4f4;
+              color: #888888;
+              padding: 20px;
+              text-align: center;
+              font-size: 12px;
+          }
+          .footer a {
+              color: #6d28d9;
+              text-decoration: none;
+          }
+      </style>
+  </head>
+  <body>
+      <div class="container">
+          <div class="header">
+              <h1>De Casa em Casa</h1>
+          </div>
+          <div class="content">
+              <h2>Olá!</h2>
+              <p>Recebemos uma solicitação para redefinir a senha da sua conta associada ao e-mail <strong>${email}</strong>.</p>
+              <p>Para criar uma nova senha, clique no botão abaixo. Este link é válido por 24 horas.</p>
+              <div class="button-container">
+                  <a href="${link}" class="button">Redefinir Senha</a>
+              </div>
+              <p>Se você não solicitou a redefinição da sua senha, pode ignorar este e-mail com segurança. Nenhuma alteração será feita na sua conta.</p>
+              <p>Obrigado,<br>Equipe do app De Casa em Casa</p>
+          </div>
+          <div class="footer">
+              <p>Este é um e-mail automático. Se precisar de ajuda, entre em contato com o administrador da sua congregação.</p>
+              <p>&copy; 2024 De Casa em Casa</p>
+          </div>
+      </div>
+  </body>
+  </html>
+  `;
+};
+
 export const sendPasswordResetEmail = https.onCall(async (req) => {
     if (!req.auth) {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
@@ -96,23 +190,38 @@ export const sendPasswordResetEmail = https.onCall(async (req) => {
     if (!email) {
         throw new https.HttpsError("invalid-argument", "E-mail não encontrado no token.");
     }
+    
+    // Configurações do Nodemailer (usando variáveis de ambiente)
+    const mailTransport = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: config().gmail.email,
+            pass: config().gmail.password,
+        },
+    });
 
     try {
         const actionLink = await admin.auth().generatePasswordResetLink(email, {
-             url: `https://appterritorios-e5bb5.web.app/auth/action`
+            url: `https://appterritorios-e5bb5.web.app/auth/action`
         });
 
-        // Este log é opcional, mas útil para debug
-        console.log(`Link de redefinição gerado para ${email}: ${actionLink}`);
+        const mailOptions = {
+            from: '"De Casa em Casa" <nao-responda@app.com>',
+            to: email,
+            subject: 'Redefinição de Senha para o App De Casa em Casa',
+            html: generateEmailTemplate(actionLink, email),
+        };
+
+        await mailTransport.sendMail(mailOptions);
 
         return { success: true, message: `Link de redefinição enviado para ${email}.` };
 
     } catch (error: any) {
-        console.error(`Erro ao gerar link de redefinição de senha para ${email}:`, error);
+        console.error(`Erro ao enviar e-mail de redefinição para ${email}:`, error);
         if (error.code === 'auth/user-not-found') {
             throw new https.HttpsError("not-found", "Nenhum usuário encontrado com este e-mail.");
         }
-        throw new https.HttpsError("internal", "Falha ao gerar o link de redefinição de senha.");
+        throw new https.HttpsError("internal", "Falha ao enviar o e-mail de redefinição.");
     }
 });
 
