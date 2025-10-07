@@ -37,6 +37,10 @@ export default function NovaCongregacaoPage() {
       setErrorMessage("As senhas não coincidem.");
       return;
     }
+    if (!whatsapp.trim()) {
+        setErrorMessage("O campo WhatsApp é obrigatório.");
+        return;
+    }
     
     setIsLoading(true);
 
@@ -115,7 +119,7 @@ export default function NovaCongregacaoPage() {
                         <Input type="email" id="adminEmail" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required className="mt-1" />
                     </div>
                     <div>
-                        <Label htmlFor="whatsapp">Seu WhatsApp (Obrigatório)</Label>
+                        <Label htmlFor="whatsapp">Seu WhatsApp <span className="text-red-500">*</span></Label>
                         <Input 
                             type="tel" 
                             id="whatsapp" 
