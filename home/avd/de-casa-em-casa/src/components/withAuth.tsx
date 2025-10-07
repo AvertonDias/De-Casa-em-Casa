@@ -2,7 +2,7 @@
 "use client";
 
 import { useUser } from '@/contexts/UserContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation'; // Adiciona usePathname
 import { useEffect, ComponentType } from 'react';
 import { Loader } from 'lucide-react';
 
@@ -10,7 +10,10 @@ const withAuth = <P extends object>(WrappedComponent: ComponentType<P>) => {
   
   const AuthComponent = (props: P) => {
     const { user, loading } = useUser();
-    
+    const router = useRouter();
+    const pathname = usePathname();
+
+    // Lógica de Renderização
     if (loading) {
         return (
             <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -19,6 +22,11 @@ const withAuth = <P extends object>(WrappedComponent: ComponentType<P>) => {
         );
     }
     
+    // Se a página for a de ação de autenticação, sempre renderize-a
+    if (pathname && pathname.startsWith('/auth/action')) {
+      return <WrappedComponent {...props} />;
+    }
+
     if (user) {
         return <WrappedComponent {...props} />;
     }
