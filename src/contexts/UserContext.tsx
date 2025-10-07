@@ -73,21 +73,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
         
-        const userStatusRTDBRef = ref(rtdb, `/status/${firebaseUser.uid}`);
-        const isOfflineForDatabase = { state: 'offline', last_changed: serverTimestamp() };
-        const isOnlineForDatabase = { state: 'online', last_changed: serverTimestamp() };
-        
-        const connectedRef = ref(rtdb, '.info/connected');
-        const rtdbListener = onValue(connectedRef, (snap) => {
-            if (snap.val() === true) {
-                onDisconnect(userStatusRTDBRef).set(isOfflineForDatabase);
-                set(userStatusRTDBRef, isOnlineForDatabase);
-            }
-        });
-        firestoreUnsubsRef.current.push(rtdbListener); // Armazena unsub do rtdb
-
         const userDocListener = onSnapshot(userRef, (docSnap) => {
-          const userData = docSnap.exists() ? { uid: firebaseUser.uid, ...docSnap.data() } as AppUser : null;
+          const rawData = docSnap.data();
+          const userData = docSnap.exists() 
+            ? { 
+                uid: firebaseUser.uid,
+                ...rawData,
+                name: rawData?.name || firebaseUser.displayName,
+                email: rawData?.email || firebaseUser.email,
+                whatsapp: rawData?.whatsapp || '',
+              } as AppUser
+            : null;
           
           if (userData?.congregationId) {
             const congRef = doc(db, 'congregations', userData.congregationId);
