@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
@@ -10,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
 
 export function FeedbackModal() {
-  const { user } = useUser();
+  const { user, congregation } = useUser(); // Pega também os dados da congregação
   const [isOpen, setIsOpen] = useState(false);
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -51,6 +50,8 @@ export function FeedbackModal() {
       from_email: user.email,
       subject: subject,
       message: message,
+      congregation_name: congregation?.name || 'Não informado',
+      congregation_number: congregation?.number || 'N/A',
     };
 
     try {
@@ -71,7 +72,7 @@ export function FeedbackModal() {
         console.error("Erro ao enviar feedback com EmailJS:", error);
         toast({
             title: "Erro ao enviar feedback",
-            description: "Não foi possível enviar sua mensagem no momento. Verifique as credenciais do EmailJS.",
+            description: error.message || "Não foi possível enviar sua mensagem no momento. Verifique as credenciais do EmailJS.",
             variant: "destructive",
         });
     } finally {
@@ -95,7 +96,7 @@ export function FeedbackModal() {
           <DialogHeader>
             <DialogTitle>Enviar Feedback</DialogTitle>
             <DialogDescription>
-              Encontrou um problema, tem uma sugestão ou quer fazer um elogio? Use o formulário abaixo para nos enviar sua mensagem.
+              Use este formulário para nos enviar sua sugestão, relatar um problema ou fazer um elogio. Seu nome e e-mail serão enviados automaticamente.
             </DialogDescription>
             <DialogClose />
           </DialogHeader>
@@ -123,7 +124,7 @@ export function FeedbackModal() {
                 onChange={(e) => setMessage(e.target.value)} 
                 required 
                 rows={5} 
-                placeholder="Descreva em detalhes sua sugestão ou o problema que encontrou..." 
+                placeholder="Descreva sua sugestão ou o problema que encontrou..." 
                 className="mt-1 block w-full border rounded-md p-2 bg-input focus:outline-none focus:ring-2 focus:ring-primary"
               ></textarea>
             </div>
