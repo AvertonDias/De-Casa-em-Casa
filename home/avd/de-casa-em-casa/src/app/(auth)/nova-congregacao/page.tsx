@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Loader, Eye, EyeOff } from "lucide-react"; 
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { maskPhone } from '@/lib/utils'; // Importa a função de máscara
 
 export default function NovaCongregacaoPage() {
   const [adminName, setAdminName] = useState('');
@@ -19,6 +20,7 @@ export default function NovaCongregacaoPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [congregationName, setCongregationName] = useState('');
   const [congregationNumber, setCongregationNumber] = useState('');
+  const [whatsapp, setWhatsapp] = useState(''); // Novo estado para WhatsApp
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -48,6 +50,7 @@ export default function NovaCongregacaoPage() {
                 adminName: adminName.trim(),
                 adminEmail: adminEmail.trim(),
                 adminPassword: adminPassword,
+                whatsapp: whatsapp, // Envia o número de WhatsApp
                 congregationName: congregationName.trim(),
                 congregationNumber: congregationNumber.trim()
             })
@@ -111,6 +114,18 @@ export default function NovaCongregacaoPage() {
                         <Label htmlFor="adminEmail">Seu e-mail</Label>
                         <Input type="email" id="adminEmail" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required className="mt-1" />
                     </div>
+                    <div>
+                        <Label htmlFor="whatsapp">Seu WhatsApp (Obrigatório)</Label>
+                        <Input 
+                            type="tel" 
+                            id="whatsapp" 
+                            value={whatsapp} 
+                            onChange={(e) => setWhatsapp(maskPhone(e.target.value))} 
+                            required 
+                            className="mt-1"
+                            placeholder="(XX) XXXXX-XXXX"
+                        />
+                    </div>
                     <div className="relative">
                         <Label htmlFor="adminPassword">Senha (mínimo 6 caracteres)</Label>
                         <Input type={showPassword ? 'text' : 'password'} id="adminPassword" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" />
@@ -130,7 +145,7 @@ export default function NovaCongregacaoPage() {
                         <div className="text-destructive text-sm text-center">{errorMessage}</div>
                     )}
   
-                    <Button type="submit" disabled={isLoading || !adminEmail || !adminName || !congregationName || !congregationNumber || adminPassword.length < 6 || adminPassword !== confirmPassword} className="w-full">
+                    <Button type="submit" disabled={isLoading || !adminEmail || !adminName || !congregationName || !congregationNumber || !whatsapp || adminPassword.length < 6 || adminPassword !== confirmPassword} className="w-full">
                         {isLoading ? <><Loader className="mr-2 h-4 w-4 animate-spin" /> Criando...</> : "Criar Congregação"}
                     </Button>
                 </form>

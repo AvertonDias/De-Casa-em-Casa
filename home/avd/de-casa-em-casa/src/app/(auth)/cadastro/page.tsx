@@ -86,7 +86,7 @@ export default function SignUpPage() {
               type="tel" 
               value={whatsapp} 
               onChange={e => setWhatsapp(maskPhone(e.target.value))} 
-              placeholder="Seu WhatsApp" required 
+              placeholder="Seu WhatsApp (Obrigatório)" required 
               className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" 
             />
 
