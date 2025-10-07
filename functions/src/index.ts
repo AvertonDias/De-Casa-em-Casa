@@ -1,3 +1,4 @@
+
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub, config } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
@@ -98,7 +99,7 @@ export const sendPasswordResetEmail = https.onCall(async (req) => {
 
     try {
         const actionLink = await admin.auth().generatePasswordResetLink(email, {
-             url: `https://${process.env.GCLOUD_PROJECT}.firebaseapp.com/auth/action`
+             url: `https://appterritorios-e5bb5.web.app/auth/action`
         });
 
         // Este log é opcional, mas útil para debug
