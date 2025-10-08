@@ -6,6 +6,9 @@ import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
+import * as cors from "cors";
+
+const corsHandler = cors({ origin: true });
 
 
 // Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
@@ -87,30 +90,34 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
     }
 });
 
-// SIMPLIFICADO: Agora apenas gera e retorna o link de redefinição de senha.
-export const sendPasswordResetEmail = https.onCall(async (req) => {
-    if (!req.auth) {
-        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
-    }
-    const email = req.auth.token.email;
-    if (!email) {
-        throw new https.HttpsError("invalid-argument", "E-mail não encontrado no token.");
-    }
-
-    try {
-        const actionLink = await admin.auth().generatePasswordResetLink(email, {
-            url: `https://appterritorios-e5bb5.web.app/auth/action`
-        });
-        // Retorna o link para o cliente, que será responsável por enviar o e-mail via EmailJS
-        return { success: true, link: actionLink };
-
-    } catch (error: any) {
-        console.error(`Erro ao gerar link de redefinição para ${email}:`, error);
-        if (error.code === 'auth/user-not-found') {
-            throw new https.HttpsError("not-found", "Nenhum usuário encontrado com este e-mail.");
+export const sendPasswordResetEmail = https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            res.status(405).send('Method Not Allowed');
+            return;
         }
-        throw new https.HttpsError("internal", "Falha ao gerar o link de redefinição.");
-    }
+
+        const { email } = req.body;
+        if (!email) {
+            res.status(400).json({ error: "O e-mail é obrigatório." });
+            return;
+        }
+
+        try {
+            const actionLink = await admin.auth().generatePasswordResetLink(email, {
+                url: `https://appterritorios-e5bb5.web.app/auth/action`
+            });
+            res.status(200).json({ success: true, link: actionLink });
+
+        } catch (error: any) {
+            console.error(`Erro ao gerar link de redefinição para ${email}:`, error);
+            if (error.code === 'auth/user-not-found') {
+                res.status(404).json({ error: "Nenhum usuário encontrado com este e-mail." });
+            } else {
+                res.status(500).json({ error: "Falha ao gerar o link de redefinição." });
+            }
+        }
+    });
 });
 
 
