@@ -1,7 +1,7 @@
 
 "use client";
 
-import { doc, onSnapshot, collection, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction } from "firebase/firestore";
+import { doc, onSnapshot, collection, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "@/lib/firebase";
 import { useEffect, useState } from "react";
@@ -166,7 +166,22 @@ function TerritoryDetailPage() {
     
     const quadrasQuery = query(collection(territoryRef, 'quadras'), orderBy('name', 'asc'));
     const unsubQuadras = onSnapshot(quadrasQuery, (snapshot) => { 
-        setQuadras(snapshot.docs.map(qDoc => ({...qDoc.data(), id: qDoc.id} as Quadra)));
+        const quadrasData = snapshot.docs.map(qDoc => ({...qDoc.data(), id: qDoc.id} as Quadra));
+        setQuadras(quadrasData);
+
+        // Dispara o pré-carregamento de casas quando as quadras são carregadas
+        if (navigator.onLine && quadrasData.length > 0) {
+            console.log(`[Offline Cache] Iniciando pré-carregamento de ${quadrasData.length} quadras...`);
+            quadrasData.forEach(quadra => {
+                const casasRef = collection(db, `congregations/${user.congregationId}/territories/${territoryId}/quadras/${quadra.id}/casas`);
+                // Apenas a chamada getDocs é suficiente para o Firebase SDK cachear os dados.
+                getDocs(casasRef).then(() => {
+                    console.log(`[Offline Cache] Casas da ${quadra.name} carregadas.`);
+                }).catch(error => {
+                    console.error(`[Offline Cache] Erro ao carregar casas da ${quadra.name}:`, error);
+                });
+            });
+        }
     });
     
     return () => { unsubTerritory(); unsubHistory(); unsubQuadras(); };
