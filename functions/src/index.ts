@@ -90,34 +90,32 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
     }
 });
 
-export const sendPasswordResetEmail = https.onRequest((req, res) => {
-    corsHandler(req, res, async () => {
-        if (req.method !== 'POST') {
-            res.status(405).send('Method Not Allowed');
-            return;
-        }
+export const sendPasswordResetEmail = https.onRequest({ cors: true }, async (req, res) => {
+    if (req.method !== 'POST') {
+        res.status(405).send('Method Not Allowed');
+        return;
+    }
 
-        const { email } = req.body;
-        if (!email) {
-            res.status(400).json({ error: "O e-mail é obrigatório." });
-            return;
-        }
+    const { email } = req.body;
+    if (!email) {
+        res.status(400).json({ error: "O e-mail é obrigatório." });
+        return;
+    }
 
-        try {
-            const actionLink = await admin.auth().generatePasswordResetLink(email, {
-                url: `https://appterritorios-e5bb5.web.app/auth/action`
-            });
-            res.status(200).json({ success: true, link: actionLink });
+    try {
+        const actionLink = await admin.auth().generatePasswordResetLink(email, {
+            url: `https://appterritorios-e5bb5.web.app/auth/action`
+        });
+        res.status(200).json({ success: true, link: actionLink });
 
-        } catch (error: any) {
-            console.error(`Erro ao gerar link de redefinição para ${email}:`, error);
-            if (error.code === 'auth/user-not-found') {
-                res.status(404).json({ error: "Nenhum usuário encontrado com este e-mail." });
-            } else {
-                res.status(500).json({ error: "Falha ao gerar o link de redefinição." });
-            }
+    } catch (error: any) {
+        console.error(`Erro ao gerar link de redefinição para ${email}:`, error);
+        if (error.code === 'auth/user-not-found') {
+            res.status(404).json({ error: "Nenhum usuário encontrado com este e-mail." });
+        } else {
+            res.status(500).json({ error: "Falha ao gerar o link de redefinição." });
         }
-    });
+    }
 });
 
 
