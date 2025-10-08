@@ -90,34 +90,43 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
     }
 });
 
-export const sendPasswordResetEmail = https.onRequest((req, res) => {
-    corsHandler(req, res, async () => {
-        if (req.method !== 'POST') {
-            res.status(405).send('Method Not Allowed');
-            return;
-        }
+export const sendPasswordResetEmail = https.onRequest(async (req, res) => {
+    // Configuração manual do CORS
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-        const { email } = req.body;
-        if (!email) {
-            res.status(400).json({ error: "O e-mail é obrigatório." });
-            return;
-        }
+    // Responde à requisição preflight (OPTIONS)
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
 
-        try {
-            const actionLink = await admin.auth().generatePasswordResetLink(email, {
-                url: `https://appterritorios-e5bb5.web.app/auth/action`
-            });
-            res.status(200).json({ success: true, link: actionLink });
+    if (req.method !== 'POST') {
+        res.status(405).send('Method Not Allowed');
+        return;
+    }
 
-        } catch (error: any) {
-            console.error(`Erro ao gerar link de redefinição para ${email}:`, error);
-            if (error.code === 'auth/user-not-found') {
-                res.status(404).json({ error: "Nenhum usuário encontrado com este e-mail." });
-            } else {
-                res.status(500).json({ error: "Falha ao gerar o link de redefinição." });
-            }
+    const { email } = req.body;
+    if (!email) {
+        res.status(400).json({ error: "O e-mail é obrigatório." });
+        return;
+    }
+
+    try {
+        const actionLink = await admin.auth().generatePasswordResetLink(email, {
+            url: `https://appterritorios-e5bb5.web.app/auth/action`
+        });
+        res.status(200).json({ success: true, link: actionLink });
+
+    } catch (error: any) {
+        console.error(`Erro ao gerar link de redefinição para ${email}:`, error);
+        if (error.code === 'auth/user-not-found') {
+            res.status(404).json({ error: "Nenhum usuário encontrado com este e-mail." });
+        } else {
+            res.status(500).json({ error: "Falha ao gerar o link de redefinição." });
         }
-    });
+    }
 });
 
 
