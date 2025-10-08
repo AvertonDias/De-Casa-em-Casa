@@ -17,7 +17,8 @@ import { maskPhone } from '@/lib/utils'; // Importa a máscara
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
-const getPasswordResetLinkFn = httpsCallable(functions, 'sendPasswordResetEmail');
+// Removida a antiga função onCall
+// const getPasswordResetLinkFn = httpsCallable(functions, 'sendPasswordResetEmail');
 
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
@@ -122,12 +123,21 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
     try {
       // 1. Chamar a Cloud Function para obter o link
-      const result = await getPasswordResetLinkFn();
-      const { link } = result.data as { link: string };
+      const response = await fetch("https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendPasswordResetEmail", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: user.email }),
+      });
 
-      if (!link) {
-        throw new Error("Não foi possível gerar o link de redefinição.");
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Não foi possível gerar o link de redefinição.");
       }
+
+      const { link } = result;
 
       // 2. Usar EmailJS para enviar o e-mail com o link
       const templateParams = {
@@ -138,7 +148,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
       await emailjs.send(
         'service_w3xe95d', // Service ID
-        'template_jco2e6b', // Template de redefinição de senha
+        'template_wzczhks', // Template de redefinição de senha
         templateParams,
         'JdR2XKNICKcHc1jny' // Public Key
       );
