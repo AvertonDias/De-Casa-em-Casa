@@ -2,8 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import emailjs from '@emailjs/browser';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,21 +23,43 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      await sendPasswordResetEmail(auth, email, {
-        url: `${window.location.origin}/auth/action`,
+      // 1. Chamar a Cloud Function para obter o link de redefinição.
+      const response = await fetch("https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendPasswordResetEmail", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
       });
-      setIsSubmitted(true); // Muda o estado para a tela de sucesso
-      toast({
-        title: "Verifique seu e-mail",
-        description: `Um link de recuperação foi enviado para ${email}.`,
-      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Não foi possível gerar o link de redefinição.");
+      }
+
+      // 2. Usar EmailJS para enviar o e-mail com o link obtido.
+      const { link } = result;
+      const templateParams = {
+        name: 'Usuário', // Usamos um nome genérico pois não temos o nome do usuário nesta página
+        email: email,
+        reset_link: link,
+      };
+
+      await emailjs.send(
+        'service_w3xe95d', // Seu Service ID
+        'template_wzczhks', // Seu Template ID de redefinição
+        templateParams,
+        'JdR2XKNICKcHc1jny' // Sua Public Key
+      );
+
+      setIsSubmitted(true);
+      
     } catch (err: any) {
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-email') {
+      console.error("Erro no processo de recuperação de senha:", err);
+      if (err.message.includes("Nenhum usuário encontrado")) {
         setError('Nenhuma conta encontrada com este endereço de e-mail.');
       } else {
         setError('Ocorreu um erro ao enviar o link. Tente novamente mais tarde.');
       }
-      console.error("Firebase password reset error:", err);
     } finally {
       setIsLoading(false);
     }
@@ -54,8 +75,8 @@ export default function ForgotPasswordPage() {
             <p className="text-muted-foreground">
               Enviamos um link de recuperação de senha para <span className="font-semibold text-foreground">{email}</span>.
             </p>
-            <p className="text-sm text-green-600 dark:text-green-400 font-semibold">
-              Se você não encontrar o e-mail, por favor, verifique sua pasta de spam.
+            <p className="p-3 text-sm font-semibold bg-yellow-500/20 text-yellow-300 border border-yellow-500/50 rounded-lg">
+              IMPORTANTE: Se você não encontrar o e-mail, por favor, verifique sua pasta de SPAM.
             </p>
             <Button asChild className="w-full">
               <Link href="/">Voltar para o Login</Link>
@@ -107,3 +128,4 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
+
