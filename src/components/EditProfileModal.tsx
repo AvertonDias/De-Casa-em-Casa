@@ -137,10 +137,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       };
 
       await emailjs.send(
-        'service_w3xe95d', // Substitua pelo seu Service ID
-        'YOUR_PASSWORD_RESET_TEMPLATE_ID', // Substitua pelo ID do seu NOVO template de senha
+        'service_w3xe95d', // Service ID
+        'template_wzczhks', // Template de redefinição de senha
         templateParams,
-        'JdR2XKNICKcHc1jny' // Substitua pela sua Public Key
+        'JdR2XKNICKcHc1jny' // Public Key
       );
       
       setPasswordResetSuccess(
