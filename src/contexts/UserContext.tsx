@@ -3,7 +3,7 @@
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp, enableNetwork, disableNetwork } from 'firebase/firestore';
 import { auth, db, app } from '@/lib/firebase';
 import type { AppUser, Congregation } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
@@ -66,6 +66,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Gerenciador de estado online/offline
+    const handleOnline = () => {
+      console.log('App online, reativando rede do Firestore.');
+      enableNetwork(db);
+    };
+    const handleOffline = () => {
+      console.log('App offline, desativando rede do Firestore para evitar erros.');
+      disableNetwork(db);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       // Limpa listeners antigos antes de configurar novos.
       unsubscribeAllFirestoreListeners();
@@ -117,6 +130,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return () => {
         unsubscribeAuth();
         unsubscribeAllFirestoreListeners();
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
