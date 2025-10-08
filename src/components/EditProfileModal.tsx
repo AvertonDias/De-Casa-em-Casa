@@ -3,10 +3,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { updateProfile } from 'firebase/auth';
+import { updateProfile, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import emailjs from '@emailjs/browser';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,8 +16,7 @@ import { maskPhone } from '@/lib/utils'; // Importa a máscara
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
-// Removida a antiga função onCall
-// const getPasswordResetLinkFn = httpsCallable(functions, 'sendPasswordResetEmail');
+const sendPasswordResetEmailFn = httpsCallable(functions, 'sendPasswordResetEmail');
 
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
@@ -122,41 +120,8 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
 
     try {
-      // 1. Chamar a Cloud Function para obter o link
-      const response = await fetch("https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendPasswordResetEmail", {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: user.email }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Não foi possível gerar o link de redefinição.");
-      }
-
-      const { link } = result;
-
-      // 2. Usar EmailJS para enviar o e-mail com o link
-      const templateParams = {
-        name: user.name,
-        email: user.email,
-        reset_link: link,
-      };
-
-      await emailjs.send(
-        'service_w3xe95d', // Service ID
-        'template_wzczhks', // Template de redefinição de senha
-        templateParams,
-        'JdR2XKNICKcHc1jny' // Public Key
-      );
-      
-      setPasswordResetSuccess(
-        `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`
-      );
-
+      await sendPasswordResetEmail(auth, user.email);
+      setPasswordResetSuccess(`E-mail de redefinição enviado para ${user.email}. Verifique sua caixa de entrada e SPAM.`);
     } catch (error: any) {
       console.error("Erro no processo de redefinição de senha:", error);
       toast({
@@ -260,16 +225,11 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                   className="w-full text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400"
                 >
                   <KeyRound className="mr-2" size={16} />
-                  Enviar Link para Redefinir Senha
+                  Enviar E-mail para Redefinir Senha
                 </Button>
                 {passwordResetSuccess && (
                   <p className="text-sm text-green-600 dark:text-green-400 font-semibold text-center mt-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                    {passwordResetSuccess.split('SPAM').map((part, index) =>
-                      <React.Fragment key={index}>
-                        {index > 0 && <strong className="underline">SPAM</strong>}
-                        {part}
-                      </React.Fragment>
-                    )}
+                    {passwordResetSuccess}
                   </p>
                 )}
               </div>
