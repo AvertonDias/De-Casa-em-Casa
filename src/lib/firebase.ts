@@ -1,4 +1,3 @@
-
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
@@ -29,11 +28,11 @@ const functions: Functions = getFunctions(app, 'southamerica-east1');
 const messaging: Messaging | null = (typeof window !== 'undefined') ? getMessaging(app) : null;
 const rtdb: Database = getDatabase(app);
 
-// Inicialização robusta do Firestore com cache offline de 10MB
+// Inicialização robusta do Firestore com cache offline ilimitado
 const db: Firestore = initializeFirestore(app, {
   localCache: persistentLocalCache({ 
     tabManager: persistentMultipleTabManager(),
-    cacheSizeBytes: 10 * 1024 * 1024 // Define o cache para 10MB
+    cacheSizeBytes: CACHE_SIZE_UNLIMITED 
   })
 });
 

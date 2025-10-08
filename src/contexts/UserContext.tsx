@@ -72,8 +72,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       enableNetwork(db);
     };
     const handleOffline = () => {
-      console.log('App offline, desativando rede do Firestore para evitar erros.');
-      disableNetwork(db);
+      console.log('App offline, acessando dados do cache.');
+      // Não desativamos mais a rede, deixamos o SDK gerenciar
     };
 
     window.addEventListener('online', handleOnline);
