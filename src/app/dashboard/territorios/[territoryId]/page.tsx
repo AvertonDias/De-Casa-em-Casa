@@ -5,7 +5,7 @@ import { doc, onSnapshot, collection, updateDoc, addDoc, deleteDoc, serverTimest
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "@/lib/firebase";
 import { useEffect, useState } from "react";
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory, Activity, Quadra, AssignmentHistoryLog } from "@/types/types"; 
 import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, History } from "lucide-react";
@@ -121,9 +121,14 @@ const QuadrasSection = ({ territoryId, quadras, isManagerView, onAddQuadra, onEd
   </div>
 );
 
-function TerritoryDetailPage() {
-  const rawParams = useParams();
-  const territoryId = typeof rawParams?.territoryId === 'string' ? rawParams.territoryId : undefined;
+interface TerritoryDetailPageProps {
+  params: {
+    territoryId: string;
+  };
+}
+
+function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
+  const { territoryId } = params;
   
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
