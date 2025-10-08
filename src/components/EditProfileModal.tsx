@@ -1,10 +1,12 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { updateProfile, sendPasswordResetEmail } from 'firebase/auth';
+import { updateProfile } from 'firebase/auth';
 import { auth, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import emailjs from '@emailjs/browser';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +17,7 @@ import { maskPhone } from '@/lib/utils'; // Importa a máscara
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
-const sendPasswordResetEmailFn = httpsCallable(functions, 'sendPasswordResetEmail');
+const getPasswordResetLinkFn = httpsCallable(functions, 'sendPasswordResetEmail');
 
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
@@ -110,7 +112,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   };
 
   const handleSendPasswordReset = async () => {
-    if (!auth.currentUser?.email) {
+    if (!user || !user.email) {
       toast({ title: "Erro", description: "E-mail do usuário não encontrado.", variant: "destructive" });
       return;
     }
@@ -119,21 +121,37 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
 
     try {
-      const result = await sendPasswordResetEmailFn();
-      const data = result.data as { success: boolean; message: string; };
+      // 1. Chamar a Cloud Function para obter o link
+      const result = await getPasswordResetLinkFn();
+      const { link } = result.data as { link: string };
 
-      if (!data.success) {
-        throw new Error(data.message);
+      if (!link) {
+        throw new Error("Não foi possível gerar o link de redefinição.");
       }
+
+      // 2. Usar EmailJS para enviar o e-mail com o link
+      const templateParams = {
+        name: user.name,
+        email: user.email,
+        reset_link: link,
+      };
+
+      await emailjs.send(
+        'service_w3xe95d', // Substitua pelo seu Service ID
+        'YOUR_PASSWORD_RESET_TEMPLATE_ID', // Substitua pelo ID do seu NOVO template de senha
+        templateParams,
+        'JdR2XKNICKcHc1jny' // Substitua pela sua Public Key
+      );
       
       setPasswordResetSuccess(
-        `Link enviado para ${auth.currentUser.email}. Se não o encontrar, verifique sua caixa de SPAM.`
+        `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`
       );
+
     } catch (error: any) {
-      console.error("Erro ao chamar a função de redefinição de senha:", error);
+      console.error("Erro no processo de redefinição de senha:", error);
       toast({
         title: "Erro ao enviar e-mail",
-        description: error.message || "Não foi possível enviar o e-mail de redefinição. Tente novamente.",
+        description: error.message || "Não foi possível iniciar o processo de redefinição. Tente novamente.",
         variant: "destructive",
       });
     } finally {
