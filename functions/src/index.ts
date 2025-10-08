@@ -6,7 +6,7 @@ import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
-import * as cors from "cors";
+import cors from "cors";
 
 const corsHandler = cors({ origin: true });
 
