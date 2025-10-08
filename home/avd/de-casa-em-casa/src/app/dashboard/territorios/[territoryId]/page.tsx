@@ -1,17 +1,15 @@
 
 "use client";
 
-import { doc, onSnapshot, collection, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction } from "firebase/firestore";
+import { doc, onSnapshot, collection, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory, Activity, Quadra, AssignmentHistoryLog } from "@/types/types"; 
-import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, UserCheck, Clock } from "lucide-react";
+import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, History } from "lucide-react";
 import Link from 'next/link';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 import ActivityHistory from '@/components/ActivityHistory';
 import AssignmentHistory from '@/components/AssignmentHistory';
@@ -24,9 +22,11 @@ import QuadraListItem from "@/components/QuadraListItem";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import withAuth from "@/components/withAuth";
 import AddEditAssignmentLogModal from "@/components/admin/AddEditAssignmentLogModal";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { GoogleMapEmbed } from "@/components/GoogleMapEmbed";
 
 
-const functions = getFunctions(app);
+const functions = getFunctions(app, 'southamerica-east1');
 const resetTerritoryFunction = httpsCallable(functions, 'resetTerritoryProgress');
 
 // ========================================================================
@@ -57,16 +57,6 @@ const ProgressSection = ({ territory }: { territory: Territory }) => {
 
 const MapAndCardSection = ({ territory, onImageClick }: { territory: Territory, onImageClick: (url: string) => void }) => {
     const cardUrl = territory.cardUrl;
-    
-    const getMapEmbedUrl = (originalUrl?: string) => {
-        if (!originalUrl) return '';
-        try {
-            const url = new URL(originalUrl);
-            const mid = url.searchParams.get('mid');
-            return mid ? `https://www.google.com/maps/d/embed?mid=${mid}` : '';
-        } catch (e) { return ''; }
-    };
-    const mapEmbedUrl = getMapEmbedUrl(territory.mapLink);
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -85,7 +75,12 @@ const MapAndCardSection = ({ territory, onImageClick }: { territory: Territory, 
             )}
           </div>
         </div>
-        <div className="bg-card p-6 rounded-lg shadow-md flex flex-col"><h2 className="text-xl font-bold mb-4 flex items-center"><Map className="mr-3 text-primary" />Mapa do Território</h2><div className="flex-grow">{mapEmbedUrl ? <iframe src={mapEmbedUrl} width="100%" height="100%" style={{ border: 0, minHeight: '350px' }} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade"></iframe> : <p className="text-muted-foreground">Nenhum mapa.</p>}</div></div>
+        <div className="bg-card p-6 rounded-lg shadow-md flex flex-col">
+          <h2 className="text-xl font-bold mb-4 flex items-center"><Map className="mr-3 text-primary" />Mapa do Território</h2>
+          <div className="flex-grow min-h-[350px]">
+            <GoogleMapEmbed mapLink={territory.mapLink} />
+          </div>
+        </div>
       </div>
     );
 };
@@ -127,11 +122,12 @@ interface TerritoryDetailPageProps {
 
 function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
   const { territoryId } = params;
+  
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
   const [quadras, setQuadras] = useState<Quadra[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
   const router = useRouter();
 
   const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
@@ -148,13 +144,34 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
   const [historyLogToEdit, setHistoryLogToEdit] = useState<AssignmentHistoryLog | null>(null);
   
   useEffect(() => {
-    if (!user?.congregationId) { if (!user) setLoading(true); else setLoading(false); return; }
+    if (userLoading) return;
+    if (!user?.congregationId || !territoryId) {
+      setLoading(false);
+      return;
+    }
     
     const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
     
     const unsubTerritory = onSnapshot(territoryRef, (docSnap) => { 
-        setTerritory(docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Territory : null);
-        setLoading(false); 
+        if (docSnap.exists()) {
+            const data = docSnap.data() as Territory;
+            setTerritory({ id: docSnap.id, ...data });
+
+            // Pre-fetch data for offline use
+            if ((data.type || 'urban') === 'urban' && data.quadraCount && data.quadraCount > 0) {
+              console.log(`[Offline Cache] Iniciando pré-carregamento de ${data.quadraCount} quadras...`);
+              const quadrasRef = collection(docSnap.ref, 'quadras');
+              getDocs(quadrasRef).then(quadrasSnap => {
+                quadrasSnap.forEach(quadraDoc => {
+                  console.log(`[Offline Cache] Casas da ${quadraDoc.data().name} carregadas.`);
+                  getDocs(collection(quadraDoc.ref, 'casas'));
+                });
+              });
+            }
+        } else {
+            setTerritory(null);
+        }
+        setLoading(false);
     });
 
     const historyQuery = query(collection(territoryRef, 'activityHistory'), orderBy("activityDate", "desc"));
@@ -164,11 +181,12 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
     
     const quadrasQuery = query(collection(territoryRef, 'quadras'), orderBy('name', 'asc'));
     const unsubQuadras = onSnapshot(quadrasQuery, (snapshot) => { 
-        setQuadras(snapshot.docs.map(qDoc => ({...qDoc.data(), id: qDoc.id} as Quadra)));
+        const quadrasData = snapshot.docs.map(qDoc => ({...qDoc.data(), id: qDoc.id} as Quadra));
+        setQuadras(quadrasData);
     });
     
     return () => { unsubTerritory(); unsubHistory(); unsubQuadras(); };
-  }, [territoryId, user]);
+  }, [territoryId, user, userLoading]);
   
   const handleOpenEditQuadraModal = (quadra: Quadra) => { setSelectedQuadra(quadra); setIsEditQuadraModalOpen(true); };
 
@@ -190,13 +208,13 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
   };
 
   const handleAddQuadra = async (data: { name: string, description: string }) => {
-    if(!user?.congregationId) return;
+    if(!user?.congregationId || !territoryId) return;
     const quadrasRef = collection(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras');
     await addDoc(quadrasRef, { ...data, totalHouses: 0, housesDone: 0, createdAt: serverTimestamp() });
   };
   
   const handleEditQuadra = async (quadraId: string, data: { name: string, description: string }) => {
-    if(!user?.congregationId) return;
+    if(!user?.congregationId || !territoryId) return;
     const quadraRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId);
     await updateDoc(quadraRef, data);
   };
@@ -322,7 +340,7 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
   };
 
 
-  if (loading || !territory || !user) return <div className="p-8 text-center">Carregando...</div>;
+  if (loading || userLoading || !territory || !user || !territoryId) return <div className="p-8 text-center">Carregando...</div>;
   
   const isManagerView = user.role === 'Administrador' || user.role === 'Dirigente';
   const isAdmin = user.role === 'Administrador';
@@ -361,14 +379,23 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
               {isUrban && <ProgressSection territory={territory} />}
               <ActivityHistory territoryId={territory.id} history={activityHistory} />
               
-              {isManagerView && (
-                <AssignmentHistory
-                  currentAssignment={territory.assignment}
-                  pastAssignments={territory.assignmentHistory || []}
-                  onEdit={handleOpenEditLogModal}
-                  onDelete={handleDeleteHistoryLog}
-                />
-              )}
+              <Accordion type="single" collapsible className="w-full bg-card rounded-lg shadow-md">
+                    <AccordionItem value="item-1">
+                        <AccordionTrigger className="p-4 font-semibold text-lg hover:no-underline">
+                           <div className="flex items-center"><History className="mr-3 text-primary" />Histórico e Designação Atual</div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                           <div className="p-4 pt-0">
+                               <AssignmentHistory
+                                 currentAssignment={territory.assignment}
+                                 pastAssignments={territory.assignmentHistory || []}
+                                 onEdit={handleOpenEditLogModal}
+                                 onDelete={handleDeleteHistoryLog}
+                               />
+                           </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
               
               <MapAndCardSection territory={territory} onImageClick={handleImageClick} />
               {isUrban && 
