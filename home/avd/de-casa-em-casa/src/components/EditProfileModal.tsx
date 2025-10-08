@@ -1,11 +1,12 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { updateProfile, sendPasswordResetEmail } from 'firebase/auth';
+import { updateProfile } from 'firebase/auth';
 import { auth, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import emailjs from '@emailjs/browser';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,8 @@ import { maskPhone } from '@/lib/utils'; // Importa a máscara
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
+const getPasswordResetLinkFn = httpsCallable(functions, 'sendPasswordResetEmail');
+
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
@@ -109,23 +112,50 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   };
 
   const handleSendPasswordReset = async () => {
-    if (!auth.currentUser?.email) {
+    if (!user || !user.email) {
       toast({ title: "Erro", description: "E-mail do usuário não encontrado.", variant: "destructive" });
       return;
     }
+    setLoading(true);
+    setError(null);
+    setPasswordResetSuccess(null);
+
     try {
-      await sendPasswordResetEmail(auth, auth.currentUser.email, {
-        url: `${window.location.origin}/auth/action`,
-      });
-      setPasswordResetSuccess(
-        `Link enviado para ${auth.currentUser.email}. Se não o encontrar, verifique sua caixa de SPAM.`
+      // 1. Chamar a Cloud Function para obter o link
+      const result = await getPasswordResetLinkFn();
+      const { link } = result.data as { link: string };
+
+      if (!link) {
+        throw new Error("Não foi possível gerar o link de redefinição.");
+      }
+
+      // 2. Usar EmailJS para enviar o e-mail com o link
+      const templateParams = {
+        name: user.name,
+        email: user.email,
+        reset_link: link,
+      };
+
+      await emailjs.send(
+        'service_w3xe95d', // Service ID
+        'template_jco2e6b', // Template de redefinição de senha
+        templateParams,
+        'JdR2XKNICKcHc1jny' // Public Key
       );
-    } catch (error) {
+      
+      setPasswordResetSuccess(
+        `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`
+      );
+
+    } catch (error: any) {
+      console.error("Erro no processo de redefinição de senha:", error);
       toast({
         title: "Erro ao enviar e-mail",
-        description: "Não foi possível enviar o e-mail de redefinição. Tente novamente.",
+        description: error.message || "Não foi possível iniciar o processo de redefinição. Tente novamente.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -216,6 +246,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                   type="button"
                   variant="outline" 
                   onClick={handleSendPasswordReset} 
+                  disabled={loading}
                   className="w-full text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400"
                 >
                   <KeyRound className="mr-2" size={16} />
@@ -224,7 +255,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                 {passwordResetSuccess && (
                   <p className="text-sm text-green-600 dark:text-green-400 font-semibold text-center mt-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
                     {passwordResetSuccess.split('SPAM').map((part, index) =>
-                      index < 1 ? part : <><strong key={index} className="underline">SPAM</strong>{part}</>
+                      <React.Fragment key={index}>
+                        {index > 0 && <strong className="underline">SPAM</strong>}
+                        {part}
+                      </React.Fragment>
                     )}
                   </p>
                 )}

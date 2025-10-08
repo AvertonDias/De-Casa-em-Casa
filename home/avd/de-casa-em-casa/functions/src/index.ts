@@ -1,13 +1,12 @@
 
-
 // functions/src/index.ts
-import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
-import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
+import { https, setGlobalOptions, pubsub, config } from "firebase-functions/v2";
+import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
-import * as cors from 'cors';
+
 
 // Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
 if (!admin.apps.length) {
@@ -15,25 +14,6 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 
-const allowedOrigins = [
-    "http://localhost:3000",
-    "https://appterritorios-e5bb5.web.app",
-    "https://appterritorios-e5bb5.firebaseapp.com",
-    "https://6000-firebase-studio-1750624095908.cluster-m7tpz3bmgjgoqrktlvd4ykrc2m.cloudworkstations.dev",
-    "https://de-casa-em-casa.vercel.app",
-];
-
-const corsHandler = cors({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-});
 
 setGlobalOptions({ 
   region: "southamerica-east1",
@@ -43,71 +23,96 @@ setGlobalOptions({
 //   FUNÇÕES HTTPS (onCall e onRequest)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
-    corsHandler(req, res, async () => {
-        if (req.method !== 'POST') {
-            res.status(405).json({ error: 'Método não permitido' });
+export const createCongregationAndAdmin = https.onRequest({ cors: true }, async (req, res) => {
+    if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Método não permitido' });
+        return;
+    }
+    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.body;
+    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
+        res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
+        return;
+    }
+
+    let newUser: admin.auth.UserRecord | undefined;
+    try {
+        const congQuery = await db.collection('congregations').where('number', '==', congregationNumber).get();
+        if (!congQuery.empty) {
+            res.status(409).json({ error: 'Uma congregação com este número já existe.' });
             return;
         }
-        const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.body;
-        if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
-            res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
-            return;
+        
+        newUser = await admin.auth().createUser({
+            email: adminEmail,
+            password: adminPassword,
+            displayName: adminName,
+        });
+
+        const batch = db.batch();
+        const newCongregationRef = db.collection('congregations').doc();
+        batch.set(newCongregationRef, {
+            name: congregationName,
+            number: congregationNumber,
+            territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        const userDocRef = db.collection("users").doc(newUser.uid);
+        batch.set(userDocRef, {
+            name: adminName,
+            email: adminEmail,
+            whatsapp: whatsapp, // Salva o WhatsApp
+            congregationId: newCongregationRef.id,
+            role: "Administrador",
+            status: "ativo"
+        });
+        await batch.commit();
+
+        res.status(200).json({ success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' });
+
+    } catch (error: any) {
+        if (newUser) {
+            await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
+                console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`, deleteError);
+            });
         }
 
-        let newUser: admin.auth.UserRecord | undefined;
-        try {
-            const congQuery = await db.collection('congregations').where('number', '==', congregationNumber).get();
-            if (!congQuery.empty) {
-                res.status(409).json({ error: 'Uma congregação com este número já existe.' });
-                return;
-            }
-            
-            newUser = await admin.auth().createUser({
-                email: adminEmail,
-                password: adminPassword,
-                displayName: adminName,
-            });
-
-            const batch = db.batch();
-            const newCongregationRef = db.collection('congregations').doc();
-            batch.set(newCongregationRef, {
-                name: congregationName,
-                number: congregationNumber,
-                territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                lastUpdate: admin.firestore.FieldValue.serverTimestamp()
-            });
-
-            const userDocRef = db.collection("users").doc(newUser.uid);
-            batch.set(userDocRef, {
-                name: adminName,
-                email: adminEmail,
-                whatsapp: whatsapp, // Salva o WhatsApp
-                congregationId: newCongregationRef.id,
-                role: "Administrador",
-                status: "ativo"
-            });
-            await batch.commit();
-
-            res.status(200).json({ success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' });
-
-        } catch (error: any) {
-            if (newUser) {
-                await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
-                    console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`, deleteError);
-                });
-            }
-
-            console.error("Erro ao criar congregação e admin:", error);
-            if (error.code === 'auth/email-already-exists') {
-                res.status(409).json({ error: "Este e-mail já está em uso." });
-            } else {
-                res.status(500).json({ error: error.message || 'Erro interno no servidor' });
-            }
+        console.error("Erro ao criar congregação e admin:", error);
+        if (error.code === 'auth/email-already-exists') {
+            res.status(409).json({ error: "Este e-mail já está em uso." });
+        } else {
+            res.status(500).json({ error: error.message || 'Erro interno no servidor' });
         }
-    });
+    }
 });
+
+// SIMPLIFICADO: Agora apenas gera e retorna o link de redefinição de senha.
+export const sendPasswordResetEmail = https.onCall(async (req) => {
+    if (!req.auth) {
+        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
+    }
+    const email = req.auth.token.email;
+    if (!email) {
+        throw new https.HttpsError("invalid-argument", "E-mail não encontrado no token.");
+    }
+
+    try {
+        const actionLink = await admin.auth().generatePasswordResetLink(email, {
+            url: `https://appterritorios-e5bb5.web.app/auth/action`
+        });
+        // Retorna o link para o cliente, que será responsável por enviar o e-mail via EmailJS
+        return { success: true, link: actionLink };
+
+    } catch (error: any) {
+        console.error(`Erro ao gerar link de redefinição para ${email}:`, error);
+        if (error.code === 'auth/user-not-found') {
+            throw new https.HttpsError("not-found", "Nenhum usuário encontrado com este e-mail.");
+        }
+        throw new https.HttpsError("internal", "Falha ao gerar o link de redefinição.");
+    }
+});
+
 
 export const deleteUserAccount = https.onCall(async (req) => {
     const callingUserUid = req.auth?.uid;
@@ -212,7 +217,7 @@ export const resetTerritoryProgress = https.onCall(async (req) => {
 });
 
 
-export const sendOverdueNotification = https.onCall(async (req) => {
+export const sendOverdueNotification = https.onCall({ cors: true }, async (req) => {
     if (!req.auth) {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
@@ -258,7 +263,7 @@ export const sendOverdueNotification = https.onCall(async (req) => {
 });
 
 
-export const generateUploadUrl = https.onCall(async (req) => {
+export const generateUploadUrl = https.onCall({ cors: true }, async (req) => {
   if (!req.auth) {
     throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
   }
@@ -284,32 +289,6 @@ export const generateUploadUrl = https.onCall(async (req) => {
   }
 });
 
-
-export const sendFeedbackEmail = https.onCall(async (req) => {
-  if (!req.auth) {
-      throw new https.HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
-  }
-  try {
-      const { name, email, subject, message } = req.data;
-      if (!name || !email || !subject || !message) {
-          throw new https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
-      }
-      console.log('--- NOVO FEEDBACK RECEBIDO ---');
-      console.log(`De: ${name} (${email})`);
-      console.log(`UID: ${req.auth.uid}`);
-      console.log(`Assunto: ${subject}`);
-      console.log(`Mensagem: ${message}`);
-      console.log('------------------------------');
-      return { success: true, message: 'Feedback enviado com sucesso!' };
-
-  } catch (error: any) {
-      console.error("Erro ao processar feedback:", error);
-      if (error instanceof https.HttpsError) {
-          throw error;
-      }
-      throw new https.HttpsError("internal", "Erro interno do servidor ao processar o feedback.");
-  }
-});
 
 // ========================================================================
 //   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO
@@ -420,6 +399,48 @@ export const onTerritoryChange = onDocumentWritten("congregations/{congregationI
 // ============================================================================
 //   OUTROS GATILHOS (Notificação, Exclusão)
 // ============================================================================
+export const onNewUserPending = onDocumentCreated("users/{userId}", async (event) => {
+    const newUser = event.data?.data();
+    if (!newUser || newUser.status !== 'pendente' || !newUser.congregationId) {
+        return null;
+    }
+
+    const adminsQuery = db.collection("users")
+        .where('congregationId', '==', newUser.congregationId)
+        .where('role', '==', 'Administrador');
+
+    try {
+        const adminsSnapshot = await adminsQuery.get();
+        if (adminsSnapshot.empty) return null;
+
+        let tokens: string[] = [];
+        adminsSnapshot.forEach(doc => {
+            const adminData = doc.data();
+            if (adminData.fcmTokens && Array.isArray(adminData.fcmTokens)) {
+                tokens = tokens.concat(adminData.fcmTokens);
+            }
+        });
+        
+        tokens = [...new Set(tokens)]; // Remove duplicados
+
+        if (tokens.length === 0) return null;
+
+        const payload = {
+            notification: {
+                title: "Novo Usuário Pendente",
+                body: `O publicador "${newUser.name}" solicitou acesso à congregação.`,
+                icon: "/icon-192x192.jpg",
+                click_action: "/dashboard/usuarios",
+            },
+        };
+        await admin.messaging().sendToDevice(tokens, payload);
+        return { success: true };
+    } catch (error) {
+        console.error(`[onNewUserPending] Falha ao enviar notificação para admins:`, error);
+        return { success: false, error };
+    }
+});
+
 
 export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/territories/{terrId}", async (event) => {
   const dataBefore = event.data?.before.data();
@@ -445,7 +466,7 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
       const payload = {
           notification: {
               title: "Você recebeu um novo território!",
-              body: `O território "${territoryName}" está sob sua responsabilidade. Devolver até ${formattedDueDate}.`,
+              body: `O território "${territoryName}" foi designado para você! Devolva até ${formattedDueDate}.`,
               icon: "/icon-192x192.jpg",
               click_action: "/dashboard/meus-territorios",
           },
@@ -552,5 +573,51 @@ export const checkInactiveUsers = pubsub.schedule("every 5 minutes").onRun(async
     } catch (error) {
         console.error("Erro ao verificar e atualizar usuários inativos:", error);
         return null;
+    }
+});
+
+
+export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(async (context) => {
+    console.log("Executando verificação de territórios vencidos...");
+    const now = admin.firestore.Timestamp.now();
+
+    try {
+        const congregationsSnapshot = await db.collection('congregations').get();
+        
+        for (const congDoc of congregationsSnapshot.docs) {
+            const overdueTerritoriesQuery = db.collection(`congregations/${congDoc.id}/territories`)
+                .where('status', '==', 'designado')
+                .where('assignment.dueDate', '<', now);
+            
+            const overdueSnapshot = await overdueTerritoriesQuery.get();
+            if (overdueSnapshot.empty) continue;
+
+            for (const terrDoc of overdueSnapshot.docs) {
+                const territory = terrDoc.data();
+                const assignment = territory.assignment;
+                if (!assignment || !assignment.uid) continue;
+
+                const userDoc = await db.doc(`users/${assignment.uid}`).get();
+                if (!userDoc.exists) continue;
+
+                const tokens = userDoc.data()?.fcmTokens;
+                if (!tokens || tokens.length === 0) continue;
+
+                const payload = {
+                    notification: {
+                        title: "Território Vencido!",
+                        body: `Lembrete: O território "${territory.name}" está com o prazo de devolução vencido.`,
+                        icon: "/icon-192x192.jpg",
+                        click_action: "/dashboard/meus-territorios",
+                    },
+                };
+                await admin.messaging().sendToDevice(tokens, payload);
+                console.log(`Notificação de vencimento enviada para ${assignment.name} sobre o território ${territory.name}.`);
+            }
+        }
+        return { success: true, message: "Verificação de territórios vencidos concluída." };
+    } catch (error) {
+        console.error("Erro ao verificar territórios vencidos:", error);
+        return { success: false, error };
     }
 });
