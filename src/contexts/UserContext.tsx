@@ -3,9 +3,9 @@
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, serverTimestamp, enableNetwork, disableNetwork } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp, enableNetwork, disableNetwork, collection, getDocs, query } from 'firebase/firestore';
 import { auth, db, app } from '@/lib/firebase';
-import type { AppUser, Congregation } from '@/types/types';
+import type { AppUser, Congregation, Territory } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader } from 'lucide-react';
 
@@ -34,6 +34,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   // Ref para armazenar funções de unsubscribe de Firestore.
   const firestoreUnsubsRef = useRef<(() => void)[]>([]);
+  const offlineCacheFetched = useRef(false); // Flag para controlar o cache
 
   // Função auxiliar para desinscrever TODOS os listeners Firestore.
   const unsubscribeAllFirestoreListeners = () => {
@@ -54,6 +55,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
     // O onAuthStateChanged listener irá tratar da limpeza dos listeners do firestore
     await signOut(auth);
+    offlineCacheFetched.current = false; // Reseta o flag no logout
     router.push('/');
   };
   
@@ -135,6 +137,40 @@ export function UserProvider({ children }: { children: ReactNode }) {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  
+  // Efeito para buscar todos os dados e cachear para uso offline
+  useEffect(() => {
+    const fetchAllDataForOfflineCache = async (congregationId: string) => {
+        console.log("[Offline Cache] Iniciando busca completa de dados para cache...");
+        try {
+            const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
+            const territoriesSnapshot = await getDocs(territoriesRef);
+
+            const territoryPromises = territoriesSnapshot.docs.map(async (territoryDoc) => {
+                if ((territoryDoc.data() as Territory).type === 'rural') return;
+
+                const quadrasRef = collection(territoryDoc.ref, 'quadras');
+                const quadrasSnapshot = await getDocs(quadrasRef);
+
+                const quadraPromises = quadrasSnapshot.docs.map(async (quadraDoc) => {
+                    const casasRef = collection(quadraDoc.ref, 'casas');
+                    await getDocs(casasRef); // Busca e cacheia as casas
+                });
+                await Promise.all(quadraPromises);
+            });
+
+            await Promise.all(territoryPromises);
+            console.log("[Offline Cache] Todos os dados da congregação foram baixados e cacheados com sucesso.");
+        } catch (error) {
+            console.error("[Offline Cache] Erro ao tentar cachear dados da congregação:", error);
+        }
+    };
+
+    if (user?.congregationId && !offlineCacheFetched.current) {
+        offlineCacheFetched.current = true; // Marca como iniciado para evitar múltiplas execuções
+        fetchAllDataForOfflineCache(user.congregationId);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (loading || !pathname) return;

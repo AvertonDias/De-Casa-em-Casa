@@ -170,20 +170,6 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
     const unsubQuadras = onSnapshot(quadrasQuery, (snapshot) => { 
         const quadrasData = snapshot.docs.map(qDoc => ({...qDoc.data(), id: qDoc.id} as Quadra));
         setQuadras(quadrasData);
-
-        // Dispara o pré-carregamento de casas quando as quadras são carregadas
-        if (navigator.onLine && quadrasData.length > 0) {
-            console.log(`[Offline Cache] Iniciando pré-carregamento de ${quadrasData.length} quadras...`);
-            quadrasData.forEach(quadra => {
-                const casasRef = collection(db, `congregations/${user.congregationId}/territories/${territoryId}/quadras/${quadra.id}/casas`);
-                // Apenas a chamada getDocs é suficiente para o Firebase SDK cachear os dados.
-                getDocs(casasRef).then(() => {
-                    console.log(`[Offline Cache] Casas da ${quadra.name} carregadas.`);
-                }).catch(error => {
-                    console.error(`[Offline Cache] Erro ao carregar casas da ${quadra.name}:`, error);
-                });
-            });
-        }
     });
     
     return () => { unsubTerritory(); unsubHistory(); unsubQuadras(); };
