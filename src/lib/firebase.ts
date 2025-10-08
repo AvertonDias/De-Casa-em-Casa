@@ -1,7 +1,7 @@
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, type Firestore, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getFunctions, type Functions } from "firebase/functions";
 import { getMessaging, type Messaging } from "firebase/messaging";
@@ -28,11 +28,11 @@ const functions: Functions = getFunctions(app, 'southamerica-east1');
 const messaging: Messaging | null = (typeof window !== 'undefined') ? getMessaging(app) : null;
 const rtdb: Database = getDatabase(app);
 
-// Inicialização robusta do Firestore com cache offline ilimitado
+// Inicialização robusta do Firestore com cache offline de 100MB
 const db: Firestore = initializeFirestore(app, {
   localCache: persistentLocalCache({ 
     tabManager: persistentMultipleTabManager(),
-    cacheSizeBytes: CACHE_SIZE_UNLIMITED 
+    cacheSizeBytes: 100 * 1024 * 1024 // 100 MB
   })
 });
 
