@@ -10,7 +10,7 @@ import { useTheme } from 'next-themes';
 import { doc, arrayUnion, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { getToken } from 'firebase/messaging';
 
-import { Home, Map, Users, Settings, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck } from 'lucide-react';
+import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +28,6 @@ import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
 import withAuth from "@/components/withAuth";
 import { usePresence } from "@/hooks/usePresence";
 import { EditProfileModal } from "@/components/EditProfileModal"; // Importar o modal de perfil
-import { UpdateProfileBanner } from "@/components/UpdateProfileBanner";
 import { FeedbackAnnouncementModal } from "@/components/FeedbackAnnouncementModal";
 
 
@@ -278,7 +277,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useUser();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   // Ativa o sistema de presença para o usuário logado
   usePresence();
@@ -317,15 +315,9 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     return null;
   }
   
-  const showUpdateProfileDialog = user.status === 'ativo' && !user.whatsapp;
-
   return (
       <div className="flex h-screen bg-background">
-          <FeedbackAnnouncementModal onOpenChange={setShowFeedbackModal} />
-          {/* O modal de perfil só é mostrado se o de feedback não estiver ativo */}
-          {!showFeedbackModal && showUpdateProfileDialog && (
-            <UpdateProfileBanner onUpdateProfileClick={() => setIsProfileModalOpen(true)} />
-          )}
+          <FeedbackAnnouncementModal onOpenProfileModal={() => setIsProfileModalOpen(true)} />
           
           <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />
 
