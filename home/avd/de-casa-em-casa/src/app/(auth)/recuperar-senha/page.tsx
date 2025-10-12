@@ -2,14 +2,17 @@
 "use client";
 
 import { useState } from 'react';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const sendPasswordResetEmailFn = httpsCallable(functions, 'sendPasswordResetEmail');
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -24,17 +27,19 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      await sendPasswordResetEmail(auth, email, {
-        url: `${window.location.origin}/auth/action`,
-      });
-      setIsSubmitted(true); // Muda o estado para a tela de sucesso
+      const result = await sendPasswordResetEmailFn({ email: email });
+      const data = result.data as { success: boolean, message: string };
+      if (!data.success) {
+        throw new Error(data.message || 'Falha ao enviar e-mail.');
+      }
+      setIsSubmitted(true);
     } catch (err: any) {
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-email') {
+      if (err.message.includes('user-not-found') || err.message.includes('invalid-email')) {
         setError('Nenhuma conta encontrada com este endereço de e-mail.');
       } else {
         setError('Ocorreu um erro ao enviar o link. Tente novamente mais tarde.');
       }
-      console.error("Firebase password reset error:", err);
+      console.error("Password reset error:", err);
     } finally {
       setIsLoading(false);
     }
@@ -103,3 +108,4 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
+
