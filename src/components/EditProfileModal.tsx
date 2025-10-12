@@ -10,7 +10,7 @@ import emailjs from '@emailjs/browser';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Eye, EyeOff, Trash2, KeyRound } from 'lucide-react';
+import { Eye, EyeOff, Trash2, KeyRound } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils'; // Importa a máscara
@@ -188,6 +188,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   }
 
   const whatsappMismatch = whatsapp !== confirmWhatsapp;
+  const isSaveDisabled = loading || whatsappMismatch || !whatsapp.trim() || !name.trim();
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -267,7 +268,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
           <DialogClose asChild>
               <Button type="button" variant="secondary" className="bg-muted hover:bg-muted/80">Cancelar</Button>
           </DialogClose>
-          <Button type="submit" form="edit-profile-form" disabled={loading || whatsappMismatch || !whatsapp}>
+          <Button type="submit" form="edit-profile-form" disabled={isSaveDisabled}>
             {loading ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
         </DialogFooter>
@@ -316,3 +317,5 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     </Dialog>
   );
 }
+
+    
