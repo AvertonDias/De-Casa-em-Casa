@@ -6,6 +6,7 @@ import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import cors from "cors";
+import fetch from "node-fetch";
 
 const corsHandler = cors({ origin: true });
 
@@ -90,36 +91,75 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
 });
 
 export const sendPasswordResetEmail = https.onRequest((req, res) => {
-    corsHandler(req, res, async () => {
-        if (req.method !== 'POST') {
-            res.status(405).send('Method Not Allowed');
-            return;
-        }
+  corsHandler(req, res, async () => {
+    // Essencial para lidar com as requisições "pre-flight" do CORS
+    if (req.method === "OPTIONS") {
+      res.set("Access-Control-Allow-Methods", "POST");
+      res.set("Access-Control-Allow-Headers", "Content-Type");
+      res.set("Access-Control-Max-Age", "3600");
+      res.status(204).send("");
+      return;
+    }
+    
+    if (req.method !== 'POST') {
+        res.status(405).send('Method Not Allowed');
+        return;
+    }
 
-        const { email } = req.body;
-        if (!email) {
-            res.status(400).json({ error: "O e-mail é obrigatório." });
-            return;
-        }
+    const { email } = req.body;
+    if (!email) {
+        res.status(400).json({ error: "O e-mail é obrigatório." });
+        return;
+    }
 
-        try {
-            const actionLink = await admin.auth().generatePasswordResetLink(email, {
-                url: `https://appterritorios-e5bb5.web.app/auth/action`
-            });
-            // Retornamos apenas o sucesso. O envio será feito no frontend.
-            res.status(200).json({ success: true, link: actionLink });
+    try {
+        // 1. Gera o link de redefinição seguro do Firebase
+        const actionLink = await admin.auth().generatePasswordResetLink(email, {
+            url: `https://appterritorios-e5bb5.web.app/auth/action`
+        });
 
-        } catch (error: any) {
-            console.error(`Erro ao gerar link de redefinição para ${email}:`, error);
-            if (error.code === 'auth/user-not-found') {
-                // Por segurança, não informe que o usuário não existe.
-                // Apenas retorne sucesso para o client-side.
-                res.status(200).json({ success: true, link: null });
-            } else {
-                res.status(500).json({ error: "Falha ao gerar o link de redefinição." });
+        // 2. Envia o e-mail usando a API REST do EmailJS
+        // Substitua pelas suas credenciais ou use variáveis de ambiente
+        const EMAILJS_SERVICE_ID = "service_w3xe95d";
+        const EMAILJS_TEMPLATE_ID = "template_wzczhks";
+        const EMAILJS_PUBLIC_KEY = "JdR2XKNICKcHc1jny";
+        
+        const payload = {
+            service_id: EMAILJS_SERVICE_ID,
+            template_id: EMAILJS_TEMPLATE_ID,
+            user_id: EMAILJS_PUBLIC_KEY,
+            template_params: {
+                to_email: email,
+                reset_link: actionLink
             }
+        };
+
+        const emailResponse = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!emailResponse.ok) {
+            const errorText = await emailResponse.text();
+            console.error("Falha ao enviar e-mail via EmailJS:", errorText);
+            throw new Error("Falha ao enviar o e-mail de redefinição.");
         }
-    });
+        
+        // 3. Sucesso
+        res.status(200).json({ success: true, message: 'Link de redefinição enviado com sucesso!' });
+
+    } catch (error: any) {
+        console.error(`Erro ao processar redefinição para ${email}:`, error);
+        if (error.code === 'auth/user-not-found') {
+            // Por segurança, não informe que o usuário não existe.
+            // Apenas retorne sucesso para o client-side.
+            res.status(200).json({ success: true, message: "Se um usuário com este e-mail existir, um link será enviado." });
+        } else {
+            res.status(500).json({ error: "Falha ao processar o pedido de redefinição." });
+        }
+    }
+  });
 });
 
 

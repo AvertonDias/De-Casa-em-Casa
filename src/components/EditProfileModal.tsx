@@ -132,9 +132,16 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
 
     try {
-      await sendPasswordResetEmail(auth, user.email, {
-        url: `${window.location.origin}/auth/action`,
+      const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendPasswordResetEmail";
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email }),
       });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Falha ao chamar a função.');
+
       setPasswordResetSuccess(
         `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`
       );

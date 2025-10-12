@@ -2,8 +2,6 @@
 "use client";
 
 import { useState } from 'react';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,15 +22,20 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendPasswordResetEmail";
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Falha ao enviar e-mail.');
+
       setIsSubmitted(true);
     } catch (err: any) {
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-email') {
-        setError('Nenhuma conta encontrada com este endereço de e-mail.');
-      } else {
-        setError('Ocorreu um erro ao enviar o link. Tente novamente mais tarde.');
-      }
-      console.error("Firebase password reset error:", err);
+      setError(err.message || 'Ocorreu um erro ao enviar o link. Tente novamente mais tarde.');
+      console.error("Erro no reset de senha:", err);
     } finally {
       setIsLoading(false);
     }
@@ -46,7 +49,7 @@ export default function ForgotPasswordPage() {
             <MailCheck className="mx-auto h-16 w-16 text-green-500" />
             <h1 className="text-2xl font-bold">Verifique sua Caixa de Entrada</h1>
             <p className="text-muted-foreground">
-              Enviamos um link de recuperação de senha para <span className="font-semibold text-foreground">{email}</span>.
+              Se uma conta com o e-mail <span className="font-semibold text-foreground">{email}</span> existir, um link de recuperação será enviado.
             </p>
             <p className="p-3 text-sm font-semibold bg-yellow-500/20 text-yellow-300 border border-yellow-500/50 rounded-lg">
               IMPORTANTE: Se você não encontrar o e-mail, por favor, verifique sua pasta de SPAM.
