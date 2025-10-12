@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { updateProfile } from 'firebase/auth';
 import { auth, app } from '@/lib/firebase';
@@ -35,6 +35,8 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   const [passwordForDelete, setPasswordForDelete] = useState('');
   const [showPasswordForDelete, setShowPasswordForDelete] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+
+  const whatsappInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     if (user && isOpen) {
@@ -45,6 +47,13 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       setError(null);
       setPasswordResetSuccess(null);
       setPasswordForDelete('');
+      
+      // Lógica de Foco Automático
+      if (!initialWhatsapp) {
+        setTimeout(() => {
+          whatsappInputRef.current?.focus();
+        }, 100);
+      }
     }
   }, [user, isOpen]);
 
@@ -226,6 +235,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
               <div>
                 <label htmlFor="whatsapp" className="text-sm font-medium text-muted-foreground">WhatsApp <span className="text-red-500">*</span></label>
                 <Input 
+                  ref={whatsappInputRef}
                   id="whatsapp" 
                   type="tel" 
                   value={whatsapp} 
