@@ -26,7 +26,13 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      await requestPasswordResetFn({ email });
+      await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
       // A função de backend sempre retorna sucesso por segurança, mesmo que o email não exista.
       setIsSubmitted(true); 
     } catch (err: any) {

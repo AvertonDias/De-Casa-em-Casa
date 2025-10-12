@@ -7,6 +7,9 @@ import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import fetch from "node-fetch";
 import { randomBytes } from 'crypto';
+import cors from "cors";
+
+const corsHandler = cors({ origin: true });
 
 
 // Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
@@ -30,7 +33,7 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
         return;
     }
     const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.body;
-    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
+    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
         res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
         return;
     }
@@ -89,31 +92,34 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
 });
 
 
-export const requestPasswordReset = https.onCall(async (req) => {
-    const { email } = req.data;
-    if (!email) {
-      throw new https.HttpsError("invalid-argument", "O e-mail é obrigatório.");
+export const requestPasswordReset = https.onRequest((req, res) => {
+  corsHandler(req, res, async () => {
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Método não permitido' });
+      return;
     }
-  
+
+    const { email } = req.body;
+    if (!email) {
+      res.status(400).json({ error: 'O e-mail é obrigatório.' });
+      return;
+    }
+
     try {
-      // Garantir que o usuário exista antes de prosseguir
       const userRecord = await admin.auth().getUserByEmail(email);
       if (!userRecord) {
-        // Não jogue erro, apenas retorne sucesso para não revelar se um e-mail existe
-        return { success: true };
+        res.status(200).json({ success: true });
+        return;
       }
       
-      // 1. Gerar token seguro
       const token = randomBytes(32).toString("hex");
       const expires = admin.firestore.Timestamp.fromMillis(Date.now() + 3600 * 1000); // 1 hora
       
-      // 2. Salvar token no Firestore
       await db.collection("resetTokens").doc(token).set({
         email: email,
         expires: expires,
       });
 
-      // 3. Enviar e-mail via EmailJS
       const resetLink = `https://appterritorios-e5bb5.web.app/auth/action?token=${token}`;
 
       const EMAILJS_SERVICE_ID = "service_w3xe95d";
@@ -139,31 +145,40 @@ export const requestPasswordReset = https.onCall(async (req) => {
       if (!emailResponse.ok) {
         const errorText = await emailResponse.text();
         console.error("EmailJS API Error:", errorText);
-        throw new https.HttpsError("internal", "Falha ao enviar e-mail de redefinição via EmailJS.");
+        res.status(500).json({ error: "Falha ao enviar e-mail de redefinição via EmailJS." });
+        return;
       }
 
-      return { success: true };
+      res.status(200).json({ success: true });
 
     } catch (error: any) {
-        // Se o usuário não for encontrado, não revelamos o erro por segurança.
         if (error.code === 'auth/user-not-found') {
             console.log(`Pedido de redefinição para e-mail não existente: ${email}`);
-            return { success: true }; // Simula sucesso
+            res.status(200).json({ success: true }); // Simula sucesso
+            return;
         }
         console.error("Erro em requestPasswordReset:", error);
-        throw new https.HttpsError("internal", "Falha ao processar o pedido de redefinição.");
+        res.status(500).json({ error: "Falha ao processar o pedido de redefinição." });
     }
+  });
 });
 
 
-export const resetPasswordWithToken = https.onCall(async (req) => {
-    const { token, newPassword } = req.data;
+export const resetPasswordWithToken = https.onRequest((req, res) => {
+  corsHandler(req, res, async () => {
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Método não permitido' });
+      return;
+    }
 
+    const { token, newPassword } = req.body;
     if (!token || !newPassword) {
-      throw new https.HttpsError("invalid-argument", "Token e nova senha são obrigatórios.");
+      res.status(400).json({ error: "Token e nova senha são obrigatórios." });
+      return;
     }
     if (newPassword.length < 6) {
-        throw new https.HttpsError("invalid-argument", "A senha deve ter no mínimo 6 caracteres.");
+        res.status(400).json({ error: "A senha deve ter no mínimo 6 caracteres." });
+        return;
     }
 
     const tokenRef = db.collection("resetTokens").doc(token);
@@ -171,30 +186,27 @@ export const resetPasswordWithToken = https.onCall(async (req) => {
     try {
         const tokenDoc = await tokenRef.get();
         if (!tokenDoc.exists) {
-            throw new https.HttpsError("not-found", "Token inválido ou já utilizado.");
+            res.status(404).json({ error: "Token inválido ou já utilizado." });
+            return;
         }
 
         const data = tokenDoc.data()!;
         if (data.expires.toMillis() < Date.now()) {
-            await tokenRef.delete(); // Limpa token expirado
-            throw new https.HttpsError("deadline-exceeded", "O token de redefinição expirou.");
+            await tokenRef.delete(); 
+            res.status(410).json({ error: "O token de redefinição expirou." });
+            return;
         }
         
         const user = await admin.auth().getUserByEmail(data.email);
         await admin.auth().updateUser(user.uid, { password: newPassword });
+        await tokenRef.delete();
 
-        await tokenRef.delete(); // Invalida o token após o uso
-
-        return { success: true, message: "Senha redefinida com sucesso." };
+        res.status(200).json({ success: true, message: "Senha redefinida com sucesso." });
     } catch (error: any) {
-        // Se for um HttpsError, propaga-o
-        if (error instanceof https.HttpsError) {
-            throw error;
-        }
-        // Outros erros são logados e uma mensagem genérica é retornada
         console.error("Erro em resetPasswordWithToken:", error);
-        throw new https.HttpsError("internal", "Ocorreu um erro interno ao redefinir a senha.");
+        res.status(500).json({ error: "Ocorreu um erro interno ao redefinir a senha." });
     }
+  });
 });
 
 

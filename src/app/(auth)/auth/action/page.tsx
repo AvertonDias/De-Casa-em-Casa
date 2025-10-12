@@ -61,19 +61,28 @@ function PasswordResetAction() {
     setStage('verifying'); // Mostra um loader enquanto a função é chamada
 
     try {
-      const result = await resetPasswordWithTokenFn({ token, newPassword });
-      if ((result.data as any).success) {
-        setStage('success');
-      } else {
-        // Se a função retornar um erro controlado, ele será capturado no catch
-        throw new Error("Falha ao redefinir a senha.");
+      const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/resetPasswordWithToken', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token, newPassword }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || `HTTP error! status: ${response.status}`);
       }
+
+      setStage('success');
+      
     } catch (err: any) {
       console.error("Erro ao redefinir senha com token:", err);
       // Mapeia os códigos de erro da Cloud Function para mensagens amigáveis
-      if (err.code === 'functions/not-found' || err.message.includes('inválido')) {
+      if (err.message.includes('inválido')) {
           setError('O link de redefinição é inválido ou já foi utilizado.');
-      } else if (err.code === 'functions/deadline-exceeded' || err.message.includes('expirou')) {
+      } else if (err.message.includes('expirou')) {
           setError('O link de redefinição expirou. Por favor, solicite um novo.');
       } else {
           setError('Ocorreu um erro inesperado. Tente novamente.');

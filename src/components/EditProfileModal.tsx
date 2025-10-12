@@ -9,15 +9,13 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Eye, EyeOff, Trash2, KeyRound, Loader } from 'lucide-react';
+import { Trash2, KeyRound, Loader } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils'; // Importa a máscara
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
-const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordReset');
-
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
@@ -31,8 +29,6 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   const [loading, setLoading] = useState(false);
   const [passwordResetLoading, setPasswordResetLoading] = useState(false);
   
-  const [passwordForDelete, setPasswordForDelete] = useState('');
-  const [showPasswordForDelete, setShowPasswordForDelete] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -46,7 +42,6 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       setConfirmWhatsapp(initialWhatsapp);
       setError(null);
       setPasswordResetSuccess(null);
-      setPasswordForDelete('');
       
       setTimeout(() => {
         if (!initialWhatsapp && whatsappInputRef.current) {
@@ -133,7 +128,12 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
 
     try {
-      await requestPasswordResetFn({ email: user.email });
+      await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email }),
+      });
+
       setPasswordResetSuccess(
         `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`
       );
