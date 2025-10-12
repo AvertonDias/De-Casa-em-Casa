@@ -278,7 +278,8 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useUser();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+
   // Ativa o sistema de presença para o usuário logado
   usePresence();
 
@@ -316,12 +317,18 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     return null;
   }
   
-  const showUpdateProfileBanner = user.status === 'ativo' && !user.whatsapp;
+  const showUpdateProfileDialog = user.status === 'ativo' && !user.whatsapp;
 
   return (
       <div className="flex h-screen bg-background">
-          <FeedbackAnnouncementModal />
+          <FeedbackAnnouncementModal onOpenChange={setShowFeedbackModal} />
+          {/* O modal de perfil só é mostrado se o de feedback não estiver ativo */}
+          {!showFeedbackModal && showUpdateProfileDialog && (
+            <UpdateProfileBanner onUpdateProfileClick={() => setIsProfileModalOpen(true)} />
+          )}
+          
           <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />
+
           <div className="flex-1 flex flex-col overflow-hidden">
               <header className="md:hidden bg-background p-4 text-foreground shadow-md flex justify-between items-center border-b border-border">
                   <button onClick={() => setSidebarOpen(true)} aria-label="Abrir menu"><Menu size={24} /></button>
@@ -331,7 +338,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
               <div className="sticky top-0 z-10 bg-background">
                 <div className="p-4 md:p-8 pb-0">
                     {user.status === 'pendente' && <PendingApprovalBanner />}
-                    {showUpdateProfileBanner && <UpdateProfileBanner onUpdateProfileClick={() => setIsProfileModalOpen(true)} />}
                 </div>
               </div>
               <main className="flex-1 overflow-y-auto">
