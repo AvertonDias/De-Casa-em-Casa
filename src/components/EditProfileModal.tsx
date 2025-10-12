@@ -1,11 +1,12 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { updateProfile, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import emailjs from '@emailjs/browser';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,6 @@ import { maskPhone } from '@/lib/utils'; // Importa a máscara
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
-const sendPasswordResetEmailFn = httpsCallable(functions, 'sendPasswordResetEmail');
 
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
@@ -33,6 +33,9 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   const [passwordForDelete, setPasswordForDelete] = useState('');
   const [showPasswordForDelete, setShowPasswordForDelete] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const whatsappInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     if (user && isOpen) {
@@ -43,6 +46,15 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       setError(null);
       setPasswordResetSuccess(null);
       setPasswordForDelete('');
+      
+      setTimeout(() => {
+        if (!initialWhatsapp && whatsappInputRef.current) {
+          whatsappInputRef.current.focus();
+        } else if (nameInputRef.current) {
+          nameInputRef.current.focus();
+          nameInputRef.current.select();
+        }
+      }, 100);
     }
   }, [user, isOpen]);
 
@@ -120,8 +132,13 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
 
     try {
-      await sendPasswordResetEmail(auth, user.email);
-      setPasswordResetSuccess(`E-mail de redefinição enviado para ${user.email}. Verifique sua caixa de entrada e SPAM.`);
+      await sendPasswordResetEmail(auth, user.email, {
+        url: `${window.location.origin}/auth/action`,
+      });
+      setPasswordResetSuccess(
+        `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`
+      );
+
     } catch (error: any) {
       console.error("Erro no processo de redefinição de senha:", error);
       toast({
@@ -174,7 +191,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0">
+      <DialogContent 
+        className="max-w-md p-0"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader className="p-6 pb-4">
           <DialogTitle>Editar Perfil</DialogTitle>
           <DialogDescription>
@@ -186,11 +206,12 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
           <form id="edit-profile-form" onSubmit={handleSaveChanges} className="space-y-4">
             <div>
                 <label htmlFor="name" className="text-sm font-medium text-muted-foreground">Nome Completo</label>
-                <Input id="name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1"/>
+                <Input ref={nameInputRef} id="name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1"/>
               </div>
               <div>
                 <label htmlFor="whatsapp" className="text-sm font-medium text-muted-foreground">WhatsApp <span className="text-red-500">*</span></label>
                 <Input 
+                  ref={whatsappInputRef}
                   id="whatsapp" 
                   type="tel" 
                   value={whatsapp} 
@@ -225,11 +246,16 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                   className="w-full text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400"
                 >
                   <KeyRound className="mr-2" size={16} />
-                  Enviar E-mail para Redefinir Senha
+                  Enviar Link para Redefinir Senha
                 </Button>
                 {passwordResetSuccess && (
                   <p className="text-sm text-green-600 dark:text-green-400 font-semibold text-center mt-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                    {passwordResetSuccess}
+                    {passwordResetSuccess.split('SPAM').map((part, index) =>
+                      <React.Fragment key={index}>
+                        {index > 0 && <strong className="underline">SPAM</strong>}
+                        {part}
+                      </React.Fragment>
+                    )}
                   </p>
                 )}
               </div>
