@@ -25,7 +25,7 @@ export default function ForgotPasswordPage() {
 
     try {
       await sendPasswordResetEmail(auth, email, {
-        url: `${window.location.origin}/auth/action`,
+        url: `https://appterritorios-e5bb5.web.app/auth/action`,
       });
       setIsSubmitted(true); // Muda o estado para a tela de sucesso
     } catch (err: any) {

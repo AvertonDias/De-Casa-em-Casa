@@ -3,10 +3,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { updateProfile } from 'firebase/auth';
+import { updateProfile, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import emailjs from '@emailjs/browser';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,8 +16,6 @@ import { maskPhone } from '@/lib/utils'; // Importa a máscara
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
-// Removida a antiga função onCall
-// const getPasswordResetLinkFn = httpsCallable(functions, 'sendPasswordResetEmail');
 
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
@@ -36,6 +33,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   const [showPasswordForDelete, setShowPasswordForDelete] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const whatsappInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
@@ -48,12 +46,14 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       setPasswordResetSuccess(null);
       setPasswordForDelete('');
       
-      // Lógica de Foco Automático
-      if (!initialWhatsapp) {
-        setTimeout(() => {
-          whatsappInputRef.current?.focus();
-        }, 100);
-      }
+      setTimeout(() => {
+        if (!initialWhatsapp && whatsappInputRef.current) {
+          whatsappInputRef.current.focus();
+        } else if (nameInputRef.current) {
+          nameInputRef.current.focus();
+          nameInputRef.current.select();
+        }
+      }, 100);
     }
   }, [user, isOpen]);
 
@@ -131,37 +131,9 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
 
     try {
-      // 1. Chamar a Cloud Function para obter o link
-      const response = await fetch("https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendPasswordResetEmail", {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: user.email }),
+      await sendPasswordResetEmail(auth, user.email, {
+        url: `https://appterritorios-e5bb5.web.app/auth/action`,
       });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Não foi possível gerar o link de redefinição.");
-      }
-
-      const { link } = result;
-
-      // 2. Usar EmailJS para enviar o e-mail com o link
-      const templateParams = {
-        name: user.name,
-        email: user.email,
-        reset_link: link,
-      };
-
-      await emailjs.send(
-        'service_w3xe95d', // Service ID
-        'template_wzczhks', // Template de redefinição de senha
-        templateParams,
-        'JdR2XKNICKcHc1jny' // Public Key
-      );
-      
       setPasswordResetSuccess(
         `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`
       );
@@ -218,7 +190,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0">
+      <DialogContent 
+        className="max-w-md p-0"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader className="p-6 pb-4">
           <DialogTitle>Editar Perfil</DialogTitle>
           <DialogDescription>
@@ -230,10 +205,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
           <form id="edit-profile-form" onSubmit={handleSaveChanges} className="space-y-4">
             <div>
                 <label htmlFor="name" className="text-sm font-medium text-muted-foreground">Nome Completo</label>
-                <Input id="name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1"/>
+                <Input ref={nameInputRef} id="name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1"/>
               </div>
               <div>
-                <label htmlFor="whatsapp" className="text-sm font-medium text-muted-foreground">WhatsApp <span className="text-red-500">*</span></label>
+                <label htmlFor="whatsapp" className="text-sm font-medium text-muted-foreground">WhatsApp</label>
                 <Input 
                   ref={whatsappInputRef}
                   id="whatsapp" 
@@ -246,7 +221,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                 />
               </div>
               <div>
-                <label htmlFor="confirmWhatsapp" className="text-sm font-medium text-muted-foreground">Confirmar WhatsApp <span className="text-red-500">*</span></label>
+                <label htmlFor="confirmWhatsapp" className="text-sm font-medium text-muted-foreground">Confirmar WhatsApp</label>
                 <Input 
                   id="confirmWhatsapp" 
                   type="tel" 
@@ -291,7 +266,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
           <DialogClose asChild>
               <Button type="button" variant="secondary" className="bg-muted hover:bg-muted/80">Cancelar</Button>
           </DialogClose>
-          <Button type="submit" form="edit-profile-form" disabled={loading || whatsappMismatch || !whatsapp}>
+          <Button type="submit" form="edit-profile-form" disabled={loading || whatsappMismatch || !whatsapp || !name}>
             {loading ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
         </DialogFooter>
