@@ -1,16 +1,16 @@
+
 "use client";
 
-import { useState, useEffect, useMemo, Fragment, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db, app } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { Shield, User, MoreVertical, Loader, Check, Trash2, ShieldAlert, Search, XCircle, Wifi, WifiOff, Users as UsersIcon, SlidersHorizontal, ChevronUp, Clock, X } from 'lucide-react';
+import { Loader, Search, SlidersHorizontal, ChevronUp, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
 import { Disclosure, Transition } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { UserListItem } from './UserListItem';
-import { formatDistanceToNow, subDays, subMonths, subHours } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { subDays, subMonths, subHours } from 'date-fns';
 import type { AppUser, Congregation } from '@/types/types';
 
 const functions = getFunctions(app, 'southamerica-east1');
@@ -37,7 +37,7 @@ export default function UserManagement() {
     
     setIsConfirmModalOpen(false);
     try {
-        await deleteUserFunction({ uid: userToDelete.uid });
+        await deleteUserFunction({ userIdToDelete: userToDelete.uid });
     } catch (error: any) {
         console.error("Erro ao chamar a função para excluir usuário:", error);
     } finally {

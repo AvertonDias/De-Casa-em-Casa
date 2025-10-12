@@ -1,14 +1,12 @@
 // functions/src/index.ts
-import { https, setGlobalOptions, pubsub, config } from "firebase-functions/v2";
+import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
-import cors from "cors";
 import fetch from "node-fetch";
-
-const corsHandler = cors({ origin: true });
+import { randomBytes } from 'crypto';
 
 
 // Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
@@ -90,76 +88,113 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
     }
 });
 
-export const sendPasswordResetEmail = https.onRequest((req, res) => {
-  corsHandler(req, res, async () => {
-    // Essencial para lidar com as requisições "pre-flight" do CORS
-    if (req.method === "OPTIONS") {
-      res.set("Access-Control-Allow-Methods", "POST");
-      res.set("Access-Control-Allow-Headers", "Content-Type");
-      res.set("Access-Control-Max-Age", "3600");
-      res.status(204).send("");
-      return;
-    }
-    
-    if (req.method !== 'POST') {
-        res.status(405).send('Method Not Allowed');
-        return;
-    }
 
-    const { email } = req.body;
+export const requestPasswordReset = https.onCall(async (req) => {
+    const { email } = req.data;
     if (!email) {
-        res.status(400).json({ error: "O e-mail é obrigatório." });
-        return;
+      throw new https.HttpsError("invalid-argument", "O e-mail é obrigatório.");
     }
-
+  
     try {
-        // 1. Gera o link de redefinição seguro do Firebase
-        const actionLink = await admin.auth().generatePasswordResetLink(email, {
-            url: `https://appterritorios-e5bb5.web.app/auth/action`
-        });
+      // Garantir que o usuário exista antes de prosseguir
+      const userRecord = await admin.auth().getUserByEmail(email);
+      if (!userRecord) {
+        // Não jogue erro, apenas retorne sucesso para não revelar se um e-mail existe
+        return { success: true };
+      }
+      
+      // 1. Gerar token seguro
+      const token = randomBytes(32).toString("hex");
+      const expires = admin.firestore.Timestamp.fromMillis(Date.now() + 3600 * 1000); // 1 hora
+      
+      // 2. Salvar token no Firestore
+      await db.collection("resetTokens").doc(token).set({
+        email: email,
+        expires: expires,
+      });
 
-        // 2. Envia o e-mail usando a API REST do EmailJS
-        // Substitua pelas suas credenciais ou use variáveis de ambiente
-        const EMAILJS_SERVICE_ID = "service_w3xe95d";
-        const EMAILJS_TEMPLATE_ID = "template_wzczhks";
-        const EMAILJS_PUBLIC_KEY = "JdR2XKNICKcHc1jny";
-        
-        const payload = {
-            service_id: EMAILJS_SERVICE_ID,
-            template_id: EMAILJS_TEMPLATE_ID,
-            user_id: EMAILJS_PUBLIC_KEY,
-            template_params: {
-                to_email: email,
-                reset_link: actionLink
-            }
-        };
+      // 3. Enviar e-mail via EmailJS
+      const resetLink = `https://appterritorios-e5bb5.web.app/auth/action?token=${token}`;
 
-        const emailResponse = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
+      const EMAILJS_SERVICE_ID = "service_w3xe95d";
+      const EMAILJS_TEMPLATE_ID = "template_wzczhks";
+      const EMAILJS_PUBLIC_KEY = "JdR2XKNICKcHc1jny";
 
-        if (!emailResponse.ok) {
-            const errorText = await emailResponse.text();
-            console.error("Falha ao enviar e-mail via EmailJS:", errorText);
-            throw new Error("Falha ao enviar o e-mail de redefinição.");
+      const payload = {
+        service_id: EMAILJS_SERVICE_ID,
+        template_id: EMAILJS_TEMPLATE_ID,
+        user_id: EMAILJS_PUBLIC_KEY,
+        template_params: {
+          to_email: email,
+          reset_link: resetLink
         }
-        
-        // 3. Sucesso
-        res.status(200).json({ success: true, message: 'Link de redefinição enviado com sucesso!' });
+      };
+
+      const emailResponse = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!emailResponse.ok) {
+        const errorText = await emailResponse.text();
+        console.error("EmailJS API Error:", errorText);
+        throw new https.HttpsError("internal", "Falha ao enviar e-mail de redefinição via EmailJS.");
+      }
+
+      return { success: true };
 
     } catch (error: any) {
-        console.error(`Erro ao processar redefinição para ${email}:`, error);
+        // Se o usuário não for encontrado, não revelamos o erro por segurança.
         if (error.code === 'auth/user-not-found') {
-            // Por segurança, não informe que o usuário não existe.
-            // Apenas retorne sucesso para o client-side.
-            res.status(200).json({ success: true, message: "Se um usuário com este e-mail existir, um link será enviado." });
-        } else {
-            res.status(500).json({ error: "Falha ao processar o pedido de redefinição." });
+            console.log(`Pedido de redefinição para e-mail não existente: ${email}`);
+            return { success: true }; // Simula sucesso
         }
+        console.error("Erro em requestPasswordReset:", error);
+        throw new https.HttpsError("internal", "Falha ao processar o pedido de redefinição.");
     }
-  });
+});
+
+
+export const resetPasswordWithToken = https.onCall(async (req) => {
+    const { token, newPassword } = req.data;
+
+    if (!token || !newPassword) {
+      throw new https.HttpsError("invalid-argument", "Token e nova senha são obrigatórios.");
+    }
+    if (newPassword.length < 6) {
+        throw new https.HttpsError("invalid-argument", "A senha deve ter no mínimo 6 caracteres.");
+    }
+
+    const tokenRef = db.collection("resetTokens").doc(token);
+    
+    try {
+        const tokenDoc = await tokenRef.get();
+        if (!tokenDoc.exists) {
+            throw new https.HttpsError("not-found", "Token inválido ou já utilizado.");
+        }
+
+        const data = tokenDoc.data()!;
+        if (data.expires.toMillis() < Date.now()) {
+            await tokenRef.delete(); // Limpa token expirado
+            throw new https.HttpsError("deadline-exceeded", "O token de redefinição expirou.");
+        }
+        
+        const user = await admin.auth().getUserByEmail(data.email);
+        await admin.auth().updateUser(user.uid, { password: newPassword });
+
+        await tokenRef.delete(); // Invalida o token após o uso
+
+        return { success: true, message: "Senha redefinida com sucesso." };
+    } catch (error: any) {
+        // Se for um HttpsError, propaga-o
+        if (error instanceof https.HttpsError) {
+            throw error;
+        }
+        // Outros erros são logados e uma mensagem genérica é retornada
+        console.error("Erro em resetPasswordWithToken:", error);
+        throw new https.HttpsError("internal", "Ocorreu um erro interno ao redefinir a senha.");
+    }
 });
 
 

@@ -2,19 +2,23 @@
 "use client";
 
 import { useState } from 'react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { KeyRound, MailCheck } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { KeyRound, MailCheck, Loader } from 'lucide-react';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordReset');
+
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,20 +26,12 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/sendPasswordResetEmail";
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Falha ao enviar e-mail.');
-
-      setIsSubmitted(true);
+      await requestPasswordResetFn({ email });
+      // A função de backend sempre retorna sucesso por segurança, mesmo que o email não exista.
+      setIsSubmitted(true); 
     } catch (err: any) {
-      setError(err.message || 'Ocorreu um erro ao enviar o link. Tente novamente mais tarde.');
-      console.error("Erro no reset de senha:", err);
+      console.error("Erro na chamada da função de reset:", err);
+      setError(err.message || 'Ocorreu um erro ao processar sua solicitação. Tente novamente mais tarde.');
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +90,7 @@ export default function ForgotPasswordPage() {
             disabled={isLoading || !email}
             className="w-full"
           >
-            {isLoading ? 'Enviando...' : 'Enviar Link de Recuperação'}
+            {isLoading ? <><Loader className="mr-2 animate-spin"/> Enviando...</> : 'Enviar Link de Recuperação'}
           </Button>
         </form>
         <p className="text-center text-sm text-muted-foreground">
