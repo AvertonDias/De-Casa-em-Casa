@@ -209,7 +209,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                 <Input ref={nameInputRef} id="name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1"/>
               </div>
               <div>
-                <label htmlFor="whatsapp" className="text-sm font-medium text-muted-foreground">WhatsApp <span className="text-red-500">*</span></label>
+                <label htmlFor="whatsapp" className="text-sm font-medium text-muted-foreground">WhatsApp</label>
                 <Input 
                   ref={whatsappInputRef}
                   id="whatsapp" 
@@ -222,7 +222,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                 />
               </div>
               <div>
-                <label htmlFor="confirmWhatsapp" className="text-sm font-medium text-muted-foreground">Confirmar WhatsApp <span className="text-red-500">*</span></label>
+                <label htmlFor="confirmWhatsapp" className="text-sm font-medium text-muted-foreground">Confirmar WhatsApp</label>
                 <Input 
                   id="confirmWhatsapp" 
                   type="tel" 
