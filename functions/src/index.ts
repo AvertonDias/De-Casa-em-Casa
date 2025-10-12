@@ -89,26 +89,37 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
     }
 });
 
-export const sendPasswordResetEmail = https.onCall({ cors: true }, async (req) => {
-    const email = req.data.email;
-    if (!email) {
-      throw new https.HttpsError("invalid-argument", "O e-mail é obrigatório.");
-    }
-  
-    try {
-      // Não é necessário enviar o e-mail manualmente. O Firebase Auth faz isso.
-      await admin.auth().generatePasswordResetLink(email);
-      return { success: true, message: "Link de redefinição de senha enviado (verifique o e-mail)." };
-    } catch (error: any) {
-      console.error(`Erro ao gerar link de redefinição para ${email}:`, error);
-      if (error.code === 'auth/user-not-found') {
-        // Não jogue um erro para o cliente se o usuário não for encontrado
-        // por razões de segurança. Apenas retorne sucesso.
-        return { success: true, message: "Se o e-mail estiver cadastrado, um link será enviado." };
-      }
-      // Para outros erros, jogue um erro https
-      throw new https.HttpsError("internal", "Falha ao gerar o link de redefinição.");
-    }
+export const sendPasswordResetEmail = https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            res.status(405).send('Method Not Allowed');
+            return;
+        }
+
+        const { email } = req.body;
+        if (!email) {
+            res.status(400).json({ error: "O e-mail é obrigatório." });
+            return;
+        }
+
+        try {
+            const actionLink = await admin.auth().generatePasswordResetLink(email, {
+                url: `https://appterritorios-e5bb5.web.app/auth/action`
+            });
+            // Retornamos apenas o sucesso. O envio será feito no frontend.
+            res.status(200).json({ success: true, link: actionLink });
+
+        } catch (error: any) {
+            console.error(`Erro ao gerar link de redefinição para ${email}:`, error);
+            if (error.code === 'auth/user-not-found') {
+                // Por segurança, não informe que o usuário não existe.
+                // Apenas retorne sucesso para o client-side.
+                res.status(200).json({ success: true, link: null });
+            } else {
+                res.status(500).json({ error: "Falha ao gerar o link de redefinição." });
+            }
+        }
+    });
 });
 
 

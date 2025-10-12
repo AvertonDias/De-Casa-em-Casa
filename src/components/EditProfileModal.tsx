@@ -267,7 +267,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
           <DialogClose asChild>
               <Button type="button" variant="secondary" className="bg-muted hover:bg-muted/80">Cancelar</Button>
           </DialogClose>
-          <Button type="submit" form="edit-profile-form" disabled={loading || whatsappMismatch || !whatsapp}>
+          <Button type="submit" form="edit-profile-form" disabled={loading || whatsappMismatch || !whatsapp || !name}>
             {loading ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
         </DialogFooter>
