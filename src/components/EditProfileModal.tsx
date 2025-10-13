@@ -144,7 +144,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       
       const result = await response.json();
 
-      if (!response.ok) {
+      if (!response.ok || !result.success) {
         throw new Error(result.error || "Falha ao gerar token de redefinição.");
       }
       

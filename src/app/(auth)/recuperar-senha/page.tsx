@@ -30,11 +30,11 @@ export default function ForgotPasswordPage() {
 
       const result = await response.json();
 
-      if (!response.ok) {
+      if (!response.ok || !result.success) {
         throw new Error(result.error || 'Falha ao gerar o token de redefinição.');
       }
 
-      // 2. Se o usuário existir e um token for retornado, enviar o e-mail
+      // 2. Se o usuário existir e um token for retornado, enviar o e-mail via EmailJS
       if (result.token) {
           const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
           
@@ -49,7 +49,7 @@ export default function ForgotPasswordPage() {
           );
       }
       
-      // 3. Mostrar a tela de sucesso, independentemente de o usuário existir ou não
+      // 3. Mostrar a tela de sucesso, independentemente de o usuário existir ou não (para segurança)
       setIsSubmitted(true);
 
     } catch (err: any) {
