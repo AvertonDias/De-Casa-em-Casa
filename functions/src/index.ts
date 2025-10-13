@@ -6,7 +6,6 @@ import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
-import fetch from "node-fetch";
 import { randomBytes } from 'crypto';
 import cors from "cors";
 
@@ -96,7 +95,7 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
 export const requestPasswordReset = https.onRequest((req, res) => {
   corsHandler(req, res, async () => {
     if (req.method === "OPTIONS") {
-      // Preflight request
+      // Pre-flight request. Responda com 204 e os cabeçalhos CORS são enviados pelo middleware.
       res.status(204).send("");
       return;
     }
@@ -112,12 +111,19 @@ export const requestPasswordReset = https.onRequest((req, res) => {
     }
 
     try {
-      // Por segurança, não informe que o usuário não existe.
-      // Apenas continue o fluxo e retorne sucesso mesmo que o e-mail não seja encontrado.
-      await admin.auth().getUserByEmail(email).catch(() => {
-        console.log(`Pedido de redefinição para e-mail não existente: ${email}`);
-        // Não faz nada, continua para retornar sucesso simulado.
-      });
+      // Por segurança, não informe ao cliente se o usuário existe ou não.
+      try {
+        await admin.auth().getUserByEmail(email);
+      } catch (error: any) {
+        if (error.code === 'auth/user-not-found') {
+          console.log(`Pedido de redefinição para e-mail não existente: ${email}`);
+          // Simula sucesso para não vazar informação sobre a existência de e-mails.
+          res.status(200).json({ success: true, token: null });
+          return;
+        }
+        // Se for outro erro, lança para o catch principal.
+        throw error;
+      }
       
       const token = randomBytes(32).toString("hex");
       const expires = admin.firestore.Timestamp.fromMillis(Date.now() + 3600 * 1000); // 1 hora
@@ -132,7 +138,6 @@ export const requestPasswordReset = https.onRequest((req, res) => {
 
     } catch (error: any) {
         console.error("Erro em requestPasswordReset:", error);
-        // Mesmo em caso de erro interno, evitamos vazar informações.
         res.status(500).json({ error: "Falha ao processar o pedido de redefinição." });
     }
   });
@@ -142,7 +147,7 @@ export const requestPasswordReset = https.onRequest((req, res) => {
 export const resetPasswordWithToken = https.onRequest((req, res) => {
   corsHandler(req, res, async () => {
     if (req.method === "OPTIONS") {
-      // Preflight request
+      // Pre-flight request
       res.status(204).send("");
       return;
     }
@@ -712,5 +717,3 @@ export const sendFeedbackEmail = https.onCall({ cors: true }, async (req) => {
     console.log(`Feedback de ${name} (${email}): ${subject} - ${message}`);
     return { success: true, message: "Feedback recebido, muito obrigado!" };
 });
-
-  

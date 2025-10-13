@@ -30,22 +30,22 @@ export default function ForgotPasswordPage() {
 
       const result = await response.json();
 
-      if (!response.ok || !result.success) {
+      if (!response.ok) {
         throw new Error(result.error || 'Falha ao gerar o token de redefinição.');
       }
 
-      // 2. Se o usuário existir e um token for retornado, enviar o e-mail
+      // 2. Se um token válido foi retornado, enviar o e-mail
       if (result.token) {
-          const resetLink = `https://appterritorios-e5bb5.web.app/auth/action?token=${result.token}`;
+          const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
           
           await emailjs.send(
-            'service_w3xe95d',
-            'template_wzczhks',
+            'service_w3xe95d', // Seu Service ID do EmailJS
+            'template_wzczhks', // Seu Template ID do EmailJS
             {
               to_email: email,
               reset_link: resetLink
             },
-            'JdR2XKNICKcHc1jny'
+            'JdR2XKNICKcHc1jny' // Sua Public Key do EmailJS
           );
       }
       
@@ -68,10 +68,10 @@ export default function ForgotPasswordPage() {
             <MailCheck className="mx-auto h-16 w-16 text-green-500" />
             <h1 className="text-2xl font-bold">Verifique sua Caixa de Entrada</h1>
             <p className="text-muted-foreground">
-              Se uma conta com o e-mail <span className="font-semibold text-foreground">{email}</span> existir, um link de recuperação será enviado.
+              Se uma conta com o e-mail <span className="font-semibold text-foreground">{email}</span> existir, um link de recuperação foi enviado.
             </p>
             <p className="p-3 text-sm font-semibold bg-yellow-500/20 text-yellow-300 border border-yellow-500/50 rounded-lg">
-              IMPORTANTE: Se você não encontrar o e-mail, por favor, verifique sua pasta de SPAM.
+              IMPORTANTE: Se não encontrar o e-mail, verifique sua pasta de SPAM.
             </p>
             <Button asChild className="w-full">
               <Link href="/">Voltar para o Login</Link>

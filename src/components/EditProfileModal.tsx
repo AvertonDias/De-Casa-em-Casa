@@ -144,12 +144,12 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       
       const result = await response.json();
 
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Falha ao gerar token.");
+      if (!response.ok) {
+        throw new Error(result.error || "Falha ao gerar token de redefinição.");
       }
       
       if (result.token) {
-        const resetLink = `https://appterritorios-e5bb5.web.app/auth/action?token=${result.token}`;
+        const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
         
         await emailjs.send(
           'service_w3xe95d',
@@ -356,4 +356,3 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     </>
   );
 }
-
