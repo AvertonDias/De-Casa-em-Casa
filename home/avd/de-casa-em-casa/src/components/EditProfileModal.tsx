@@ -9,7 +9,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, KeyRound, Loader, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Trash2, KeyRound, Loader } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
@@ -17,7 +17,6 @@ import emailjs from '@emailjs/browser';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
-const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordReset');
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
@@ -34,7 +33,6 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   const [isConfirmDeleteModalOpen, setIsConfirmDeleteModalOpen] = useState(false);
   const [passwordForDelete, setPasswordForDelete] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-
 
   const nameInputRef = useRef<HTMLInputElement>(null);
   const whatsappInputRef = useRef<HTMLInputElement>(null);
@@ -134,24 +132,27 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
 
     try {
-      const result: any = await requestPasswordResetFn({ email: user.email });
-      const { success, token, error: functionError } = result.data;
-      
-      if (!success) {
-        throw new Error(functionError || "Falha ao gerar token de redefinição.");
-      }
-      
+      const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset';
+      const response = await fetch(functionUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: user.email }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Falha ao solicitar redefinição.");
+
+      const { token } = result;
+
       if (token) {
         const resetLink = `${window.location.origin}/auth/action?token=${token}`;
-        
         await emailjs.send(
-          'service_w3xe95d', // Substitua pelo seu Service ID
-          'template_wzczhks', // Substitua pelo seu Template ID
-          { to_email: user.email, reset_link: resetLink },
-          'JdR2XKNICKcHc1jny' // Substitua pela sua Public Key
+            'service_w3xe95d', 'template_wzczhks',
+            { to_email: user.email, reset_link: resetLink },
+            'JdR2XKNICKcHc1jny'
         );
       }
-
+      
       setPasswordResetSuccess(
         `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`
       );
@@ -211,6 +212,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   }
 
   const whatsappMismatch = whatsapp !== confirmWhatsapp;
+  const isSaveDisabled = loading || whatsappMismatch || !whatsapp.trim() || !name.trim();
 
   return (
     <>
@@ -291,7 +293,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
           <DialogClose asChild>
               <Button type="button" variant="secondary" className="bg-muted hover:bg-muted/80">Cancelar</Button>
           </DialogClose>
-          <Button type="submit" form="edit-profile-form" disabled={loading || whatsappMismatch || !whatsapp.trim() || !name.trim()}>
+          <Button type="submit" form="edit-profile-form" disabled={isSaveDisabled}>
             {loading ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
         </DialogFooter>
@@ -342,3 +344,5 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     </>
   );
 }
+
+    

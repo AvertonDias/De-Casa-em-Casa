@@ -9,7 +9,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, KeyRound, Loader, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Trash2, KeyRound, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
 import emailjs from '@emailjs/browser';
@@ -30,10 +30,9 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   const [loading, setLoading] = useState(false);
   const [passwordResetLoading, setPasswordResetLoading] = useState(false);
   
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Novo estado
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [passwordForDelete, setPasswordForDelete] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-
 
   const nameInputRef = useRef<HTMLInputElement>(null);
   const whatsappInputRef = useRef<HTMLInputElement>(null);
@@ -47,7 +46,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       setError(null);
       setPasswordResetSuccess(null);
       setPasswordForDelete('');
-      setShowDeleteConfirm(false); // Reseta a visibilidade da confirmação
+      setShowDeleteConfirm(false);
       
       setTimeout(() => {
         if (!initialWhatsapp && whatsappInputRef.current) {
@@ -205,6 +204,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   }
 
   const whatsappMismatch = whatsapp !== confirmWhatsapp;
+  const isSaveDisabled = loading || whatsappMismatch || !whatsapp.trim() || !name.trim();
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -284,7 +284,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
           <DialogClose asChild>
               <Button type="button" variant="secondary" className="bg-muted hover:bg-muted/80">Cancelar</Button>
           </DialogClose>
-          <Button type="submit" form="edit-profile-form" disabled={loading || whatsappMismatch || !whatsapp.trim() || !name.trim()}>
+          <Button type="submit" form="edit-profile-form" disabled={isSaveDisabled}>
             {loading ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
         </DialogFooter>
@@ -344,3 +344,5 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     </Dialog>
   );
 }
+
+    
