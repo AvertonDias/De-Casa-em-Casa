@@ -1,15 +1,20 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import emailjs from '@emailjs/browser';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
 import { Mail, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
+import emailjs from '@emailjs/browser';
+
+const functionsInstance = getFunctions(app, 'southamerica-east1');
+
 
 export function FeedbackModal() {
-  const { user, congregation } = useUser(); // Pega também os dados da congregação
+  const { user, congregation } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -56,10 +61,10 @@ export function FeedbackModal() {
 
     try {
         await emailjs.send(
-            'service_w3xe95d',
-            'template_jco2e6b',
+            'service_w3xe95d', // Seu Service ID
+            'template_jco2e6b', // Seu Template ID
             templateParams,
-            'JdR2XKNICKcHc1jny'
+            'JdR2XKNICKcHc1jny' // Sua Public Key
         );
 
         toast({
@@ -72,7 +77,7 @@ export function FeedbackModal() {
         console.error("Erro ao enviar feedback com EmailJS:", error);
         toast({
             title: "Erro ao enviar feedback",
-            description: error.message || "Não foi possível enviar sua mensagem no momento. Verifique as credenciais do EmailJS.",
+            description: error.message || "Não foi possível enviar sua mensagem no momento.",
             variant: "destructive",
         });
     } finally {

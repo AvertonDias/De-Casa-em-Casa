@@ -669,3 +669,29 @@ export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(a
         return { success: false, error };
     }
 });
+
+export const sendFeedbackEmail = https.onCall(async (req) => {
+    if (!req.auth) {
+        throw new https.HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
+    }
+    try {
+        const { name, email, subject, message } = req.data;
+        if (!name || !email || !subject || !message) {
+            throw new https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
+        }
+        console.log('--- NOVO FEEDBACK RECEBIDO ---');
+        console.log(`De: ${name} (${email})`);
+        console.log(`UID: ${req.auth.uid}`);
+        console.log(`Assunto: ${subject}`);
+        console.log(`Mensagem: ${message}`);
+        console.log('------------------------------');
+        return { success: true, message: 'Feedback enviado com sucesso!' };
+    }
+    catch (error) {
+        console.error("Erro ao processar feedback:", error);
+        if (error instanceof https.HttpsError) {
+            throw error;
+        }
+        throw new https.HttpsError("internal", "Erro interno do servidor ao processar o feedback.");
+    }
+});
