@@ -2,17 +2,11 @@
 "use client";
 
 import { useState } from 'react';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck, Loader } from 'lucide-react';
-
-const functions = getFunctions(app, 'southamerica-east1');
-const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordReset');
-
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -26,15 +20,19 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset', {
+      const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
-      // A função de backend sempre retorna sucesso por segurança, mesmo que o email não exista.
-      setIsSubmitted(true); 
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Falha ao solicitar redefinição.');
+      }
+      
+      setIsSubmitted(true);
+
     } catch (err: any) {
       console.error("Erro na chamada da função de reset:", err);
       setError(err.message || 'Ocorreu um erro ao processar sua solicitação. Tente novamente mais tarde.');

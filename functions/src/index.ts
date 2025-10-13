@@ -108,6 +108,8 @@ export const requestPasswordReset = https.onRequest((req, res) => {
     try {
       const userRecord = await admin.auth().getUserByEmail(email);
       if (!userRecord) {
+        // Por segurança, não informe que o usuário não existe.
+        // Apenas simule sucesso.
         res.status(200).json({ success: true });
         return;
       }

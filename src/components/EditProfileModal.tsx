@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Trash2, KeyRound, Loader } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { useToast } from '@/hooks/use-toast';
-import { maskPhone } from '@/lib/utils'; // Importa a máscara
+import { maskPhone } from '@/lib/utils';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
@@ -60,8 +60,8 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
     setLoading(true);
 
-    if (!whatsapp.trim()) {
-        setError("O campo WhatsApp é obrigatório.");
+    if (!whatsapp.trim() || !name.trim()) {
+        setError("Nome e WhatsApp são obrigatórios.");
         setLoading(false);
         return;
     }
@@ -128,11 +128,16 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
 
     try {
-      await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset', {
+      const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email }),
       });
+      
+      if (!response.ok) {
+          const result = await response.json();
+          throw new Error(result.error || "Falha ao enviar e-mail.");
+      }
 
       setPasswordResetSuccess(
         `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`
