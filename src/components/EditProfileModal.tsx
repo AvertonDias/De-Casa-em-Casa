@@ -135,13 +135,14 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
     try {
       const result: any = await requestPasswordResetFn({ email: user.email });
+      const { success, token, error: functionError } = result.data;
       
-      if (!result.data.success) {
-        throw new Error(result.data.error || "Falha ao gerar token de redefinição.");
+      if (!success) {
+        throw new Error(functionError || "Falha ao gerar token de redefinição.");
       }
       
-      if (result.data.token) {
-        const resetLink = `${window.location.origin}/auth/action?token=${result.data.token}`;
+      if (token) {
+        const resetLink = `${window.location.origin}/auth/action?token=${token}`;
         
         await emailjs.send(
           'service_w3xe95d', // Substitua pelo seu Service ID
