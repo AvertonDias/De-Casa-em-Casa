@@ -1,3 +1,4 @@
+
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
@@ -109,8 +110,8 @@ export const requestPasswordReset = https.onRequest((req, res) => {
       const userRecord = await admin.auth().getUserByEmail(email);
       if (!userRecord) {
         // Por segurança, não informe que o usuário não existe.
-        // Apenas simule sucesso.
-        res.status(200).json({ success: true });
+        // Apenas simule sucesso, retornando um token nulo.
+        res.status(200).json({ success: true, token: null });
         return;
       }
       
@@ -122,41 +123,13 @@ export const requestPasswordReset = https.onRequest((req, res) => {
         expires: expires,
       });
 
-      const resetLink = `https://appterritorios-e5bb5.web.app/auth/action?token=${token}`;
-
-      const EMAILJS_SERVICE_ID = "service_w3xe95d";
-      const EMAILJS_TEMPLATE_ID = "template_wzczhks";
-      const EMAILJS_PUBLIC_KEY = "JdR2XKNICKcHc1jny";
-
-      const payload = {
-        service_id: EMAILJS_SERVICE_ID,
-        template_id: EMAILJS_TEMPLATE_ID,
-        user_id: EMAILJS_PUBLIC_KEY,
-        template_params: {
-          to_email: email,
-          reset_link: resetLink
-        }
-      };
-
-      const emailResponse = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      if (!emailResponse.ok) {
-        const errorText = await emailResponse.text();
-        console.error("EmailJS API Error:", errorText);
-        res.status(500).json({ error: "Falha ao enviar e-mail de redefinição via EmailJS." });
-        return;
-      }
-
-      res.status(200).json({ success: true });
+      // Retorna apenas o token para o frontend
+      res.status(200).json({ success: true, token: token });
 
     } catch (error: any) {
         if (error.code === 'auth/user-not-found') {
             console.log(`Pedido de redefinição para e-mail não existente: ${email}`);
-            res.status(200).json({ success: true }); // Simula sucesso
+            res.status(200).json({ success: true, token: null }); // Simula sucesso
             return;
         }
         console.error("Erro em requestPasswordReset:", error);

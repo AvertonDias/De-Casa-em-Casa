@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck, Loader } from 'lucide-react';
+import emailjs from '@emailjs/browser';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -20,21 +21,39 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
+      // 1. Chamar a Cloud Function para obter o token
       const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
 
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(result.error || 'Falha ao solicitar redefinição.');
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Falha ao gerar o token de redefinição.');
+      }
+
+      // 2. Se o usuário existir e um token for retornado, enviar o e-mail
+      if (result.token) {
+          const resetLink = `https://appterritorios-e5bb5.web.app/auth/action?token=${result.token}`;
+          
+          await emailjs.send(
+            'service_w3xe95d',
+            'template_wzczhks',
+            {
+              to_email: email,
+              reset_link: resetLink
+            },
+            'JdR2XKNICKcHc1jny'
+          );
       }
       
+      // 3. Mostrar a tela de sucesso, independentemente de o usuário existir ou não
       setIsSubmitted(true);
 
     } catch (err: any) {
-      console.error("Erro na chamada da função de reset:", err);
+      console.error("Erro no processo de reset:", err);
       setError(err.message || 'Ocorreu um erro ao processar sua solicitação. Tente novamente mais tarde.');
     } finally {
       setIsLoading(false);
