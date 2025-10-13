@@ -30,14 +30,16 @@ export default function ForgotPasswordPage() {
     try {
       // 1. Chamar a Cloud Function para obter o token
       const result: any = await requestPasswordResetFn({ email });
+      
+      const { success, token, error: functionError } = result.data;
 
-      if (!result.data.success) {
-        throw new Error(result.data.error || 'Falha ao gerar o token de redefinição.');
+      if (!success) {
+        throw new Error(functionError || 'Falha ao gerar o token de redefinição.');
       }
 
       // 2. Se o usuário existir e um token for retornado, enviar o e-mail
-      if (result.data.token) {
-          const resetLink = `${window.location.origin}/auth/action?token=${result.data.token}`;
+      if (token) {
+          const resetLink = `${window.location.origin}/auth/action?token=${token}`;
           
           await emailjs.send(
             'service_w3xe95d', // Seu Service ID

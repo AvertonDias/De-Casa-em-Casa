@@ -135,13 +135,14 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
     try {
       const result: any = await requestPasswordResetFn({ email: user.email });
+      const { success, token, error: functionError } = result.data;
       
-      if (!result.data.success) {
-        throw new Error(result.data.error || "Falha ao gerar token de redefinição.");
+      if (!success) {
+        throw new Error(functionError || "Falha ao gerar token de redefinição.");
       }
       
-      if (result.data.token) {
-        const resetLink = `${window.location.origin}/auth/action?token=${result.data.token}`;
+      if (token) {
+        const resetLink = `${window.location.origin}/auth/action?token=${token}`;
         
         await emailjs.send(
           'service_w3xe95d', // Substitua pelo seu Service ID
@@ -298,22 +299,11 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         <div className="px-6 pb-6">
             <div className="pt-4 border-t border-red-500/30">
               <h4 className="text-md font-semibold text-destructive">Zona de Perigo</h4>
-              <div className="relative mt-2">
-                 <Input 
-                    id="password-for-delete-enable"
-                    type={showPassword ? 'text' : 'password'}
-                    value={passwordForDelete}
-                    onChange={(e) => setPasswordForDelete(e.target.value)}
-                    placeholder="Digite sua senha para habilitar a exclusão"
-                  />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
-                      {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
-                  </button>
-              </div>
+              <p className="text-sm text-muted-foreground mt-1">A ação abaixo é permanente e não pode ser desfeita.</p>
               <Button
                 variant="destructive"
                 onClick={handleSelfDelete}
-                disabled={loading || !passwordForDelete}
+                disabled={loading}
                 className="w-full mt-2"
               >
                 <Trash2 size={16} className="mr-2"/>
@@ -331,9 +321,23 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       onClose={() => setIsConfirmDeleteModalOpen(false)}
       onConfirm={confirmSelfDelete}
       title="Excluir Minha Conta"
-      confirmText="Sim, excluir permanentemente"
+      confirmText="Sim, excluir minha conta"
+      confirmDisabled={!passwordForDelete.trim()}
     >
-      <p>Esta ação é definitiva e não pode ser desfeita. Tem certeza que deseja excluir sua conta?</p>
+      <p>Esta ação é definitiva. Para confirmar, por favor, digite sua senha abaixo.</p>
+      <div className="relative mt-4">
+        <Input 
+          id="password-for-delete"
+          type={showPassword ? 'text' : 'password'}
+          value={passwordForDelete}
+          onChange={(e) => setPasswordForDelete(e.target.value)}
+          placeholder="Digite sua senha"
+          autoFocus
+        />
+         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
+            {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+        </button>
+      </div>
     </ConfirmationModal>
     </>
   );
