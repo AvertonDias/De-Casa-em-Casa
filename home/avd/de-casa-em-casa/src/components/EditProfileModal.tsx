@@ -3,13 +3,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { updateProfile } from 'firebase/auth';
+import { reauthenticateWithCredential, EmailAuthProvider, updateProfile } from 'firebase/auth';
 import { auth, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, KeyRound, Loader } from 'lucide-react';
+import { Trash2, KeyRound, Loader, Eye, EyeOff } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
@@ -17,6 +17,7 @@ import emailjs from '@emailjs/browser';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
+const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordReset');
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
@@ -30,7 +31,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   const [loading, setLoading] = useState(false);
   const [passwordResetLoading, setPasswordResetLoading] = useState(false);
   
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isConfirmDeleteModalOpen, setIsConfirmDeleteModalOpen] = useState(false);
+  const [passwordForDelete, setPasswordForDelete] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
 
   const nameInputRef = useRef<HTMLInputElement>(null);
   const whatsappInputRef = useRef<HTMLInputElement>(null);
@@ -43,6 +47,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       setConfirmWhatsapp(initialWhatsapp);
       setError(null);
       setPasswordResetSuccess(null);
+      setPasswordForDelete('');
       
       setTimeout(() => {
         if (!initialWhatsapp && whatsappInputRef.current) {
@@ -138,17 +143,17 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || "Falha ao gerar token.");
+        throw new Error(result.error || "Falha ao gerar token de redefinição.");
       }
       
       if (result.token) {
-        const resetLink = `https://appterritorios-e5bb5.web.app/auth/action?token=${result.token}`;
+        const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
         
         await emailjs.send(
-          'service_w3xe95d',
-          'template_wzczhks',
+          'service_w3xe95d', // Substitua pelo seu Service ID
+          'template_wzczhks', // Substitua pelo seu Template ID
           { to_email: user.email, reset_link: resetLink },
-          'JdR2XKNICKcHc1jny'
+          'JdR2XKNICKcHc1jny' // Substitua pela sua Public Key
         );
       }
 
@@ -170,39 +175,51 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
   const handleSelfDelete = () => {
     if (!user || !auth.currentUser) return;
-    setIsConfirmModalOpen(true);
+    setIsConfirmDeleteModalOpen(true);
   }
 
   const confirmSelfDelete = async () => {
-    if (!user || !auth.currentUser?.email) return;
+    if (!user || !auth.currentUser?.email || !passwordForDelete) {
+      toast({ title: "Erro", description: "Senha é necessária para exclusão.", variant: "destructive"});
+      return;
+    }
     
     setLoading(true);
     setError(null);
     try {
+        const credential = EmailAuthProvider.credential(auth.currentUser.email, passwordForDelete);
+        await reauthenticateWithCredential(auth.currentUser, credential);
+        
         await deleteUserAccountFn({ userIdToDelete: user.uid });
+        
         toast({
           title: "Conta Excluída",
           description: "Sua conta foi removida com sucesso. Você será desconectado.",
         });
-        onOpenChange(false);
+        
+        // Logout pode ser chamado aqui, mas o onAuthStateChanged já cuidará do redirecionamento
         await logout();
+        onOpenChange(false);
 
     } catch (error: any) {
          console.error("Erro na autoexclusão:", error);
-         if (error.message.includes("administrador não pode se autoexcluir")) {
+         if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+             setError("Senha incorreta. A exclusão foi cancelada.");
+         } else if (error.message.includes("administrador não pode se autoexcluir")) {
             setError("Um administrador não pode se autoexcluir.");
          } else {
             setError("Ocorreu um erro ao tentar excluir a conta.");
          }
     } finally {
         setLoading(false);
-        setIsConfirmModalOpen(false);
+        setIsConfirmDeleteModalOpen(false);
     }
   }
 
   const whatsappMismatch = whatsapp !== confirmWhatsapp;
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent 
         className="max-w-md p-0"
@@ -289,7 +306,6 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
             <div className="pt-4 border-t border-red-500/30">
               <h4 className="text-md font-semibold text-destructive">Zona de Perigo</h4>
               <p className="text-sm text-muted-foreground mt-1">A ação abaixo é permanente e não pode ser desfeita.</p>
-
               <Button
                 variant="destructive"
                 onClick={handleSelfDelete}
@@ -303,17 +319,32 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         </div>
         
         {error && <p className="text-destructive text-sm px-6 pb-4 text-center">{error}</p>}
-        
-        <ConfirmationModal
-          isOpen={isConfirmModalOpen}
-          onClose={() => setIsConfirmModalOpen(false)}
-          onConfirm={confirmSelfDelete}
-          title="Excluir Minha Conta"
-          message="Esta é uma ação definitiva e irreversível. Todos os seus dados serão permanentemente apagados. Você tem certeza absoluta que deseja continuar?"
-          confirmText="Sim, excluir minha conta"
-        />
-
       </DialogContent>
     </Dialog>
+
+    <ConfirmationModal
+      isOpen={isConfirmDeleteModalOpen}
+      onClose={() => setIsConfirmDeleteModalOpen(false)}
+      onConfirm={confirmSelfDelete}
+      title="Excluir Minha Conta"
+      confirmText="Sim, excluir minha conta"
+      confirmDisabled={!passwordForDelete.trim()}
+    >
+      <p>Esta ação é definitiva. Para confirmar, por favor, digite sua senha abaixo.</p>
+      <div className="relative mt-4">
+        <Input 
+          id="password-for-delete"
+          type={showPassword ? 'text' : 'password'}
+          value={passwordForDelete}
+          onChange={(e) => setPasswordForDelete(e.target.value)}
+          placeholder="Digite sua senha"
+          autoFocus
+        />
+         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
+            {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+        </button>
+      </div>
+    </ConfirmationModal>
+    </>
   );
 }

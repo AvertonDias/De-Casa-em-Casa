@@ -13,13 +13,14 @@ interface ConfirmationModalProps {
   onClose: () => void;
   onConfirm: () => void;
   title: string;
-  message: ReactNode;
+  message?: ReactNode; // Tornando a mensagem opcional
+  children?: ReactNode; // Adicionando children
   confirmText?: string;
   cancelText?: string;
   isLoading?: boolean;
   showCancelButton?: boolean;
   variant?: 'default' | 'destructive';
-  confirmDisabled?: boolean; // Nova prop
+  confirmDisabled?: boolean;
 }
 
 export function ConfirmationModal({
@@ -28,12 +29,13 @@ export function ConfirmationModal({
   onConfirm,
   title,
   message,
+  children, // Nova prop
   confirmText = "Sim, Confirmar",
   cancelText = "Cancelar",
   isLoading = false,
   showCancelButton = true,
   variant = 'destructive',
-  confirmDisabled = false, // Valor padrão
+  confirmDisabled = false,
 }: ConfirmationModalProps) {
 
   return (
@@ -42,14 +44,17 @@ export function ConfirmationModal({
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription asChild>
-            <div>{message}</div>
+            <div>
+              {message}
+              {children}
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           {showCancelButton && <AlertDialogCancel disabled={isLoading}>{cancelText}</AlertDialogCancel>}
           <AlertDialogAction 
             onClick={onConfirm} 
-            disabled={isLoading || confirmDisabled} // Usa a nova prop aqui
+            disabled={isLoading || confirmDisabled}
             className={cn(buttonVariants({ variant: variant }))}
           >
             {isLoading ? <><Loader className="mr-2 h-4 w-4 animate-spin" /> Processando...</> : confirmText}
