@@ -69,8 +69,8 @@ export default function NovaCongregacaoPage() {
         let friendlyMessage = "Erro inesperado. Tente novamente mais tarde.";
         if (error.message.includes('auth/email-already-exists') || error.message.includes('Este e-mail já está em uso')) {
             friendlyMessage = "Este e-mail já está em uso por outra conta.";
-        } else if (error.message.includes('Uma congregação com este número já existe')) {
-            friendlyMessage = "Já existe uma congregação com este número.";
+        } else if (error.message.includes('already-exists')) {
+            friendlyMessage = "Já existe uma congregação com este número ou o e-mail informado já está em uso.";
         }
         setErrorMessage(friendlyMessage);
     } finally {

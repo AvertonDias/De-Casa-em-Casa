@@ -7,16 +7,12 @@ import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import { randomBytes } from 'crypto';
-import * as cors from 'cors';
-
-const corsHandler = cors({ origin: true });
 
 // Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 const db = admin.firestore();
-
 
 setGlobalOptions({ 
   region: "southamerica-east1",
@@ -26,165 +22,138 @@ setGlobalOptions({
 //   FUNÇÕES HTTPS (onCall e onRequest)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onRequest((req, res) => {
-    corsHandler(req, res, async () => {
-        if (req.method === 'OPTIONS') {
-            res.status(204).send('');
-            return;
+export const createCongregationAndAdmin = https.onCall(async (req) => {
+    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.data;
+
+    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
+        throw new https.HttpsError('invalid-argument', 'Todos os campos são obrigatórios.');
+    }
+
+    let newUser: admin.auth.UserRecord | undefined;
+    try {
+        const congQuery = await db.collection('congregations').where('number', '==', congregationNumber).get();
+        if (!congQuery.empty) {
+            throw new https.HttpsError('already-exists', 'Uma congregação com este número já existe.');
         }
-        if (req.method !== 'POST') {
-            res.status(405).json({ error: 'Método não permitido' });
-            return;
-        }
-        const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.body;
-        if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
-            res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
-            return;
-        }
-
-        let newUser: admin.auth.UserRecord | undefined;
-        try {
-            const congQuery = await db.collection('congregations').where('number', '==', congregationNumber).get();
-            if (!congQuery.empty) {
-                res.status(409).json({ error: 'Uma congregação com este número já existe.' });
-                return;
-            }
-            
-            newUser = await admin.auth().createUser({
-                email: adminEmail,
-                password: adminPassword,
-                displayName: adminName,
-            });
-
-            const batch = db.batch();
-            const newCongregationRef = db.collection('congregations').doc();
-            batch.set(newCongregationRef, {
-                name: congregationName,
-                number: congregationNumber,
-                territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                lastUpdate: admin.firestore.FieldValue.serverTimestamp()
-            });
-
-            const userDocRef = db.collection("users").doc(newUser.uid);
-            batch.set(userDocRef, {
-                name: adminName,
-                email: adminEmail,
-                whatsapp: whatsapp, // Salva o WhatsApp
-                congregationId: newCongregationRef.id,
-                role: "Administrador",
-                status: "ativo"
-            });
-            await batch.commit();
-
-            res.status(200).json({ success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' });
-
-        } catch (error: any) {
-            if (newUser) {
-                await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
-                    console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`, deleteError);
-                });
-            }
-
-            console.error("Erro ao criar congregação e admin:", error);
-            if (error.code === 'auth/email-already-exists') {
-                res.status(409).json({ error: "Este e-mail já está em uso." });
-            } else {
-                res.status(500).json({ error: error.message || 'Erro interno no servidor' });
-            }
-        }
-    });
-});
-
-
-export const requestPasswordReset = https.onRequest((req, res) => {
-    corsHandler(req, res, async () => {
-        if (req.method === 'OPTIONS') {
-            res.status(204).send('');
-            return;
-        }
-        if (req.method !== 'POST') {
-            res.status(405).json({ error: 'Método não permitido' });
-            return;
-        }
-
-        const { email } = req.body;
-        if (!email) {
-            return res.status(400).json({ error: 'O e-mail é obrigatório.' });
-        }
-
-        try {
-            try {
-                await admin.auth().getUserByEmail(email);
-            } catch (error: any) {
-                if (error.code === 'auth/user-not-found') {
-                    console.log(`Pedido de redefinição para e-mail não existente: ${email}`);
-                    return res.status(200).json({ success: true, token: null });
-                }
-                throw error;
-            }
-            
-            const token = randomBytes(32).toString("hex");
-            const expires = admin.firestore.Timestamp.fromMillis(Date.now() + 3600 * 1000); // 1 hora
-            
-            await db.collection("resetTokens").doc(token).set({
-                email: email,
-                expires: expires,
-            });
-
-            return res.status(200).json({ success: true, token: token });
-
-        } catch (error: any) {
-            console.error("Erro em requestPasswordReset:", error);
-            return res.status(500).json({ error: "Falha ao processar o pedido de redefinição." });
-        }
-    });
-});
-
-
-export const resetPasswordWithToken = https.onRequest((req, res) => {
-    corsHandler(req, res, async () => {
-        if (req.method === 'OPTIONS') {
-            res.status(204).send('');
-            return;
-        }
-        if (req.method !== 'POST') {
-            res.status(405).json({ error: 'Método não permitido' });
-            return;
-        }
-
-        const { token, newPassword } = req.body;
-        if (!token || !newPassword) {
-            return res.status(400).json({ error: "Token e nova senha são obrigatórios." });
-        }
-        if (newPassword.length < 6) {
-            return res.status(400).json({ error: "A senha deve ter no mínimo 6 caracteres." });
-        }
-
-        const tokenRef = db.collection("resetTokens").doc(token);
         
-        try {
-            const tokenDoc = await tokenRef.get();
-            if (!tokenDoc.exists) {
-                return res.status(404).json({ error: "Token inválido ou já utilizado." });
-            }
+        newUser = await admin.auth().createUser({
+            email: adminEmail,
+            password: adminPassword,
+            displayName: adminName,
+        });
 
-            const tokenData = tokenDoc.data()!;
-            if (tokenData.expires.toMillis() < Date.now()) {
-                await tokenRef.delete(); 
-                return res.status(410).json({ error: "O token de redefinição expirou." });
-            }
-            
-            const user = await admin.auth().getUserByEmail(tokenData.email);
-            await admin.auth().updateUser(user.uid, { password: newPassword });
-            await tokenRef.delete();
+        const batch = db.batch();
+        const newCongregationRef = db.collection('congregations').doc();
+        batch.set(newCongregationRef, {
+            name: congregationName,
+            number: congregationNumber,
+            territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+        });
 
-            return res.status(200).json({ success: true, message: "Senha redefinida com sucesso." });
-        } catch (error: any) {
-            console.error("Erro em resetPasswordWithToken:", error);
-            return res.status(500).json({ error: "Ocorreu um erro interno ao redefinir a senha." });
+        const userDocRef = db.collection("users").doc(newUser.uid);
+        batch.set(userDocRef, {
+            name: adminName,
+            email: adminEmail,
+            whatsapp: whatsapp,
+            congregationId: newCongregationRef.id,
+            role: "Administrador",
+            status: "ativo"
+        });
+        await batch.commit();
+
+        return { success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' };
+
+    } catch (error: any) {
+        if (newUser) {
+            await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
+                console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`, deleteError);
+            });
         }
-    });
+
+        console.error("Erro ao criar congregação e admin:", error);
+        if (error.code === 'auth/email-already-exists') {
+            throw new https.HttpsError('already-exists', "Este e-mail já está em uso.");
+        }
+        if (error instanceof https.HttpsError) {
+            throw error;
+        }
+        throw new https.HttpsError('internal', error.message || 'Erro interno no servidor');
+    }
+});
+
+
+export const requestPasswordReset = https.onCall(async (req) => {
+    const { email } = req.data;
+    if (!email) {
+        throw new https.HttpsError('invalid-argument', 'O e-mail é obrigatório.');
+    }
+
+    try {
+        try {
+            await admin.auth().getUserByEmail(email);
+        } catch (error: any) {
+            if (error.code === 'auth/user-not-found') {
+                console.log(`Pedido de redefinição para e-mail não existente: ${email}`);
+                // Não retorna erro, apenas um token nulo para segurança.
+                return { success: true, token: null };
+            }
+            throw error;
+        }
+        
+        const token = randomBytes(32).toString("hex");
+        const expires = admin.firestore.Timestamp.fromMillis(Date.now() + 3600 * 1000); // 1 hora
+        
+        await db.collection("resetTokens").doc(token).set({
+            email: email,
+            expires: expires,
+        });
+
+        return { success: true, token: token };
+
+    } catch (error: any) {
+        console.error("Erro em requestPasswordReset:", error);
+        throw new https.HttpsError('internal', "Falha ao processar o pedido de redefinição.");
+    }
+});
+
+
+export const resetPasswordWithToken = https.onCall(async (req) => {
+    const { token, newPassword } = req.data;
+    if (!token || !newPassword) {
+        throw new https.HttpsError('invalid-argument', "Token e nova senha são obrigatórios.");
+    }
+    if (newPassword.length < 6) {
+        throw new https.HttpsError('invalid-argument', "A senha deve ter no mínimo 6 caracteres.");
+    }
+
+    const tokenRef = db.collection("resetTokens").doc(token);
+    
+    try {
+        const tokenDoc = await tokenRef.get();
+        if (!tokenDoc.exists) {
+            throw new https.HttpsError('not-found', "Token inválido ou já utilizado.");
+        }
+
+        const tokenData = tokenDoc.data()!;
+        if (tokenData.expires.toMillis() < Date.now()) {
+            await tokenRef.delete(); 
+            throw new https.HttpsError('deadline-exceeded', "O token de redefinição expirou.");
+        }
+        
+        const user = await admin.auth().getUserByEmail(tokenData.email);
+        await admin.auth().updateUser(user.uid, { password: newPassword });
+        await tokenRef.delete();
+
+        return { success: true, message: "Senha redefinida com sucesso." };
+    } catch (error: any) {
+        console.error("Erro em resetPasswordWithToken:", error);
+        if (error instanceof https.HttpsError) {
+          throw error;
+        }
+        throw new https.HttpsError('internal', "Ocorreu um erro interno ao redefinir a senha.");
+    }
 });
 
 
