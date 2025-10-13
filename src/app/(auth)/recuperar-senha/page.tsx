@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
         throw new Error(result.error || 'Falha ao gerar o token de redefinição.');
       }
 
-      // 2. Se um token válido foi retornado, enviar o e-mail
+      // 2. Se o usuário existir e um token for retornado, enviar o e-mail
       if (result.token) {
           const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
           
@@ -123,3 +123,5 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
+
+    

@@ -9,6 +9,8 @@ import { GetSignedUrlConfig } from "@google-cloud/storage";
 import { randomBytes } from 'crypto';
 import cors from "cors";
 
+// Inicializa o CORS handler para permitir requisições do seu app
+// origin: true reflete a origem da requisição, ideal para desenvolvimento e apps web.
 const corsHandler = cors({ origin: true });
 
 
@@ -94,11 +96,6 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
 
 export const requestPasswordReset = https.onRequest((req, res) => {
   corsHandler(req, res, async () => {
-    if (req.method === "OPTIONS") {
-      // Pre-flight request. Responda com 204 e os cabeçalhos CORS são enviados pelo middleware.
-      res.status(204).send("");
-      return;
-    }
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Método não permitido' });
       return;
@@ -146,11 +143,6 @@ export const requestPasswordReset = https.onRequest((req, res) => {
 
 export const resetPasswordWithToken = https.onRequest((req, res) => {
   corsHandler(req, res, async () => {
-    if (req.method === "OPTIONS") {
-      // Pre-flight request
-      res.status(204).send("");
-      return;
-    }
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Método não permitido' });
       return;
@@ -717,3 +709,6 @@ export const sendFeedbackEmail = https.onCall({ cors: true }, async (req) => {
     console.log(`Feedback de ${name} (${email}): ${subject} - ${message}`);
     return { success: true, message: "Feedback recebido, muito obrigado!" };
 });
+
+
+    
