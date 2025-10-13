@@ -39,13 +39,13 @@ export default function ForgotPasswordPage() {
           const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
           
           await emailjs.send(
-            'service_w3xe95d', // Seu Service ID do EmailJS
-            'template_wzczhks', // Seu Template ID do EmailJS
+            'service_w3xe95d',
+            'template_wzczhks',
             {
               to_email: email,
               reset_link: resetLink
             },
-            'JdR2XKNICKcHc1jny' // Sua Public Key do EmailJS
+            'JdR2XKNICKcHc1jny'
           );
       }
       
@@ -68,7 +68,7 @@ export default function ForgotPasswordPage() {
             <MailCheck className="mx-auto h-16 w-16 text-green-500" />
             <h1 className="text-2xl font-bold">Verifique sua Caixa de Entrada</h1>
             <p className="text-muted-foreground">
-              Se uma conta com o e-mail <span className="font-semibold text-foreground">{email}</span> existir, um link de recuperação foi enviado.
+              Se uma conta com o e-mail <span className="font-semibold text-foreground">{email}</span> existir, um link de recuperação será enviado.
             </p>
             <p className="p-3 text-sm font-semibold bg-yellow-500/20 text-yellow-300 border border-yellow-500/50 rounded-lg">
               IMPORTANTE: Se não encontrar o e-mail, verifique sua pasta de SPAM.

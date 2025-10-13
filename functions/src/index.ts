@@ -8,7 +8,6 @@ import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import { randomBytes } from 'crypto';
 import cors from "cors";
-import fetch from "node-fetch";
 
 // Inicializa o CORS handler para permitir requisições do seu app
 const corsHandler = cors({ origin: true });
@@ -704,47 +703,5 @@ export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(a
     } catch (error) {
         console.error("Erro ao verificar territórios vencidos:", error);
         return { success: false, error };
-    }
-});
-
-// A função de feedback por e-mail, agora como onCall
-export const sendFeedbackEmail = https.onCall({ cors: true }, async (req) => {
-    if (!req.auth) {
-        throw new https.HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
-    }
-    const { congregation_name, congregation_number, from_name, from_email, subject, message } = req.data;
-    if (!from_name || !from_email || !subject || !message) {
-        throw new https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
-    }
-    
-    const emailData = {
-        service_id: 'service_w3xe95d',
-        template_id: 'template_jco2e6b',
-        user_id: 'JdR2XKNICKcHc1jny',
-        template_params: {
-            from_name,
-            from_email,
-            subject,
-            message,
-            congregation_name: congregation_name || 'Não informada',
-            congregation_number: congregation_number || 'N/A',
-        },
-    };
-
-    try {
-        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(emailData),
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Falha no envio do EmailJS: ${errorText}`);
-        }
-        return { success: true, message: "Feedback recebido, muito obrigado!" };
-    } catch (error: any) {
-        console.error("Erro ao enviar feedback via EmailJS:", error);
-        throw new https.HttpsError("internal", error.message || "Erro ao processar o feedback.");
     }
 });
