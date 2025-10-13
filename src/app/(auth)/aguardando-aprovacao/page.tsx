@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUser } from "@/contexts/UserContext";
-import { Loader, MailCheck, MessageCircle } from "lucide-react";
+import { Loader, MailCheck, MessageCircle, AlertTriangle } from "lucide-react";
 import withAuth from "@/components/withAuth";
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -33,7 +33,8 @@ function AguardandoAprovacaoPage() {
                         where('role', 'in', ['Administrador', 'Dirigente'])
                     );
                     const querySnapshot = await getDocs(q);
-                    const contacts = querySnapshot.docs.map(doc => doc.data() as AppUser);
+                    // CORREÇÃO: Mapear o doc.id para o uid para garantir a chave única
+                    const contacts = querySnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser));
                     setAdminsAndLeaders(contacts);
                 } catch (error) {
                     console.error("Erro ao buscar administradores e dirigentes:", error);
@@ -67,6 +68,8 @@ function AguardandoAprovacaoPage() {
             </div>
         );
     }
+    
+    const contactsWithWhatsapp = adminsAndLeaders.filter(c => c.whatsapp);
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-background p-4">
@@ -86,24 +89,32 @@ function AguardandoAprovacaoPage() {
                     <AccordionTrigger className="font-semibold">Notificar um responsável</AccordionTrigger>
                     <AccordionContent>
                       {isLoadingContacts ? (
-                        <Loader className="animate-spin text-primary mx-auto my-4" />
-                      ) : (
+                        <div className="flex items-center justify-center gap-2 text-muted-foreground p-4">
+                            <Loader className="animate-spin text-primary" size={16}/>
+                            <span>Buscando contatos...</span>
+                        </div>
+                      ) : contactsWithWhatsapp.length > 0 ? (
                         <div className="space-y-3 text-left">
-                          {adminsAndLeaders.map((contact) => (
+                          {contactsWithWhatsapp.map((contact) => (
                             <div key={contact.uid} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
                               <div>
                                 <p className="font-semibold">{contact.name}</p>
+                                <p className="text-xs text-muted-foreground">{contact.role}</p>
                               </div>
                               <Button 
                                 size="sm" 
                                 onClick={() => handleNotify(contact)}
-                                disabled={!contact.whatsapp}
-                                title={!contact.whatsapp ? "Este usuário não tem WhatsApp cadastrado" : `Enviar mensagem para ${contact.name}`}
+                                title={`Enviar mensagem para ${contact.name}`}
                               >
                                 <MessageCircle size={16} className="mr-2"/> Notificar
                               </Button>
                             </div>
                           ))}
+                        </div>
+                      ) : (
+                        <div className="text-center p-4 text-sm text-muted-foreground bg-muted/30 rounded-lg">
+                           <AlertTriangle size={24} className="mx-auto mb-2 text-amber-500"/>
+                           Nenhum dirigente ou administrador com WhatsApp cadastrado foi encontrado.
                         </div>
                       )}
                     </AccordionContent>
