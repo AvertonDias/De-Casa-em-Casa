@@ -18,6 +18,7 @@ export default function SignUpPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [congregationNumber, setCongregationNumber] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
+  const [confirmWhatsapp, setConfirmWhatsapp] = useState('');
   const [error, setError] = useState<React.ReactNode>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -30,15 +31,16 @@ export default function SignUpPage() {
     setter(e.target.value);
   }
   
-  const handleWhatsappChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleWhatsappChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
-    setWhatsapp(maskPhone(e.target.value));
+    setter(maskPhone(e.target.value));
   };
 
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) { setError("As senhas não coincidem."); return; }
+    if (whatsapp !== confirmWhatsapp) { setError("Os números de WhatsApp não coincidem."); return; }
     if (password.length < 6) { setError("A senha precisa ter pelo menos 6 caracteres."); return; }
     if (whatsapp.length < 15) { setError("Por favor, preencha o número de WhatsApp completo."); return; }
     
@@ -62,7 +64,7 @@ export default function SignUpPage() {
       await setDoc(doc(db, "users", userCredential.user.uid), {
         name: name.trim(), 
         email, 
-        whatsapp, // Adicionado o WhatsApp aqui
+        whatsapp,
         congregationId, 
         role: "Publicador", 
         status: "pendente"
@@ -74,8 +76,6 @@ export default function SignUpPage() {
         variant: 'default',
       });
       
-      // O UserContext cuidará do redirecionamento para /aguardando-aprovacao
-
     } catch (err: any) {
       console.error("Erro detalhado no cadastro:", err);
       if (err.message?.includes("Número da congregação")) { setError(err.message); }
@@ -106,8 +106,16 @@ export default function SignUpPage() {
             <input 
               type="tel" 
               value={whatsapp} 
-              onChange={handleWhatsappChange} 
+              onChange={handleWhatsappChange(setWhatsapp)} 
               placeholder="Seu WhatsApp (Obrigatório)" required 
+              className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" 
+            />
+            
+            <input 
+              type="tel" 
+              value={confirmWhatsapp} 
+              onChange={handleWhatsappChange(setConfirmWhatsapp)} 
+              placeholder="Confirme seu WhatsApp" required 
               className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" 
             />
 
@@ -128,7 +136,7 @@ export default function SignUpPage() {
             <input type="tel" inputMode="numeric" value={congregationNumber} onChange={handleInputChange(setCongregationNumber)} placeholder="Número da Congregação" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" />
             
             {error && <p className="text-destructive text-sm text-center">{error}</p>}
-            <button type="submit" disabled={loading || !name || !email || whatsapp.length < 15 || password.length < 6 || password !== confirmPassword} className="w-full px-4 py-2 font-semibold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-wait">
+            <button type="submit" disabled={loading || !name || !email || whatsapp.length < 15 || password.length < 6 || password !== confirmPassword || whatsapp !== confirmWhatsapp} className="w-full px-4 py-2 font-semibold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-wait">
               {loading ? 'Enviando...' : 'Solicitar Acesso'}
             </button>
         </form>
