@@ -175,7 +175,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     }
   };
 
-  const handleSelfDelete = () => {
+  const handleSelfDeleteRequest = () => {
     if (!user || !auth.currentUser) return;
     setIsDeleteModalOpen(true);
   }
@@ -193,7 +193,6 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         const credential = EmailAuthProvider.credential(auth.currentUser.email, deletePassword);
         await reauthenticateWithCredential(auth.currentUser, credential);
         
-        // Reautenticação bem-sucedida, agora podemos deletar
         await deleteUserAccountFn({ userIdToDelete: user.uid });
         
         toast({
@@ -213,6 +212,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
             setDeleteError("Um administrador não pode se autoexcluir.");
          } else {
             setDeleteError("Ocorreu um erro ao tentar excluir a conta.");
+         }
+         // Somente fecha o modal de confirmação se for um erro que não seja de senha incorreta
+         if (error.code !== 'auth/wrong-password' && error.code !== 'auth/invalid-credential') {
+            setIsDeleteModalOpen(false);
          }
     } finally {
         setLoading(false);
@@ -307,11 +310,26 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
           <div className="px-6 pb-6">
               <div className="pt-4 border-t border-red-500/30">
                 <h4 className="text-md font-semibold text-destructive">Zona de Perigo</h4>
-                <p className="text-sm text-muted-foreground mt-1">A ação abaixo é permanente e não pode ser desfeita.</p>
+                <p className="text-sm text-muted-foreground mt-1 mb-2">Para habilitar a exclusão, digite sua senha.</p>
+                 <div className="relative">
+                    <Input
+                        id="delete-password-enable"
+                        type={showDeletePassword ? "text" : "password"}
+                        value={deletePassword}
+                        onChange={(e) => setDeletePassword(e.target.value)}
+                        placeholder="Digite sua senha para habilitar"
+                        className="pr-10"
+                    />
+                    <button type="button" onClick={() => setShowDeletePassword(!showDeletePassword)} className="absolute bottom-2 right-3 text-muted-foreground">
+                        {showDeletePassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                    </button>
+                </div>
+                {deleteError && <p className="text-destructive text-sm text-center mt-2">{deleteError}</p>}
+                
                 <Button
                   variant="destructive"
-                  onClick={handleSelfDelete}
-                  disabled={loading}
+                  onClick={handleSelfDeleteRequest}
+                  disabled={loading || !deletePassword}
                   className="w-full mt-2"
                 >
                   <Trash2 size={16} className="mr-2"/>
@@ -328,31 +346,18 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmSelfDelete}
-        title="Excluir Minha Conta"
+        title="Confirmar Exclusão"
         message={
           <div className="space-y-4">
-            <p>Esta é uma ação definitiva e irreversível. Para confirmar, por favor, digite sua senha abaixo.</p>
-            <div className="relative">
-                <Input
-                    id="delete-password"
-                    type={showDeletePassword ? "text" : "password"}
-                    value={deletePassword}
-                    onChange={(e) => setDeletePassword(e.target.value)}
-                    placeholder="Sua senha"
-                    className="pr-10"
-                    autoFocus
-                />
-                <button type="button" onClick={() => setShowDeletePassword(!showDeletePassword)} className="absolute bottom-2 right-3 text-muted-foreground">
-                    {showDeletePassword ? <EyeOff size={20}/> : <Eye size={20}/>}
-                </button>
-            </div>
+            <p>Esta é uma ação definitiva e irreversível. Todos os seus dados serão permanentemente apagados. Você tem certeza absoluta que deseja continuar?</p>
             {deleteError && <p className="text-destructive text-sm text-center">{deleteError}</p>}
           </div>
         }
-        confirmText="Confirmar Exclusão"
+        confirmText="Sim, excluir minha conta"
         isLoading={loading}
-        confirmDisabled={!deletePassword}
       />
     </>
   );
 }
+
+    
