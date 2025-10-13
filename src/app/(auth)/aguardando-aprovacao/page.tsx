@@ -27,15 +27,36 @@ function AguardandoAprovacaoPage() {
                 setIsLoadingContacts(true);
                 try {
                     const usersRef = collection(db, 'users');
-                    const q = query(
+                    
+                    // CORREÇÃO: Fazer duas consultas separadas e unir os resultados.
+                    // Isso evita a necessidade de um índice composto no Firestore.
+                    const adminQuery = query(
                         usersRef, 
                         where('congregationId', '==', user.congregationId),
-                        where('role', 'in', ['Administrador', 'Dirigente'])
+                        where('role', '==', 'Administrador')
                     );
-                    const querySnapshot = await getDocs(q);
-                    // CORREÇÃO: Mapear o doc.id para o uid para garantir a chave única
-                    const contacts = querySnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser));
-                    setAdminsAndLeaders(contacts);
+                    const leaderQuery = query(
+                        usersRef, 
+                        where('congregationId', '==', user.congregationId),
+                        where('role', '==', 'Dirigente')
+                    );
+
+                    const [adminSnapshot, leaderSnapshot] = await Promise.all([
+                        getDocs(adminQuery),
+                        getDocs(leaderQuery)
+                    ]);
+
+                    const contactsMap = new Map<string, AppUser>();
+                    
+                    adminSnapshot.forEach(doc => {
+                        contactsMap.set(doc.id, { uid: doc.id, ...doc.data() } as AppUser);
+                    });
+                    leaderSnapshot.forEach(doc => {
+                        contactsMap.set(doc.id, { uid: doc.id, ...doc.data() } as AppUser);
+                    });
+
+                    setAdminsAndLeaders(Array.from(contactsMap.values()));
+
                 } catch (error) {
                     console.error("Erro ao buscar administradores e dirigentes:", error);
                 } finally {
