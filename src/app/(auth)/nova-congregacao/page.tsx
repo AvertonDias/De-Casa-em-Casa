@@ -10,12 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Loader, Eye, EyeOff } from "lucide-react"; 
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, app } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { maskPhone } from '@/lib/utils'; // Importa a função de máscara
-import { getFunctions, httpsCallable } from 'firebase/functions';
-
-const functions = getFunctions(app, 'southamerica-east1');
-const createCongregationAndAdminFn = httpsCallable(functions, 'createCongregationAndAdmin');
 
 export default function NovaCongregacaoPage() {
   const [adminName, setAdminName] = useState('');
@@ -54,19 +50,25 @@ export default function NovaCongregacaoPage() {
     setIsLoading(true);
 
     try {
-        const result: any = await createCongregationAndAdminFn({
-            adminName: adminName.trim(),
-            adminEmail: adminEmail.trim(),
-            adminPassword: adminPassword,
-            whatsapp: whatsapp,
-            congregationName: congregationName.trim(),
-            congregationNumber: congregationNumber.trim()
+        const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin";
+
+        const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                adminName: adminName.trim(),
+                adminEmail: adminEmail.trim(),
+                adminPassword: adminPassword,
+                whatsapp: whatsapp,
+                congregationName: congregationName.trim(),
+                congregationNumber: congregationNumber.trim()
+            })
         });
 
-        const { success, error, userId } = result.data;
+        const result = await response.json();
 
-        if (!success) {
-            throw new Error(error || 'Erro desconhecido no servidor.');
+        if (!response.ok) {
+            throw new Error(result.error || 'Erro desconhecido no servidor.');
         }
         
         toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
@@ -75,10 +77,7 @@ export default function NovaCongregacaoPage() {
 
     } catch (error: any) {
         console.error("Erro na criação ou login:", error);
-        let msg = error.message || "Erro inesperado. Tente novamente mais tarde.";
-        if (msg.includes('auth/email-already-exists')) msg = "Este e-mail já está em uso.";
-        if (msg.includes('congregation with this number already exists')) msg = "Uma congregação com este número já existe.";
-        setErrorMessage(msg);
+        setErrorMessage(error.message || "Erro inesperado. Tente novamente mais tarde.");
     } finally {
         setIsLoading(false);
     }

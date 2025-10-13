@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck, Loader } from 'lucide-react';
-import emailjs from '@emailjs/browser';
+import emailjs from 'emailjs-com';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ForgotPasswordPage() {

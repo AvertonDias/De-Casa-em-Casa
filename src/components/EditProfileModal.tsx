@@ -16,7 +16,6 @@ import emailjs from '@emailjs/browser';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
-const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordReset');
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
@@ -133,12 +132,17 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
 
     try {
-      const result: any = await requestPasswordResetFn({ email: user.email });
-      const { success, token, error: functionError } = result.data;
-      
-      if (!success) {
-        throw new Error(functionError || "Falha ao gerar token de redefinição.");
-      }
+      const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset';
+      const response = await fetch(functionUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: user.email }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Falha ao solicitar redefinição.");
+
+      const { token } = result;
       
       if (token) {
         const resetLink = `${window.location.origin}/auth/action?token=${token}`;
@@ -344,5 +348,3 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     </Dialog>
   );
 }
-
-    
