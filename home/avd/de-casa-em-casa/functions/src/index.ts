@@ -1,5 +1,4 @@
 
-
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
@@ -8,6 +7,9 @@ import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import { randomBytes } from 'crypto';
+import * as cors from 'cors';
+
+const corsHandler = cors({ origin: true });
 
 
 // Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
@@ -25,72 +27,74 @@ setGlobalOptions({
 //   FUNÇÕES HTTPS (onCall e onRequest)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onRequest({ cors: true }, async (req, res) => {
-    if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Método não permitido' });
-        return;
-    }
-    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.body;
-    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
-        res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
-        return;
-    }
-
-    let newUser: admin.auth.UserRecord | undefined;
-    try {
-        const congQuery = await db.collection('congregations').where('number', '==', congregationNumber).get();
-        if (!congQuery.empty) {
-            res.status(409).json({ error: 'Uma congregação com este número já existe.' });
+export const createCongregationAndAdmin = https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            res.status(405).json({ error: 'Método não permitido' });
             return;
         }
-        
-        newUser = await admin.auth().createUser({
-            email: adminEmail,
-            password: adminPassword,
-            displayName: adminName,
-        });
+        const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.body;
+        if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
+            res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
+            return;
+        }
 
-        const batch = db.batch();
-        const newCongregationRef = db.collection('congregations').doc();
-        batch.set(newCongregationRef, {
-            name: congregationName,
-            number: congregationNumber,
-            territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            lastUpdate: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        const userDocRef = db.collection("users").doc(newUser.uid);
-        batch.set(userDocRef, {
-            name: adminName,
-            email: adminEmail,
-            whatsapp: whatsapp, // Salva o WhatsApp
-            congregationId: newCongregationRef.id,
-            role: "Administrador",
-            status: "ativo"
-        });
-        await batch.commit();
-
-        res.status(200).json({ success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' });
-
-    } catch (error: any) {
-        if (newUser) {
-            await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
-                console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`, deleteError);
+        let newUser: admin.auth.UserRecord | undefined;
+        try {
+            const congQuery = await db.collection('congregations').where('number', '==', congregationNumber).get();
+            if (!congQuery.empty) {
+                res.status(409).json({ error: 'Uma congregação com este número já existe.' });
+                return;
+            }
+            
+            newUser = await admin.auth().createUser({
+                email: adminEmail,
+                password: adminPassword,
+                displayName: adminName,
             });
-        }
 
-        console.error("Erro ao criar congregação e admin:", error);
-        if (error.code === 'auth/email-already-exists') {
-            res.status(409).json({ error: "Este e-mail já está em uso." });
-        } else {
-            res.status(500).json({ error: error.message || 'Erro interno no servidor' });
+            const batch = db.batch();
+            const newCongregationRef = db.collection('congregations').doc();
+            batch.set(newCongregationRef, {
+                name: congregationName,
+                number: congregationNumber,
+                territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            const userDocRef = db.collection("users").doc(newUser.uid);
+            batch.set(userDocRef, {
+                name: adminName,
+                email: adminEmail,
+                whatsapp: whatsapp, // Salva o WhatsApp
+                congregationId: newCongregationRef.id,
+                role: "Administrador",
+                status: "ativo"
+            });
+            await batch.commit();
+
+            res.status(200).json({ success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' });
+
+        } catch (error: any) {
+            if (newUser) {
+                await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
+                    console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`, deleteError);
+                });
+            }
+
+            console.error("Erro ao criar congregação e admin:", error);
+            if (error.code === 'auth/email-already-exists') {
+                res.status(409).json({ error: "Este e-mail já está em uso." });
+            } else {
+                res.status(500).json({ error: error.message || 'Erro interno no servidor' });
+            }
         }
-    }
+    });
 });
 
 
-export const requestPasswordReset = https.onCall({ cors: true }, async (req) => {
+export const requestPasswordReset = https.onCall(async (req) => {
     const { email } = req.data;
     if (!email) {
       throw new https.HttpsError('invalid-argument', 'O e-mail é obrigatório.');
@@ -127,7 +131,7 @@ export const requestPasswordReset = https.onCall({ cors: true }, async (req) => 
 });
 
 
-export const resetPasswordWithToken = https.onCall({ cors: true }, async (req) => {
+export const resetPasswordWithToken = https.onCall(async (req) => {
     const { token, newPassword } = req.data;
     if (!token || !newPassword) {
       throw new https.HttpsError('invalid-argument', "Token e nova senha são obrigatórios.");

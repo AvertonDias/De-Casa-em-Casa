@@ -8,12 +8,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck, Loader } from 'lucide-react';
 import emailjs from '@emailjs/browser';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordReset');
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,30 +29,24 @@ export default function ForgotPasswordPage() {
 
     try {
       // 1. Chamar a Cloud Function para obter o token
-      const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
+      const result: any = await requestPasswordResetFn({ email });
 
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Falha ao gerar o token de redefinição.');
+      if (!result.data.success) {
+        throw new Error(result.data.error || 'Falha ao gerar o token de redefinição.');
       }
 
       // 2. Se o usuário existir e um token for retornado, enviar o e-mail
-      if (result.token) {
-          const resetLink = `https://appterritorios-e5bb5.web.app/auth/action?token=${result.token}`;
+      if (result.data.token) {
+          const resetLink = `${window.location.origin}/auth/action?token=${result.data.token}`;
           
           await emailjs.send(
-            'service_w3xe95d',
-            'template_wzczhks',
+            'service_w3xe95d', // Seu Service ID
+            'template_wzczhks', // Seu Template ID
             {
               to_email: email,
               reset_link: resetLink
             },
-            'JdR2XKNICKcHc1jny'
+            'JdR2XKNICKcHc1jny' // Sua Public Key
           );
       }
       
@@ -54,7 +55,11 @@ export default function ForgotPasswordPage() {
 
     } catch (err: any) {
       console.error("Erro no processo de reset:", err);
-      setError(err.message || 'Ocorreu um erro ao processar sua solicitação. Tente novamente mais tarde.');
+      toast({
+        title: "Erro na Solicitação",
+        description: err.message || 'Ocorreu um erro ao processar sua solicitação. Tente novamente mais tarde.',
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
