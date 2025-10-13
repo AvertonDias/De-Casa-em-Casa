@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -344,5 +343,3 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     </>
   );
 }
-
-    
