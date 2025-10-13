@@ -1,6 +1,6 @@
 
 // functions/src/index.ts
-import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
+import { https, setGlobalOptions, pubsub, type CallableRequest } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
@@ -19,11 +19,11 @@ setGlobalOptions({
 });
 
 // ========================================================================
-//   FUNÇÕES HTTPS (onCall e onRequest)
+//   FUNÇÕES HTTPS (onCall)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onCall(async (req) => {
-    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.data;
+export const createCongregationAndAdmin = https.onCall(async (request: CallableRequest) => {
+    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = request.data;
 
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
         throw new https.HttpsError('invalid-argument', 'Todos os campos são obrigatórios.');
@@ -84,8 +84,8 @@ export const createCongregationAndAdmin = https.onCall(async (req) => {
 });
 
 
-export const requestPasswordReset = https.onCall(async (req) => {
-    const { email } = req.data;
+export const requestPasswordReset = https.onCall(async (request: CallableRequest) => {
+    const { email } = request.data;
     if (!email) {
         throw new https.HttpsError('invalid-argument', 'O e-mail é obrigatório.');
     }
@@ -96,7 +96,6 @@ export const requestPasswordReset = https.onCall(async (req) => {
         } catch (error: any) {
             if (error.code === 'auth/user-not-found') {
                 console.log(`Pedido de redefinição para e-mail não existente: ${email}`);
-                // Não retorna erro, apenas um token nulo para segurança.
                 return { success: true, token: null };
             }
             throw error;
@@ -119,8 +118,8 @@ export const requestPasswordReset = https.onCall(async (req) => {
 });
 
 
-export const resetPasswordWithToken = https.onCall(async (req) => {
-    const { token, newPassword } = req.data;
+export const resetPasswordWithToken = https.onCall(async (request: CallableRequest) => {
+    const { token, newPassword } = request.data;
     if (!token || !newPassword) {
         throw new https.HttpsError('invalid-argument', "Token e nova senha são obrigatórios.");
     }
@@ -157,13 +156,13 @@ export const resetPasswordWithToken = https.onCall(async (req) => {
 });
 
 
-export const deleteUserAccount = https.onCall(async (req) => {
-    const callingUserUid = req.auth?.uid;
+export const deleteUserAccount = https.onCall(async (request: CallableRequest) => {
+    const callingUserUid = request.auth?.uid;
     if (!callingUserUid) {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
     
-    const { userIdToDelete } = req.data;
+    const { userIdToDelete } = request.data;
     if (!userIdToDelete || typeof userIdToDelete !== 'string') {
         throw new https.HttpsError("invalid-argument", "ID inválido.");
     }
@@ -199,13 +198,13 @@ export const deleteUserAccount = https.onCall(async (req) => {
 });
 
 
-export const resetTerritoryProgress = https.onCall(async (req) => {
-    const uid = req.auth?.uid;
+export const resetTerritoryProgress = https.onCall(async (request: CallableRequest) => {
+    const uid = request.auth?.uid;
     if (!uid) {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
     
-    const { congregationId, territoryId } = req.data;
+    const { congregationId, territoryId } = request.data;
     if (!congregationId || !territoryId) {
         throw new https.HttpsError("invalid-argument", "IDs faltando.");
     }
@@ -260,16 +259,16 @@ export const resetTerritoryProgress = https.onCall(async (req) => {
 });
 
 
-export const sendOverdueNotification = https.onCall({ cors: true }, async (req) => {
-    if (!req.auth) {
+export const sendOverdueNotification = https.onCall(async (request: CallableRequest) => {
+    if (!request.auth) {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
-    const callingUserDoc = await db.doc(`users/${req.auth.uid}`).get();
+    const callingUserDoc = await db.doc(`users/${request.auth.uid}`).get();
     if (!callingUserDoc.exists() || !['Administrador', 'Dirigente'].includes(callingUserDoc.data()?.role)) {
         throw new https.HttpsError('permission-denied', 'Permissão negada.');
     }
 
-    const { userId, title, body } = req.data;
+    const { userId, title, body } = request.data;
     if (!userId || !title || !body) {
         throw new https.HttpsError("invalid-argument", "userId, title e body são obrigatórios");
     }
@@ -306,12 +305,12 @@ export const sendOverdueNotification = https.onCall({ cors: true }, async (req) 
 });
 
 
-export const generateUploadUrl = https.onCall({ cors: true }, async (req) => {
-  if (!req.auth) {
+export const generateUploadUrl = https.onCall(async (request: CallableRequest) => {
+  if (!request.auth) {
     throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
   }
 
-  const { filePath, contentType } = req.data;
+  const { filePath, contentType } = request.data;
   if (!filePath || typeof filePath !== 'string' || !contentType) {
     throw new https.HttpsError('invalid-argument', 'Caminho do arquivo e tipo de conteúdo são necessários.');
   }
@@ -332,9 +331,35 @@ export const generateUploadUrl = https.onCall({ cors: true }, async (req) => {
   }
 });
 
+export const sendFeedbackEmail = https.onCall(async (request: CallableRequest) => {
+    if (!request.auth) {
+        throw new https.HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
+    }
+    try {
+        const { name, email, subject, message } = request.data;
+        if (!name || !email || !subject || !message) {
+            throw new https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
+        }
+        console.log('--- NOVO FEEDBACK RECEBIDO ---');
+        console.log(`De: ${name} (${email})`);
+        console.log(`UID: ${request.auth.uid}`);
+        console.log(`Assunto: ${subject}`);
+        console.log(`Mensagem: ${message}`);
+        console.log('------------------------------');
+        return { success: true, message: 'Feedback enviado com sucesso!' };
+    }
+    catch (error: any) {
+        console.error("Erro ao processar feedback:", error);
+        if (error instanceof https.HttpsError) {
+            throw error;
+        }
+        throw new https.HttpsError("internal", "Erro interno do servidor ao processar o feedback.");
+    }
+});
+
 
 // ========================================================================
-//   CASCATA DE ESTATÍSTICAS E LÓGICA DE NEGÓCIO
+//   GATILHOS (TRIGGERS)
 // ========================================================================
 
 export const onHouseChange = onDocumentWritten("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}", async (event) => {
@@ -439,9 +464,7 @@ export const onTerritoryChange = onDocumentWritten("congregations/{congregationI
   });
 });
 
-// ============================================================================
-//   OUTROS GATILHOS (Notificação, Exclusão)
-// ============================================================================
+
 export const onNewUserPending = onDocumentCreated("users/{userId}", async (event) => {
     const newUser = event.data?.data();
     if (!newUser || newUser.status !== 'pendente' || !newUser.congregationId) {
@@ -662,31 +685,5 @@ export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(a
     } catch (error) {
         console.error("Erro ao verificar territórios vencidos:", error);
         return { success: false, error };
-    }
-});
-
-export const sendFeedbackEmail = https.onCall(async (req) => {
-    if (!req.auth) {
-        throw new https.HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
-    }
-    try {
-        const { name, email, subject, message } = req.data;
-        if (!name || !email || !subject || !message) {
-            throw new https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
-        }
-        console.log('--- NOVO FEEDBACK RECEBIDO ---');
-        console.log(`De: ${name} (${email})`);
-        console.log(`UID: ${req.auth.uid}`);
-        console.log(`Assunto: ${subject}`);
-        console.log(`Mensagem: ${message}`);
-        console.log('------------------------------');
-        return { success: true, message: 'Feedback enviado com sucesso!' };
-    }
-    catch (error) {
-        console.error("Erro ao processar feedback:", error);
-        if (error instanceof https.HttpsError) {
-            throw error;
-        }
-        throw new https.HttpsError("internal", "Erro interno do servidor ao processar o feedback.");
     }
 });

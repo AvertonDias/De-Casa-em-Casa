@@ -53,28 +53,31 @@ export default function NovaCongregacaoPage() {
             adminName: adminName.trim(),
             adminEmail: adminEmail.trim(),
             adminPassword: adminPassword,
-            whatsapp: whatsapp, // Envia o número de WhatsApp
+            whatsapp: whatsapp,
             congregationName: congregationName.trim(),
             congregationNumber: congregationNumber.trim()
         });
         
-        const { success, error } = result.data;
+        const { success } = result.data;
         
         if (success) {
             toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
             await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
             // O UserContext irá lidar com o redirecionamento para /dashboard
         } else {
-            throw new Error(error || 'Falha ao criar congregação sem erro explícito.');
+            // A função onCall lança um erro em caso de falha, que é pego no bloco catch
+            throw new Error('Falha ao criar congregação sem erro explícito.');
         }
 
     } catch (error: any) {
         console.error("Erro na criação ou login:", error);
         let friendlyMessage = "Erro inesperado. Tente novamente mais tarde.";
-        if (error.message.includes('auth/email-already-exists') || error.message.includes('Este e-mail já está em uso')) {
-            friendlyMessage = "Este e-mail já está em uso por outra conta.";
-        } else if (error.message.includes('already-exists')) {
+        if (error.code === 'functions/already-exists') {
             friendlyMessage = "Já existe uma congregação com este número ou o e-mail informado já está em uso.";
+        } else if (error.code === 'functions/invalid-argument') {
+            friendlyMessage = "Dados inválidos. Verifique as informações e tente novamente.";
+        } else if (error.message.includes('auth/email-already-exists')) {
+            friendlyMessage = "Este e-mail já está em uso por outra conta.";
         }
         setErrorMessage(friendlyMessage);
     } finally {

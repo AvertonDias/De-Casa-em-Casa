@@ -64,6 +64,7 @@ function PasswordResetAction() {
       const result: any = await resetPasswordWithTokenFn({ token, newPassword });
 
       if (!result.data.success) {
+        // A função onCall lança um erro, então isso é um fallback
         throw new Error(result.data.message || `Ocorreu um erro desconhecido.`);
       }
 
@@ -73,15 +74,13 @@ function PasswordResetAction() {
       console.error("Erro ao redefinir senha com token:", err);
       
       let errorMessage = 'Ocorreu um erro inesperado. Tente novamente.';
-      if (err.message) {
-        if (err.message.includes('invalid-argument')) {
+      if (err.code === 'functions/invalid-argument') {
           errorMessage = 'Token ou senha inválidos.';
-        } else if (err.message.includes('not-found')) {
+        } else if (err.code === 'functions/not-found') {
           errorMessage = 'O link de redefinição é inválido ou já foi utilizado.';
-        } else if (err.message.includes('deadline-exceeded')) {
+        } else if (err.code === 'functions/deadline-exceeded') {
           errorMessage = 'O link de redefinição expirou. Por favor, solicite um novo.';
         }
-      }
 
       toast({
         title: "Erro ao redefinir senha",
