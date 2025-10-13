@@ -2,21 +2,17 @@
 "use client";
 
 import { useState } from 'react';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { KeyRound, MailCheck } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { KeyRound, MailCheck, Loader } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,17 +20,24 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      await sendPasswordResetEmail(auth, email, {
-        url: `https://appterritorios-e5bb5.web.app/auth/action`,
+      const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
       });
-      setIsSubmitted(true); // Muda o estado para a tela de sucesso
-    } catch (err: any) {
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-email') {
-        setError('Nenhuma conta encontrada com este endereço de e-mail.');
-      } else {
-        setError('Ocorreu um erro ao enviar o link. Tente novamente mais tarde.');
+
+      // A função de backend agora retorna sucesso mesmo para e-mails não encontrados, por segurança.
+      // Qualquer erro real será capturado no bloco catch.
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Falha ao solicitar redefinição.');
       }
-      console.error("Firebase password reset error:", err);
+      
+      setIsSubmitted(true);
+
+    } catch (err: any) {
+      console.error("Erro na chamada da função de reset:", err);
+      setError(err.message || 'Ocorreu um erro ao processar sua solicitação. Tente novamente mais tarde.');
     } finally {
       setIsLoading(false);
     }
@@ -48,7 +51,7 @@ export default function ForgotPasswordPage() {
             <MailCheck className="mx-auto h-16 w-16 text-green-500" />
             <h1 className="text-2xl font-bold">Verifique sua Caixa de Entrada</h1>
             <p className="text-muted-foreground">
-              Enviamos um link de recuperação de senha para <span className="font-semibold text-foreground">{email}</span>.
+              Se uma conta com o e-mail <span className="font-semibold text-foreground">{email}</span> existir, um link de recuperação será enviado.
             </p>
             <p className="p-3 text-sm font-semibold bg-yellow-500/20 text-yellow-300 border border-yellow-500/50 rounded-lg">
               IMPORTANTE: Se você não encontrar o e-mail, por favor, verifique sua pasta de SPAM.
@@ -93,7 +96,7 @@ export default function ForgotPasswordPage() {
             disabled={isLoading || !email}
             className="w-full"
           >
-            {isLoading ? 'Enviando...' : 'Enviar Link de Recuperação'}
+            {isLoading ? <><Loader className="mr-2 animate-spin"/> Enviando...</> : 'Enviar Link de Recuperação'}
           </Button>
         </form>
         <p className="text-center text-sm text-muted-foreground">

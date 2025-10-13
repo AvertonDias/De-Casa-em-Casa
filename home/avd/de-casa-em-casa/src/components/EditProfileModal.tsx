@@ -3,20 +3,19 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { updateProfile, sendPasswordResetEmail } from 'firebase/auth';
+import { updateProfile } from 'firebase/auth';
 import { auth, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Eye, EyeOff, Trash2, KeyRound } from 'lucide-react';
+import { Trash2, KeyRound, Loader } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { useToast } from '@/hooks/use-toast';
-import { maskPhone } from '@/lib/utils'; // Importa a máscara
+import { maskPhone } from '@/lib/utils';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
-
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
@@ -28,9 +27,8 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   const [error, setError] = useState<string | null>(null);
   const [passwordResetSuccess, setPasswordResetSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [passwordResetLoading, setPasswordResetLoading] = useState(false);
   
-  const [passwordForDelete, setPasswordForDelete] = useState('');
-  const [showPasswordForDelete, setShowPasswordForDelete] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -44,7 +42,6 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       setConfirmWhatsapp(initialWhatsapp);
       setError(null);
       setPasswordResetSuccess(null);
-      setPasswordForDelete('');
       
       setTimeout(() => {
         if (!initialWhatsapp && whatsappInputRef.current) {
@@ -63,8 +60,8 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
     setLoading(true);
 
-    if (!whatsapp.trim()) {
-        setError("O campo WhatsApp é obrigatório.");
+    if (!whatsapp.trim() || !name.trim()) {
+        setError("Nome e WhatsApp são obrigatórios.");
         setLoading(false);
         return;
     }
@@ -126,14 +123,22 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
       toast({ title: "Erro", description: "E-mail do usuário não encontrado.", variant: "destructive" });
       return;
     }
-    setLoading(true);
+    setPasswordResetLoading(true);
     setError(null);
     setPasswordResetSuccess(null);
 
     try {
-      await sendPasswordResetEmail(auth, user.email, {
-        url: `https://appterritorios-e5bb5.web.app/auth/action`,
+      const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email }),
       });
+      
+      if (!response.ok) {
+          const result = await response.json();
+          throw new Error(result.error || "Falha ao enviar e-mail.");
+      }
+
       setPasswordResetSuccess(
         `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`
       );
@@ -146,16 +151,12 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setPasswordResetLoading(false);
     }
   };
 
   const handleSelfDelete = () => {
     if (!user || !auth.currentUser) return;
-    if(!passwordForDelete) {
-        setError("Para excluir sua conta, por favor, insira sua senha atual.");
-        return;
-    }
     setIsConfirmModalOpen(true);
   }
 
@@ -178,7 +179,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
          if (error.message.includes("administrador não pode se autoexcluir")) {
             setError("Um administrador não pode se autoexcluir.");
          } else {
-            setError("Ocorreu um erro ao tentar excluir a conta. A senha pode estar incorreta.");
+            setError("Ocorreu um erro ao tentar excluir a conta.");
          }
     } finally {
         setLoading(false);
@@ -241,10 +242,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                   type="button"
                   variant="outline" 
                   onClick={handleSendPasswordReset} 
-                  disabled={loading}
+                  disabled={passwordResetLoading}
                   className="w-full text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400"
                 >
-                  <KeyRound className="mr-2" size={16} />
+                  {passwordResetLoading ? <Loader className="animate-spin mr-2" /> : <KeyRound className="mr-2" size={16} />}
                   Enviar Link para Redefinir Senha
                 </Button>
                 {passwordResetSuccess && (
@@ -266,7 +267,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
           <DialogClose asChild>
               <Button type="button" variant="secondary" className="bg-muted hover:bg-muted/80">Cancelar</Button>
           </DialogClose>
-          <Button type="submit" form="edit-profile-form" disabled={loading || whatsappMismatch || !whatsapp || !name}>
+          <Button type="submit" form="edit-profile-form" disabled={loading || whatsappMismatch || !whatsapp.trim() || !name.trim()}>
             {loading ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
         </DialogFooter>
@@ -275,23 +276,11 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
             <div className="pt-4 border-t border-red-500/30">
               <h4 className="text-md font-semibold text-destructive">Zona de Perigo</h4>
               <p className="text-sm text-muted-foreground mt-1">A ação abaixo é permanente e não pode ser desfeita.</p>
-              <div className="relative mt-4">
-                  <Input
-                    type={showPasswordForDelete ? "text" : "password"}
-                    value={passwordForDelete}
-                    onChange={(e) => setPasswordForDelete(e.target.value)}
-                    placeholder="Digite sua senha atual para confirmar"
-                    className="border-red-500/50 focus-visible:ring-destructive"
-                  />
-                  <button type="button" onClick={() => setShowPasswordForDelete(!showPasswordForDelete)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground">
-                    {showPasswordForDelete ? <EyeOff size={20}/> : <Eye size={20}/>}
-                  </button>
-              </div>
 
               <Button
                 variant="destructive"
                 onClick={handleSelfDelete}
-                disabled={loading || !passwordForDelete}
+                disabled={loading}
                 className="w-full mt-2"
               >
                 <Trash2 size={16} className="mr-2"/>
