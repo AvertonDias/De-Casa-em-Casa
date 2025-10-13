@@ -1,4 +1,3 @@
-
 // src/app/auth/action/page.tsx
 "use client";
 

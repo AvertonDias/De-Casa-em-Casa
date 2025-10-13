@@ -31,12 +31,16 @@ export default function ForgotPasswordPage() {
       // 1. Chamar a Cloud Function para obter o token
       const result: any = await requestPasswordResetFn({ email });
       
-      const { success, token } = result.data;
-
+      const { success, token, error: functionError } = result.data;
+      
       if (!success && token === null) {
         // Usuário não encontrado, mas não mostramos erro por segurança
         setIsSubmitted(true);
         return;
+      }
+      
+      if(functionError) {
+        throw new Error(functionError);
       }
 
       // 2. Se o usuário existir e um token for retornado, enviar o e-mail
