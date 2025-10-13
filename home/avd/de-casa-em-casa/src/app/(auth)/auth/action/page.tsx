@@ -5,11 +5,18 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader, KeyRound, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const resetPasswordWithTokenFn = httpsCallable(functions, 'resetPasswordWithToken');
+
 
 function PasswordResetAction() {
   const searchParams = useSearchParams();
@@ -24,7 +31,7 @@ function PasswordResetAction() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const token = searchParams.get('token');
+  const token = searchParams?.get('token') ?? null;
 
   useEffect(() => {
     if (!token) {
@@ -54,16 +61,10 @@ function PasswordResetAction() {
     setStage('verifying');
 
     try {
-      const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/resetPasswordWithToken';
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, newPassword }),
-      });
-      
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || `Ocorreu um erro desconhecido.`);
+      const result: any = await resetPasswordWithTokenFn({ token, newPassword });
+
+      if (!result.data.success) {
+        throw new Error(result.data.message || `Ocorreu um erro desconhecido.`);
       }
 
       setStage('success');
@@ -73,12 +74,12 @@ function PasswordResetAction() {
       
       let errorMessage = 'Ocorreu um erro inesperado. Tente novamente.';
       if (err.message) {
-        if (err.message.includes('inválido ou já utilizado')) {
+        if (err.message.includes('invalid-argument')) {
+          errorMessage = 'Token ou senha inválidos.';
+        } else if (err.message.includes('not-found')) {
           errorMessage = 'O link de redefinição é inválido ou já foi utilizado.';
-        } else if (err.message.includes('expirou')) {
+        } else if (err.message.includes('deadline-exceeded')) {
           errorMessage = 'O link de redefinição expirou. Por favor, solicite um novo.';
-        } else {
-            errorMessage = err.message;
         }
       }
 
