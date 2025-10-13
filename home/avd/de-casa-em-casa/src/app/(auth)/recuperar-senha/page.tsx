@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -7,36 +6,32 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck, Loader } from 'lucide-react';
-import emailjs from '@emailjs/browser';
+import emailjs from 'emailjs-com';
 import { useToast } from '@/hooks/use-toast';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordReset');
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setIsLoading(true);
 
     try {
-      const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset';
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
+      const result: any = await requestPasswordResetFn({ email });
+      const { success, token, error: functionError } = result.data;
       
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Falha ao gerar o token de redefinição.');
+      if (!success) {
+        throw new Error(functionError || 'Falha ao gerar o token de redefinição.');
       }
       
-      const { token } = result;
-
       if (token) {
           const resetLink = `${window.location.origin}/auth/action?token=${token}`;
           
@@ -111,8 +106,6 @@ export default function ForgotPasswordPage() {
             />
           </div>
           
-          {error && <p className="text-sm text-center text-destructive">{error}</p>}
-          
           <Button
             type="submit"
             disabled={isLoading || !email}
@@ -128,5 +121,3 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
-
-    
