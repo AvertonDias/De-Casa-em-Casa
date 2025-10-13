@@ -7,7 +7,7 @@ import { db, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, Bell, History, Loader, X, MessageCircle } from 'lucide-react';
+import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, History, Loader, X, MessageCircle } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,7 +21,6 @@ import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const sendOverdueNotificationFn = httpsCallable(functions, 'sendOverdueNotification');
 
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
@@ -366,7 +365,7 @@ export default function TerritoryAssignmentPanel() {
                                              <>
                                                  <Menu.Item><button onClick={() => handleOpenReturnModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <CheckCircle size={16} className="mr-2"/>Devolver</button></Menu.Item>
                                                  <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <RotateCw size={16} className="mr-2"/>Reatribuir</button></Menu.Item>
-                                                 {isOverdue && <Menu.Item><button onClick={() => handleNotifyOverdue(t)} disabled={isNotifying} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground disabled:opacity-50'> {isNotifying ? <Loader className="mr-2 animate-spin"/> : <MessageCircle size={16} className="mr-2"/>}Notificar atraso</button></Menu.Item>}
+                                                 {isOverdue && <Menu.Item><button onClick={() => handleNotifyOverdue(t)} disabled={isNotifying} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground disabled:opacity-50'> {isNotifying ? <Loader className="mr-2 animate-spin"/> : <MessageCircle size={16} className="mr-2"/>}Notificar via WhatsApp</button></Menu.Item>}
                                              </>
                                          ) : (
                                               <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <BookUser size={16} className="mr-2"/>Designar</button></Menu.Item>
