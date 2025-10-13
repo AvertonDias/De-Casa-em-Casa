@@ -69,7 +69,7 @@ function AguardandoAprovacaoPage() {
         );
     }
     
-    const contactsWithWhatsapp = adminsAndLeaders.filter(c => c.whatsapp);
+    const contactsWithWhatsapp = adminsAndLeaders.filter(c => c.whatsapp && c.whatsapp.trim() !== '');
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-background p-4">
