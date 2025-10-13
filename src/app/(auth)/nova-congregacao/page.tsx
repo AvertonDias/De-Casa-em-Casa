@@ -1,3 +1,4 @@
+
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -9,12 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Loader, Eye, EyeOff } from "lucide-react"; 
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, app } from '@/lib/firebase';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { auth } from '@/lib/firebase';
 import { maskPhone } from '@/lib/utils'; // Importa a função de máscara
-
-const functions = getFunctions(app, 'southamerica-east1');
-const createCongregationAndAdminFn = httpsCallable(functions, 'createCongregationAndAdmin');
 
 export default function NovaCongregacaoPage() {
   const [adminName, setAdminName] = useState('');
@@ -48,37 +45,38 @@ export default function NovaCongregacaoPage() {
     setIsLoading(true);
 
     try {
-        const result: any = await createCongregationAndAdminFn({
-            adminName: adminName.trim(),
-            adminEmail: adminEmail.trim(),
-            adminPassword: adminPassword,
-            whatsapp: whatsapp,
-            congregationName: congregationName.trim(),
-            congregationNumber: congregationNumber.trim()
+        const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin";
+
+        const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                adminName: adminName.trim(),
+                adminEmail: adminEmail.trim(),
+                adminPassword: adminPassword,
+                whatsapp: whatsapp,
+                congregationName: congregationName.trim(),
+                congregationNumber: congregationNumber.trim()
+            })
         });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Erro desconhecido no servidor.');
+        }
         
-        const { success } = result.data;
-        
-        if (success) {
+        if (result.success) {
             toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
             await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
             // O UserContext irá lidar com o redirecionamento para /dashboard
         } else {
-            // A função onCall lança um erro em caso de falha, que é pego no bloco catch
-            throw new Error('Falha ao criar congregação sem erro explícito.');
+            throw new Error(result.error || 'Falha ao criar congregação sem erro explícito.');
         }
 
     } catch (error: any) {
         console.error("Erro na criação ou login:", error);
-        let friendlyMessage = "Erro inesperado. Tente novamente mais tarde.";
-        if (error.code === 'functions/already-exists') {
-            friendlyMessage = "Já existe uma congregação com este número ou o e-mail informado já está em uso.";
-        } else if (error.code === 'functions/invalid-argument') {
-            friendlyMessage = "Dados inválidos. Verifique as informações e tente novamente.";
-        } else if (error.message.includes('auth/email-already-exists')) {
-            friendlyMessage = "Este e-mail já está em uso por outra conta.";
-        }
-        setErrorMessage(friendlyMessage);
+        setErrorMessage(error.message || "Erro inesperado. Tente novamente mais tarde.");
     } finally {
         setIsLoading(false);
     }

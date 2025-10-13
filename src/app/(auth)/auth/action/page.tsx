@@ -4,18 +4,12 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader, KeyRound, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-const functions = getFunctions(app, 'southamerica-east1');
-const resetPasswordWithTokenFn = httpsCallable(functions, 'resetPasswordWithToken');
-
 
 function PasswordResetAction() {
   const searchParams = useSearchParams();
@@ -60,11 +54,17 @@ function PasswordResetAction() {
     setStage('verifying');
 
     try {
-      const result: any = await resetPasswordWithTokenFn({ token, newPassword });
+      const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/resetPasswordWithToken';
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword }),
+      });
 
-      if (!result.data.success) {
-        // A função onCall lança um erro, então isso é um fallback
-        throw new Error(result.data.message || `Ocorreu um erro desconhecido.`);
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || `Ocorreu um erro desconhecido.`);
       }
 
       setStage('success');
@@ -73,13 +73,13 @@ function PasswordResetAction() {
       console.error("Erro ao redefinir senha com token:", err);
       
       let errorMessage = 'Ocorreu um erro inesperado. Tente novamente.';
-      if (err.code === 'functions/invalid-argument') {
-          errorMessage = 'Token ou senha inválidos.';
-        } else if (err.code === 'functions/not-found') {
+      if (err.message) {
+        if (err.message.includes('Token inválido')) {
           errorMessage = 'O link de redefinição é inválido ou já foi utilizado.';
-        } else if (err.code === 'functions/deadline-exceeded') {
+        } else if (err.message.includes('expirou')) {
           errorMessage = 'O link de redefinição expirou. Por favor, solicite um novo.';
         }
+      }
 
       toast({
         title: "Erro ao redefinir senha",

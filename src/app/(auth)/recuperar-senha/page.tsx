@@ -8,12 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck, Loader } from 'lucide-react';
 import emailjs from '@emailjs/browser';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-
-const functions = getFunctions(app, 'southamerica-east1');
-const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordReset');
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -28,22 +23,20 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      // 1. Chamar a Cloud Function para obter o token
-      const result: any = await requestPasswordResetFn({ email });
+      const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset';
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
       
-      const { success, token, error: functionError } = result.data;
-      
-      if (!success && token === null) {
-        // Usuário não encontrado, mas não mostramos erro por segurança
-        setIsSubmitted(true);
-        return;
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Falha ao gerar o token de redefinição.');
       }
       
-      if(functionError) {
-        throw new Error(functionError);
-      }
+      const { token } = result;
 
-      // 2. Se o usuário existir e um token for retornado, enviar o e-mail
       if (token) {
           const resetLink = `${window.location.origin}/auth/action?token=${token}`;
           
@@ -58,7 +51,6 @@ export default function ForgotPasswordPage() {
           );
       }
       
-      // 3. Mostrar a tela de sucesso
       setIsSubmitted(true);
 
     } catch (err: any) {
