@@ -19,11 +19,9 @@
     "firebase-functions": "^5.0.1",
     "date-fns": "^3.6.0",
     "@google-cloud/storage": "^7.11.0",
-    "cors": "^2.8.5",
     "node-fetch": "^2.7.0"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.17",
     "typescript": "^5.4.5",
     "@types/node-fetch": "^2.6.11"
   },

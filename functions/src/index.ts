@@ -331,32 +331,6 @@ export const generateUploadUrl = https.onCall(async (request: CallableRequest) =
   }
 });
 
-export const sendFeedbackEmail = https.onCall(async (request: CallableRequest) => {
-    if (!request.auth) {
-        throw new https.HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
-    }
-    try {
-        const { name, email, subject, message } = request.data;
-        if (!name || !email || !subject || !message) {
-            throw new https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
-        }
-        console.log('--- NOVO FEEDBACK RECEBIDO ---');
-        console.log(`De: ${name} (${email})`);
-        console.log(`UID: ${request.auth.uid}`);
-        console.log(`Assunto: ${subject}`);
-        console.log(`Mensagem: ${message}`);
-        console.log('------------------------------');
-        return { success: true, message: 'Feedback enviado com sucesso!' };
-    }
-    catch (error: any) {
-        console.error("Erro ao processar feedback:", error);
-        if (error instanceof https.HttpsError) {
-            throw error;
-        }
-        throw new https.HttpsError("internal", "Erro interno do servidor ao processar o feedback.");
-    }
-});
-
 
 // ========================================================================
 //   GATILHOS (TRIGGERS)
