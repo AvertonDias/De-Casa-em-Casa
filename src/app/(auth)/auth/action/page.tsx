@@ -1,3 +1,4 @@
+
 // src/app/auth/action/page.tsx
 "use client";
 
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader, KeyRound, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const resetPasswordWithTokenFn = httpsCallable(functions, 'resetPasswordWithToken');
@@ -19,6 +21,7 @@ const resetPasswordWithTokenFn = httpsCallable(functions, 'resetPasswordWithToke
 function PasswordResetAction() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { toast } = useToast();
   
   // Stages: 'verifying', 'form', 'success', 'error'
   const [stage, setStage] = useState<'verifying' | 'form' | 'success' | 'error'>('verifying');
@@ -36,8 +39,6 @@ function PasswordResetAction() {
       setError('Token de redefinição inválido ou ausente. Por favor, solicite um novo link.');
       setStage('error');
     } else {
-      // Aqui, simplesmente assumimos que o token é válido por enquanto e mostramos o formulário.
-      // A validação real ocorrerá no backend quando o usuário enviar a nova senha.
       setStage('form');
     }
   }, [token]);
@@ -61,24 +62,22 @@ function PasswordResetAction() {
     setStage('verifying'); // Mostra um loader enquanto a função é chamada
 
     try {
-      const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/resetPasswordWithToken', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ token, newPassword }),
-      });
+      const result: any = await resetPasswordWithTokenFn({ token, newPassword });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || `HTTP error! status: ${response.status}`);
+      if (!result.data.success) {
+        throw new Error(result.data.error || `Ocorreu um erro desconhecido.`);
       }
 
       setStage('success');
       
     } catch (err: any) {
       console.error("Erro ao redefinir senha com token:", err);
+      toast({
+        title: "Erro ao redefinir senha",
+        description: err.message,
+        variant: "destructive",
+      });
+
       // Mapeia os códigos de erro da Cloud Function para mensagens amigáveis
       if (err.message.includes('inválido')) {
           setError('O link de redefinição é inválido ou já foi utilizado.');

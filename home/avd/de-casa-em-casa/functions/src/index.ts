@@ -1,4 +1,5 @@
 
+
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
@@ -7,9 +8,6 @@ import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import { randomBytes } from 'crypto';
-import cors from "cors";
-
-const corsHandler = cors({ origin: true });
 
 
 // Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
@@ -92,26 +90,24 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
 });
 
 
-export const requestPasswordReset = https.onRequest((req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method !== 'POST') {
-      res.status(405).json({ error: 'Método não permitido' });
-      return;
-    }
-
-    const { email } = req.body;
+export const requestPasswordReset = https.onCall({ cors: true }, async (req) => {
+    const { email } = req.data;
     if (!email) {
-      res.status(400).json({ error: 'O e-mail é obrigatório.' });
-      return;
+      throw new https.HttpsError('invalid-argument', 'O e-mail é obrigatório.');
     }
 
     try {
-      const userRecord = await admin.auth().getUserByEmail(email);
-      if (!userRecord) {
-        // Por segurança, não informe que o usuário não existe.
-        // Apenas simule sucesso, retornando um token nulo.
-        res.status(200).json({ success: true, token: null });
-        return;
+      // Por segurança, não informe ao cliente se o usuário existe ou não.
+      try {
+        await admin.auth().getUserByEmail(email);
+      } catch (error: any) {
+        if (error.code === 'auth/user-not-found') {
+          console.log(`Pedido de redefinição para e-mail não existente: ${email}`);
+          // Simula sucesso para não vazar informação sobre a existência de e-mails.
+          return { success: true, token: null };
+        }
+        // Se for outro erro, lança para o catch principal.
+        throw error;
       }
       
       const token = randomBytes(32).toString("hex");
@@ -122,37 +118,22 @@ export const requestPasswordReset = https.onRequest((req, res) => {
         expires: expires,
       });
 
-      // Retorna apenas o token para o frontend
-      res.status(200).json({ success: true, token: token });
+      return { success: true, token: token };
 
     } catch (error: any) {
-        if (error.code === 'auth/user-not-found') {
-            console.log(`Pedido de redefinição para e-mail não existente: ${email}`);
-            res.status(200).json({ success: true, token: null }); // Simula sucesso
-            return;
-        }
         console.error("Erro em requestPasswordReset:", error);
-        res.status(500).json({ error: "Falha ao processar o pedido de redefinição." });
+        throw new https.HttpsError('internal', "Falha ao processar o pedido de redefinição.");
     }
-  });
 });
 
 
-export const resetPasswordWithToken = https.onRequest((req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method !== 'POST') {
-      res.status(405).json({ error: 'Método não permitido' });
-      return;
-    }
-
-    const { token, newPassword } = req.body;
+export const resetPasswordWithToken = https.onCall({ cors: true }, async (req) => {
+    const { token, newPassword } = req.data;
     if (!token || !newPassword) {
-      res.status(400).json({ error: "Token e nova senha são obrigatórios." });
-      return;
+      throw new https.HttpsError('invalid-argument', "Token e nova senha são obrigatórios.");
     }
     if (newPassword.length < 6) {
-        res.status(400).json({ error: "A senha deve ter no mínimo 6 caracteres." });
-        return;
+        throw new https.HttpsError('invalid-argument', "A senha deve ter no mínimo 6 caracteres.");
     }
 
     const tokenRef = db.collection("resetTokens").doc(token);
@@ -160,27 +141,25 @@ export const resetPasswordWithToken = https.onRequest((req, res) => {
     try {
         const tokenDoc = await tokenRef.get();
         if (!tokenDoc.exists) {
-            res.status(404).json({ error: "Token inválido ou já utilizado." });
-            return;
+            throw new https.HttpsError('not-found', "Token inválido ou já utilizado.");
         }
 
         const data = tokenDoc.data()!;
         if (data.expires.toMillis() < Date.now()) {
             await tokenRef.delete(); 
-            res.status(410).json({ error: "O token de redefinição expirou." });
-            return;
+            throw new https.HttpsError('deadline-exceeded', "O token de redefinição expirou.");
         }
         
         const user = await admin.auth().getUserByEmail(data.email);
         await admin.auth().updateUser(user.uid, { password: newPassword });
         await tokenRef.delete();
 
-        res.status(200).json({ success: true, message: "Senha redefinida com sucesso." });
+        return { success: true, message: "Senha redefinida com sucesso." };
     } catch (error: any) {
         console.error("Erro em resetPasswordWithToken:", error);
-        res.status(500).json({ error: "Ocorreu um erro interno ao redefinir a senha." });
+        if(error instanceof https.HttpsError) throw error;
+        throw new https.HttpsError('internal', "Ocorreu um erro interno ao redefinir a senha.");
     }
-  });
 });
 
 
@@ -477,7 +456,7 @@ export const onNewUserPending = onDocumentCreated("users/{userId}", async (event
 
     const adminsQuery = db.collection("users")
         .where('congregationId', '==', newUser.congregationId)
-        .where('role', '==', 'Administrador');
+        .where('role', 'in', ['Administrador', 'Dirigente']);
 
     try {
         const adminsSnapshot = await adminsQuery.get();
@@ -691,19 +670,3 @@ export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(a
         return { success: false, error };
     }
 });
-
-// A função de feedback por e-mail, agora como onCall
-export const sendFeedbackEmail = https.onCall({ cors: true }, async (req) => {
-    if (!req.auth) {
-        throw new https.HttpsError("unauthenticated", "O usuário deve estar autenticado para enviar feedback.");
-    }
-    const { name, email, subject, message } = req.data;
-    if (!name || !email || !subject || !message) {
-        throw new https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
-    }
-    // A lógica de envio de e-mail com um serviço terceiro (como SendGrid, etc.)
-    // seria adicionada aqui. Por enquanto, apenas logamos.
-    console.log(`Feedback de ${name} (${email}): ${subject} - ${message}`);
-    return { success: true, message: "Feedback recebido, muito obrigado!" };
-});
-
