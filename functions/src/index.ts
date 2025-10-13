@@ -95,6 +95,10 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
 
 export const requestPasswordReset = https.onRequest((req, res) => {
   corsHandler(req, res, async () => {
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Método não permitido' });
       return;
@@ -141,6 +145,10 @@ export const requestPasswordReset = https.onRequest((req, res) => {
 
 export const resetPasswordWithToken = https.onRequest((req, res) => {
   corsHandler(req, res, async () => {
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Método não permitido' });
       return;
