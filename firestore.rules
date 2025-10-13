@@ -2,49 +2,98 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper Functions
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+  
+    // ====================================================================
+    // Funções reutilizáveis
+    // ====================================================================
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Regras para a Coleção de Congregações
-    match /congregations/{congId} {
-      allow read: if true;
-      allow write: if getUserData().role == 'Administrador';
+    function isUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
 
-      match /territories/{terrId} {
-        allow read, write: if getUserData().congregationId == congId;
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+    
+    function isCongregationMember(congregationId) {
+      return isSignedIn() && getUserData(request.auth.uid).congregationId == congregationId;
+    }
 
+    function isAdmin(congregationId) {
+      return isCongregationMember(congregationId) && getUserData(request.auth.uid).role == 'Administrador';
+    }
+    
+    function isManager(congregationId) { // Admin ou Dirigente
+      let userRole = getUserData(request.auth.uid).role;
+      return isCongregationMember(congregationId) && (userRole == 'Administrador' || userRole == 'Dirigente');
+    }
+
+    // ====================================================================
+    // Coleção de Congregações
+    // ====================================================================
+    match /congregations/{congregationId} {
+      // Leitura permitida para membros da congregação.
+      allow read: if isCongregationMember(congregationId);
+      
+      // Apenas Admins podem criar ou deletar congregações (gerenciado por Cloud Functions).
+      allow create, delete: if false; 
+      
+      // Apenas Admins podem atualizar nome e número.
+      allow update: if isAdmin(congregationId);
+
+      // --- Subcoleções de Territórios ---
+      match /territories/{territoryId} {
+        allow read: if isCongregationMember(congregationId);
+        allow create, update, delete: if isManager(congregationId);
+
+        // --- Subcoleções de Quadras ---
         match /quadras/{quadraId} {
-          allow read, write: if getUserData().congregationId == congId;
+          allow read: if isCongregationMember(congregationId);
+          allow create, update, delete: if isManager(congregationId);
 
+          // --- Subcoleções de Casas ---
           match /casas/{casaId} {
-            allow read, write: if getUserData().congregationId == congId;
+            allow read: if isCongregationMember(congregationId);
+            // Qualquer membro pode criar/deletar casas (números).
+            allow create, delete: if isCongregationMember(congregationId);
+            // Qualquer membro pode marcar/desmarcar uma casa.
+            allow update: if isCongregationMember(congregationId);
           }
         }
         
+        // --- Histórico de Atividades ---
         match /activityHistory/{activityId} {
-          allow read, write: if getUserData().congregationId == congId;
+            allow read: if isCongregationMember(congregationId);
+            allow create, update, delete: if isManager(congregationId);
         }
       }
     }
-
-    // Regras para a Coleção de Usuários
+    
+    // ====================================================================
+    // Coleção de Usuários
+    // ====================================================================
     match /users/{userId} {
-      allow get: if request.auth.uid == userId || (getUserData().role in ['Administrador', 'Dirigente'] && getUserData().congregationId == resource.data.congregationId);
-      allow list: if getUserData().role in ['Administrador', 'Dirigente'];
-      allow create: if request.auth.uid == userId;
-      allow update: if request.auth.uid == userId || getUserData().role in ['Administrador', 'Dirigente'];
-      allow delete: if getUserData().role == 'Administrador' && request.auth.uid != userId;
-    }
+      // Qualquer usuário autenticado pode ler a lista de usuários.
+      // Isso é necessário para a página "Aguardando Aprovação".
+      allow read: if isSignedIn();
 
-    // Regras para a Coleção de Feedbacks
-    match /feedbacks/{feedbackId} {
-      // Qualquer usuário autenticado pode criar um feedback
-      allow create: if request.auth != null;
-      // Ninguém pode ler, atualizar ou deletar feedbacks diretamente
-      allow read, update, delete: if false;
+      // Um usuário pode criar seu próprio documento (durante o cadastro).
+      allow create: if isUser(userId);
+      
+      // Um usuário pode atualizar seu próprio documento (nome, etc).
+      // Dirigentes e Admins podem atualizar outros usuários da mesma congregação.
+      allow update: if isUser(userId) || isManager(resource.data.congregationId);
+
+      // Apenas Admins podem deletar outros usuários.
+      allow delete: if isAdmin(getUserData(userId).congregationId);
+    }
+    
+    // Coleção de tokens para redefinição de senha (apenas via Cloud Functions)
+    match /resetTokens/{token} {
+      allow read, write, create, delete: if false;
     }
   }
 }
