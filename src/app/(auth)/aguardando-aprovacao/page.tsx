@@ -70,9 +70,8 @@ function AguardandoAprovacaoPage() {
         if (!user || !contact.whatsapp) return;
         
         const contactFirstName = contact.name.split(' ')[0];
-        const userFirstName = user.name.split(' ')[0];
-
-        const message = `Olá, ${contactFirstName}. O publicador "${userFirstName}" está aguardando aprovação de acesso no aplicativo De Casa em Casa.`;
+        
+        const message = `Olá, ${contactFirstName}, tudo bem? Aqui é o ${user.name}. Solicitei o acesso ao aplicativo 'De Casa em Casa' e estou aguardando a aprovação. Poderia verificar, por favor? Muito obrigado!`;
         const whatsappNumber = contact.whatsapp.replace(/\D/g, '');
         const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
