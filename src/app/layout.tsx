@@ -2,6 +2,7 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { UserProvider } from '@/contexts/UserContext';
 import type { Metadata } from "next";
 import { Toaster } from "@/components/ui/toaster";
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode; })
             <Toaster />
           </ThemeProvider>
         </UserProvider>
+        <SpeedInsights/>
       </body>
     </html>
   );
