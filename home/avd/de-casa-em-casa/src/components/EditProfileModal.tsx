@@ -13,6 +13,7 @@ import { Trash2, KeyRound, Loader } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
+import emailjs from '@emailjs/browser';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
@@ -134,9 +135,21 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         body: JSON.stringify({ email: user.email }),
       });
       
-      if (!response.ok) {
-          const result = await response.json();
-          throw new Error(result.error || "Falha ao enviar e-mail.");
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Falha ao gerar token.");
+      }
+      
+      if (result.token) {
+        const resetLink = `https://appterritorios-e5bb5.web.app/auth/action?token=${result.token}`;
+        
+        await emailjs.send(
+          'service_w3xe95d',
+          'template_wzczhks',
+          { to_email: user.email, reset_link: resetLink },
+          'JdR2XKNICKcHc1jny'
+        );
       }
 
       setPasswordResetSuccess(

@@ -1,11 +1,12 @@
 
 // functions/src/index.ts
-import { https, setGlobalOptions, pubsub, config } from "firebase-functions/v2";
+import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
+import { randomBytes } from 'crypto';
 import cors from "cors";
 
 const corsHandler = cors({ origin: true });
@@ -32,7 +33,7 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
         return;
     }
     const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.body;
-    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
+    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber) {
         res.status(400).json({ error: 'Todos os campos são obrigatórios.' });
         return;
     }
@@ -89,6 +90,99 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
         }
     }
 });
+
+
+export const requestPasswordReset = https.onRequest((req, res) => {
+  corsHandler(req, res, async () => {
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Método não permitido' });
+      return;
+    }
+
+    const { email } = req.body;
+    if (!email) {
+      res.status(400).json({ error: 'O e-mail é obrigatório.' });
+      return;
+    }
+
+    try {
+      const userRecord = await admin.auth().getUserByEmail(email);
+      if (!userRecord) {
+        // Por segurança, não informe que o usuário não existe.
+        // Apenas simule sucesso, retornando um token nulo.
+        res.status(200).json({ success: true, token: null });
+        return;
+      }
+      
+      const token = randomBytes(32).toString("hex");
+      const expires = admin.firestore.Timestamp.fromMillis(Date.now() + 3600 * 1000); // 1 hora
+      
+      await db.collection("resetTokens").doc(token).set({
+        email: email,
+        expires: expires,
+      });
+
+      // Retorna apenas o token para o frontend
+      res.status(200).json({ success: true, token: token });
+
+    } catch (error: any) {
+        if (error.code === 'auth/user-not-found') {
+            console.log(`Pedido de redefinição para e-mail não existente: ${email}`);
+            res.status(200).json({ success: true, token: null }); // Simula sucesso
+            return;
+        }
+        console.error("Erro em requestPasswordReset:", error);
+        res.status(500).json({ error: "Falha ao processar o pedido de redefinição." });
+    }
+  });
+});
+
+
+export const resetPasswordWithToken = https.onRequest((req, res) => {
+  corsHandler(req, res, async () => {
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Método não permitido' });
+      return;
+    }
+
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      res.status(400).json({ error: "Token e nova senha são obrigatórios." });
+      return;
+    }
+    if (newPassword.length < 6) {
+        res.status(400).json({ error: "A senha deve ter no mínimo 6 caracteres." });
+        return;
+    }
+
+    const tokenRef = db.collection("resetTokens").doc(token);
+    
+    try {
+        const tokenDoc = await tokenRef.get();
+        if (!tokenDoc.exists) {
+            res.status(404).json({ error: "Token inválido ou já utilizado." });
+            return;
+        }
+
+        const data = tokenDoc.data()!;
+        if (data.expires.toMillis() < Date.now()) {
+            await tokenRef.delete(); 
+            res.status(410).json({ error: "O token de redefinição expirou." });
+            return;
+        }
+        
+        const user = await admin.auth().getUserByEmail(data.email);
+        await admin.auth().updateUser(user.uid, { password: newPassword });
+        await tokenRef.delete();
+
+        res.status(200).json({ success: true, message: "Senha redefinida com sucesso." });
+    } catch (error: any) {
+        console.error("Erro em resetPasswordWithToken:", error);
+        res.status(500).json({ error: "Ocorreu um erro interno ao redefinir a senha." });
+    }
+  });
+});
+
 
 export const deleteUserAccount = https.onCall(async (req) => {
     const callingUserUid = req.auth?.uid;
@@ -612,3 +706,4 @@ export const sendFeedbackEmail = https.onCall({ cors: true }, async (req) => {
     console.log(`Feedback de ${name} (${email}): ${subject} - ${message}`);
     return { success: true, message: "Feedback recebido, muito obrigado!" };
 });
+

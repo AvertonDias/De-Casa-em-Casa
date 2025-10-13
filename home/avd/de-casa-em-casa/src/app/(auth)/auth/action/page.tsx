@@ -4,57 +4,44 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { verifyPasswordResetCode, confirmPasswordReset } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import Link from 'next/link';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader, KeyRound, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 
+const functions = getFunctions(app, 'southamerica-east1');
+const resetPasswordWithTokenFn = httpsCallable(functions, 'resetPasswordWithToken');
+
+
 function PasswordResetAction() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
+  // Stages: 'verifying', 'form', 'success', 'error'
   const [stage, setStage] = useState<'verifying' | 'form' | 'success' | 'error'>('verifying');
-  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [oobCode, setOobCode] = useState<string | null>(null);
-
+  
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const token = searchParams.get('token');
+
   useEffect(() => {
-    if (!searchParams) {
-      setError('Parâmetros de redefinição não encontrados.');
+    if (!token) {
+      setError('Token de redefinição inválido ou ausente. Por favor, solicite um novo link.');
       setStage('error');
-      return;
+    } else {
+      // Aqui, simplesmente assumimos que o token é válido por enquanto e mostramos o formulário.
+      // A validação real ocorrerá no backend quando o usuário enviar a nova senha.
+      setStage('form');
     }
-
-    const mode = searchParams.get('mode');
-    const code = searchParams.get('oobCode');
-
-    if (!code || mode !== 'resetPassword') {
-      setError('Link inválido ou ausente. Por favor, solicite um novo link de recuperação.');
-      setStage('error');
-      return;
-    }
-
-    setOobCode(code); // Armazena o código para uso posterior
-
-    verifyPasswordResetCode(auth, code)
-      .then((verifiedEmail) => {
-        setEmail(verifiedEmail);
-        setStage('form');
-      })
-      .catch((err) => {
-        console.error("Erro ao verificar código:", err);
-        setError('O link de redefinição é inválido ou já expirou. Por favor, tente novamente.');
-        setStage('error');
-      });
-  }, [searchParams]);
+  }, [token]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,20 +53,41 @@ function PasswordResetAction() {
         setError('A senha deve ter no mínimo 6 caracteres.');
         return;
     }
-    if (!oobCode) {
-      setError('Código de verificação não encontrado. O link pode estar corrompido.');
-      return;
+    if (!token) {
+        setError('Token não encontrado.');
+        return;
     }
 
     setError('');
-    setStage('verifying');
+    setStage('verifying'); // Mostra um loader enquanto a função é chamada
 
     try {
-      await confirmPasswordReset(auth, oobCode, newPassword);
+      const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/resetPasswordWithToken', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token, newPassword }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || `HTTP error! status: ${response.status}`);
+      }
+
       setStage('success');
-    } catch (err) {
-      console.error("Erro ao redefinir senha:", err);
-      setError('Ocorreu um erro ao redefinir sua senha. O link pode ter expirado. Por favor, tente novamente.');
+      
+    } catch (err: any) {
+      console.error("Erro ao redefinir senha com token:", err);
+      // Mapeia os códigos de erro da Cloud Function para mensagens amigáveis
+      if (err.message.includes('inválido')) {
+          setError('O link de redefinição é inválido ou já foi utilizado.');
+      } else if (err.message.includes('expirou')) {
+          setError('O link de redefinição expirou. Por favor, solicite um novo.');
+      } else {
+          setError('Ocorreu um erro inesperado. Tente novamente.');
+      }
       setStage('error');
     }
   };
@@ -90,7 +98,7 @@ function PasswordResetAction() {
         return (
           <div className="text-center">
             <Loader className="mx-auto h-12 w-12 text-primary animate-spin" />
-            <p className="mt-4 text-muted-foreground">Verificando link...</p>
+            <p className="mt-4 text-muted-foreground">Processando...</p>
           </div>
         );
 
@@ -101,7 +109,7 @@ function PasswordResetAction() {
               <KeyRound className="mx-auto h-12 w-12 text-primary" />
               <h1 className="text-3xl font-bold">Definir Nova Senha</h1>
               <p className="text-muted-foreground">
-                Crie uma nova senha para sua conta: <span className="font-semibold text-foreground">{email}</span>
+                Crie uma nova senha para sua conta.
               </p>
             </div>
             <form onSubmit={handleResetPassword} className="space-y-4">
