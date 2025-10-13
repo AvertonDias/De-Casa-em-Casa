@@ -28,8 +28,6 @@ function AguardandoAprovacaoPage() {
                 try {
                     const usersRef = collection(db, 'users');
                     
-                    // CORREÇÃO: Fazer duas consultas separadas e unir os resultados.
-                    // Isso evita a necessidade de um índice composto no Firestore.
                     const adminQuery = query(
                         usersRef, 
                         where('congregationId', '==', user.congregationId),
@@ -75,7 +73,7 @@ function AguardandoAprovacaoPage() {
         const userFirstName = user.name.split(' ')[0];
 
         const message = `Olá, ${contactFirstName}. O publicador "${userFirstName}" está aguardando aprovação de acesso no aplicativo De Casa em Casa.`;
-        const whatsappNumber = contact.whatsapp.replace(/\D/g, ''); // Remove caracteres não numéricos
+        const whatsappNumber = contact.whatsapp.replace(/\D/g, '');
         const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
         window.open(whatsappUrl, '_blank');
