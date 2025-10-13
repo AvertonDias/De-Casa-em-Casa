@@ -1,4 +1,3 @@
-
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
@@ -89,8 +88,8 @@ export const createCongregationAndAdmin = https.onRequest({ cors: true }, async 
 });
 
 
-export const requestPasswordReset = https.onCall({ cors: true }, async (req) => {
-    const { email } = req.data;
+export const requestPasswordReset = https.onCall(async (data) => {
+    const { email } = data;
     if (!email) {
       throw new https.HttpsError('invalid-argument', 'O e-mail é obrigatório.');
     }
@@ -126,8 +125,8 @@ export const requestPasswordReset = https.onCall({ cors: true }, async (req) => 
 });
 
 
-export const resetPasswordWithToken = https.onCall({ cors: true }, async (req) => {
-    const { token, newPassword } = req.data;
+export const resetPasswordWithToken = https.onCall(async (data) => {
+    const { token, newPassword } = data;
     if (!token || !newPassword) {
       throw new https.HttpsError('invalid-argument', "Token e nova senha são obrigatórios.");
     }
@@ -143,13 +142,13 @@ export const resetPasswordWithToken = https.onCall({ cors: true }, async (req) =
             throw new https.HttpsError('not-found', "Token inválido ou já utilizado.");
         }
 
-        const data = tokenDoc.data()!;
-        if (data.expires.toMillis() < Date.now()) {
+        const tokenData = tokenDoc.data()!;
+        if (tokenData.expires.toMillis() < Date.now()) {
             await tokenRef.delete(); 
             throw new https.HttpsError('deadline-exceeded', "O token de redefinição expirou.");
         }
         
-        const user = await admin.auth().getUserByEmail(data.email);
+        const user = await admin.auth().getUserByEmail(tokenData.email);
         await admin.auth().updateUser(user.uid, { password: newPassword });
         await tokenRef.delete();
 

@@ -1,9 +1,8 @@
-
 // src/app/auth/action/page.tsx
 "use client";
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
@@ -20,7 +19,6 @@ const resetPasswordWithTokenFn = httpsCallable(functions, 'resetPasswordWithToke
 
 function PasswordResetAction() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { toast } = useToast();
   
   // Stages: 'verifying', 'form', 'success', 'error'
@@ -59,33 +57,37 @@ function PasswordResetAction() {
     }
 
     setError('');
-    setStage('verifying'); // Mostra um loader enquanto a função é chamada
+    setStage('verifying');
 
     try {
       const result: any = await resetPasswordWithTokenFn({ token, newPassword });
 
       if (!result.data.success) {
-        throw new Error(result.data.error || `Ocorreu um erro desconhecido.`);
+        throw new Error(result.data.message || `Ocorreu um erro desconhecido.`);
       }
 
       setStage('success');
       
     } catch (err: any) {
       console.error("Erro ao redefinir senha com token:", err);
+      
+      let errorMessage = 'Ocorreu um erro inesperado. Tente novamente.';
+      if (err.message) {
+        if (err.message.includes('invalid-argument')) {
+          errorMessage = 'Token ou senha inválidos.';
+        } else if (err.message.includes('not-found')) {
+          errorMessage = 'O link de redefinição é inválido ou já foi utilizado.';
+        } else if (err.message.includes('deadline-exceeded')) {
+          errorMessage = 'O link de redefinição expirou. Por favor, solicite um novo.';
+        }
+      }
+
       toast({
         title: "Erro ao redefinir senha",
-        description: err.message,
+        description: errorMessage,
         variant: "destructive",
       });
-
-      // Mapeia os códigos de erro da Cloud Function para mensagens amigáveis
-      if (err.message.includes('inválido')) {
-          setError('O link de redefinição é inválido ou já foi utilizado.');
-      } else if (err.message.includes('expirou')) {
-          setError('O link de redefinição expirou. Por favor, solicite um novo.');
-      } else {
-          setError('Ocorreu um erro inesperado. Tente novamente.');
-      }
+      setError(errorMessage);
       setStage('error');
     }
   };
