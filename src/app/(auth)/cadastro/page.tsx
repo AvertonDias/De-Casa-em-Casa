@@ -40,6 +40,7 @@ export default function SignUpPage() {
     e.preventDefault();
     if (password !== confirmPassword) { setError("As senhas não coincidem."); return; }
     if (password.length < 6) { setError("A senha precisa ter pelo menos 6 caracteres."); return; }
+    if (whatsapp.length < 15) { setError("Por favor, preencha o número de WhatsApp completo."); return; }
     
     setLoading(true);
     setError(null);
@@ -127,7 +128,7 @@ export default function SignUpPage() {
             <input type="tel" inputMode="numeric" value={congregationNumber} onChange={handleInputChange(setCongregationNumber)} placeholder="Número da Congregação" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" />
             
             {error && <p className="text-destructive text-sm text-center">{error}</p>}
-            <button type="submit" disabled={loading || !name || !email || !whatsapp || password.length < 6 || password !== confirmPassword} className="w-full px-4 py-2 font-semibold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-wait">
+            <button type="submit" disabled={loading || !name || !email || whatsapp.length < 15 || password.length < 6 || password !== confirmPassword} className="w-full px-4 py-2 font-semibold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-wait">
               {loading ? 'Enviando...' : 'Solicitar Acesso'}
             </button>
         </form>

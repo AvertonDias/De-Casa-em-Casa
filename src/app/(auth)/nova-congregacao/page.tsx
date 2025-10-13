@@ -24,7 +24,7 @@ export default function NovaCongregacaoPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [congregationName, setCongregationName] = useState('');
   const [congregationNumber, setCongregationNumber] = useState('');
-  const [whatsapp, setWhatsapp] = useState(''); // Novo estado para WhatsApp
+  const [whatsapp, setWhatsapp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -39,6 +39,10 @@ export default function NovaCongregacaoPage() {
 
     if (adminPassword !== confirmPassword) {
       setErrorMessage("As senhas não coincidem.");
+      return;
+    }
+    if (whatsapp.trim().length < 15) {
+      setErrorMessage("Por favor, preencha o número de WhatsApp completo.");
       return;
     }
     
@@ -146,7 +150,7 @@ export default function NovaCongregacaoPage() {
                         <div className="text-destructive text-sm text-center">{errorMessage}</div>
                     )}
   
-                    <Button type="submit" disabled={isLoading || !adminEmail || !adminName || !congregationName || !congregationNumber || !whatsapp || adminPassword.length < 6 || adminPassword !== confirmPassword} className="w-full">
+                    <Button type="submit" disabled={isLoading || !adminEmail || !adminName || !congregationName || !congregationNumber || whatsapp.length < 15 || adminPassword.length < 6 || adminPassword !== confirmPassword} className="w-full">
                         {isLoading ? <><Loader className="mr-2 h-4 w-4 animate-spin" /> Criando...</> : "Criar Congregação"}
                     </Button>
                 </form>

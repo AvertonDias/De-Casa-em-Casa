@@ -65,8 +65,8 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
     setLoading(true);
 
-    if (!whatsapp.trim() || !name.trim()) {
-        setError("Nome e WhatsApp são obrigatórios.");
+    if (whatsapp.length < 15 || confirmWhatsapp.length < 15) {
+        setError("Por favor, preencha os números de WhatsApp completos.");
         setLoading(false);
         return;
     }
@@ -204,7 +204,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   }
 
   const whatsappMismatch = whatsapp !== confirmWhatsapp;
-  const isSaveDisabled = loading || whatsappMismatch || !whatsapp.trim() || !name.trim();
+  const isSaveDisabled = loading || whatsappMismatch || whatsapp.length < 15 || !name.trim();
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -344,5 +344,3 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     </Dialog>
   );
 }
-
-    
