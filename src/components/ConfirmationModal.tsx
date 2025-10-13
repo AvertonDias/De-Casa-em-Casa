@@ -19,6 +19,7 @@ interface ConfirmationModalProps {
   isLoading?: boolean;
   showCancelButton?: boolean;
   variant?: 'default' | 'destructive';
+  confirmDisabled?: boolean; // Nova prop
 }
 
 export function ConfirmationModal({
@@ -31,7 +32,8 @@ export function ConfirmationModal({
   cancelText = "Cancelar",
   isLoading = false,
   showCancelButton = true,
-  variant = 'destructive' // Cor padrão é a destrutiva (vermelho)
+  variant = 'destructive',
+  confirmDisabled = false, // Valor padrão
 }: ConfirmationModalProps) {
 
   return (
@@ -39,15 +41,15 @@ export function ConfirmationModal({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {message}
+          <AlertDialogDescription asChild>
+            <div>{message}</div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           {showCancelButton && <AlertDialogCancel disabled={isLoading}>{cancelText}</AlertDialogCancel>}
           <AlertDialogAction 
             onClick={onConfirm} 
-            disabled={isLoading} 
+            disabled={isLoading || confirmDisabled} // Usa a nova prop aqui
             className={cn(buttonVariants({ variant: variant }))}
           >
             {isLoading ? <><Loader className="mr-2 h-4 w-4 animate-spin" /> Processando...</> : confirmText}
