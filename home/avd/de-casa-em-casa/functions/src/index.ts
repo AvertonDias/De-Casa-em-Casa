@@ -19,7 +19,7 @@ setGlobalOptions({
 });
 
 // ========================================================================
-//   FUNÇÕES HTTPS (onCall e onRequest)
+//   FUNÇÕES HTTPS (onCall)
 // ========================================================================
 
 export const createCongregationAndAdmin = https.onCall(async (request) => {
@@ -72,8 +72,8 @@ export const createCongregationAndAdmin = https.onCall(async (request) => {
             });
         }
         console.error("Erro ao criar congregação e admin:", error);
-        if (error.code === 'auth/email-already-exists') {
-            throw new https.HttpsError('already-exists', 'Este e-mail já está em uso.');
+        if (error.code === 'auth/email-already-exists' || error.code === 'already-exists') {
+            throw new https.HttpsError('already-exists', error.message);
         }
         throw new https.HttpsError('internal', error.message || 'Erro interno no servidor');
     }
@@ -87,16 +87,14 @@ export const requestPasswordReset = https.onCall(async (request) => {
     }
 
     try {
-        // Verifica se o usuário existe, mas não lança erro se não encontrar.
         try {
             await admin.auth().getUserByEmail(email);
         } catch (error: any) {
             if (error.code === 'auth/user-not-found') {
-                // Não vaze a informação de que o e-mail não existe.
                 console.log(`Pedido de redefinição para e-mail não existente: ${email}`);
                 return { success: true, token: null }; 
             }
-            throw error; // Lança outros erros de `getUserByEmail`
+            throw error;
         }
         
         const token = randomBytes(32).toString("hex");
@@ -107,7 +105,6 @@ export const requestPasswordReset = https.onCall(async (request) => {
             expires: expires,
         });
 
-        // Retorna o token para o cliente, que será responsável por enviar o e-mail.
         return { success: true, token: token };
 
     } catch (error: any) {
@@ -136,13 +133,13 @@ export const resetPasswordWithToken = https.onCall(async (request) => {
 
         const tokenData = tokenDoc.data()!;
         if (tokenData.expires.toMillis() < Date.now()) {
-            await tokenRef.delete(); // Limpa o token expirado
+            await tokenRef.delete();
             throw new https.HttpsError('deadline-exceeded', "O token de redefinição expirou.");
         }
         
         const user = await admin.auth().getUserByEmail(tokenData.email);
         await admin.auth().updateUser(user.uid, { password: newPassword });
-        await tokenRef.delete(); // Deleta o token após o uso
+        await tokenRef.delete();
 
         return { success: true, message: "Senha redefinida com sucesso." };
     } catch (error: any) {
@@ -163,7 +160,7 @@ export const deleteUserAccount = https.onCall(async (request) => {
     
     const { userIdToDelete } = request.data;
     if (!userIdToDelete || typeof userIdToDelete !== 'string') {
-        throw new https.HttpsError("invalid-argument", "ID inválido.");
+        throw new https.HttpsError("invalid-argument", "ID do usuário a ser deletado é inválido.");
     }
 
     const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
@@ -172,7 +169,7 @@ export const deleteUserAccount = https.onCall(async (request) => {
     if (isCallingUserAdmin && callingUserUid === userIdToDelete) {
         throw new https.HttpsError("permission-denied", "Um administrador não pode se autoexcluir.");
     }
-    if (!isCallingUserAdmin && callingUserUid !== userIdToDelete) { // Usuário só pode se auto-excluir ou ser excluído por admin
+    if (!isCallingUserAdmin && callingUserUid !== userIdToDelete) {
         throw new https.HttpsError("permission-denied", "Você não tem permissão para excluir outros usuários.");
     }
 
@@ -205,7 +202,7 @@ export const resetTerritoryProgress = https.onCall(async (request) => {
     
     const { congregationId, territoryId } = request.data;
     if (!congregationId || !territoryId) {
-        throw new https.HttpsError("invalid-argument", "IDs faltando.");
+        throw new https.HttpsError("invalid-argument", "IDs da congregação e do território são necessários.");
     }
 
     const adminUserSnap = await db.collection("users").doc(uid).get();
@@ -218,7 +215,6 @@ export const resetTerritoryProgress = https.onCall(async (request) => {
     
     try {
         await db.recursiveDelete(db.collection(historyPath));
-        console.log(`[resetTerritory] Histórico para ${territoryId} deletado com sucesso.`);
     } catch (error) {
         console.error(`[resetTerritory] Falha ao deletar histórico para ${territoryId}:`, error);
         throw new https.HttpsError("internal", "Falha ao limpar histórico do território.");
@@ -258,53 +254,7 @@ export const resetTerritoryProgress = https.onCall(async (request) => {
 });
 
 
-export const sendOverdueNotification = https.onCall({ cors: true }, async (request) => {
-    if (!request.auth) {
-        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
-    }
-    const callingUserDoc = await db.doc(`users/${request.auth.uid}`).get();
-    if (!callingUserDoc.exists() || !['Administrador', 'Dirigente'].includes(callingUserDoc.data()?.role)) {
-        throw new https.HttpsError('permission-denied', 'Permissão negada.');
-    }
-
-    const { userId, title, body } = request.data;
-    if (!userId || !title || !body) {
-        throw new https.HttpsError("invalid-argument", "userId, title e body são obrigatórios");
-    }
-
-    try {
-        const userDocRef = db.doc(`users/${userId}`);
-        const userDoc = await userDocRef.get();
-        const tokens: string[] = userDoc.data()?.fcmTokens || [];
-
-        if (!tokens.length) {
-            return { success: true, message: "O usuário não possui dispositivos registrados para notificação." };
-        }
-
-        const message = { notification: { title, body }, tokens };
-        const response = await admin.messaging().sendEachForMulticast(message);
-
-        const invalidTokens: string[] = [];
-        response.responses.forEach((r, idx) => {
-            if (!r.success && (r.error?.code === 'messaging/registration-token-not-registered' || r.error?.code === 'messaging/invalid-argument')) {
-                invalidTokens.push(tokens[idx]);
-            }
-        });
-
-        if (invalidTokens.length > 0) {
-            await userDocRef.update({ fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens) });
-        }
-        
-        return { success: true, message: "Notificação enviada com sucesso!", successCount: response.successCount };
-
-    } catch (error: any) {
-        console.error("Erro na sendOverdueNotification:", error);
-        throw new https.HttpsError("internal", error.message || "Erro interno do servidor.");
-    }
-});
-
-
-export const generateUploadUrl = https.onCall({ cors: true }, async (request) => {
+export const generateUploadUrl = https.onCall(async (request) => {
   if (!request.auth) {
     throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
   }
@@ -485,7 +435,6 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
   const dataBefore = event.data?.before.data();
   const dataAfter = event.data?.after.data();
 
-  // Continua apenas se uma nova atribuição foi adicionada
   if (!dataAfter?.assignment || dataBefore?.assignment?.uid === dataAfter.assignment?.uid) {
       return null;
   }
@@ -571,7 +520,6 @@ export const mirrorUserStatus = onValueWritten(
             await userDocRef.update({ isOnline: true, lastSeen: admin.firestore.FieldValue.serverTimestamp() });
         }
     } catch(err: any) {
-        // Se o documento do usuário não for encontrado no Firestore, apenas ignore.
         if (err.code !== 'not-found') {
           console.error(`[Presence Mirror] Falha para ${uid}:`, err);
         }
