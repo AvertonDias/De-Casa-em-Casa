@@ -7,12 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck, Loader } from 'lucide-react';
+import emailjs from '@emailjs/browser';
 import { useToast } from '@/hooks/use-toast';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
-
-const functions = getFunctions(app, 'southamerica-east1');
-const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordReset');
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -24,9 +21,37 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setIsLoading(true);
 
+    const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset';
     try {
-      await requestPasswordResetFn({ email, origin: window.location.origin });
+      const response = await fetch(functionUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, origin: window.location.origin }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Falha ao gerar o token de redefinição.');
+      }
+      
+      const { token } = result;
+      
+      if (token) {
+          const resetLink = `${window.location.origin}/auth/action?token=${token}`;
+          
+          await emailjs.send(
+            'service_w3xe95d', // Seu Service ID
+            'template_wzczhks', // Seu Template ID
+            {
+              to_email: email,
+              reset_link: resetLink
+            },
+            'JdR2XKNICKcHc1jny' // Sua Public Key
+          );
+      }
+      
       setIsSubmitted(true);
+
     } catch (err: any) {
       console.error("Erro no processo de reset:", err);
       toast({
