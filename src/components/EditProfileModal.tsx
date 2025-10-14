@@ -4,7 +4,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { reauthenticateWithCredential, EmailAuthProvider, updateProfile } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, app } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,10 @@ import { Eye, EyeOff, Trash2, KeyRound, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
 import emailjs from 'emailjs-com';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
+const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordReset');
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
@@ -128,17 +133,8 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
 
     try {
-      const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset';
-      const response = await fetch(functionUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: user.email }),
-      });
-
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Falha ao solicitar redefinição.");
-
-      const { token } = result;
+      const result: any = await requestPasswordResetFn({ email: user.email });
+      const { token } = result.data;
 
       if (token) {
         const resetLink = `${window.location.origin}/auth/action?token=${token}`;
@@ -174,27 +170,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setLoading(true);
     setError(null);
     try {
-        const idToken = await auth.currentUser.getIdToken();
-        const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/deleteUserAccount';
-        
-        // Primeiro, reautentica para garantir que a senha está correta
         const credential = EmailAuthProvider.credential(auth.currentUser.email, passwordForDelete);
         await reauthenticateWithCredential(auth.currentUser, credential);
         
-        // Se a reautenticação for bem-sucedida, chama a função de exclusão
-        const response = await fetch(functionUrl, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${idToken}`
-            },
-            body: JSON.stringify({ userIdToDelete: user.uid }),
-        });
-
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.error || 'Falha ao excluir a conta.');
-        }
+        await deleteUserAccountFn({ userIdToDelete: user.uid });
         
         toast({
           title: "Conta Excluída",

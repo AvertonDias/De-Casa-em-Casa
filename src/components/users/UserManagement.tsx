@@ -14,7 +14,7 @@ import { subDays, subMonths, subHours } from 'date-fns';
 import type { AppUser, Congregation } from '@/types/types';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const deleteUserFunction = httpsCallable(functions, 'deleteUserAccount');
+const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
 
 
 export default function UserManagement() {
@@ -37,7 +37,7 @@ export default function UserManagement() {
     
     setIsConfirmModalOpen(false);
     try {
-        await deleteUserFunction({ userIdToDelete: userToDelete.uid });
+        await deleteUserAccountFn({ userIdToDelete: userToDelete.uid });
     } catch (error: any) {
         console.error("Erro ao chamar a função para excluir usuário:", error);
     } finally {

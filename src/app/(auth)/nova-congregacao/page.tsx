@@ -1,7 +1,6 @@
 
 "use client";
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useToast } from "@/hooks/use-toast";
@@ -10,8 +9,12 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Loader, Eye, EyeOff } from "lucide-react"; 
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, app } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { maskPhone } from '@/lib/utils'; 
+
+const functions = getFunctions(app, 'southamerica-east1');
+const createCongregationAndAdminFn = httpsCallable(functions, 'createCongregationAndAdmin');
 
 export default function NovaCongregacaoPage() {
   const [adminName, setAdminName] = useState('');
@@ -26,8 +29,6 @@ export default function NovaCongregacaoPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const router = useRouter();
   const { toast } = useToast();
 
   const handleCreateCongregation = async (e: React.FormEvent) => {
@@ -50,26 +51,14 @@ export default function NovaCongregacaoPage() {
     setIsLoading(true);
 
     try {
-        const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin";
-
-        const response = await fetch(functionUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                adminName: adminName.trim(),
-                adminEmail: adminEmail.trim(),
-                adminPassword: adminPassword,
-                whatsapp: whatsapp,
-                congregationName: congregationName.trim(),
-                congregationNumber: congregationNumber.trim()
-            })
+        await createCongregationAndAdminFn({
+            adminName: adminName.trim(),
+            adminEmail: adminEmail.trim(),
+            adminPassword: adminPassword,
+            whatsapp: whatsapp,
+            congregationName: congregationName.trim(),
+            congregationNumber: congregationNumber.trim()
         });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.error || 'Erro desconhecido no servidor.');
-        }
         
         toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
         await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
