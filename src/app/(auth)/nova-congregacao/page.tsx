@@ -74,8 +74,8 @@ export default function NovaCongregacaoPage() {
     } catch (error: any) {
         console.error("Erro na criação ou login:", error);
         let msg = error.message || "Erro inesperado. Tente novamente mais tarde.";
-        if (error.code === 'already-exists') {
-            msg = "Uma congregação com este número já existe.";
+        if (error.code === 'functions/already-exists' || msg.includes('já existe')) {
+            msg = "Uma congregação com este número ou um admin com este e-mail já existe.";
         } else if (error.code === 'auth/email-already-exists' || msg.includes('email-already-in-use')) {
             msg = "Este e-mail já está cadastrado.";
         }

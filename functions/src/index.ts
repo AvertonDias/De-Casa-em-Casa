@@ -265,7 +265,7 @@ export const resetTerritoryProgress = https.onCall(async (request) => {
 });
 
 
-export const sendOverdueNotification = https.onCall({ cors: true }, async (request) => {
+export const sendOverdueNotification = https.onCall(async (request) => {
     if (!request.auth) {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
@@ -311,7 +311,7 @@ export const sendOverdueNotification = https.onCall({ cors: true }, async (reque
 });
 
 
-export const generateUploadUrl = https.onCall({ cors: true }, async (request) => {
+export const generateUploadUrl = https.onCall(async (request) => {
   if (!request.auth) {
     throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
   }

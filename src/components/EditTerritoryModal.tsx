@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -114,19 +115,19 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
 
     setIsProcessing(true);
     try {
-      const result = await resetTerritoryProgressFn({ 
+      const result:any = await resetTerritoryProgressFn({ 
         congregationId: user.congregationId, 
         territoryId: territory.id 
       });
-      const data = result.data as { success: boolean; message: string; };
-
-      if (!data.success) {
-        throw new Error(data.message || 'Falha ao limpar o território.');
+      
+      const { success, message } = result.data;
+      if (!success) {
+        throw new Error(message || 'Falha ao limpar o território.');
       }
       
       toast({
         title: "Sucesso!",
-        description: data.message,
+        description: message,
       });
 
     } catch (error: any) {
