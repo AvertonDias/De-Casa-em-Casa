@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck, Loader } from 'lucide-react';
-import emailjs from 'emailjs-com';
 import { useToast } from '@/hooks/use-toast';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
@@ -26,31 +25,8 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      const result: any = await requestPasswordResetFn({ email });
-      const { success, token, error: functionError } = result.data;
-      
-      if (!success && token === null) {
-        // O e-mail não existe, mas não informamos o usuário por segurança.
-        // Apenas mostramos a mensagem de sucesso padrão.
-        setIsSubmitted(true);
-        return;
-      }
-
-      if (!token) {
-        throw new Error(functionError || 'Falha ao gerar o token de redefinição.');
-      }
-      
-      const resetLink = `${window.location.origin}/auth/action?token=${token}`;
-      
-      await emailjs.send(
-        'service_w3xe95d',
-        'template_wzczhks',
-        { to_email: email, reset_link: resetLink },
-        'JdR2XKNICKcHc1jny'
-      );
-      
+      await requestPasswordResetFn({ email, origin: window.location.origin });
       setIsSubmitted(true);
-
     } catch (err: any) {
       console.error("Erro no processo de reset:", err);
       toast({

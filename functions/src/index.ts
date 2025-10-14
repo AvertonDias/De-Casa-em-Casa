@@ -7,8 +7,8 @@ import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import { randomBytes } from 'crypto';
+import fetch from 'node-fetch'; // Import node-fetch
 
-// Inicializa o admin apenas uma vez.
 if (!admin.apps.length) {
   admin.initializeApp();
 }
@@ -81,35 +81,53 @@ export const createCongregationAndAdmin = https.onCall(async (request) => {
 
 
 export const requestPasswordReset = https.onCall(async (request) => {
-    const { email } = request.data;
+    const { email, origin } = request.data;
     if (!email) {
         throw new https.HttpsError('invalid-argument', 'O e-mail é obrigatório.');
     }
 
     try {
-        try {
-            await admin.auth().getUserByEmail(email);
-        } catch (error: any) {
-            if (error.code === 'auth/user-not-found') {
-                console.log(`Pedido de redefinição para e-mail não existente: ${email}`);
-                return { success: true, token: null }; 
-            }
-            throw error;
-        }
+        await admin.auth().getUserByEmail(email);
         
         const token = randomBytes(32).toString("hex");
         const expires = admin.firestore.Timestamp.fromMillis(Date.now() + 3600 * 1000); // Token expira em 1 hora
         
-        await db.collection("resetTokens").doc(token).set({
-            email: email,
-            expires: expires,
+        await db.collection("resetTokens").doc(token).set({ email, expires });
+
+        const resetLink = `${origin}/auth/action?token=${token}`;
+
+        const emailParams = {
+            service_id: 'service_w3xe95d',
+            template_id: 'template_wzczhks',
+            user_id: 'JdR2XKNICKcHc1jny',
+            template_params: {
+                to_email: email,
+                reset_link: resetLink
+            },
+            accessToken: 'dZgXRWQdQWTFArGS4y5ZO' // Chave Privada
+        };
+
+        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(emailParams)
         });
 
-        return { success: true, token: token };
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('EmailJS Error:', errorText);
+            throw new https.HttpsError('internal', `Falha ao enviar e-mail de redefinição: ${errorText}`);
+        }
+
+        return { success: true, message: "E-mail enviado." };
 
     } catch (error: any) {
+        if (error.code === 'auth/user-not-found') {
+            console.log(`Pedido de redefinição para e-mail não existente: ${email}. Ignorando silenciosamente.`);
+            return { success: true, message: "Solicitação processada." };
+        }
         console.error("Erro em requestPasswordReset:", error);
-        throw new https.HttpsError('internal', 'Falha ao processar o pedido de redefinição.');
+        throw new https.HttpsError('internal', error.message || 'Falha ao processar o pedido de redefinição.');
     }
 });
 
@@ -285,41 +303,325 @@ export const generateUploadUrl = https.onCall(async (request) => {
 // ========================================================================
 
 export const onHouseChange = onDocumentWritten("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}", async (event) => {
-    // ... (lógica inalterada)
+  const beforeData = event.data?.before.data();
+  const afterData = event.data?.after.data();
+  
+  if (!event.data?.after.exists) return null; // Documento deletado, tratado por onDelete
+
+  const { congregationId, territoryId, quadraId } = event.params;
+  const quadraRef = db.collection('congregations').doc(congregationId)
+                      .collection('territories').doc(territoryId)
+                      .collection('quadras').doc(quadraId);
+  
+  try {
+      await db.runTransaction(async (transaction) => {
+          const casasSnapshot = await transaction.get(quadraRef.collection("casas"));
+          const totalHouses = casasSnapshot.size;
+          const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
+          transaction.update(quadraRef, { totalHouses, housesDone });
+      });
+  } catch (e) {
+      console.error("onHouseChange: Erro na transação de atualização de estatísticas da quadra:", e);
+  }
+
+  // Gera um log automático apenas na primeira casa trabalhada no dia
+  if (beforeData?.status === false && afterData?.status === true) {
+      const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const activityHistoryRef = territoryRef.collection('activityHistory');
+
+      try {
+          const todayActivitiesSnap = await activityHistoryRef
+                                          .where('activityDateStr', '==', today)
+                                          .where('type', '==', 'work')
+                                          .limit(1)
+                                          .get();
+
+          if (todayActivitiesSnap.empty) {
+              const finalDescriptionForAutoLog = "Primeiro trabalho do dia registrado. (Registro Automático)";
+              await activityHistoryRef.add({
+                  type: 'work',
+                  activityDate: admin.firestore.FieldValue.serverTimestamp(),
+                  activityDateStr: today,
+                  description: finalDescriptionForAutoLog,
+                  userId: 'automatic_system_log',
+                  userName: 'Sistema'
+              });
+          }
+      } catch (error) {
+          console.error("onHouseChange: Erro ao processar ou adicionar log de atividade:", error);
+      }
+      await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
+  }
+  return null;
 });
 
 export const onQuadraChange = onDocumentWritten("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}", async (event) => {
-    // ... (lógica inalterada)
+  const { congregationId, territoryId } = event.params;
+  const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
+  const quadrasSnapshot = await territoryRef.collection("quadras").get();
+
+  let totalHouses = 0;
+  let housesDone = 0;
+  quadrasSnapshot.forEach(doc => {
+    totalHouses += doc.data().totalHouses || 0;
+    housesDone += doc.data().housesDone || 0;
+  });
+
+  const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
+
+  return territoryRef.update({
+      stats: { totalHouses, housesDone },
+      progress,
+      quadraCount: quadrasSnapshot.size,
+  });
 });
 
 export const onTerritoryChange = onDocumentWritten("congregations/{congregationId}/territories/{territoryId}", async (event) => {
-    // ... (lógica inalterada)
+  const { congregationId } = event.params;
+  const congregationRef = db.doc(`congregations/${congregationId}`);
+  const territoriesRef = congregationRef.collection("territories");
+
+  const territoriesSnapshot = await territoriesRef.get();
+  let urbanCount = 0, ruralCount = 0, totalHouses = 0, totalHousesDone = 0, totalQuadras = 0;
+  
+  territoriesSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.type === 'rural') { ruralCount++; }
+      else {
+          urbanCount++;
+          totalHouses += data.stats?.totalHouses || 0;
+          totalHousesDone += data.stats?.housesDone || 0;
+          totalQuadras += data.quadraCount || 0;
+      }
+  });
+
+  return congregationRef.update({
+      territoryCount: urbanCount,
+      ruralTerritoryCount: ruralCount,
+      totalQuadras, totalHouses, totalHousesDone,
+      lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+  });
 });
+
 
 export const onNewUserPending = onDocumentCreated("users/{userId}", async (event) => {
-    // ... (lógica inalterada)
+    const newUser = event.data?.data();
+    if (!newUser || newUser.status !== 'pendente' || !newUser.congregationId) {
+        return null;
+    }
+
+    const adminsQuery = db.collection("users")
+        .where('congregationId', '==', newUser.congregationId)
+        .where('role', 'in', ['Administrador', 'Dirigente']);
+
+    try {
+        const adminsSnapshot = await adminsQuery.get();
+        if (adminsSnapshot.empty) return null;
+
+        let tokens: string[] = [];
+        adminsSnapshot.forEach(doc => {
+            const adminData = doc.data();
+            if (adminData.fcmTokens && Array.isArray(adminData.fcmTokens)) {
+                tokens = tokens.concat(adminData.fcmTokens);
+            }
+        });
+        
+        tokens = [...new Set(tokens)]; // Remove duplicados
+
+        if (tokens.length === 0) return null;
+
+        const payload = {
+            notification: {
+                title: "Novo Usuário Pendente",
+                body: `O publicador "${newUser.name}" solicitou acesso à congregação.`,
+                icon: "/icon-192x192.jpg",
+                click_action: "/dashboard/usuarios",
+            },
+        };
+        await admin.messaging().sendToDevice(tokens, payload);
+        return { success: true };
+    } catch (error) {
+        console.error(`[onNewUserPending] Falha ao enviar notificação para admins:`, error);
+        return { success: false, error };
+    }
 });
 
+
 export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/territories/{terrId}", async (event) => {
-    // ... (lógica inalterada)
+  const dataBefore = event.data?.before.data();
+  const dataAfter = event.data?.after.data();
+
+  if (!dataAfter?.assignment || dataBefore?.assignment?.uid === dataAfter.assignment?.uid) {
+      return null;
+  }
+
+  const assignedUserUid = dataAfter.assignment.uid;
+  const territoryName = dataAfter.name;
+  const dueDate = (dataAfter.assignment.dueDate as admin.firestore.Timestamp).toDate();
+  const formattedDueDate = dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  try {
+      const userDoc = await db.collection("users").doc(assignedUserUid).get();
+      if (!userDoc.exists) return null;
+
+      const tokens = userDoc.data()?.fcmTokens;
+      if (!tokens || tokens.length === 0) return null;
+
+      const payload = {
+          notification: {
+              title: "Você recebeu um novo território!",
+              body: `O território "${territoryName}" foi designado para você! Devolva até ${formattedDueDate}.`,
+              icon: "/icon-192x192.jpg",
+              click_action: "/dashboard/meus-territorios",
+          },
+      };
+      await admin.messaging().sendToDevice(tokens as string[], payload);
+      return { success: true };
+  } catch (error) {
+      console.error(`[Notification] FALHA CRÍTICA ao enviar notificação:`, error);
+      return { success: false, error };
+  }
 });
 
 export const onDeleteTerritory = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}", async (event) => {
-    // ... (lógica inalterada)
+    if (!event.data) {
+        console.warn(`[onDeleteTerritory] Evento de deleção para ${event.params.territoryId} sem dados. Ignorando.`);
+        return null;
+    }
+    const ref = event.data.ref;
+    try {
+        await admin.firestore().recursiveDelete(ref);
+        console.log(`[onDeleteTerritory] Território ${event.params.territoryId} e subcoleções deletadas.`);
+        return { success: true };
+    } catch (error) {
+        console.error(`[onDeleteTerritory] Erro ao deletar ${event.params.territoryId}:`, error);
+        throw new https.HttpsError("internal", "Falha ao deletar território recursivamente.");
+    }
 });
 
 export const onDeleteQuadra = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}", async (event) => {
-    // ... (lógica inalterada)
+    if (!event.data) {
+        console.warn(`[onDeleteQuadra] Evento de deleção para ${event.params.quadraId} sem dados. Ignorando.`);
+        return null;
+    }
+    const ref = event.data.ref;
+    try {
+        await admin.firestore().recursiveDelete(ref);
+        console.log(`[onDeleteQuadra] Quadra ${event.params.quadraId} e subcoleções deletadas.`);
+        return { success: true };
+    } catch (error) {
+        console.error(`[onDeleteQuadra] Erro ao deletar ${event.params.quadraId}:`, error);
+        throw new https.HttpsError("internal", "Falha ao deletar quadra recursivamente.");
+    }
 });
 
-export const mirrorUserStatus = onValueWritten({ ref: "/status/{uid}", region: "us-central1" }, async (event) => {
-    // ... (lógica inalterada)
+
+// ============================================================================
+//   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
+// ============================================================================
+export const mirrorUserStatus = onValueWritten(
+  {
+    ref: "/status/{uid}",
+    region: "us-central1" // RTDB pode ter regiões diferentes
+  },
+  async (event) => {
+    const eventStatus = event.data.after.val();
+    const uid = event.params.uid;
+    const userDocRef = db.doc(`users/${uid}`);
+
+    try {
+        if (!eventStatus || eventStatus.state === 'offline') {
+            await userDocRef.update({ isOnline: false, lastSeen: admin.firestore.FieldValue.serverTimestamp() });
+        } else if (eventStatus.state === 'online') {
+            await userDocRef.update({ isOnline: true, lastSeen: admin.firestore.FieldValue.serverTimestamp() });
+        }
+    } catch(err: any) {
+        if (err.code !== 'not-found') {
+          console.error(`[Presence Mirror] Falha para ${uid}:`, err);
+        }
+    }
+    return null;
 });
 
+// ============================================================================
+//   FUNÇÕES AGENDADAS (Scheduled Functions)
+// ============================================================================
 export const checkInactiveUsers = pubsub.schedule("every 5 minutes").onRun(async (context) => {
-    // ... (lógica inalterada)
+    console.log("Executando verificação de usuários inativos...");
+
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    
+    try {
+        const inactiveUsersQuery = db.collection('users')
+                                     .where('isOnline', '==', true)
+                                     .where('lastSeen', '<', twoHoursAgo);
+
+        const inactiveUsersSnap = await inactiveUsersQuery.get();
+        
+        if (inactiveUsersSnap.empty) {
+            console.log("Nenhum usuário inativo encontrado.");
+            return null;
+        }
+
+        const batch = db.batch();
+        inactiveUsersSnap.forEach(doc => {
+            console.log(`Marcando usuário ${doc.id} como offline.`);
+            batch.update(doc.ref, { isOnline: false });
+        });
+
+        await batch.commit();
+        console.log(`${inactiveUsersSnap.size} usuários inativos foram atualizados para offline.`);
+        return null;
+
+    } catch (error) {
+        console.error("Erro ao verificar e atualizar usuários inativos:", error);
+        return null;
+    }
 });
+
 
 export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(async (context) => {
-    // ... (lógica inalterada)
+    console.log("Executando verificação de territórios vencidos...");
+    const now = admin.firestore.Timestamp.now();
+
+    try {
+        const congregationsSnapshot = await db.collection('congregations').get();
+        
+        for (const congDoc of congregationsSnapshot.docs) {
+            const overdueTerritoriesQuery = db.collection(`congregations/${congDoc.id}/territories`)
+                .where('status', '==', 'designado')
+                .where('assignment.dueDate', '<', now);
+            
+            const overdueSnapshot = await overdueTerritoriesQuery.get();
+            if (overdueSnapshot.empty) continue;
+
+            for (const terrDoc of overdueSnapshot.docs) {
+                const territory = terrDoc.data();
+                const assignment = territory.assignment;
+                if (!assignment || !assignment.uid) continue;
+
+                const userDoc = await db.doc(`users/${assignment.uid}`).get();
+                if (!userDoc.exists) continue;
+
+                const tokens = userDoc.data()?.fcmTokens;
+                if (!tokens || tokens.length === 0) continue;
+
+                const payload = {
+                    notification: {
+                        title: "Território Vencido!",
+                        body: `Lembrete: O território "${territory.name}" está com o prazo de devolução vencido.`,
+                        icon: "/icon-192x192.jpg",
+                        click_action: "/dashboard/meus-territorios",
+                    },
+                };
+                await admin.messaging().sendToDevice(tokens, payload);
+                console.log(`Notificação de vencimento enviada para ${assignment.name} sobre o território ${territory.name}.`);
+            }
+        }
+        return { success: true, message: "Verificação de territórios vencidos concluída." };
+    } catch (error) {
+        console.error("Erro ao verificar territórios vencidos:", error);
+        return { success: false, error };
+    }
 });
