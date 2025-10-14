@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Eye, EyeOff, Trash2, KeyRound, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
+import emailjs from '@emailjs/browser';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
@@ -132,7 +133,17 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
 
     try {
-      await requestPasswordResetFn({ email: user.email, origin: window.location.origin });
+      const result: any = await requestPasswordResetFn({ email: user.email, origin: window.location.origin });
+      const { token } = result.data;
+      
+      if (token) {
+        const resetLink = `${window.location.origin}/auth/action?token=${token}`;
+        await emailjs.send(
+            'service_w3xe95d', 'template_wzczhks',
+            { to_email: user.email, reset_link: resetLink },
+            'JdR2XKNICKcHc1jny'
+        );
+      }
       
       setPasswordResetSuccess(
         `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`

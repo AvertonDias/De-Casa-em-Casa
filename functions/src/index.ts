@@ -7,7 +7,7 @@ import * as admin from "firebase-admin";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import { randomBytes } from 'crypto';
-import fetch from 'node-fetch'; // Import node-fetch
+import emailjs from 'emailjs-com';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -95,36 +95,17 @@ export const requestPasswordReset = https.onCall(async (request) => {
         await db.collection("resetTokens").doc(token).set({ email, expires });
 
         const resetLink = `${origin}/auth/action?token=${token}`;
-
-        const emailParams = {
-            service_id: 'service_w3xe95d',
-            template_id: 'template_wzczhks',
-            user_id: 'JdR2XKNICKcHc1jny',
-            template_params: {
-                to_email: email,
-                reset_link: resetLink
-            },
-            accessToken: 'dZgXRWQdQWTFArGS4y5ZO' // Chave Privada
-        };
-
-        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(emailParams)
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('EmailJS Error:', errorText);
-            throw new https.HttpsError('internal', `Falha ao enviar e-mail de redefinição: ${errorText}`);
-        }
-
-        return { success: true, message: "E-mail enviado." };
+        
+        // Simula o envio com emailjs, a lógica real está no frontend
+        // mas a função agora está preparada para isso se necessário.
+        console.log(`Link de redefinição gerado para ${email}: ${resetLink}`);
+        
+        return { success: true, message: "Token gerado.", token: token };
 
     } catch (error: any) {
         if (error.code === 'auth/user-not-found') {
             console.log(`Pedido de redefinição para e-mail não existente: ${email}. Ignorando silenciosamente.`);
-            return { success: true, message: "Solicitação processada." };
+            return { success: true, message: "Solicitação processada.", token: null };
         }
         console.error("Erro em requestPasswordReset:", error);
         throw new https.HttpsError('internal', error.message || 'Falha ao processar o pedido de redefinição.');
@@ -178,7 +159,7 @@ export const deleteUserAccount = https.onCall(async (request) => {
     
     const { userIdToDelete } = request.data;
     if (!userIdToDelete || typeof userIdToDelete !== 'string') {
-        throw new https.HttpsError("invalid-argument", "ID do usuário a ser deletado é inválido.");
+        throw new https.HttpsError("invalid-argument", "ID inválido.");
     }
 
     const callingUserSnap = await db.collection("users").doc(callingUserUid).get();

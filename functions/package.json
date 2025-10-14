@@ -19,7 +19,7 @@
     "date-fns": "^3.6.0",
     "firebase-admin": "^12.1.0",
     "firebase-functions": "^5.0.1",
-    "node-fetch": "^3.3.2"
+    "emailjs-com": "^3.2.0"
   },
   "devDependencies": {
     "typescript": "^5.4.5"
