@@ -11,17 +11,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader, KeyRound, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
-
-const functions = getFunctions(app, 'southamerica-east1');
-const resetPasswordWithTokenFn = httpsCallable(functions, 'resetPasswordWithToken');
 
 function PasswordResetAction() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   
-  // Stages: 'verifying', 'form', 'success', 'error'
   const [stage, setStage] = useState<'verifying' | 'form' | 'success' | 'error'>('verifying');
   const [error, setError] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -60,11 +54,16 @@ function PasswordResetAction() {
     setStage('verifying');
 
     try {
-      const result: any = await resetPasswordWithTokenFn({ token, newPassword });
+      const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/resetPasswordWithToken';
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword }),
+      });
       
-      const { success, message } = result.data;
-      if (!success) {
-        throw new Error(message || `Ocorreu um erro desconhecido.`);
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || `Ocorreu um erro desconhecido.`);
       }
 
       setStage('success');
@@ -74,9 +73,9 @@ function PasswordResetAction() {
       
       let errorMessage = 'Ocorreu um erro inesperado. Tente novamente.';
       if (err.message) {
-        if (err.message.includes('not-found') || err.message.includes('Token inválido')) {
+        if (err.message.includes('inválido ou já utilizado')) {
           errorMessage = 'O link de redefinição é inválido ou já foi utilizado.';
-        } else if (err.message.includes('deadline-exceeded') || err.message.includes('expirou')) {
+        } else if (err.message.includes('expirou')) {
           errorMessage = 'O link de redefinição expirou. Por favor, solicite um novo.';
         }
       }
