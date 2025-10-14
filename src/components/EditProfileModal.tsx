@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Eye, EyeOff, Trash2, KeyRound, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
-import emailjs from '@emailjs/browser';
+import emailjs from 'emailjs-com';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
