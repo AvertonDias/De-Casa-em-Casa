@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   title: "De Casa em Casa",
   description: "Painel de Controle de Territórios",
   manifest: "/manifest.json",
+  icons: {
+    icon: '/icon-192x192.jpg',
+    apple: '/icon-192x192.jpg',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
