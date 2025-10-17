@@ -133,6 +133,10 @@ export const requestPasswordReset = https.onRequest((req, res) => {
 
 export const resetPasswordWithToken = https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            return res.status(405).json({ error: 'Método não permitido' });
+        }
+
         const { token, newPassword } = req.body;
         if (!token || !newPassword) {
             res.status(400).json({ error: "Token e nova senha são obrigatórios." });
