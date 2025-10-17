@@ -9,6 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
 import { sendEmail } from '@/lib/emailService';
 
+const FEEDBACK_DESTINATION_EMAIL = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL || "verton3@yahoo.com.br";
+
 export function FeedbackModal() {
   const { user, congregation } = useUser();
   const [isOpen, setIsOpen] = useState(false);
@@ -46,16 +48,24 @@ export function FeedbackModal() {
     }
     setIsSending(true);
 
+    const fullMessage = `
+      <strong>De:</strong> ${user.name} (${user.email})<br>
+      <strong>Congregação:</strong> ${congregation?.name || 'N/A'} (${congregation?.number || 'N/A'})<br>
+      <br>
+      <strong>Mensagem:</strong><br>
+      ${message.replace(/\n/g, '<br>')}
+    `;
+
     const templateParams = {
-      from_name: user.name,
-      from_email: user.email,
-      subject: `Feedback: ${subject}`,
-      message: message,
-      congregation_name: congregation?.name || 'Não informado',
-      congregation_number: congregation?.number || 'N/A',
-      to_name: 'Averton',
-      reset_link: '',
+      to_email: FEEDBACK_DESTINATION_EMAIL,
+      to_name: 'Suporte De Casa em Casa',
+      subject: `[Feedback] ${subject}`,
+      message: fullMessage,
+      action_link: '',
+      action_button_text: '',
     };
+    
+    console.log("Parâmetros do Template EmailJS (Feedback):", templateParams);
 
     try {
         await sendEmail('template_jco2e6b', templateParams);
@@ -94,7 +104,7 @@ export function FeedbackModal() {
           <DialogHeader>
             <DialogTitle>Enviar Feedback</DialogTitle>
             <DialogDescription>
-              Use este formulário para nos enviar sua sugestão, relatar um problema ou fazer um elogio. Seu nome e e-mail serão enviados automaticamente.
+              Use este formulário para nos enviar sua sugestão, relatar um problema ou fazer um elogio. Sua mensagem será enviada diretamente para o desenvolvedor.
             </DialogDescription>
             <DialogClose />
           </DialogHeader>

@@ -38,15 +38,18 @@ export default function ForgotPasswordPage() {
       if (token) {
           const resetLink = `${window.location.origin}/auth/action?token=${token}`;
           
-          await sendEmail(
-            'template_jco2e6b',
-            {
-              subject: 'Recuperação de Senha - De Casa em Casa',
-              to_name: email,
+          const templateParams = {
+              to_email: email,
+              to_name: email, 
+              subject: 'Redefinição de Senha - De Casa em Casa',
               message: `Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha. Se você não solicitou isso, pode ignorar este e-mail.`,
-              reset_link: resetLink,
-            }
-          );
+              action_link: resetLink,
+              action_button_text: 'Redefinir Senha',
+            };
+
+          console.log("Parâmetros do Template EmailJS (Recuperação de Senha):", templateParams);
+          
+          await sendEmail('template_jco2e6b',templateParams);
       }
       
       setIsSubmitted(true);
@@ -124,3 +127,5 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
+
+    
