@@ -45,8 +45,10 @@ export default function ForgotPasswordPage() {
               link_de_ação: resetLink,
               texto_do_botão_de_ação: 'Redefinir Senha',
             };
+            
           console.log("EmailJS Params (Página Recuperar Senha):", templateParams);
-          await sendEmail('template_jco2e6b', templateParams);
+          
+          await sendEmail('template_jco2e6b',templateParams);
       }
       
       setIsSubmitted(true);
