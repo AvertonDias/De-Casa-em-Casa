@@ -60,7 +60,7 @@ export function FeedbackModal() {
       to_email: FEEDBACK_DESTINATION_EMAIL,
       to_name: 'Suporte De Casa em Casa',
       subject: `[Feedback] ${subject}`,
-      mensagem: fullMessage,
+      message: fullMessage,
     };
     
     console.log("Parâmetros do Template EmailJS (Feedback):", templateParams);
