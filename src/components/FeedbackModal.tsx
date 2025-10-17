@@ -56,17 +56,17 @@ export function FeedbackModal() {
       ${message.replace(/\n/g, '<br>')}
     `;
 
-    const templateParams = {
+    const paramsToSend = {
       to_email: FEEDBACK_DESTINATION_EMAIL,
       to_name: 'Equipe de Suporte',
       subject: `[Feedback] ${subject}`,
-      mensagem: fullMessage,
+      message: fullMessage,
     };
     
-    console.log("EmailJS Params (Feedback):", templateParams);
+    console.log("EmailJS Params (Feedback):", paramsToSend);
 
     try {
-        await sendEmail('template_jco2e6b', templateParams);
+        await sendEmail('template_jco2e6b', paramsToSend);
 
         toast({
             title: "Feedback Enviado!",
