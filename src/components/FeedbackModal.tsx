@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
@@ -48,15 +47,14 @@ export function FeedbackModal() {
     }
     setIsSending(true);
 
-    const fullMessage = '<strong>De:</strong> ' + (user.name || '') + ' (' + (user.email || '') + ')<br>' +
-                        '<strong>Congregação:</strong> ' + (congregation?.name || 'N/A') + ' (' + (congregation?.number || 'N/A') + ')<br><br>' +
-                        '<strong>Mensagem:</strong><br>' + message.replace(/\n/g, '<br>');
+    // Simplificando a mensagem para texto puro para depuração.
+    const fullMessage = `De: ${user.name} (${user.email})\nCongregação: ${congregation?.name || 'N/A'} (${congregation?.number || 'N/A'})\n\nMensagem:\n${message}`;
 
     const paramsToSend = {
       to_email: FEEDBACK_DESTINATION_EMAIL,
       to_name: 'Equipe de Suporte',
       subject: `[Feedback] ${subject}`,
-      message: fullMessage,
+      message: fullMessage, // Enviando como texto puro
     };
     
     console.log("EmailJS Params (Feedback):", paramsToSend);
