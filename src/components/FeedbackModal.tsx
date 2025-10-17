@@ -47,20 +47,25 @@ export function FeedbackModal() {
     }
     setIsSending(true);
 
-    // Simplificando a mensagem para texto puro para depuração.
-    const fullMessage = `De: ${user.name} (${user.email})\nCongregação: ${congregation?.name || 'N/A'} (${congregation?.number || 'N/A'})\n\nMensagem:\n${message}`;
+    const fullMessage = `
+      <strong>De:</strong> ${user.name} (${user.email})<br>
+      <strong>Congregação:</strong> ${congregation?.name || 'N/A'} (${congregation?.number || 'N/A'})<br>
+      <br>
+      <strong>Mensagem:</strong><br>
+      ${message.replace(/\n/g, '<br>')}
+    `.trim();
 
     const paramsToSend = {
       to_email: FEEDBACK_DESTINATION_EMAIL,
-      to_name: 'Equipe de Suporte',
-      subject: `[Feedback] ${subject}`,
-      message: fullMessage, // Enviando como texto puro
+      to_name: user.name || 'Usuário',
+      subject: `[Feedback - Teste NOVO] ${subject}`,
+      message: fullMessage,
     };
     
-    console.log("EmailJS Params (Feedback):", paramsToSend);
+    console.log("EmailJS Params (Feedback - NOVO TEMPLATE):", paramsToSend);
 
     try {
-        await sendEmail('template_jco2e6b', paramsToSend);
+        await sendEmail('template_xtngvnd', paramsToSend);
 
         toast({
             title: "Feedback Enviado!",
