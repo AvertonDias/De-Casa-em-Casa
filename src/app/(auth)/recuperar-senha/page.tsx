@@ -7,9 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck, Loader } from 'lucide-react';
-import emailjs from '@emailjs/browser';
 import { useToast } from '@/hooks/use-toast';
-import { app } from '@/lib/firebase';
+import { sendEmail } from '@/lib/emailService';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -26,7 +25,7 @@ export default function ForgotPasswordPage() {
       const response = await fetch(functionUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, origin: window.location.origin }),
+          body: JSON.stringify({ email }),
       });
 
       const result = await response.json();
@@ -39,14 +38,15 @@ export default function ForgotPasswordPage() {
       if (token) {
           const resetLink = `${window.location.origin}/auth/action?token=${token}`;
           
-          await emailjs.send(
-            'service_w3xe95d', // Seu Service ID
-            'template_wzczhks', // Seu Template ID
+          await sendEmail(
+            'template_jco2e6b', // ID do template unificado
             {
-              to_email: email,
-              reset_link: resetLink
-            },
-            'JdR2XKNICKcHc1jny' // Sua Public Key
+              subject: 'Recuperação de Senha - De Casa em Casa',
+              to_name: email,
+              message: `Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha. Se você não solicitou isso, pode ignorar este e-mail.`,
+              reset_link: resetLink,
+              action_button_text: 'Redefinir Senha',
+            }
           );
       }
       
@@ -125,3 +125,5 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
+
+    

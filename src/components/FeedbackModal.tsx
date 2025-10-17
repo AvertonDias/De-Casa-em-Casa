@@ -1,17 +1,13 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
 import { Mail, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
-import emailjs from '@emailjs/browser';
-
-const functionsInstance = getFunctions(app, 'southamerica-east1');
-
+import { sendEmail } from '@/lib/emailService';
 
 export function FeedbackModal() {
   const { user, congregation } = useUser();
@@ -51,21 +47,17 @@ export function FeedbackModal() {
     setIsSending(true);
 
     const templateParams = {
+      subject: `Feedback: ${subject}`,
+      message: message,
+      to_name: 'Averton', // Ou qualquer outro nome/destino
+      // Incluindo informações do remetente para o corpo do e-mail, se o template suportar
       from_name: user.name,
       from_email: user.email,
-      subject: subject,
-      message: message,
-      congregation_name: congregation?.name || 'Não informado',
-      congregation_number: congregation?.number || 'N/A',
+      congregation_info: `${congregation?.name || 'N/A'} (Nº ${congregation?.number || 'N/A'})`
     };
 
     try {
-        await emailjs.send(
-            'service_w3xe95d', // Seu Service ID
-            'template_jco2e6b', // Seu Template ID
-            templateParams,
-            'JdR2XKNICKcHc1jny' // Sua Public Key
-        );
+        await sendEmail('template_jco2e6b', templateParams); // Usando o template unificado
 
         toast({
             title: "Feedback Enviado!",
@@ -142,3 +134,5 @@ export function FeedbackModal() {
     </>
   );
 }
+
+    

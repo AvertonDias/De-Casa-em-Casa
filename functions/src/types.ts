@@ -1,12 +1,15 @@
 
-export interface UserData {
+export interface AppUser {
   uid: string;
   email: string;
-  displayName: string;
+  name: string;
+  whatsapp?: string;
   congregationId: string;
   role: 'Administrador' | 'Dirigente' | 'Publicador' | 'pendente';
   status: 'ativo' | 'inativo' | 'pendente' | 'rejeitado';
   fcmTokens?: string[];
+  isOnline?: boolean;
+  lastSeen?: any;
 }
 
 export interface CreateCongregationData {
@@ -16,3 +19,5 @@ export interface CreateCongregationData {
     congregationName: string;
     congregationNumber: string;
 }
+
+    

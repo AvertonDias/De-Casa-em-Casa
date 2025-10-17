@@ -5,13 +5,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { reauthenticateWithCredential, EmailAuthProvider, updateProfile } from 'firebase/auth';
 import { auth, app } from '@/lib/firebase';
-import emailjs from '@emailjs/browser';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Eye, EyeOff, Trash2, KeyRound, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
+import { sendEmail } from '@/lib/emailService';
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
@@ -129,31 +129,36 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
     const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset';
     try {
-      const response = await fetch(functionUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: user.email, origin: window.location.origin }),
-      });
+        const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: user.email }),
+        });
       
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Falha ao solicitar token.');
-      }
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || 'Falha ao solicitar token.');
+        }
       
-      const { token } = result;
+        const { token } = result;
 
-      if (token) {
-        const resetLink = `${window.location.origin}/auth/action?token=${token}`;
-        await emailjs.send(
-            'service_w3xe95d', 'template_wzczhks',
-            { to_email: user.email, reset_link: resetLink },
-            'JdR2XKNICKcHc1jny'
-        );
-      }
+        if (token) {
+            const resetLink = `${window.location.origin}/auth/action?token=${token}`;
+            await sendEmail(
+                'template_jco2e6b', // ID do template unificado
+                {
+                    subject: 'Recuperação de Senha - De Casa em Casa',
+                    to_name: user.name,
+                    message: `Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha. Se você não solicitou isso, pode ignorar este e-mail.`,
+                    reset_link: resetLink,
+                    action_button_text: 'Redefinir Senha',
+                }
+            );
+        }
       
-      setPasswordResetSuccess(
-        `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`
-      );
+        setPasswordResetSuccess(
+            `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`
+        );
 
     } catch (error: any) {
       console.error("Erro no processo de redefinição de senha:", error);
@@ -175,10 +180,11 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     
     setLoading(true);
     setError(null);
-    const idToken = await auth.currentUser.getIdToken(true);
-    const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/deleteUserAccount';
-
+    
     try {
+        const idToken = await auth.currentUser.getIdToken(true);
+        const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/deleteUserAccount';
+
         const credential = EmailAuthProvider.credential(auth.currentUser.email, passwordForDelete);
         await reauthenticateWithCredential(auth.currentUser, credential);
         
@@ -352,3 +358,5 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     </Dialog>
   );
 }
+
+    

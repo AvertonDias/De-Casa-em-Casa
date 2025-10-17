@@ -16,3 +16,5 @@ emailjs.init({ publicKey: PUBLIC_KEY });
 export const sendEmail = (templateId: string, templateParams: Record<string, unknown>) => {
   return emailjs.send(SERVICE_ID, templateId, templateParams);
 };
+
+    

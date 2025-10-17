@@ -17,6 +17,7 @@ function PasswordResetAction() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   
+  // Stages: 'verifying', 'form', 'success', 'error'
   const [stage, setStage] = useState<'verifying' | 'form' | 'success' | 'error'>('verifying');
   const [error, setError] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -186,3 +187,5 @@ export default function PasswordResetActionPage() {
     </Suspense>
   );
 }
+
+    

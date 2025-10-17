@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import { randomBytes } from 'crypto';
 import * as cors from "cors";
+import { AppUser } from "./types";
 
 const corsHandler = cors({ origin: true });
 
@@ -94,7 +95,7 @@ export const createCongregationAndAdmin = https.onRequest((req, res) => {
 
 export const requestPasswordReset = https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
-        const { email, origin } = req.body;
+        const { email } = req.body;
         if (!email) {
             res.status(400).json({ error: 'O e-mail é obrigatório.' });
             return;
@@ -180,6 +181,10 @@ const getCallingUser = async (idToken?: string) => {
 
 export const deleteUserAccount = https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            return res.status(405).json({ error: 'Método não permitido' });
+        }
+        
         const idToken = req.headers.authorization?.split('Bearer ')[1];
         const callingUser = await getCallingUser(idToken);
 
@@ -230,6 +235,10 @@ export const deleteUserAccount = https.onRequest((req, res) => {
 
 export const resetTerritoryProgress = https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            return res.status(405).json({ error: 'Método não permitido' });
+        }
+
         const idToken = req.headers.authorization?.split('Bearer ')[1];
         const callingUser = await getCallingUser(idToken);
         
@@ -292,6 +301,10 @@ export const resetTerritoryProgress = https.onRequest((req, res) => {
 
 export const generateUploadUrl = https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            return res.status(405).json({ error: 'Método não permitido' });
+        }
+        
         const idToken = req.headers.authorization?.split('Bearer ')[1];
         if (!idToken) {
             res.status(401).json({ error: 'Ação não autorizada.' });
@@ -647,3 +660,5 @@ export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(a
         return { success: false, error };
     }
 });
+
+    
