@@ -95,6 +95,11 @@ export const createCongregationAndAdmin = https.onRequest((req, res) => {
 
 export const requestPasswordReset = https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            res.status(405).json({ error: 'Método não permitido' });
+            return;
+        }
+
         const { email } = req.body;
         if (!email) {
             res.status(400).json({ error: 'O e-mail é obrigatório.' });
@@ -660,5 +665,3 @@ export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(a
         return { success: false, error };
     }
 });
-
-    
