@@ -1,3 +1,4 @@
+
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
@@ -7,8 +8,6 @@ import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import { randomBytes } from 'crypto';
 
-
-// Inicializa o admin apenas uma vez para evitar erros em múltiplas invocações.
 if (!admin.apps.length) {
   admin.initializeApp();
 }
@@ -18,13 +17,13 @@ setGlobalOptions({
   region: "southamerica-east1",
 });
 
+
 // ========================================================================
-//   FUNÇÕES HTTPS (onCall)
+//   FUNÇÕES HTTPS (onCall) - Padrão Unificado
 // ========================================================================
 
 export const createCongregationAndAdmin = https.onCall(async (request) => {
     const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = request.data;
-
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
         throw new https.HttpsError('invalid-argument', 'Todos os campos são obrigatórios.');
     }
@@ -87,27 +86,20 @@ export const requestPasswordReset = https.onCall(async (request) => {
     }
 
     try {
-        try {
-            await admin.auth().getUserByEmail(email);
-        } catch (error: any) {
-            if (error.code === 'auth/user-not-found') {
-                console.log(`Pedido de redefinição para e-mail não existente: ${email}`);
-                return { success: true, token: null }; 
-            }
-            throw error;
-        }
+        await admin.auth().getUserByEmail(email);
         
         const token = randomBytes(32).toString("hex");
-        const expires = admin.firestore.Timestamp.fromMillis(Date.now() + 3600 * 1000); // Token expira em 1 hora
+        const expires = admin.firestore.Timestamp.fromMillis(Date.now() + 3600 * 1000); // 1 hora
         
-        await db.collection("resetTokens").doc(token).set({
-            email: email,
-            expires: expires,
-        });
+        await db.collection("resetTokens").doc(token).set({ email, expires });
 
         return { success: true, token: token };
 
     } catch (error: any) {
+        if (error.code === 'auth/user-not-found') {
+            console.warn(`Pedido de redefinição para e-mail não existente: ${email}. Ignorando.`);
+            return { success: true, token: null }; // Retorna sucesso para não vazar informação
+        }
         console.error("Erro em requestPasswordReset:", error);
         throw new https.HttpsError('internal', 'Falha ao processar o pedido de redefinição.');
     }

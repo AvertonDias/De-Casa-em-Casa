@@ -1,20 +1,17 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
 import { Mail, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
-
-const functionsInstance = getFunctions(app, 'southamerica-east1');
-const sendFeedbackFunction = httpsCallable(functionsInstance, 'sendFeedbackEmail');
+import emailjs from '@emailjs/browser';
 
 
 export function FeedbackModal() {
-  const { user } = useUser();
+  const { user, congregation } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -50,25 +47,33 @@ export function FeedbackModal() {
     }
     setIsSending(true);
 
+    const templateParams = {
+      subject: `Feedback: ${subject}`,
+      to_name: 'Averton', // Nome do destinatário
+      from_name: user.name,
+      message: message,
+      reply_to: user.email,
+    };
+
     try {
-        const result = await sendFeedbackFunction({ 
-          name: user.name,
-          email: user.email,
-          subject, 
-          message 
-        });
+        await emailjs.send(
+            'service_w3xe95d', // Seu Service ID
+            'template_jco2e6b', // Seu Template ID
+            templateParams,
+            'JdR2XKNICKcHc1jny' // Sua Public Key
+        );
 
         toast({
             title: "Feedback Enviado!",
-            description: (result.data as any).message || "Agradecemos a sua mensagem.",
+            description: "Agradecemos a sua mensagem.",
             variant: "default",
         });
         setIsOpen(false);
     } catch (error: any) {
-        console.error("Erro ao enviar feedback:", error);
+        console.error("Erro ao enviar feedback com EmailJS:", error);
         toast({
             title: "Erro ao enviar feedback",
-            description: error.message || "Tente novamente mais tarde.",
+            description: error.message || "Não foi possível enviar sua mensagem no momento.",
             variant: "destructive",
         });
     } finally {
@@ -110,6 +115,7 @@ export function FeedbackModal() {
                 placeholder="Ex: Sugestão para a tela de usuários" 
                 className="mt-1 block w-full border rounded-md p-2 bg-input focus:outline-none focus:ring-2 focus:ring-primary" 
               />
+               <p className="text-xs text-muted-foreground mt-1">Um breve resumo da sua mensagem.</p>
             </div>
             <div>
               <label htmlFor="message" className="block text-sm font-medium">Mensagem</label>

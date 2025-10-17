@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck, Loader } from 'lucide-react';
-import emailjs from 'emailjs-com';
+import emailjs from '@emailjs/browser';
 import { useToast } from '@/hooks/use-toast';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
@@ -26,23 +27,21 @@ export default function ForgotPasswordPage() {
 
     try {
       const result: any = await requestPasswordResetFn({ email });
-      const { success, token, error: functionError } = result.data;
-      
-      if (!success) {
-        throw new Error(functionError || 'Falha ao gerar o token de redefinição.');
-      }
+      const { token } = result.data;
       
       if (token) {
           const resetLink = `${window.location.origin}/auth/action?token=${token}`;
           
           await emailjs.send(
-            'service_w3xe95d', // Seu Service ID
-            'template_wzczhks', // Seu Template ID
+            'service_w3xe95d', // Seu Service ID do EmailJS
+            'template_jco2e6b', // Seu NOVO Template ID
             {
-              to_email: email,
-              reset_link: resetLink
+              subject: 'Recuperação de Senha - De Casa em Casa',
+              to_name: email, // Ou um nome de usuário se você tiver
+              message: `Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha. Se você não solicitou isso, pode ignorar este e-mail.`,
+              reset_link: resetLink,
             },
-            'JdR2XKNICKcHc1jny' // Sua Public Key
+            'JdR2XKNICKcHc1jny' // Sua Public Key do EmailJS
           );
       }
       
