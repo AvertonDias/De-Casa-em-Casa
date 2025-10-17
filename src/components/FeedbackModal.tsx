@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
 import { sendEmail } from '@/lib/emailService';
 
-const FEEDBACK_DESTINATION_EMAIL = "verton3@yahoo.com.br";
+const FEEDBACK_DESTINATION_EMAIL = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL || "verton3@yahoo.com.br";
 
 export function FeedbackModal() {
   const { user, congregation } = useUser();
@@ -49,13 +49,11 @@ export function FeedbackModal() {
     setIsSending(true);
 
     const templateParams = {
-      // Parâmetros para o template EmailJS
       to_email: FEEDBACK_DESTINATION_EMAIL,
-      to_name: 'Averton', // Nome do destinatário fixo
-      from_name: user.name,
-      from_email: user.email,
-      subject: `Feedback: ${subject}`,
+      to_name: 'Suporte De Casa em Casa',
+      subject: `[Feedback] ${subject}`,
       message: `<strong>De:</strong> ${user.name} (${user.email})<br><strong>Congregação:</strong> ${congregation?.name || 'N/A'} (${congregation?.number || 'N/A'})<br><br><strong>Mensagem:</strong><br>${message}`,
+      // action_link e action_button_text não são enviados, então o botão não aparecerá.
     };
 
     try {
@@ -136,5 +134,3 @@ export function FeedbackModal() {
     </>
   );
 }
-
-    
