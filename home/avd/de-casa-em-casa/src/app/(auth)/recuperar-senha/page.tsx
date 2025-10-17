@@ -42,9 +42,9 @@ export default function ForgotPasswordPage() {
               to_email: email,
               to_name: email, 
               subject: 'Redefinição de Senha - De Casa em Casa',
-              message: `Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha. Se você não solicitou isso, pode ignorar este e-mail.`,
-              action_link: resetLink,
-              action_button_text: 'Redefinir Senha',
+              mensagem: `Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha. Se você não solicitou isso, pode ignorar este e-mail.`,
+              link_de_ação: resetLink,
+              texto_do_botão_de_ação: 'Redefinir Senha',
             };
 
           console.log("Parâmetros do Template EmailJS (Recuperação de Senha):", templateParams);
