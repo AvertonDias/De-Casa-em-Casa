@@ -9,6 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
 import { sendEmail } from '@/lib/emailService';
 
+const FEEDBACK_DESTINATION_EMAIL = "verton3@yahoo.com.br";
+
 export function FeedbackModal() {
   const { user, congregation } = useUser();
   const [isOpen, setIsOpen] = useState(false);
@@ -47,17 +49,20 @@ export function FeedbackModal() {
     setIsSending(true);
 
     const templateParams = {
-      subject: `Feedback: ${subject}`,
-      message: message,
-      to_name: 'Averton', // Ou qualquer outro nome/destino
-      // Incluindo informações do remetente para o corpo do e-mail, se o template suportar
+      // Parâmetros para o template EmailJS
+      to_email: FEEDBACK_DESTINATION_EMAIL,
+      to_name: 'Averton', 
       from_name: user.name,
       from_email: user.email,
-      congregation_info: `${congregation?.name || 'N/A'} (Nº ${congregation?.number || 'N/A'})`
+      subject: `Feedback: ${subject}`,
+      message: message,
+      // Variáveis extras que podem ser úteis no template
+      congregation_info: `${congregation?.name || 'N/A'} (Nº ${congregation?.number || 'N/A'})`,
+      action_button_text: 'Ver Feedback', // Texto de botão opcional
     };
 
     try {
-        await sendEmail('template_jco2e6b', templateParams); // Usando o template unificado
+        await sendEmail('template_jco2e6b', templateParams);
 
         toast({
             title: "Feedback Enviado!",
@@ -93,7 +98,7 @@ export function FeedbackModal() {
           <DialogHeader>
             <DialogTitle>Enviar Feedback</DialogTitle>
             <DialogDescription>
-              Use este formulário para nos enviar sua sugestão, relatar um problema ou fazer um elogio. Seu nome e e-mail serão enviados automaticamente.
+              Use este formulário para nos enviar sua sugestão, relatar um problema ou fazer um elogio. Sua mensagem será enviada diretamente para o desenvolvedor.
             </DialogDescription>
             <DialogClose />
           </DialogHeader>
@@ -134,5 +139,3 @@ export function FeedbackModal() {
     </>
   );
 }
-
-    
