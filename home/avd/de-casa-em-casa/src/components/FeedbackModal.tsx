@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
-import emailjs from '@emailjs/browser';
-
+import { sendEmail } from '@/lib/emailService';
 
 export function FeedbackModal() {
   const { user, congregation } = useUser();
@@ -48,20 +47,18 @@ export function FeedbackModal() {
     setIsSending(true);
 
     const templateParams = {
-      subject: `Feedback: ${subject}`,
-      to_name: 'Averton', // Nome do destinatário
       from_name: user.name,
+      from_email: user.email,
+      subject: `Feedback: ${subject}`,
       message: message,
-      reply_to: user.email,
+      congregation_name: congregation?.name || 'Não informado',
+      congregation_number: congregation?.number || 'N/A',
+      to_name: 'Averton',
+      reset_link: '',
     };
 
     try {
-        await emailjs.send(
-            'service_w3xe95d', // Seu Service ID
-            'template_jco2e6b', // Seu Template ID
-            templateParams,
-            'JdR2XKNICKcHc1jny' // Sua Public Key
-        );
+        await sendEmail('template_jco2e6b', templateParams);
 
         toast({
             title: "Feedback Enviado!",
