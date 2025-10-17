@@ -47,18 +47,14 @@ export function FeedbackModal() {
     }
     setIsSending(true);
 
-    const fullMessage = `
-      <strong>De:</strong> ${user.name} (${user.email})<br>
-      <strong>Congregação:</strong> ${congregation?.name || 'N/A'} (${congregation?.number || 'N/A'})<br>
-      <br>
-      <strong>Mensagem:</strong><br>
-      ${message.replace(/\n/g, '<br>')}
-    `.trim();
+    const fullMessage = "<strong>De:</strong> " + user.name + " (" + user.email + ")<br>" +
+                        "<strong>Congregação:</strong> " + (congregation?.name || 'N/A') + " (" + (congregation?.number || 'N/A') + ")<br><br>" +
+                        "<strong>Mensagem:</strong><br>" + message.replace(/\n/g, '<br>');
 
     const paramsToSend = {
       to_email: FEEDBACK_DESTINATION_EMAIL,
       to_name: user.name || 'Usuário',
-      subject: `[Feedback - Teste NOVO] ${subject}`,
+      subject: `[Feedback] ${subject}`,
       message: fullMessage,
     };
     

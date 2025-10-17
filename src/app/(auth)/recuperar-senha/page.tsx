@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -48,7 +47,7 @@ export default function ForgotPasswordPage() {
             
           console.log("EmailJS Params (Página Recuperar Senha):", paramsToSend);
           
-          await sendEmail('template_jco2e6b', paramsToSend);
+          await sendEmail('template_xtngvnd', paramsToSend);
       }
       
       setIsSubmitted(true);

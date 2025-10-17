@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -155,7 +154,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
             
             console.log("EmailJS Params (Reset Senha):", paramsToSend);
             
-            await sendEmail('template_jco2e6b', paramsToSend);
+            await sendEmail('template_xtngvnd', paramsToSend);
         }
       
         setPasswordResetSuccess(
