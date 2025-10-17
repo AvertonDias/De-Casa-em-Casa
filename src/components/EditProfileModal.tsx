@@ -144,17 +144,18 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
         if (token) {
             const resetLink = `${window.location.origin}/auth/action?token=${token}`;
-            await sendEmail(
-                'template_jco2e6b',
-                {
-                  to_name: user.name,
-                  to_email: user.email,
-                  subject: 'Recuperação de Senha - De Casa em Casa',
-                  message: `Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha. Se você não solicitou isso, pode ignorar este e-mail.`,
-                  action_link: resetLink,
-                  action_button_text: 'Redefinir Senha',
-                }
-            );
+            const templateParams = {
+              to_email: user.email,
+              to_name: user.name || 'Usuário',
+              subject: 'Redefinição de Senha - De Casa em Casa',
+              mensagem: `Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha. Se você não solicitou isso, pode ignorar este e-mail.`,
+              link_de_ação: resetLink,
+              texto_do_botão_de_ação: 'Redefinir Senha',
+            };
+            
+            console.log("Parâmetros do Template EmailJS (Redefinição):", templateParams);
+            
+            await sendEmail('template_jco2e6b', templateParams);
         }
       
         setPasswordResetSuccess(

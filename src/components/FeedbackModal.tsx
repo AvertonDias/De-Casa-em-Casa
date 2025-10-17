@@ -48,13 +48,22 @@ export function FeedbackModal() {
     }
     setIsSending(true);
 
+    const fullMessage = `
+      <strong>De:</strong> ${user.name} (${user.email})<br>
+      <strong>Congregação:</strong> ${congregation?.name || 'N/A'} (${congregation?.number || 'N/A'})<br>
+      <br>
+      <strong>Mensagem:</strong><br>
+      ${message.replace(/\n/g, '<br>')}
+    `;
+
     const templateParams = {
       to_email: FEEDBACK_DESTINATION_EMAIL,
       to_name: 'Suporte De Casa em Casa',
       subject: `[Feedback] ${subject}`,
-      message: `<strong>De:</strong> ${user.name} (${user.email})<br><strong>Congregação:</strong> ${congregation?.name || 'N/A'} (${congregation?.number || 'N/A'})<br><br><strong>Mensagem:</strong><br>${message}`,
-      // action_link e action_button_text não são enviados, então o botão não aparecerá.
+      mensagem: fullMessage,
     };
+    
+    console.log("Parâmetros do Template EmailJS (Feedback):", templateParams);
 
     try {
         await sendEmail('template_jco2e6b', templateParams);
@@ -134,3 +143,5 @@ export function FeedbackModal() {
     </>
   );
 }
+
+    
