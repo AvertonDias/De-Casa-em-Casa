@@ -41,10 +41,11 @@ export default function ForgotPasswordPage() {
           await sendEmail(
             'template_jco2e6b', // ID do template unificado
             {
+              to_email: email,
+              to_name: email, // Usamos o email como nome, pois não temos o nome completo aqui
               subject: 'Recuperação de Senha - De Casa em Casa',
-              to_name: email,
               message: `Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha. Se você não solicitou isso, pode ignorar este e-mail.`,
-              reset_link: resetLink,
+              action_link: resetLink,
               action_button_text: 'Redefinir Senha',
             }
           );

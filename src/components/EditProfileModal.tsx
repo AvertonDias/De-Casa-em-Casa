@@ -145,13 +145,14 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         if (token) {
             const resetLink = `${window.location.origin}/auth/action?token=${token}`;
             await sendEmail(
-                'template_jco2e6b', // ID do template unificado
+                'template_jco2e6b',
                 {
-                    subject: 'Recuperação de Senha - De Casa em Casa',
-                    to_name: user.name,
-                    message: `Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha. Se você não solicitou isso, pode ignorar este e-mail.`,
-                    reset_link: resetLink,
-                    action_button_text: 'Redefinir Senha',
+                  to_name: user.name,
+                  to_email: user.email,
+                  subject: 'Recuperação de Senha - De Casa em Casa',
+                  message: `Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha. Se você não solicitou isso, pode ignorar este e-mail.`,
+                  action_link: resetLink,
+                  action_button_text: 'Redefinir Senha',
                 }
             );
         }

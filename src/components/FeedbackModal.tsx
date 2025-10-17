@@ -51,14 +51,11 @@ export function FeedbackModal() {
     const templateParams = {
       // Parâmetros para o template EmailJS
       to_email: FEEDBACK_DESTINATION_EMAIL,
-      to_name: 'Averton', 
+      to_name: 'Averton', // Nome do destinatário fixo
       from_name: user.name,
       from_email: user.email,
       subject: `Feedback: ${subject}`,
-      message: message,
-      // Variáveis extras que podem ser úteis no template
-      congregation_info: `${congregation?.name || 'N/A'} (Nº ${congregation?.number || 'N/A'})`,
-      action_button_text: 'Ver Feedback', // Texto de botão opcional
+      message: `<strong>De:</strong> ${user.name} (${user.email})<br><strong>Congregação:</strong> ${congregation?.name || 'N/A'} (${congregation?.number || 'N/A'})<br><br><strong>Mensagem:</strong><br>${message}`,
     };
 
     try {
@@ -139,3 +136,5 @@ export function FeedbackModal() {
     </>
   );
 }
+
+    
