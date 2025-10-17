@@ -54,7 +54,7 @@ export function FeedbackModal() {
       <br>
       <strong>Mensagem:</strong><br>
       ${message.replace(/\n/g, '<br>')}
-    `;
+    `.trim();
 
     const paramsToSend = {
       to_email: FEEDBACK_DESTINATION_EMAIL,
