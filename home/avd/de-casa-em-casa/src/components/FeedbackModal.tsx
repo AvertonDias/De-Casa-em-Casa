@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
@@ -54,19 +53,17 @@ export function FeedbackModal() {
       <br>
       <strong>Mensagem:</strong><br>
       ${message.replace(/\n/g, '<br>')}
-    `;
+    `.trim();
 
-    const templateParams = {
+    const paramsToSend = {
       to_email: FEEDBACK_DESTINATION_EMAIL,
-      to_name: 'Suporte De Casa em Casa',
+      to_name: 'Equipe de Suporte',
       subject: `[Feedback] ${subject}`,
       message: fullMessage,
     };
-    
-    console.log("Parâmetros do Template EmailJS (Feedback):", templateParams);
 
     try {
-        await sendEmail('template_jco2e6b', templateParams);
+        await sendEmail('template_xtngvnd', paramsToSend);
 
         toast({
             title: "Feedback Enviado!",
@@ -104,7 +101,6 @@ export function FeedbackModal() {
             <DialogDescription>
               Use este formulário para nos enviar sua sugestão, relatar um problema ou fazer um elogio. Sua mensagem será enviada diretamente para o desenvolvedor.
             </DialogDescription>
-            <DialogClose />
           </DialogHeader>
           
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
@@ -134,9 +130,16 @@ export function FeedbackModal() {
                 className="mt-1 block w-full border rounded-md p-2 bg-input focus:outline-none focus:ring-2 focus:ring-primary"
               ></textarea>
             </div>
-            <Button type="submit" className="w-full" disabled={isSending || !subject.trim() || !message.trim()}>
-              {isSending ? <Loader className="animate-spin" size={20}/> : 'Enviar Mensagem'}
-            </Button>
+            <div className="flex justify-end gap-2 pt-4">
+              <DialogClose asChild>
+                <Button type="button" variant="secondary">
+                  Cancelar
+                </Button>
+              </DialogClose>
+              <Button type="submit" disabled={isSending || !subject.trim() || !message.trim()}>
+                {isSending ? <Loader className="animate-spin" size={20}/> : 'Enviar Mensagem'}
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
