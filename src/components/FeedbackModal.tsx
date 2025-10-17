@@ -58,12 +58,12 @@ export function FeedbackModal() {
 
     const templateParams = {
       to_email: FEEDBACK_DESTINATION_EMAIL,
-      to_name: 'Suporte De Casa em Casa',
+      to_name: 'Equipe de Suporte',
       subject: `[Feedback] ${subject}`,
       mensagem: fullMessage,
     };
     
-    console.log("Parâmetros do Template EmailJS (Feedback):", templateParams);
+    console.log("EmailJS Params (Feedback):", templateParams);
 
     try {
         await sendEmail('template_jco2e6b', templateParams);
@@ -143,5 +143,3 @@ export function FeedbackModal() {
     </>
   );
 }
-
-    

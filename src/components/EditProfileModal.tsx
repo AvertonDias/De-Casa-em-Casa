@@ -153,7 +153,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
               texto_do_botão_de_ação: 'Redefinir Senha',
             };
             
-            console.log("Parâmetros do Template EmailJS (Redefinição):", templateParams);
+            console.log("EmailJS Params (Reset Senha):", templateParams);
             
             await sendEmail('template_jco2e6b', templateParams);
         }
@@ -360,5 +360,3 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     </Dialog>
   );
 }
-
-    
