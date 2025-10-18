@@ -190,10 +190,6 @@ const getCallingUser = async (idToken?: string) => {
 
 export const deleteUserAccount = https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
-        if (req.method !== 'POST') {
-            return res.status(405).json({ error: 'Método não permitido' });
-        }
-        
         const idToken = req.headers.authorization?.split('Bearer ')[1];
         const callingUser = await getCallingUser(idToken);
 
@@ -244,10 +240,6 @@ export const deleteUserAccount = https.onRequest((req, res) => {
 
 export const resetTerritoryProgress = https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
-        if (req.method !== 'POST') {
-            return res.status(405).json({ error: 'Método não permitido' });
-        }
-
         const idToken = req.headers.authorization?.split('Bearer ')[1];
         const callingUser = await getCallingUser(idToken);
         
@@ -310,10 +302,6 @@ export const resetTerritoryProgress = https.onRequest((req, res) => {
 
 export const generateUploadUrl = https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
-        if (req.method !== 'POST') {
-            return res.status(405).json({ error: 'Método não permitido' });
-        }
-        
         const idToken = req.headers.authorization?.split('Bearer ')[1];
         if (!idToken) {
             res.status(401).json({ error: 'Ação não autorizada.' });

@@ -18,6 +18,7 @@ export interface CreateCongregationData {
     adminPassword: string;
     congregationName: string;
     congregationNumber: string;
+    whatsapp: string;
 }
 
     
