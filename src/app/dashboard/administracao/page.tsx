@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -21,10 +22,16 @@ const CongregationEditForm = dynamic(
 
 function AdminPage() {
   const { user } = useUser();
-  const [activeTab, setActiveTab] = useState('assignment');
+  
+  // Apenas Administradores e Servos podem ver esta página.
+  // A aba de edição da congregação só aparece para Admins.
+  const isAdmin = user?.role === 'Administrador';
+  const isServo = user?.role === 'Servo de Territórios';
 
-  // Apenas Administradores e Dirigentes podem ver esta página.
-  if (!user || !['Administrador', 'Dirigente', 'Servo de Territórios'].includes(user.role)) {
+  // O estado inicial da aba ativa depende se o usuário é Admin.
+  const [activeTab, setActiveTab] = useState(isAdmin ? 'assignment' : 'assignment');
+
+  if (!user || (!isAdmin && !isServo)) {
     return (
       <div className="p-4 text-center">
         <h1 className="font-bold text-xl">Acesso Negado</h1>
@@ -53,7 +60,7 @@ function AdminPage() {
       <div className="border-b border-border overflow-x-auto">
         <div className="flex items-center">
             <TabButton id="assignment" label="Designar Territórios" icon={BookUser} />
-            {user.role === 'Administrador' && (
+            {isAdmin && (
               <TabButton id="congregation" label="Editar Congregação" icon={Edit} />
             )}
             
@@ -68,7 +75,7 @@ function AdminPage() {
       </div>
       <div className="mt-6">
         {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
-        {activeTab === 'congregation' && user.role === 'Administrador' && <CongregationEditForm />}
+        {activeTab === 'congregation' && isAdmin && <CongregationEditForm />}
       </div>
     </div>
   );
