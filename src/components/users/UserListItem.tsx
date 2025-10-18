@@ -150,14 +150,41 @@ export const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: 
                                     </Menu.Item>
                                   </>
                                 )}
-                                {isAdmin && (user.role === 'Dirigente' || user.role === 'Servo de Territórios') && (
-                                    <Menu.Item>
-                                      {({ active }) => (
-                                        <button onClick={handleMakePublicador} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                          <User className="mr-2 h-4 w-4"/>Tornar Publicador
-                                        </button>
-                                      )}
-                                    </Menu.Item>
+                                {isAdmin && user.role === 'Dirigente' && (
+                                    <>
+                                      <Menu.Item>
+                                        {({ active }) => (
+                                          <button onClick={handleMakeServo} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                            <Users className="mr-2 h-4 w-4"/>Tornar S. de Territórios
+                                          </button>
+                                        )}
+                                      </Menu.Item>
+                                      <Menu.Item>
+                                        {({ active }) => (
+                                          <button onClick={handleMakePublicador} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                            <User className="mr-2 h-4 w-4"/>Tornar Publicador
+                                          </button>
+                                        )}
+                                      </Menu.Item>
+                                    </>
+                                )}
+                                {isAdmin && user.role === 'Servo de Territórios' && (
+                                    <>
+                                      <Menu.Item>
+                                        {({ active }) => (
+                                          <button onClick={handleMakeDirigente} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                            <Shield className="mr-2 h-4 w-4"/>Tornar Dirigente
+                                          </button>
+                                        )}
+                                      </Menu.Item>
+                                      <Menu.Item>
+                                        {({ active }) => (
+                                          <button onClick={handleMakePublicador} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                            <User className="mr-2 h-4 w-4"/>Tornar Publicador
+                                          </button>
+                                        )}
+                                      </Menu.Item>
+                                    </>
                                 )}
                                 {isAdmin && user.role === 'Administrador' && (
                                   <Menu.Item>
