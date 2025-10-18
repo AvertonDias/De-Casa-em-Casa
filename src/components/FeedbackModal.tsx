@@ -47,25 +47,18 @@ export function FeedbackModal() {
     }
     setIsSending(true);
 
-    const fullMessage = `
-      <strong>De:</strong> ${user.name} (${user.email})<br>
-      <strong>Congregação:</strong> ${congregation?.name || 'N/A'} (${congregation?.number || 'N/A'})<br>
-      <br>
-      <strong>Mensagem:</strong><br>
-      ${message.replace(/\n/g, '<br>')}
-    `.trim();
-
     const paramsToSend = {
-      to_email: FEEDBACK_DESTINATION_EMAIL,
-      to_name: user.name || 'Usuário',
-      subject: `[Feedback - Teste Final] ${subject}`,
-      message: fullMessage,
+      subject: subject,
+      user_name: user.name,
+      user_email: user.email,
+      congregation_info: `${congregation?.name || 'N/A'} (${congregation?.number || 'N/A'})`,
+      feedback_message: message.replace(/\n/g, '<br>')
     };
-    
-    console.log("EmailJS Params (Feedback - TESTE FINAL):", paramsToSend);
+
+    console.log("DEBUG PARAMS (template_8jxgats):", paramsToSend);
 
     try {
-        await sendEmail('template_xtngvnd', paramsToSend);
+        await sendEmail('template_8jxgats', paramsToSend);
 
         toast({
             title: "Feedback Enviado!",
