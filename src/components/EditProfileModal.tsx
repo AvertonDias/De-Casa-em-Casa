@@ -144,13 +144,14 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
         if (token) {
             const resetLink = `${window.location.origin}/auth/action?token=${token}`;
+            // Variáveis para o novo template simplificado
             const templateParams = {
               to_email: user.email,
-              to_name: user.name || 'Usuário',
-              subject: 'Redefinição de Senha - De Casa em Casa',
-              message: `Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha. Se você não solicitou isso, pode ignorar este e-mail.`,
-              action_link: resetLink,
-              action_button_text: 'Redefinir Senha',
+              recipient_name: user.name || 'Usuário',
+              email_subject: 'Redefinição de Senha - De Casa em Casa',
+              email_body_message: `Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha. Se você não solicitou isso, pode ignorar este e-mail.`,
+              call_to_action_link: resetLink,
+              call_to_action_text: 'Redefinir Senha',
             };
             
             await sendEmail('template_b5pqm7s', templateParams);
