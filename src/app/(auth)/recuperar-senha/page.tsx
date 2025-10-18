@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -36,7 +37,7 @@ export default function ForgotPasswordPage() {
       
       if (token) {
           const resetLink = `${window.location.origin}/auth/action?token=${token}`;
-          const paramsToSend = {
+          const templateParams = {
               to_email: email,
               to_name: email, 
               subject: 'Redefinição de Senha - De Casa em Casa',
@@ -45,9 +46,7 @@ export default function ForgotPasswordPage() {
               action_button_text: 'Redefinir Senha',
             };
             
-          console.log("EmailJS Params (Página Recuperar Senha):", paramsToSend);
-          
-          await sendEmail('template_xtngvnd', paramsToSend);
+          await sendEmail('template_b5pqm7s', templateParams);
       }
       
       setIsSubmitted(true);

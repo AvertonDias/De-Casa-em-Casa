@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -143,7 +144,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
         if (token) {
             const resetLink = `${window.location.origin}/auth/action?token=${token}`;
-            const paramsToSend = {
+            const templateParams = {
               to_email: user.email,
               to_name: user.name || 'Usuário',
               subject: 'Redefinição de Senha - De Casa em Casa',
@@ -152,9 +153,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
               action_button_text: 'Redefinir Senha',
             };
             
-            console.log("EmailJS Params (Reset Senha):", paramsToSend);
-            
-            await sendEmail('template_xtngvnd', paramsToSend);
+            await sendEmail('template_b5pqm7s', templateParams);
         }
       
         setPasswordResetSuccess(

@@ -114,14 +114,14 @@ export const requestPasswordReset = https.onRequest((req, res) => {
             
             await db.collection("resetTokens").doc(token).set({ email, expires });
 
-            console.log(`Token de redefinição gerado para ${email}.`);
-            
-            res.status(200).json({ success: true, token: token, message: "Token gerado." });
+            // Apenas retorna o token. O frontend será responsável por construir o link e enviar o email.
+            res.status(200).json({ success: true, token: token });
 
         } catch (error: any) {
             if (error.code === 'auth/user-not-found') {
-                console.log(`Pedido de redefinição para e-mail não existente: ${email}. Ignorando silenciosamente.`);
-                res.status(200).json({ success: true, token: null, message: "Solicitação processada." });
+                // Não retorna erro para não revelar quais emails existem no sistema.
+                // Mas retorna um token nulo para o frontend saber que não precisa enviar email.
+                res.status(200).json({ success: true, token: null });
                 return;
             }
             console.error("Erro em requestPasswordReset:", error);
