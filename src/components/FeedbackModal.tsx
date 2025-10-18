@@ -48,14 +48,13 @@ export function FeedbackModal() {
     setIsSending(true);
 
     const paramsToSend = {
+      email: FEEDBACK_DESTINATION_EMAIL,
       subject: subject,
       user_name: user.name,
       user_email: user.email,
-      congregation_info: `${congregation?.name || 'N/A'} (${congregation?.number || 'N/A'})`,
+      congregation_info: `${congregation?.name || 'N/A'} (Nº ${congregation?.number || 'N/A'})`,
       feedback_message: message.replace(/\n/g, '<br>')
     };
-
-    console.log("DEBUG PARAMS (template_8jxgats):", paramsToSend);
 
     try {
         await sendEmail('template_8jxgats', paramsToSend);
