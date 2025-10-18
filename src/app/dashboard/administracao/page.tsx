@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { BookUser, FileText, Edit, Loader, Lock } from 'lucide-react';
+import { BookUser, FileText, Edit, Loader } from 'lucide-react';
 import Link from 'next/link';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
@@ -69,15 +69,6 @@ function AdminPage() {
       <div className="mt-6">
         {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
         {activeTab === 'congregation' && user.role === 'Administrador' && <CongregationEditForm />}
-        {activeTab === 'congregation' && user.role !== 'Administrador' && (
-          <div className="bg-card p-6 rounded-lg shadow-md max-w-md mx-auto text-center">
-             <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-xl font-bold">Acesso Restrito</h2>
-            <p className="text-muted-foreground mt-2">
-              Apenas administradores podem editar os dados da congregação.
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
