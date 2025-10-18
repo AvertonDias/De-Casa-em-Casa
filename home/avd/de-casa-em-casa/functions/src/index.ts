@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import { randomBytes } from 'crypto';
 import * as cors from "cors";
+import { AppUser } from "./types";
 
 const corsHandler = cors({ origin: true });
 
@@ -94,7 +95,12 @@ export const createCongregationAndAdmin = https.onRequest((req, res) => {
 
 export const requestPasswordReset = https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
-        const { email, origin } = req.body;
+        if (req.method !== 'POST') {
+            res.status(405).json({ error: 'Método não permitido' });
+            return;
+        }
+
+        const { email } = req.body;
         if (!email) {
             res.status(400).json({ error: 'O e-mail é obrigatório.' });
             return;
@@ -127,6 +133,10 @@ export const requestPasswordReset = https.onRequest((req, res) => {
 
 export const resetPasswordWithToken = https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            return res.status(405).json({ error: 'Método não permitido' });
+        }
+
         const { token, newPassword } = req.body;
         if (!token || !newPassword) {
             res.status(400).json({ error: "Token e nova senha são obrigatórios." });
