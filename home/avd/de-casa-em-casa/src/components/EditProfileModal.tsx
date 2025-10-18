@@ -147,15 +147,12 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
             const templateParams = {
               to_email: user.email,
               to_name: user.name || 'Usuário',
-              subject: 'Redefinição de Senha - De Casa em Casa',
               message: `Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha. Se você não solicitou isso, pode ignorar este e-mail.`,
               action_link: resetLink,
               action_button_text: 'Redefinir Senha',
             };
             
-            console.log("Parâmetros do Template EmailJS (Redefinição):", templateParams);
-            
-            await sendEmail('template_jco2e6b', templateParams);
+            await sendEmail('template_b5pqm7s', templateParams);
         }
       
         setPasswordResetSuccess(
@@ -360,5 +357,3 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     </Dialog>
   );
 }
-
-    
