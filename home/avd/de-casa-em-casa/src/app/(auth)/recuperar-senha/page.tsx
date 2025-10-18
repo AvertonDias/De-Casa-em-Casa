@@ -38,12 +38,9 @@ export default function ForgotPasswordPage() {
       if (token) {
           const resetLink = `${window.location.origin}/auth/action?token=${token}`;
           const templateParams = {
-              to_email: email,
-              to_name: email, 
-              message: `Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha. Se você não solicitou isso, pode ignorar este e-mail.`,
-              action_link: resetLink,
-              action_button_text: 'Redefinir Senha',
-            };
+              email: email,
+              link: resetLink,
+          };
             
           await sendEmail('template_b5pqm7s', templateParams);
       }
