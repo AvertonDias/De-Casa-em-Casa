@@ -26,7 +26,7 @@ export default function UserManagement() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Publicador'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Publicador'>('all');
   const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive'>('all');
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -161,7 +161,7 @@ export default function UserManagement() {
     return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
   }
   
-  if (!currentUser || !['Administrador', 'Dirigente'].includes(currentUser.role)) {
+  if (!currentUser || !['Administrador', 'Dirigente', 'Servo de Territórios'].includes(currentUser.role)) {
     return (
         <div className="text-center p-8">
             <h1 className="text-2xl font-bold">Acesso Negado</h1>
@@ -245,6 +245,7 @@ export default function UserManagement() {
                                     <FilterButton label="Todos" value="all" currentFilter={roleFilter} setFilter={setRoleFilter} />
                                     <FilterButton label="Admin" value="Administrador" currentFilter={roleFilter} setFilter={setRoleFilter} />
                                     <FilterButton label="Dirigente" value="Dirigente" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                    <FilterButton label="S. de Terr." value="Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} />
                                     <FilterButton label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} />
                                 </div>
                             </div>

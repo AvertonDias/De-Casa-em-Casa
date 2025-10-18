@@ -25,7 +25,7 @@ function AdminPage() {
   const [activeTab, setActiveTab] = useState('assignment');
 
   // Apenas Administradores e Dirigentes podem ver esta página.
-  if (!user || !['Administrador', 'Dirigente'].includes(user.role)) {
+  if (!user || !['Administrador', 'Dirigente', 'Servo de Territórios'].includes(user.role)) {
     return (
       <div className="p-4 text-center">
         <h1 className="font-bold text-xl">Acesso Negado</h1>
@@ -70,7 +70,7 @@ function AdminPage() {
       <div className="mt-6">
         {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
         {activeTab === 'congregation' && user.role === 'Administrador' && <CongregationEditForm />}
-        {activeTab === 'congregation' && user.role === 'Dirigente' && (
+        {activeTab === 'congregation' && user.role !== 'Administrador' && (
           <div className="bg-card p-6 rounded-lg shadow-md max-w-md mx-auto text-center">
              <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h2 className="text-xl font-bold">Acesso Restrito</h2>

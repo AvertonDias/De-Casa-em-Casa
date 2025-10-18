@@ -4,7 +4,7 @@
 import { Fragment } from 'react';
 import type { AppUser } from '@/types/types';
 import { Menu, Transition } from '@headlessui/react';
-import { Shield, User, MoreVertical, Check, Trash2, ShieldAlert, XCircle } from 'lucide-react';
+import { Shield, User, MoreVertical, Check, Trash2, ShieldAlert, XCircle, Users } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -14,15 +14,17 @@ export const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: 
   const isOnline = user.isOnline === true;
   const isAdmin = currentUser.role === 'Administrador';
   const isDirigente = currentUser.role === 'Dirigente';
+  const isServoTerritorios = currentUser.role === 'Servo de Territórios';
   
   const canShowMenu = currentUser.uid !== user.uid && 
-                      (isAdmin || (isDirigente && (user.status === 'pendente' || user.status === 'rejeitado')));
+                      (isAdmin || ((isDirigente || isServoTerritorios) && (user.status === 'pendente' || user.status === 'rejeitado')));
 
   // Funções de manipulador de eventos estáveis
   const handleApprove = () => onUpdate(user.uid, { status: 'ativo' });
   const handleReject = () => onUpdate(user.uid, { status: 'rejeitado' });
   const handleMakeAdmin = () => onUpdate(user.uid, { role: 'Administrador' });
   const handleMakeDirigente = () => onUpdate(user.uid, { role: 'Dirigente' });
+  const handleMakeServo = () => onUpdate(user.uid, { role: 'Servo de Territórios' });
   const handleMakePublicador = () => onUpdate(user.uid, { role: 'Publicador' });
   const handleDelete = () => onDelete(user.uid, user.name);
 
@@ -41,6 +43,7 @@ export const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: 
     switch (role) {
       case 'Administrador': return 'bg-purple-500 text-white';
       case 'Dirigente': return 'bg-blue-500 text-white';
+      case 'Servo de Territórios': return 'bg-cyan-500 text-white';
       default: return 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200';
     }
   };
@@ -130,6 +133,7 @@ export const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: 
                                   </Menu.Item>
                                 )}
                                 {isAdmin && user.role === 'Publicador' && (
+                                  <>
                                     <Menu.Item>
                                       {({ active }) => (
                                         <button onClick={handleMakeDirigente} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
@@ -137,8 +141,16 @@ export const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: 
                                         </button>
                                       )}
                                     </Menu.Item>
+                                    <Menu.Item>
+                                      {({ active }) => (
+                                        <button onClick={handleMakeServo} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                          <Users className="mr-2 h-4 w-4"/>Tornar S. de Territórios
+                                        </button>
+                                      )}
+                                    </Menu.Item>
+                                  </>
                                 )}
-                                {isAdmin && user.role === 'Dirigente' && (
+                                {isAdmin && (user.role === 'Dirigente' || user.role === 'Servo de Territórios') && (
                                     <Menu.Item>
                                       {({ active }) => (
                                         <button onClick={handleMakePublicador} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>

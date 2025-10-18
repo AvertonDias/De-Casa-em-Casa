@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -5,7 +6,7 @@ import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, limit, onSnapshot, doc } from 'firebase/firestore';
 import type { Territory, Congregation } from '@/types/types';
-import { LandPlot, CheckSquare, HousePlus, Map, Loader } from 'lucide-react';
+import { LandPlot, CheckSquare, HousePlus, Map, Loader, Trees } from 'lucide-react';
 import RecentTerritoryCard from '@/components/dashboard/RecentTerritoryCard'; 
 import { StatCard } from '@/components/StatCard';
 import withAuth from '@/components/withAuth'; // Importa o segurança
@@ -20,15 +21,7 @@ function DashboardPage() {
     if (!user?.congregationId) {
       if (!userLoading) setLoading(false);
       return;
-    }    // Listener para o status online do usuário (opcional, depende da implementação)
-    // if (user) {
-    //   const userStatusRef = doc(db, 'users', user.uid);
-    //   const unsubUserStatus = onSnapshot(userStatusRef, (docSnap) => {
-    //     // Implemente a lógica para atualizar o estado online do usuário aqui se necessário
-    //   });
-    //   unsubs.push(unsubUserStatus);
-    // }
-
+    }
 
     // Listener para as estatísticas gerais da congregação
     const congRef = doc(db, 'congregations', user.congregationId);
@@ -40,7 +33,6 @@ function DashboardPage() {
     const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
     const q = query(
       territoriesRef, 
-      where("type", "in", ["urban", null, ""]),
       orderBy("lastUpdate", "desc"), 
       limit(8)
     );
@@ -73,8 +65,8 @@ function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard icon={Map} title="Territórios" value={congregation?.territoryCount || 0} loading={loading} />
-        <StatCard icon={LandPlot} title="Quadras" value={congregation?.totalQuadras || 0} loading={loading} />
+        <StatCard icon={Map} title="Territórios Urbanos" value={congregation?.territoryCount || 0} loading={loading} />
+        <StatCard icon={Trees} title="Territórios Rurais" value={congregation?.ruralTerritoryCount || 0} loading={loading} />
         <StatCard icon={HousePlus} title="Casas Mapeadas" value={congregation?.totalHouses || 0} loading={loading} />
         <StatCard icon={CheckSquare} title="Casas Visitadas" value={congregation?.totalHousesDone || 0} loading={loading} />
       </div>
