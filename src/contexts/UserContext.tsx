@@ -156,10 +156,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
 
     if (user.status === 'ativo') {
-      if (pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre' && !isAuthActionPage)) {
-        if (['Publicador', 'Dirigente', 'Servo de Territórios'].includes(user.role)) {
+      const isInitialRedirect = pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre' && !isAuthActionPage);
+      if (isInitialRedirect) {
+        if (user.role === 'Administrador') {
+          router.replace('/dashboard');
+        } else if (['Publicador', 'Dirigente', 'Servo de Territórios'].includes(user.role)) {
           router.replace('/dashboard/territorios');
         } else {
+          // Fallback para usuários com roles desconhecidas
           router.replace('/dashboard');
         }
       }
