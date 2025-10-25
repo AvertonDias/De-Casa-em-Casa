@@ -157,7 +157,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     if (user.status === 'ativo') {
       if (pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre' && !isAuthActionPage)) {
-        if (user.role === 'Publicador') {
+        if (['Publicador', 'Dirigente', 'Servo de Territórios'].includes(user.role)) {
           router.replace('/dashboard/territorios');
         } else {
           router.replace('/dashboard');
