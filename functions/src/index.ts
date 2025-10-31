@@ -452,48 +452,53 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
     const before = event.data?.before.data() as Territory | undefined;
     const after = event.data?.after.data() as Territory | undefined;
 
-    // Condição para notificar:
-    // 1. Se ANTES não tinha 'assignment' e AGORA tem.
-    // 2. OU se o 'assignment' existia e o UID da pessoa mudou.
     const shouldNotify = (after?.assignment && !before?.assignment) || 
                          (after?.assignment && before?.assignment && before.assignment.uid !== after.assignment.uid);
 
-    if (!shouldNotify) {
-        return; // Nenhuma ação necessária.
-    }
+    if (!shouldNotify) return;
     
-    // Garantimos que 'after.assignment' existe por causa da condição 'shouldNotify'
-    const { uid } = after!.assignment!;
+    const { uid, name, dueDate } = after!.assignment!;
     const territoryName = after!.name;
+    const territoryId = event.params.terrId;
 
-    // Não criar notificação para designações "customizadas" (ex: "Campanha")
-    if (uid.startsWith('custom_')) {
-        return;
-    }
+    if (uid.startsWith('custom_')) return;
 
     try {
         const userRef = db.collection("users").doc(uid);
         const userDoc = await userRef.get();
-        
-        // Só continua se o usuário realmente existir no banco.
         if (!userDoc.exists) return;
 
+        // --- 1. Criação da Notificação Interna ---
         const notification: Omit<Notification, 'id'> = {
             title: "Novo Território Designado",
             body: `O território "${territoryName}" foi designado para você.`,
-            link: `/dashboard/territorios/${event.params.terrId}`,
+            link: `/dashboard/territorios/${territoryId}`,
             type: 'territory_assigned',
             isRead: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
         };
-
-        // Adiciona a notificação na subcoleção do usuário.
         await userRef.collection('notifications').add(notification);
+        
+        // --- 2. Envio da Notificação Push (FCM) ---
+        const tokens = userDoc.data()?.fcmTokens;
+        if (tokens && Array.isArray(tokens) && tokens.length > 0) {
+            const formattedDueDate = format(dueDate.toDate(), 'dd/MM/yyyy');
+            const payload = {
+                notification: {
+                    title: "Novo Território Designado!",
+                    body: `Você recebeu o território "${territoryName}". Devolver até ${formattedDueDate}.`,
+                    icon: "/icon-192x192.jpg",
+                    click_action: `/dashboard/territorios/${territoryId}`,
+                },
+            };
+            await admin.messaging().sendToDevice(tokens, payload);
+        }
 
     } catch (error) {
-        console.error(`[onTerritoryAssigned] Falha ao criar notificação para UID ${uid}:`, error);
+        console.error(`[onTerritoryAssigned] Falha ao notificar UID ${uid}:`, error);
     }
 });
+
 
 export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/territories/{terrId}", async (event) => {
   const before = event.data?.before.data() as Territory | undefined;
