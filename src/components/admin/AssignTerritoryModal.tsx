@@ -1,8 +1,16 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { Territory, AppUser } from "@/types/types";
-import { X, Search } from 'lucide-react';
+import { X, Search, ChevronsUpDown } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Input } from "../ui/input";
 
 interface AssignTerritoryModalProps {
   isOpen: boolean;
@@ -19,6 +27,7 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
   const [dueDate, setDueDate] = useState('');
   const [error, setError] = useState('');
   const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   
   const isFreeChoice = selectedUid === 'free-choice';
 
@@ -35,7 +44,7 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
       setSelectedUid('');
       setCustomName('');
       setError('');
-      setUserSearchTerm('');
+      setUserSearchTerm(''); 
     }
   }, [isOpen]);
   
@@ -95,6 +104,17 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(userSearchTerm.toLowerCase())
   );
+  
+  const handleSelectUser = (uid: string) => {
+    setSelectedUid(uid);
+    setIsPopoverOpen(false);
+  }
+
+  const getSelectedUserName = () => {
+    if (isFreeChoice) return "Digitar Outro Nome...";
+    const selectedUser = users.find(u => u.uid === selectedUid);
+    return selectedUser?.name || "Selecione um publicador...";
+  }
 
   if (!isOpen || !territory) return null;
 
@@ -109,29 +129,47 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
         </p>
         
         <div className="space-y-4">
-          <div className="relative">
-            <label className="block text-sm font-medium mb-1">Buscar Publicador:</label>
-            <Search className="absolute left-3 top-9 -translate-y-1/2 text-muted-foreground" size={18}/>
-            <input 
-              type="text"
-              placeholder="Digite para buscar..."
-              value={userSearchTerm}
-              onChange={(e) => setUserSearchTerm(e.target.value)}
-              className="w-full bg-input rounded-md p-2 pl-10 border border-border focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
           <div>
             <label className="block text-sm font-medium mb-1">Designar para:</label>
-            <select value={selectedUid} onChange={(e) => setSelectedUid(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary">
-              <option value="" disabled>Selecione um publicador...</option>
-              <option value="free-choice" className="font-semibold text-primary">-- Digitar Outro Nome --</option>
-              {filteredUsers.map(user => (
-                <option key={user.uid} value={user.uid}>
-                  {user.name}{user.status !== 'ativo' ? ` (${user.status})` : ''}
-                </option>
-              ))}
-            </select>
+            <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={isPopoverOpen}
+                  className="w-full justify-between bg-input border-border"
+                >
+                  <span className="truncate">{getSelectedUserName()}</span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0">
+                  <div className="p-2 border-b border-border">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18}/>
+                      <Input
+                        placeholder="Buscar publicador..."
+                        value={userSearchTerm}
+                        onChange={(e) => setUserSearchTerm(e.target.value)}
+                        className="pl-9"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto p-1">
+                    <button onClick={() => handleSelectUser('free-choice')} className="w-full text-left p-2 rounded-md text-sm font-semibold text-primary hover:bg-accent">-- Digitar Outro Nome --</button>
+                    {filteredUsers.map((user) => (
+                      <button
+                        key={user.uid}
+                        onClick={() => handleSelectUser(user.uid)}
+                        className="w-full text-left p-2 rounded-md text-sm hover:bg-accent"
+                      >
+                        {user.name}
+                      </button>
+                    ))}
+                  </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {isFreeChoice && (
