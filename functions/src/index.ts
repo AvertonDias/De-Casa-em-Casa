@@ -463,8 +463,8 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
     }
     
     // Garantimos que 'after.assignment' existe por causa da condição 'shouldNotify'
-    const { uid, name } = after.assignment!;
-    const territoryName = after.name;
+    const { uid } = after!.assignment!;
+    const territoryName = after!.name;
 
     // Não criar notificação para designações "customizadas" (ex: "Campanha")
     if (uid.startsWith('custom_')) {
@@ -510,7 +510,7 @@ export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/ter
   }
 
   const returningUserUid = before.assignment.uid;
-  const territoryName = after.name;
+  const territoryName = after!.name;
 
   const batch = db.batch();
 
@@ -534,27 +534,29 @@ export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/ter
     .where('congregationId', '==', event.params.congId)
     .where('role', 'in', ['Administrador', 'Dirigente', 'Servo de Territórios']);
   
-  const adminsSnapshot = await adminsQuery.get();
-  if (adminsSnapshot.empty) {
-      await batch.commit(); // Commita a notificação do usuário mesmo se não houver admins
-      return;
+  try {
+    const adminsSnapshot = await adminsQuery.get();
+    if (!adminsSnapshot.empty) {
+        const adminNotification: Omit<Notification, 'id'> = {
+          title: "Território Disponível",
+          body: `O território "${territoryName}" foi devolvido e está disponível para designação.`,
+          link: '/dashboard/administracao',
+          type: 'territory_available',
+          isRead: false,
+          createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
+        };
+
+        adminsSnapshot.forEach(doc => {
+          const notificationsRef = doc.ref.collection('notifications').doc();
+          batch.set(notificationsRef, adminNotification);
+        });
+    }
+    
+    await batch.commit();
+
+  } catch (error) {
+    console.error(`[onTerritoryReturned] Falha ao notificar admins:`, error);
   }
-
-  const adminNotification: Omit<Notification, 'id'> = {
-    title: "Território Disponível",
-    body: `O território "${territoryName}" foi devolvido e está disponível para designação.`,
-    link: '/dashboard/administracao',
-    type: 'territory_available',
-    isRead: false,
-    createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
-  };
-
-  adminsSnapshot.forEach(doc => {
-    const notificationsRef = doc.ref.collection('notifications').doc();
-    batch.set(notificationsRef, adminNotification);
-  });
-  
-  await batch.commit();
 });
 
 export const onDeleteTerritory = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}", async (event) => {
