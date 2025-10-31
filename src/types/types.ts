@@ -1,4 +1,3 @@
-
 // src/types/types.ts
 
 import { Timestamp, FieldValue } from "firebase/firestore";
@@ -16,6 +15,17 @@ export interface AppUser {
   isOnline?: boolean;
   lastSeen?: any; // Firestore Timestamp
 }
+
+export interface Notification {
+  id: string;
+  title: string;
+  body: string;
+  link?: string;
+  type: 'territory_assigned' | 'territory_overdue' | 'user_pending' | 'announcement';
+  isRead: boolean;
+  createdAt: Timestamp;
+}
+
 
 // Definição para um Território
 export interface Territory {

@@ -275,13 +275,16 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
-  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(2); // Simulação
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
   // Ativa o sistema de presença para o usuário logado
   usePresence();
 
   useEffect(() => {
-    if (user && ['Administrador', 'Dirigente', 'Servo de Territórios'].includes(user.role) && user.congregationId) {
+    if (!user) return;
+    
+    // Listener for pending users
+    if (['Administrador', 'Dirigente', 'Servo de Territórios'].includes(user.role) && user.congregationId) {
       const q = query(
         collection(db, 'users'),
         where('congregationId', '==', user.congregationId),
@@ -292,6 +295,19 @@ function DashboardLayout({ children }: { children: ReactNode }) {
       });
       return () => unsubscribe();
     }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    // Listener for unread notifications
+    const q = query(
+      collection(db, 'users', user.uid, 'notifications'),
+      where('isRead', '==', false)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setUnreadNotificationsCount(snapshot.size);
+    });
+    return () => unsubscribe();
   }, [user]);
 
   useEffect(() => {

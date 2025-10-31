@@ -175,128 +175,100 @@ export const resetPasswordWithToken = https.onRequest((req, res) => {
     });
 });
 
-const getCallingUser = async (idToken?: string) => {
-    if (!idToken) return null;
-    try {
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
-        const userSnap = await db.doc(`users/${decodedToken.uid}`).get();
-        if (!userSnap.exists) return null;
-        return { uid: decodedToken.uid, ...userSnap.data() } as (AppUser & { uid: string });
-    } catch {
-        return null;
+export const deleteUserAccount = https.onCall(async (request) => {
+    if (!request.auth) {
+        throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
     }
-};
+    const callingUserUid = request.auth.uid;
+    const userIdToDelete = request.data.userIdToDelete;
 
+    if (!userIdToDelete) {
+        throw new https.HttpsError('invalid-argument', 'O ID do usuário para exclusão é necessário.');
+    }
 
-export const deleteUserAccount = https.onRequest((req, res) => {
-    corsHandler(req, res, async () => {
-        const idToken = req.headers.authorization?.split('Bearer ')[1];
-        const callingUser = await getCallingUser(idToken);
+    const callingUserSnap = await db.doc(`users/${callingUserUid}`).get();
+    const callingUserData = callingUserSnap.data() as AppUser;
 
-        if (!callingUser) {
-            res.status(401).json({ error: "Ação não autorizada." });
-            return;
+    if (callingUserData.role !== 'Administrador' && callingUserUid !== userIdToDelete) {
+        throw new https.HttpsError('permission-denied', 'Você não tem permissão para excluir outros usuários.');
+    }
+
+    if (callingUserData.role === 'Administrador' && callingUserUid === userIdToDelete) {
+        throw new https.HttpsError('permission-denied', 'Um administrador não pode se autoexcluir.');
+    }
+
+    try {
+        await admin.auth().deleteUser(userIdToDelete);
+        await db.doc(`users/${userIdToDelete}`).delete();
+        return { success: true, message: 'Usuário excluído com sucesso.' };
+    } catch (error: any) {
+        console.error('Erro CRÍTICO ao excluir usuário:', error);
+        // Tenta limpar o documento do Firestore mesmo se a exclusão da Auth falhar (ex: usuário já excluído)
+        if (error.code === 'auth/user-not-found') {
+            await db.doc(`users/${userIdToDelete}`).delete();
+            return { success: true, message: 'Usuário não encontrado na Auth, mas removido do Firestore.' };
         }
-        
-        const { userIdToDelete } = req.body;
-        if (!userIdToDelete || typeof userIdToDelete !== 'string') {
-            res.status(400).json({ error: "ID de usuário para exclusão é inválido." });
-            return;
-        }
-
-        const isCallingUserAdmin = callingUser.role === "Administrador";
-
-        if (isCallingUserAdmin && callingUser.uid === userIdToDelete) {
-            res.status(403).json({ error: "Um administrador não pode se autoexcluir." });
-            return;
-        }
-        if (!isCallingUserAdmin && callingUser.uid !== userIdToDelete) {
-            res.status(403).json({ error: "Você não tem permissão para excluir outros usuários." });
-            return;
-        }
-
-        try {
-            await admin.auth().deleteUser(userIdToDelete);
-            const userDocRef = db.collection("users").doc(userIdToDelete);
-            if ((await userDocRef.get()).exists) {
-                await userDocRef.delete();
-            }
-            res.status(200).json({ success: true, message: "Usuário excluído com sucesso." });
-        } catch (error: any) {
-            console.error("Erro CRÍTICO ao excluir usuário:", error);
-            if (error.code === 'auth/user-not-found') {
-                const userDocRef = db.collection("users").doc(userIdToDelete);
-                if ((await userDocRef.get()).exists) {
-                    await userDocRef.delete();
-                }
-                res.status(200).json({ success: true, message: "Usuário não encontrado na Auth, mas removido do Firestore." });
-                return;
-            }
-            res.status(500).json({ error: `Falha na exclusão: ${error.message}` });
-        }
-    });
+        throw new https.HttpsError('internal', error.message || 'Falha ao excluir o usuário.');
+    }
 });
 
 
-export const resetTerritoryProgress = https.onRequest((req, res) => {
-    corsHandler(req, res, async () => {
-        const idToken = req.headers.authorization?.split('Bearer ')[1];
-        const callingUser = await getCallingUser(idToken);
-        
-        if (!callingUser || callingUser.role !== 'Administrador') {
-            res.status(403).json({ error: "Ação restrita a administradores." });
-            return;
-        }
-        
-        const { congregationId, territoryId } = req.body;
-        if (!congregationId || !territoryId) {
-            res.status(400).json({ error: "IDs da congregação e do território são necessários." });
-            return;
-        }
+export const resetTerritoryProgress = https.onCall(async (request) => {
+    if (!request.auth) {
+        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
+    }
+    const uid = request.auth.uid;
+    const { congregationId, territoryId } = request.data;
+    if (!congregationId || !territoryId) {
+        throw new https.HttpsError("invalid-argument", "IDs faltando.");
+    }
 
-        const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
-        const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
-        
-        try {
-            await db.recursiveDelete(db.collection(historyPath));
-        } catch (error) {
-            console.error(`[resetTerritory] Falha ao deletar histórico para ${territoryId}:`, error);
-            res.status(500).json({ error: "Falha ao limpar histórico do território." });
-            return;
-        }
+    const adminUserSnap = await db.doc(`users/${uid}`).get();
+    if (adminUserSnap.data()?.role !== "Administrador") {
+        throw new https.HttpsError("permission-denied", "Ação restrita a administradores.");
+    }
 
-        try {
-            let housesUpdatedCount = 0;
-            await db.runTransaction(async (transaction) => {
-                const quadrasSnapshot = await transaction.get(quadrasRef);
-                const housesToUpdate: { ref: admin.firestore.DocumentReference, data: { status: boolean } }[] = [];
+    const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
+    const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
+    
+    try {
+        await db.recursiveDelete(db.collection(historyPath));
+    } catch (error) {
+        console.error(`[resetTerritory] Falha ao deletar histórico para ${territoryId}:`, error);
+        throw new https.HttpsError("internal", "Falha ao limpar histórico do território.");
+    }
 
-                for (const quadraDoc of quadrasSnapshot.docs) {
-                    const casasSnapshot = await transaction.get(quadraDoc.ref.collection("casas"));
-                    casasSnapshot.forEach(casaDoc => {
-                        if (casaDoc.data().status === true) {
-                            housesToUpdate.push({ ref: casaDoc.ref, data: { status: false } });
-                            housesUpdatedCount++;
-                        }
-                    });
-                }
-                
-                for (const houseUpdate of housesToUpdate) {
-                    transaction.update(houseUpdate.ref, houseUpdate.data);
-                }
-            });
+    try {
+        let housesUpdatedCount = 0;
+        await db.runTransaction(async (transaction) => {
+            const quadrasSnapshot = await transaction.get(quadrasRef);
+            const housesToUpdate: { ref: admin.firestore.DocumentReference, data: { status: boolean } }[] = [];
 
-            if (housesUpdatedCount > 0) {
-                res.status(200).json({ success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` });
-            } else {
-                res.status(200).json({ success: true, message: "Nenhuma alteração necessária, nenhuma casa estava marcada como 'feita'." });
+            for (const quadraDoc of quadrasSnapshot.docs) {
+                const casasSnapshot = await transaction.get(quadraDoc.ref.collection("casas"));
+                casasSnapshot.forEach(casaDoc => {
+                    if (casaDoc.data().status === true) {
+                        housesToUpdate.push({ ref: casaDoc.ref, data: { status: false } });
+                        housesUpdatedCount++;
+                    }
+                });
             }
+            
+            for (const houseUpdate of housesToUpdate) {
+                transaction.update(houseUpdate.ref, houseUpdate.data);
+            }
+        });
 
-        } catch (error: any) {
-            console.error(`[resetTerritory] FALHA CRÍTICA na transação ao limpar o território ${territoryId}:`, error);
-            res.status(500).json({ error: "Falha ao processar a limpeza das casas do território." });
+        if (housesUpdatedCount > 0) {
+            return { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` };
+        } else {
+            return { success: true, message: "Nenhuma alteração necessária, nenhuma casa estava marcada como 'feita'." };
         }
-    });
+
+    } catch (error: any) {
+        console.error(`[resetTerritory] FALHA CRÍTICA na transação ao limpar o território ${territoryId}:`, error);
+        throw new https.HttpsError("internal", "Falha ao processar a limpeza das casas do território.");
+    }
 });
 
 
@@ -447,37 +419,31 @@ export const onNewUserPending = onDocumentCreated("users/{userId}", async (event
 
     const adminsQuery = db.collection("users")
         .where('congregationId', '==', newUser.congregationId)
-        .where('role', 'in', ['Administrador', 'Dirigente']);
+        .where('role', 'in', ['Administrador', 'Dirigente', 'Servo de Territórios']);
 
     try {
         const adminsSnapshot = await adminsQuery.get();
         if (adminsSnapshot.empty) return null;
 
-        let tokens: string[] = [];
+        const batch = db.batch();
+        const notification = {
+            title: "Novo Usuário Pendente",
+            body: `O publicador "${newUser.name}" solicitou acesso à congregação.`,
+            link: "/dashboard/usuarios",
+            type: 'user_pending' as const,
+            isRead: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
         adminsSnapshot.forEach(doc => {
-            const adminData = doc.data();
-            if (adminData.fcmTokens && Array.isArray(adminData.fcmTokens)) {
-                tokens = tokens.concat(adminData.fcmTokens);
-            }
+            const notificationsRef = doc.ref.collection('notifications').doc();
+            batch.set(notificationsRef, notification);
         });
         
-        tokens = [...new Set(tokens)]; // Remove duplicados
+        await batch.commit();
 
-        if (tokens.length === 0) return null;
-
-        const payload = {
-            notification: {
-                title: "Novo Usuário Pendente",
-                body: `O publicador "${newUser.name}" solicitou acesso à congregação.`,
-                icon: "/icon-192x192.jpg",
-                click_action: "/dashboard/usuarios",
-            },
-        };
-        await admin.messaging().sendToDevice(tokens, payload);
-        return { success: true };
     } catch (error) {
-        console.error(`[onNewUserPending] Falha ao enviar notificação para admins:`, error);
-        return { success: false, error };
+        console.error(`[onNewUserPending] Falha ao criar notificações para admins:`, error);
     }
 });
 
@@ -490,31 +456,27 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
       return null;
   }
 
-  const assignedUserUid = dataAfter.assignment.uid;
+  const { uid } = dataAfter.assignment;
   const territoryName = dataAfter.name;
-  const dueDate = (dataAfter.assignment.dueDate as admin.firestore.Timestamp).toDate();
-  const formattedDueDate = dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
+  
   try {
-      const userDoc = await db.collection("users").doc(assignedUserUid).get();
+      const userRef = db.collection("users").doc(uid);
+      const userDoc = await userRef.get();
       if (!userDoc.exists) return null;
 
-      const tokens = userDoc.data()?.fcmTokens;
-      if (!tokens || tokens.length === 0) return null;
-
-      const payload = {
-          notification: {
-              title: "Você recebeu um novo território!",
-              body: `O território "${territoryName}" foi designado para você! Devolva até ${formattedDueDate}.`,
-              icon: "/icon-192x192.jpg",
-              click_action: "/dashboard/meus-territorios",
-          },
+      const notification = {
+        title: "Novo Território Designado",
+        body: `O território "${territoryName}" foi designado para você.`,
+        link: `/dashboard/meus-territorios`,
+        type: 'territory_assigned' as const,
+        isRead: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
       };
-      await admin.messaging().sendToDevice(tokens as string[], payload);
-      return { success: true };
+
+      await userRef.collection('notifications').add(notification);
+
   } catch (error) {
-      console.error(`[Notification] FALHA CRÍTICA ao enviar notificação:`, error);
-      return { success: false, error };
+      console.error(`[onTerritoryAssigned] Falha ao criar notificação de designação:`, error);
   }
 });
 
@@ -616,6 +578,7 @@ export const checkInactiveUsers = pubsub.schedule("every 5 minutes").onRun(async
 export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(async (context) => {
     console.log("Executando verificação de territórios vencidos...");
     const now = admin.firestore.Timestamp.now();
+    const batch = db.batch();
 
     try {
         const congregationsSnapshot = await db.collection('congregations').get();
@@ -633,27 +596,25 @@ export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(a
                 const assignment = territory.assignment;
                 if (!assignment || !assignment.uid) continue;
 
-                const userDoc = await db.doc(`users/${assignment.uid}`).get();
-                if (!userDoc.exists) continue;
-
-                const tokens = userDoc.data()?.fcmTokens;
-                if (!tokens || tokens.length === 0) continue;
-
-                const payload = {
-                    notification: {
-                        title: "Território Vencido!",
-                        body: `Lembrete: O território "${territory.name}" está com o prazo de devolução vencido.`,
-                        icon: "/icon-192x192.jpg",
-                        click_action: "/dashboard/meus-territorios",
-                    },
+                const userRef = db.collection('users').doc(assignment.uid);
+                const notificationRef = userRef.collection('notifications').doc();
+                
+                const notification = {
+                    title: "Território Vencido!",
+                    body: `Lembrete: O território "${territory.name}" está com o prazo de devolução vencido.`,
+                    link: "/dashboard/meus-territorios",
+                    type: 'territory_overdue' as const,
+                    isRead: false,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 };
-                await admin.messaging().sendToDevice(tokens, payload);
-                console.log(`Notificação de vencimento enviada para ${assignment.name} sobre o território ${territory.name}.`);
+                
+                batch.set(notificationRef, notification);
             }
         }
-        return { success: true, message: "Verificação de territórios vencidos concluída." };
+        
+        await batch.commit();
+        console.log("Verificação de territórios vencidos concluída.");
     } catch (error) {
         console.error("Erro ao verificar territórios vencidos:", error);
-        return { success: false, error };
     }
 });

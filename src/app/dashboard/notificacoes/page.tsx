@@ -3,60 +3,78 @@
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
+import { db } from '@/lib/firebase';
+import { collection, query, orderBy, onSnapshot, writeBatch, where } from 'firebase/firestore';
 import withAuth from '@/components/withAuth';
-import { Bell, Inbox, AlertTriangle } from 'lucide-react';
+import { Bell, Inbox, AlertTriangle, CheckCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
-
-// Simulação de dados de notificação
-const mockNotifications = [
-  {
-    id: '1',
-    type: 'territory_assigned',
-    title: 'Novo Território Designado',
-    body: 'O território "Centro 1" foi designado para você.',
-    timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutos atrás
-    isRead: false,
-    link: '/dashboard/meus-territorios'
-  },
-  {
-    id: '2',
-    type: 'territory_overdue',
-    title: 'Território Atrasado!',
-    body: 'O prazo para devolução do território "Jardim dos Italianos" venceu.',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 dias atrás
-    isRead: false,
-    link: '/dashboard/meus-territorios'
-  },
-  {
-    id: '3',
-    type: 'announcement',
-    title: 'Reunião de Serviço',
-    body: 'Lembrete da reunião de serviço na próxima terça-feira.',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5), // 5 dias atrás
-    isRead: true,
-  },
-];
-
+import { type Notification } from '@/types/types';
+import { Button } from '@/components/ui/button';
 
 function NotificacoesPage() {
   const { user } = useUser();
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleMarkAsRead = (id: string) => {
-    setNotifications(
-      notifications.map(n => n.id === id ? { ...n, isRead: true } : n)
-    );
+  useEffect(() => {
+    if (!user) return;
+
+    const notificationsRef = collection(db, `users/${user.uid}/notifications`);
+    const q = query(notificationsRef, orderBy('createdAt', 'desc'));
+    
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+        const fetchedNotifications = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        } as Notification));
+        setNotifications(fetchedNotifications);
+        setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Marca as notificações como lidas quando a página é visualizada
+  useEffect(() => {
+      if (!user || notifications.length === 0) return;
+
+      const unreadNotifications = notifications.filter(n => !n.isRead);
+      if (unreadNotifications.length > 0) {
+        const batch = writeBatch(db);
+        unreadNotifications.forEach(n => {
+          const notifRef = doc(db, `users/${user.uid}/notifications`, n.id);
+          batch.update(notifRef, { isRead: true });
+        });
+        batch.commit();
+      }
+  }, [user, notifications]);
+
+  const handleMarkAllAsRead = async () => {
+    if (!user) return;
+    const batch = writeBatch(db);
+    notifications.forEach(n => {
+        if (!n.isRead) {
+            const notifRef = doc(db, `users/${user.uid}/notifications`, n.id);
+            batch.update(notifRef, { isRead: true });
+        }
+    });
+    await batch.commit();
   };
-  
-  const handleMarkAllAsRead = () => {
-    setNotifications(
-        notifications.map(n => ({...n, isRead: true}))
-    );
-  }
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const getIconForType = (type: Notification['type']) => {
+    switch(type) {
+      case 'territory_assigned': return <Bell className="text-blue-500" />;
+      case 'territory_overdue': return <AlertTriangle className="text-red-500" />;
+      case 'user_pending': return <Bell className="text-yellow-500" />;
+      default: return <Bell className="text-gray-500" />;
+    }
+  }
+  
+  if (loading) {
+    return <div className="text-center p-8">Carregando notificações...</div>
+  }
 
   return (
     <div className="p-4 md:p-8 space-y-6">
@@ -68,10 +86,10 @@ function NotificacoesPage() {
         <div className="bg-card rounded-lg border max-w-4xl mx-auto">
             <div className="p-4 flex justify-between items-center border-b">
                 <h2 className="font-semibold text-lg">Suas Notificações</h2>
-                {unreadCount > 0 && (
-                    <button onClick={handleMarkAllAsRead} className="text-sm text-primary hover:underline">
-                        Marcar todas como lidas
-                    </button>
+                {notifications.some(n => !n.isRead) && (
+                    <Button variant="ghost" size="sm" onClick={handleMarkAllAsRead}>
+                        <CheckCheck size={16} className="mr-2" /> Marcar todas como lidas
+                    </Button>
                 )}
             </div>
 
@@ -80,24 +98,22 @@ function NotificacoesPage() {
                     {notifications.map(notification => (
                         <div key={notification.id} className={`p-4 flex items-start gap-4 ${!notification.isRead ? 'bg-primary/5' : ''}`}>
                             <div className="mt-1">
-                                {!notification.isRead && <div className="w-2.5 h-2.5 bg-primary rounded-full"></div>}
+                                {getIconForType(notification.type)}
                             </div>
                             <div className="flex-1">
                                 <p className={`font-semibold ${!notification.isRead ? 'text-foreground' : 'text-muted-foreground'}`}>{notification.title}</p>
                                 <p className="text-sm text-muted-foreground">{notification.body}</p>
-                                {notification.link ? (
-                                    <Link href={notification.link} className="text-sm text-blue-500 hover:underline">
+                                {notification.link && (
+                                    <Link href={notification.link} className="text-sm text-blue-500 hover:underline mt-1 block">
                                         Ver detalhes
                                     </Link>
-                                ) : null}
+                                )}
                                 <p className="text-xs text-muted-foreground/80 mt-1">
-                                    {formatDistanceToNow(notification.timestamp, { addSuffix: true, locale: ptBR })}
+                                    {notification.createdAt ? formatDistanceToNow(notification.createdAt.toDate(), { addSuffix: true, locale: ptBR }) : ''}
                                 </p>
                             </div>
                             {!notification.isRead && (
-                                <button onClick={() => handleMarkAsRead(notification.id)} className="text-sm text-muted-foreground hover:text-foreground">
-                                    Marcar como lida
-                                </button>
+                                <div className="w-2.5 h-2.5 bg-primary rounded-full mt-2" title="Não lida"></div>
                             )}
                         </div>
                     ))}

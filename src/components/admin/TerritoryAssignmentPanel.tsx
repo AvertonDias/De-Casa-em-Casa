@@ -49,7 +49,6 @@ export default function TerritoryAssignmentPanel() {
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [notifyingTerritoryId, setNotifyingTerritoryId] = useState<string | null>(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'disponivel' | 'designado' | 'atrasado'>('all');
@@ -111,16 +110,7 @@ export default function TerritoryAssignmentPanel() {
     };
     await updateDoc(territoryRef, { status: 'designado', assignment });
 
-    const assignedUser = users.find(u => u.uid === user.uid);
-    const territory = territories.find(t => t.id === territoryId);
-    
-    if (assignedUser?.whatsapp && territory) {
-        const formattedDueDate = format(assignment.dueDate.toDate(), 'dd/MM/yyyy');
-        const message = `Olá, o território *${territory.number} - ${territory.name}* foi designado para você! Por favor, devolva até ${formattedDueDate}.`;
-        const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, ''); // Remove non-digit characters
-        const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, '_blank');
-    }
+    // A notificação de designação agora é gerenciada pela Cloud Function 'onTerritoryAssigned'
   };
 
   const handleOpenReturnModal = (territory: Territory) => {
@@ -219,43 +209,11 @@ export default function TerritoryAssignmentPanel() {
   };
   
   const handleNotifyOverdue = async (territory: Territory) => {
-    if (!territory.assignment) return;
-    
-    const assignedUser = users.find(u => u.uid === territory.assignment!.uid);
-    if (!assignedUser || !assignedUser.whatsapp) {
+      // Esta função será gerenciada pela Cloud Function agendada 'checkOverdueTerritories'
       toast({
-        title: "Usuário sem WhatsApp",
-        description: `Não foi possível notificar ${territory.assignment.name} pois não há um número de WhatsApp cadastrado.`,
-        variant: "destructive",
+          title: "Lembrete de Atraso",
+          description: "Uma notificação de atraso será enviada automaticamente ao usuário.",
       });
-      return;
-    }
-
-    setNotifyingTerritoryId(territory.id);
-
-    try {
-        const link = `${window.location.origin}/dashboard/meus-territorios`;
-        const message = `Olá, ${assignedUser.name.split(' ')[0]}! Este é um lembrete de que o território "${territory.name}" está com a devolução pendente. Por favor, trabalhe nele e devolva assim que possível. Acesse o app: ${link}`;
-        const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
-        const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, '_blank');
-        
-        toast({
-          title: "WhatsApp Aberto",
-          description: `A mensagem para ${assignedUser.name} está pronta para ser enviada.`,
-          variant: "default",
-        });
-
-    } catch (error: any) {
-      console.error("Erro ao abrir WhatsApp:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível abrir o WhatsApp.",
-        variant: "destructive",
-      });
-    } finally {
-      setNotifyingTerritoryId(null);
-    }
   };
   
   const filteredTerritories = territories.filter(t => {
@@ -333,7 +291,6 @@ export default function TerritoryAssignmentPanel() {
             {filteredTerritories.map(t => {
                 const isDesignado = t.status === 'designado' && t.assignment;
                 const isOverdue = isDesignado && t.assignment && t.assignment.dueDate.toDate() < new Date();
-                const isNotifying = notifyingTerritoryId === t.id;
                 
                 return (
                   <AccordionItem value={t.id} key={t.id} className="border-b last:border-b-0">
@@ -365,7 +322,7 @@ export default function TerritoryAssignmentPanel() {
                                              <>
                                                  <Menu.Item><button onClick={() => handleOpenReturnModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <CheckCircle size={16} className="mr-2"/>Devolver</button></Menu.Item>
                                                  <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <RotateCw size={16} className="mr-2"/>Reatribuir</button></Menu.Item>
-                                                 {isOverdue && <Menu.Item><button onClick={() => handleNotifyOverdue(t)} disabled={isNotifying} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground disabled:opacity-50'> {isNotifying ? <Loader className="mr-2 animate-spin"/> : <MessageCircle size={16} className="mr-2"/>}Notificar via WhatsApp</button></Menu.Item>}
+                                                 {isOverdue && <Menu.Item><button onClick={() => handleNotifyOverdue(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground disabled:opacity-50'> <MessageCircle size={16} className="mr-2"/>Lembrete de Atraso</button></Menu.Item>}
                                              </>
                                          ) : (
                                               <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <BookUser size={16} className="mr-2"/>Designar</button></Menu.Item>
@@ -423,5 +380,3 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
-
-    
