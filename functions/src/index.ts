@@ -464,25 +464,18 @@ export const onNewUserPending = onDocumentCreated("users/{userId}", async (event
 export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/territories/{terrId}", async (event) => {
     if (!event.data) return;
 
-    // Guarda robusta para evitar execuções em momentos indesejados
     const beforeData = event.data.before.exists ? event.data.before.data() as Territory : null;
     const afterData = event.data.after.exists ? event.data.after.data() as Territory : null;
     
-    if (!afterData) return; // Documento foi deletado, outra função cuidará disso
+    if (!afterData) return;
 
     const oldUid = beforeData?.assignment?.uid;
     const newUid = afterData.assignment?.uid;
 
-    // Condição principal: só notificar se a designação mudou para um novo usuário
-    if (oldUid === newUid) {
+    if (oldUid === newUid || !newUid || newUid.startsWith('custom_')) {
         return;
     }
     
-    // Se não há um novo usuário designado, ou é uma designação customizada, não notificar
-    if (!newUid || newUid.startsWith('custom_')) {
-        return;
-    }
-
     const { uid, dueDate } = afterData.assignment!;
     const territoryName = afterData.name;
     const territoryId = event.params.terrId;
@@ -520,31 +513,38 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
                     click_action: `/dashboard/territorios/${territoryId}`,
                 },
             };
-            const response = await admin.messaging().sendToDevice(tokens, payload);
             
-            // 3. Limpar Tokens Inválidos
-            const tokensToRemove: string[] = [];
-            response.results.forEach((result, index) => {
-                const error = result.error;
-                if (error) {
-                    console.error(`Falha ao enviar notificação para o token: ${tokens[index]}`, error);
-                    if (error.code === 'messaging/invalid-registration-token' ||
-                        error.code === 'messaging/registration-token-not-registered') {
-                        tokensToRemove.push(tokens[index]);
+            try {
+                const response = await admin.messaging().sendToDevice(tokens, payload);
+                
+                // 3. Limpar Tokens Inválidos
+                const tokensToRemove: string[] = [];
+                response.results.forEach((result, index) => {
+                    const error = result.error;
+                    if (error) {
+                        console.error(`Falha ao enviar notificação para o token: ${tokens[index]}`, error);
+                        if (error.code === 'messaging/invalid-registration-token' ||
+                            error.code === 'messaging/registration-token-not-registered') {
+                            tokensToRemove.push(tokens[index]);
+                        }
                     }
-                }
-            });
-
-            if (tokensToRemove.length > 0) {
-                console.log(`[onTerritoryAssigned] Removendo ${tokensToRemove.length} tokens inválidos.`);
-                await userRef.update({
-                    fcmTokens: admin.firestore.FieldValue.arrayRemove(...tokensToRemove)
                 });
+
+                if (tokensToRemove.length > 0) {
+                    console.log(`[onTerritoryAssigned] Removendo ${tokensToRemove.length} tokens inválidos.`);
+                    await userRef.update({
+                        fcmTokens: admin.firestore.FieldValue.arrayRemove(...tokensToRemove)
+                    });
+                }
+            } catch (pushError) {
+                // Se a notificação PUSH falhar, apenas loga o erro e continua.
+                // A notificação interna já foi criada.
+                console.warn('[onTerritoryAssigned] Falha ao enviar notificação PUSH. A notificação interna foi criada.', pushError);
             }
         }
 
     } catch (error) {
-        console.error(`[onTerritoryAssigned] Falha CRÍTICA ao notificar UID ${uid}:`, error);
+        console.error(`[onTerritoryAssigned] Falha CRÍTICA ao processar designação para UID ${uid}:`, error);
     }
 });
 
