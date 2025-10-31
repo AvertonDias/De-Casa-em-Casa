@@ -452,13 +452,11 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
     const before = event.data?.before.data() as Territory | undefined;
     const after = event.data?.after.data() as Territory | undefined;
 
-    const wasAssigned = !!before?.assignment;
-    const isAssigned = !!after?.assignment;
-    
-    // Condição:
-    // 1. O território não estava designado antes E foi designado agora.
-    // 2. O território estava designado antes E foi re-designado para uma pessoa diferente.
-    if (!isAssigned || (wasAssigned && before?.assignment?.uid === after?.assignment?.uid)) {
+    // Condição para notificar: se ANTES não tinha 'assignment' e AGORA tem,
+    // OU se o UID da designação mudou.
+    const shouldNotify = after?.assignment && (!before?.assignment || before.assignment.uid !== after.assignment.uid);
+
+    if (!shouldNotify) {
         return; // Nenhuma ação necessária.
     }
     
