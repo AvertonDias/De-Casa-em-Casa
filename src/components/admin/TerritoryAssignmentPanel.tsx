@@ -116,7 +116,7 @@ export default function TerritoryAssignmentPanel() {
     
     if (assignedUser?.whatsapp && territory) {
         const formattedDueDate = format(assignment.dueDate.toDate(), 'dd/MM/yyyy');
-        const message = `Olá, o território *${territory.number} - ${territory.name}* foi designado para você! Devolva até ${formattedDueDate}.`;
+        const message = `Olá, o território *${territory.number} - ${territory.name}* foi designado para você! Por favor, devolva até ${formattedDueDate}.`;
         const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, ''); // Remove non-digit characters
         const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
@@ -235,7 +235,7 @@ export default function TerritoryAssignmentPanel() {
 
     try {
         const link = `${window.location.origin}/dashboard/meus-territorios`;
-        const message = `Olá, este é um lembrete de que o território "${territory.name}" está com a devolução pendente, por favor atualize o quanto antes. Acesse aqui: ${link}`;
+        const message = `Olá, ${assignedUser.name.split(' ')[0]}! Este é um lembrete de que o território "${territory.name}" está com a devolução pendente. Por favor, trabalhe nele e devolva assim que possível. Acesse o app: ${link}`;
         const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
         const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
@@ -423,3 +423,5 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
+
+    
