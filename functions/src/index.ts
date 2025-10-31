@@ -454,23 +454,28 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
 
     const wasAssigned = !!before?.assignment;
     const isAssigned = !!after?.assignment;
-    const uidChanged = before?.assignment?.uid !== after?.assignment?.uid;
-
-    if (!isAssigned || (wasAssigned && !uidChanged)) {
-        return null;
+    
+    // Condição:
+    // 1. O território não estava designado antes E foi designado agora.
+    // 2. O território estava designado antes E foi re-designado para uma pessoa diferente.
+    if (!isAssigned || (wasAssigned && before?.assignment?.uid === after?.assignment?.uid)) {
+        return; // Nenhuma ação necessária.
     }
-
-    const { uid } = after.assignment!;
+    
+    const { uid, name } = after.assignment!;
     const territoryName = after.name;
 
+    // Não criar notificação para designações "customizadas" (ex: "Campanha")
     if (uid.startsWith('custom_')) {
-        return null;
+        return;
     }
 
     try {
         const userRef = db.collection("users").doc(uid);
         const userDoc = await userRef.get();
-        if (!userDoc.exists) return null;
+        
+        // Só continua se o usuário realmente existir no banco.
+        if (!userDoc.exists) return;
 
         const notification: Omit<Notification, 'id'> = {
             title: "Novo Território Designado",
@@ -481,10 +486,11 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
             createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
         };
 
+        // Adiciona a notificação na subcoleção do usuário.
         await userRef.collection('notifications').add(notification);
 
     } catch (error) {
-        console.error(`[onTerritoryAssigned] Falha ao criar notificação:`, error);
+        console.error(`[onTerritoryAssigned] Falha ao criar notificação para UID ${uid}:`, error);
     }
 });
 
