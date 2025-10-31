@@ -1,12 +1,11 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, writeBatch, where } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, writeBatch, doc } from 'firebase/firestore';
 import withAuth from '@/components/withAuth';
-import { Bell, Inbox, AlertTriangle, CheckCheck } from 'lucide-react';
+import { Bell, Inbox, AlertTriangle, CheckCheck, Loader, UserPlus, Milestone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
@@ -47,7 +46,7 @@ function NotificacoesPage() {
           const notifRef = doc(db, `users/${user.uid}/notifications`, n.id);
           batch.update(notifRef, { isRead: true });
         });
-        batch.commit();
+        batch.commit().catch(err => console.error("Erro ao marcar notificações como lidas:", err));
       }
   }, [user, notifications]);
 
@@ -65,15 +64,17 @@ function NotificacoesPage() {
 
   const getIconForType = (type: Notification['type']) => {
     switch(type) {
-      case 'territory_assigned': return <Bell className="text-blue-500" />;
+      case 'territory_assigned': return <Milestone className="text-blue-500" />;
       case 'territory_overdue': return <AlertTriangle className="text-red-500" />;
-      case 'user_pending': return <Bell className="text-yellow-500" />;
+      case 'territory_returned': return <CheckCheck className="text-green-500" />;
+      case 'territory_available': return <Bell className="text-green-500" />;
+      case 'user_pending': return <UserPlus className="text-yellow-500" />;
       default: return <Bell className="text-gray-500" />;
     }
   }
   
   if (loading) {
-    return <div className="text-center p-8">Carregando notificações...</div>
+    return <div className="flex justify-center items-center h-full p-8"><Loader className="animate-spin text-primary" size={32}/></div>
   }
 
   return (
