@@ -26,6 +26,8 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
   useEffect(() => {
     if (isOpen) {
       const newAssignmentDate = new Date();
+      // Ajusta para o fuso horário local para garantir que a data seja a "de hoje"
+      newAssignmentDate.setMinutes(newAssignmentDate.getMinutes() - newAssignmentDate.getTimezoneOffset());
       const newDueDate = new Date(newAssignmentDate);
       newDueDate.setMonth(newDueDate.getMonth() + 2);
 
@@ -40,9 +42,12 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
   
   useEffect(() => {
     if (assignmentDate) {
-      const newAssignmentDate = new Date(assignmentDate + 'T12:00:00');
-      if (!isNaN(newAssignmentDate.getTime())) {
-          const newDueDate = new Date(newAssignmentDate);
+      // Cria a data de devolução baseada na data de designação
+      const baseDate = new Date(assignmentDate);
+      // Corrige o fuso horário para a data de devolução também
+      baseDate.setMinutes(baseDate.getMinutes() + baseDate.getTimezoneOffset());
+      if (!isNaN(baseDate.getTime())) {
+          const newDueDate = new Date(baseDate);
           newDueDate.setMonth(newDueDate.getMonth() + 2);
           setDueDate(newDueDate.toISOString().split('T')[0]);
       }
@@ -54,7 +59,10 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
     const monthsToAdd = parseInt(event.target.value, 10);
     if (isNaN(monthsToAdd) || !assignmentDate) return;
 
-    const baseDate = new Date(assignmentDate + 'T12:00:00');
+    const baseDate = new Date(assignmentDate);
+    // Corrige o fuso horário para o cálculo
+    baseDate.setMinutes(baseDate.getMinutes() + baseDate.getTimezoneOffset());
+
     if (!isNaN(baseDate.getTime())) {
       const futureDate = new Date(baseDate);
       futureDate.setMonth(futureDate.getMonth() + monthsToAdd);
