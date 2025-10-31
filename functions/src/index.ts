@@ -452,14 +452,17 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
     const before = event.data?.before.data() as Territory | undefined;
     const after = event.data?.after.data() as Territory | undefined;
 
-    // Condição para notificar: se ANTES não tinha 'assignment' e AGORA tem,
-    // OU se o UID da designação mudou.
-    const shouldNotify = after?.assignment && (!before?.assignment || before.assignment.uid !== after.assignment.uid);
+    // Condição para notificar:
+    // 1. Se ANTES não tinha 'assignment' e AGORA tem.
+    // 2. OU se o 'assignment' existia e o UID da pessoa mudou.
+    const shouldNotify = (after?.assignment && !before?.assignment) || 
+                         (after?.assignment && before?.assignment && before.assignment.uid !== after.assignment.uid);
 
     if (!shouldNotify) {
         return; // Nenhuma ação necessária.
     }
     
+    // Garantimos que 'after.assignment' existe por causa da condição 'shouldNotify'
     const { uid, name } = after.assignment!;
     const territoryName = after.name;
 
@@ -478,7 +481,7 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
         const notification: Omit<Notification, 'id'> = {
             title: "Novo Território Designado",
             body: `O território "${territoryName}" foi designado para você.`,
-            link: `/dashboard/meus-territorios`,
+            link: `/dashboard/territorios/${event.params.terrId}`,
             type: 'territory_assigned',
             isRead: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
@@ -496,21 +499,22 @@ export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/ter
   const before = event.data?.before.data() as Territory | undefined;
   const after = event.data?.after.data() as Territory | undefined;
 
-  if (before?.status !== 'designado' || after?.status !== 'disponivel') {
+  // Dispara apenas quando o território passa de 'designado' para qualquer outro status (normalmente 'disponivel')
+  if (before?.status !== 'designado' || after?.status === 'designado') {
     return;
   }
   
-  const oldHistoryLength = before?.assignmentHistory?.length || 0;
-  const newHistoryLength = after?.assignmentHistory?.length || 0;
+  // Confirma que havia uma designação antes, que agora não existe mais
+  if (!before?.assignment || after?.assignment) {
+      return;
+  }
 
-  if (newHistoryLength <= oldHistoryLength) return;
-
-  const lastReturn = after.assignmentHistory![newHistoryLength - 1];
-  const returningUserUid = lastReturn.uid;
+  const returningUserUid = before.assignment.uid;
   const territoryName = after.name;
 
   const batch = db.batch();
 
+  // Cria notificação para o usuário que devolveu (se não for custom)
   if (!returningUserUid.startsWith('custom_')) {
       const userRef = db.collection("users").doc(returningUserUid);
       const userNotifRef = userRef.collection('notifications').doc();
@@ -525,13 +529,14 @@ export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/ter
       batch.set(userNotifRef, userNotification);
   }
 
+  // Cria notificação para os administradores
   const adminsQuery = db.collection("users")
     .where('congregationId', '==', event.params.congId)
     .where('role', 'in', ['Administrador', 'Dirigente', 'Servo de Territórios']);
   
   const adminsSnapshot = await adminsQuery.get();
   if (adminsSnapshot.empty) {
-      await batch.commit();
+      await batch.commit(); // Commita a notificação do usuário mesmo se não houver admins
       return;
   }
 
@@ -690,6 +695,3 @@ export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(a
         console.error("Erro ao verificar territórios vencidos:", error);
     }
 });
-
-
-    
