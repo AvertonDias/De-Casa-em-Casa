@@ -20,6 +20,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
 
+const functions = getFunctions(app, 'southamerica-east1');
+
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   label: string;
@@ -111,10 +113,10 @@ export default function TerritoryAssignmentPanel() {
     const assignedUser = users.find(u => u.uid === user.uid);
     const territory = territories.find(t => t.id === territoryId);
     
-    if (assignedUser?.whatsapp && territory) {
+    if (assignedUser?.whatsapp && territory && !user.uid.startsWith('custom_')) {
         const formattedDueDate = format(assignment.dueDate.toDate(), 'dd/MM/yyyy');
         const message = `Olá, o território *${territory.number} - ${territory.name}* foi designado para você! Devolva até ${formattedDueDate}.`;
-        const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, ''); // Remove non-digit characters
+        const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
         const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     }
@@ -407,7 +409,7 @@ export default function TerritoryAssignmentPanel() {
       />
        <ConfirmationModal
         isOpen={isConfirmDeleteOpen}
-        onClose={()={() => setIsConfirmDeleteOpen(false)}
+        onClose={() => setIsConfirmDeleteOpen(false)}
         onConfirm={handleConfirmDeleteLog}
         title="Confirmar Exclusão"
         message={`Tem certeza que deseja excluir o registro de ${logToDelete?.log.name}? Esta ação não pode ser desfeita.`}
@@ -415,5 +417,3 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
-
-    
