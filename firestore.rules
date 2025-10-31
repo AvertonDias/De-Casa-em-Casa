@@ -53,6 +53,11 @@ service cloud.firestore {
       
       // Apenas Admins podem deletar usuários (e não a si mesmos)
       allow delete: if getUserData().role == 'Administrador' && request.auth.uid != userId;
+
+      // Permite que o usuário leia e escreva em suas próprias notificações
+      match /notifications/{notificationId} {
+        allow read, write: if request.auth.uid == userId;
+      }
     }
     
     // Regra para a coleção de tokens de reset de senha
