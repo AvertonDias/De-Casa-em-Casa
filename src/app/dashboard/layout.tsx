@@ -10,7 +10,7 @@ import { useTheme } from 'next-themes';
 import { doc, arrayUnion, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { getToken } from 'firebase/messaging';
 
-import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Send } from 'lucide-react';
+import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,6 +67,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
   const pathname = usePathname();
   const { user, logout } = useUser();
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(2); // Simulação de notificações não lidas
   const { showInstallButton, canPrompt, deviceInfo, onInstall } = usePWAInstall();
   const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false);
   const [isShareApiSupported, setIsShareApiSupported] = useState(false);
@@ -132,7 +133,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
     { name: "Territórios", href: "/dashboard/territorios", icon: Map, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
     { name: "Rural", href: "/dashboard/rural", icon: Trees, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
     { name: "Meus Territórios", href: "/dashboard/meus-territorios", icon: UserCheck, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
-    { name: "Notificações", href: "/dashboard/notificacoes", icon: Send, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
+    { name: "Notificações", href: "/dashboard/notificacoes", icon: Bell, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
     { name: "Usuários", href: "/dashboard/usuarios", icon: Users, roles: ['Administrador', 'Dirigente', 'Servo de Territórios'] },
     { name: "Administração", href: "/dashboard/administracao", icon: Shield, roles: ['Administrador', 'Servo de Territórios'] },
   ];
@@ -171,10 +172,12 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
           <ul className="space-y-1">
             {filteredNavLinks.map((link) => {
               const isActive = pathname === link.href || (pathname && link.href !== "/dashboard" && pathname.startsWith(link.href));
+              const hasUnread = (link.name === "Usuários" && pendingUsersCount > 0) || 
+                                (link.name === "Notificações" && unreadNotificationsCount > 0);
               return (
                 <li key={link.name}>
                   <Link href={link.href} onClick={onClose} className={cn(
-                      'flex items-center justify-between text-md p-3 rounded-lg mb-2 transition-colors', 
+                      'relative flex items-center justify-between text-md p-3 rounded-lg mb-2 transition-colors', 
                       isActive 
                         ? 'bg-primary text-primary-foreground font-semibold shadow' 
                         : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
@@ -183,8 +186,8 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
                       <link.icon className="h-5 w-5" />
                       <span>{link.name}</span>
                     </div>
-                    {link.name === "Usuários" && pendingUsersCount > 0 && (
-                      <span className="w-2.5 h-2.5 bg-destructive rounded-full animate-pending-pulse"></span>
+                    {hasUnread && (
+                      <span className="absolute left-1 top-1 w-2.5 h-2.5 bg-destructive rounded-full animate-indicator-pulse"></span>
                     )}
                   </Link>
                 </li>

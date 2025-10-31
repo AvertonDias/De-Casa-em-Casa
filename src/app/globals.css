@@ -77,18 +77,20 @@
 }
 
 @layer components {
-  .animate-pending-pulse {
-    animation: pending-pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+  .animate-indicator-pulse {
+    animation: indicator-pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
   }
 }
 
-@keyframes pending-pulse {
+@keyframes indicator-pulse {
   0%, 100% {
-    background-color: hsl(var(--destructive));
+    transform: scale(1);
+    opacity: 1;
     box-shadow: 0 0 0 0 hsla(var(--destructive), 0.7);
   }
   50% {
-      background-color: hsl(48 96% 53%); /* Amarelo */
-      box-shadow: 0 0 10px 5px hsla(48, 96%, 53%, 0.4);
+    transform: scale(1.2);
+    opacity: 0.75;
+    box-shadow: 0 0 0 4px hsla(var(--destructive), 0);
   }
 }
