@@ -128,11 +128,11 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
   };
 
   const navLinks = [
-    { name: "Início", href: "/dashboard", icon: Home, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
+    { name: "Início", href: "/dashboard", icon: Home, roles: ['Administrador', 'Dirigente'] },
     { name: "Territórios", href: "/dashboard/territorios", icon: Map, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
     { name: "Rural", href: "/dashboard/rural", icon: Trees, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
     { name: "Meus Territórios", href: "/dashboard/meus-territorios", icon: UserCheck, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
-    { name: "Notificações", href: "/dashboard/notificacoes", icon: Send, roles: ['Administrador'] },
+    { name: "Notificações", href: "/dashboard/notificacoes", icon: Send, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
     { name: "Usuários", href: "/dashboard/usuarios", icon: Users, roles: ['Administrador', 'Dirigente', 'Servo de Territórios'] },
     { name: "Administração", href: "/dashboard/administracao", icon: Shield, roles: ['Administrador', 'Servo de Territórios'] },
   ];
