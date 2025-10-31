@@ -491,7 +491,28 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
                     click_action: `/dashboard/territorios/${territoryId}`,
                 },
             };
-            await admin.messaging().sendToDevice(tokens, payload);
+            const response = await admin.messaging().sendToDevice(tokens, payload);
+            
+            // --- 3. Limpeza de Tokens Inválidos ---
+            const tokensToRemove: string[] = [];
+            response.results.forEach((result, index) => {
+                const error = result.error;
+                if (error) {
+                    console.error('Falha ao enviar notificação para o token:', tokens[index], error);
+                    // Verifica se o erro indica que o token é inválido
+                    if (error.code === 'messaging/invalid-registration-token' ||
+                        error.code === 'messaging/registration-token-not-registered') {
+                        tokensToRemove.push(tokens[index]);
+                    }
+                }
+            });
+
+            if (tokensToRemove.length > 0) {
+                console.log(`Removendo ${tokensToRemove.length} tokens inválidos para o usuário ${uid}.`);
+                await userRef.update({
+                    fcmTokens: admin.firestore.FieldValue.arrayRemove(...tokensToRemove)
+                });
+            }
         }
 
     } catch (error) {
