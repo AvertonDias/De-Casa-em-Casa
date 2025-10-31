@@ -417,13 +417,22 @@ export const onNewUserPending = onDocumentCreated("users/{userId}", async (event
         return null;
     }
 
-    const adminsQuery = db.collection("users")
-        .where('congregationId', '==', newUser.congregationId)
-        .where('role', 'in', ['Administrador', 'Dirigente', 'Servo de Territórios']);
-
     try {
-        const adminsSnapshot = await adminsQuery.get();
-        if (adminsSnapshot.empty) return null;
+        const rolesToQuery = ['Administrador', 'Dirigente', 'Servo de Territórios'];
+        const adminQueries = rolesToQuery.map(role => 
+            db.collection("users")
+              .where('congregationId', '==', newUser.congregationId)
+              .where('role', '==', role)
+              .get()
+        );
+
+        const adminSnapshots = await Promise.all(adminQueries);
+        const adminDocs = adminSnapshots.flatMap(snap => snap.docs);
+
+        if (adminDocs.length === 0) {
+            console.log(`[onNewUserPending] Nenhum administrador ou dirigente encontrado para a congregação ${newUser.congregationId}.`);
+            return null;
+        }
 
         const batch = db.batch();
         const notification: Omit<Notification, 'id'> = {
@@ -434,10 +443,14 @@ export const onNewUserPending = onDocumentCreated("users/{userId}", async (event
             isRead: false,
             createdAt: admin.firestore.Timestamp.now(),
         };
-
-        adminsSnapshot.forEach(doc => {
-            const notificationsRef = doc.ref.collection('notifications').doc();
-            batch.set(notificationsRef, notification);
+        
+        const notifiedUserIds = new Set<string>();
+        adminDocs.forEach(doc => {
+            if (!notifiedUserIds.has(doc.id)) {
+                const notificationsRef = doc.ref.collection('notifications').doc();
+                batch.set(notificationsRef, notification);
+                notifiedUserIds.add(doc.id);
+            }
         });
         
         await batch.commit();
@@ -449,16 +462,26 @@ export const onNewUserPending = onDocumentCreated("users/{userId}", async (event
 
 
 export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/territories/{terrId}", async (event) => {
-    const beforeData = event.data?.before.data() as Territory | undefined;
-    const afterData = event.data?.after.data() as Territory | undefined;
+    if (!event.data) return;
 
-    if (!afterData) return; // Documento deletado, não faz nada.
+    // Guarda robusta para evitar execuções em momentos indesejados
+    const beforeData = event.data.before.exists ? event.data.before.data() as Territory : null;
+    const afterData = event.data.after.exists ? event.data.after.data() as Territory : null;
+    
+    if (!afterData) return; // Documento foi deletado, outra função cuidará disso
 
     const oldUid = beforeData?.assignment?.uid;
     const newUid = afterData.assignment?.uid;
 
-    if (oldUid === newUid) return; // Nenhuma mudança na designação.
-    if (!newUid || newUid.startsWith('custom_')) return; // Não notificar se não há novo usuário ou se é custom.
+    // Condição principal: só notificar se a designação mudou para um novo usuário
+    if (oldUid === newUid) {
+        return;
+    }
+    
+    // Se não há um novo usuário designado, ou é uma designação customizada, não notificar
+    if (!newUid || newUid.startsWith('custom_')) {
+        return;
+    }
 
     const { uid, dueDate } = afterData.assignment!;
     const territoryName = afterData.name;
@@ -485,6 +508,8 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
 
         // 2. Enviar Notificação Push (FCM)
         const tokens = userDoc.data()?.fcmTokens;
+        console.log(`[onTerritoryAssigned] Tokens encontrados para ${userDoc.data()?.name}:`, tokens);
+
         if (tokens && Array.isArray(tokens) && tokens.length > 0) {
             const formattedDueDate = format(dueDate.toDate(), 'dd/MM/yyyy');
             const payload = {
@@ -511,6 +536,7 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
             });
 
             if (tokensToRemove.length > 0) {
+                console.log(`[onTerritoryAssigned] Removendo ${tokensToRemove.length} tokens inválidos.`);
                 await userRef.update({
                     fcmTokens: admin.firestore.FieldValue.arrayRemove(...tokensToRemove)
                 });
@@ -527,19 +553,17 @@ export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/ter
   const before = event.data?.before.data() as Territory | undefined;
   const after = event.data?.after.data() as Territory | undefined;
 
-  if (before?.status !== 'designado' || after?.status === 'designado') {
+  // Só aciona se o território ESTAVA designado e AGORA NÃO ESTÁ mais.
+  if (!before?.assignment || after?.assignment) {
     return;
   }
   
-  if (!before?.assignment || after?.assignment) {
-      return;
-  }
-
   const returningUserUid = before.assignment.uid;
   const territoryName = after!.name;
 
   const batch = db.batch();
 
+  // 1. Notificar o publicador que devolveu (se não for custom)
   if (!returningUserUid.startsWith('custom_')) {
       const userRef = db.collection("users").doc(returningUserUid);
       const userNotifRef = userRef.collection('notifications').doc();
@@ -554,13 +578,21 @@ export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/ter
       batch.set(userNotifRef, userNotification);
   }
 
-  const adminsQuery = db.collection("users")
-    .where('congregationId', '==', event.params.congId)
-    .where('role', 'in', ['Administrador', 'Dirigente', 'Servo de Territórios']);
+  // 2. Notificar todos os administradores e dirigentes
+  const rolesToQuery = ['Administrador', 'Dirigente', 'Servo de Territórios'];
   
   try {
-    const adminsSnapshot = await adminsQuery.get();
-    if (!adminsSnapshot.empty) {
+    const adminQueries = rolesToQuery.map(role => 
+        db.collection("users")
+          .where('congregationId', '==', event.params.congId)
+          .where('role', '==', role)
+          .get()
+    );
+
+    const adminSnapshots = await Promise.all(adminQueries);
+    const adminDocs = adminSnapshots.flatMap(snap => snap.docs);
+
+    if (adminDocs.length > 0) {
         const adminNotification: Omit<Notification, 'id'> = {
           title: "Território Disponível",
           body: `O território "${territoryName}" foi devolvido e está disponível para designação.`,
@@ -569,10 +601,14 @@ export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/ter
           isRead: false,
           createdAt: admin.firestore.Timestamp.now()
         };
-
-        adminsSnapshot.forEach(doc => {
-          const notificationsRef = doc.ref.collection('notifications').doc();
-          batch.set(notificationsRef, adminNotification);
+        
+        const notifiedUserIds = new Set<string>();
+        adminDocs.forEach(doc => {
+          if (!notifiedUserIds.has(doc.id)) {
+            const notificationsRef = doc.ref.collection('notifications').doc();
+            batch.set(notificationsRef, adminNotification);
+            notifiedUserIds.add(doc.id);
+          }
         });
     }
     
