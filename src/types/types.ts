@@ -1,3 +1,4 @@
+
 // src/types/types.ts
 
 import { Timestamp, FieldValue } from "firebase/firestore";
@@ -156,4 +157,23 @@ export interface AssignmentHistoryLog {
   name: string;
   assignedAt: Timestamp;
   completedAt: Timestamp; // Data em que foi devolvido
+}
+
+// --- Tipos para Campanhas de Notificação ---
+
+export interface Campaign {
+  id: string;
+  title: string;
+  body: string;
+  status: 'ativa' | 'concluída' | 'rascunho' | 'agendada';
+  segmentation: 'all' | 'specific_roles'; // Exemplo de segmentação
+  roles?: AppUser['role'][]; // Para 'specific_roles'
+  scheduledAt?: Timestamp; // Para campanhas agendadas
+  createdAt: Timestamp;
+  createdBy: string; // Nome do criador
+  stats: {
+    sends: number;
+    impressions: number;
+    clicks: number;
+  };
 }

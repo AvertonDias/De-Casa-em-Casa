@@ -10,7 +10,7 @@ import { useTheme } from 'next-themes';
 import { doc, arrayUnion, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { getToken } from 'firebase/messaging';
 
-import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck } from 'lucide-react';
+import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Send } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -132,6 +132,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
     { name: "Territórios", href: "/dashboard/territorios", icon: Map, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
     { name: "Rural", href: "/dashboard/rural", icon: Trees, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
     { name: "Meus Territórios", href: "/dashboard/meus-territorios", icon: UserCheck, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
+    { name: "Notificações", href: "/dashboard/notificacoes", icon: Send, roles: ['Administrador'] },
     { name: "Usuários", href: "/dashboard/usuarios", icon: Users, roles: ['Administrador', 'Dirigente', 'Servo de Territórios'] },
     { name: "Administração", href: "/dashboard/administracao", icon: Shield, roles: ['Administrador', 'Servo de Territórios'] },
   ];
