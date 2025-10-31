@@ -10,30 +10,38 @@ service cloud.firestore {
     }
     
     function isManager() {
-      // Permite Administradores, Dirigentes e agora Servos de Territórios
       return getUserData().role in ['Administrador', 'Dirigente', 'Servo de Territórios'];
     }
 
     // --- Coleção de Congregações ---
     match /congregations/{congId} {
+      // Todos podem ler; apenas Administradores podem escrever
       allow read: if true;
       allow write: if getUserData().role == 'Administrador';
 
+      // Subcoleção de Territórios
       match /territories/{terrId} {
+        // Todos da mesma congregação podem ler; apenas gerentes podem escrever
         allow read: if getUserData().congregationId == congId;
         allow write: if getUserData().congregationId == congId && isManager();
 
+        // Subcoleção de Quadras
         match /quadras/{quadraId} {
           allow read: if getUserData().congregationId == congId;
           allow write: if getUserData().congregationId == congId && isManager();
 
+          // Subcoleção de Casas
           match /casas/{casaId} {
+            // Qualquer um da congregação pode ler
             allow read: if getUserData().congregationId == congId;
+            // Somente gerentes podem criar/deletar
             allow create, delete: if getUserData().congregationId == congId && isManager();
+            // Qualquer um pode atualizar status (ex: marcar como feita)
             allow update: if getUserData().congregationId == congId;
           }
         }
         
+        // Histórico de atividades do território
         match /activityHistory/{activityId} {
           allow read: if getUserData().congregationId == congId;
           allow write: if getUserData().congregationId == congId && isManager();
@@ -43,34 +51,40 @@ service cloud.firestore {
 
     // --- Coleção de Usuários ---
     match /users/{userId} {
+      // Um usuário pode ler e atualizar seu próprio documento
       allow get, update: if request.auth.uid == userId;
+      
+      // Admins/Dirigentes/Servos podem listar usuários da mesma congregação
       allow list: if request.auth != null && isManager();
+
+      // Um usuário pode criar seu próprio documento (cadastro)
       allow create: if request.auth.uid == userId;
 
-      // Admins/Dirigentes/Servos podem atualizar o status/role de outros da mesma congregação
+      // Admins/Dirigentes/Servos podem atualizar outros usuários da mesma congregação
       allow update: if request.auth.uid == userId || (isManager() && getUserData().congregationId == resource.data.congregationId);
       
-      // Apenas Admins podem deletar usuários (e não a si mesmos)
+      // Apenas Admins podem deletar outros usuários (não a si mesmos)
       allow delete: if getUserData().role == 'Administrador' && request.auth.uid != userId;
 
-      // Subcoleção de Notificações
+      // --- Subcoleção de Notificações ---
       match /notifications/{notificationId} {
-        // O próprio usuário pode ler e escrever (ex: marcar como lida)
-        allow read, write: if request.auth.uid == userId;
-        // Permite que Cloud Functions (rodando como admin) criem notificações
-        allow create: if isManager();
+        // Usuário pode ler suas próprias notificações
+        allow read: if request.auth.uid == userId;
+        // Usuário pode escrever nas suas próprias, e o servidor (Cloud Functions) também pode
+        allow write: if request.auth.uid == userId || request.auth == null;
       }
     }
     
-    // Coleção para tokens de redefinição de senha
+    // --- Tokens de redefinição (acesso sempre negado) ---
     match /resetTokens/{tokenId} {
       allow read, write: if false; 
     }
     
-    // Coleção para feedbacks
+    // --- Feedbacks (usuário autenticado pode criar) ---
     match /feedbacks/{feedbackId} {
       allow create: if request.auth != null;
       allow read, update, delete: if false;
     }
-  }
-}
+
+  } // end match /databases/{database}/documents
+} // end service cloud.firestore
