@@ -48,8 +48,11 @@ service cloud.firestore {
       // Permite que um novo usuário crie seu próprio perfil
       allow create: if request.auth.uid == userId;
 
-      // Permite que o próprio usuário ou um admin/dirigente atualize o perfil
-      allow update: if request.auth.uid == userId || getUserData().role in ['Administrador', 'Dirigente'];
+      // Permite que o próprio usuário atualize seu perfil, ou que um Admin/Dirigente atualize
+      // um usuário da *mesma* congregação.
+      allow update: if request.auth.uid == userId ||
+                       (getUserData().role in ['Administrador', 'Dirigente'] &&
+                        getUserData().congregationId == resource.data.congregationId);
       
       // Apenas Admins podem deletar usuários (e não a si mesmos)
       allow delete: if getUserData().role == 'Administrador' && request.auth.uid != userId;
