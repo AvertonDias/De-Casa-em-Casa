@@ -432,7 +432,7 @@ export const onNewUserPending = onDocumentCreated("users/{userId}", async (event
             link: "/dashboard/usuarios",
             type: 'user_pending',
             isRead: false,
-            createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp,
+            createdAt: admin.firestore.Timestamp.now(),
         };
 
         adminsSnapshot.forEach(doc => {
@@ -449,37 +449,41 @@ export const onNewUserPending = onDocumentCreated("users/{userId}", async (event
 
 
 export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/territories/{terrId}", async (event) => {
-    const before = event.data?.before.data() as Territory | undefined;
-    const after = event.data?.after.data() as Territory | undefined;
+    const beforeData = event.data?.before.data() as Territory | undefined;
+    const afterData = event.data?.after.data() as Territory | undefined;
 
-    const shouldNotify = (after?.assignment && !before?.assignment) || 
-                         (after?.assignment && before?.assignment && before.assignment.uid !== after.assignment.uid);
+    if (!afterData) return; // Documento deletado, não faz nada.
 
-    if (!shouldNotify) return;
-    
-    const { uid, name, dueDate } = after!.assignment!;
-    const territoryName = after!.name;
+    const oldUid = beforeData?.assignment?.uid;
+    const newUid = afterData.assignment?.uid;
+
+    if (oldUid === newUid) return; // Nenhuma mudança na designação.
+    if (!newUid || newUid.startsWith('custom_')) return; // Não notificar se não há novo usuário ou se é custom.
+
+    const { uid, dueDate } = afterData.assignment!;
+    const territoryName = afterData.name;
     const territoryId = event.params.terrId;
-
-    if (uid.startsWith('custom_')) return;
+    const userRef = db.collection("users").doc(uid);
 
     try {
-        const userRef = db.collection("users").doc(uid);
         const userDoc = await userRef.get();
-        if (!userDoc.exists) return;
+        if (!userDoc.exists) {
+            console.error(`[onTerritoryAssigned] Usuário ${uid} não encontrado.`);
+            return;
+        }
 
-        // --- 1. Criação da Notificação Interna ---
+        // 1. Criar Notificação Interna
         const notification: Omit<Notification, 'id'> = {
             title: "Novo Território Designado",
             body: `O território "${territoryName}" foi designado para você.`,
             link: `/dashboard/territorios/${territoryId}`,
             type: 'territory_assigned',
             isRead: false,
-            createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
+            createdAt: admin.firestore.Timestamp.now()
         };
         await userRef.collection('notifications').add(notification);
-        
-        // --- 2. Envio da Notificação Push (FCM) ---
+
+        // 2. Enviar Notificação Push (FCM)
         const tokens = userDoc.data()?.fcmTokens;
         if (tokens && Array.isArray(tokens) && tokens.length > 0) {
             const formattedDueDate = format(dueDate.toDate(), 'dd/MM/yyyy');
@@ -493,13 +497,12 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
             };
             const response = await admin.messaging().sendToDevice(tokens, payload);
             
-            // --- 3. Limpeza de Tokens Inválidos ---
+            // 3. Limpar Tokens Inválidos
             const tokensToRemove: string[] = [];
             response.results.forEach((result, index) => {
                 const error = result.error;
                 if (error) {
-                    console.error('Falha ao enviar notificação para o token:', tokens[index], error);
-                    // Verifica se o erro indica que o token é inválido
+                    console.error(`Falha ao enviar notificação para o token: ${tokens[index]}`, error);
                     if (error.code === 'messaging/invalid-registration-token' ||
                         error.code === 'messaging/registration-token-not-registered') {
                         tokensToRemove.push(tokens[index]);
@@ -508,7 +511,6 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
             });
 
             if (tokensToRemove.length > 0) {
-                console.log(`Removendo ${tokensToRemove.length} tokens inválidos para o usuário ${uid}.`);
                 await userRef.update({
                     fcmTokens: admin.firestore.FieldValue.arrayRemove(...tokensToRemove)
                 });
@@ -516,7 +518,7 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
         }
 
     } catch (error) {
-        console.error(`[onTerritoryAssigned] Falha ao notificar UID ${uid}:`, error);
+        console.error(`[onTerritoryAssigned] Falha CRÍTICA ao notificar UID ${uid}:`, error);
     }
 });
 
@@ -525,12 +527,10 @@ export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/ter
   const before = event.data?.before.data() as Territory | undefined;
   const after = event.data?.after.data() as Territory | undefined;
 
-  // Dispara apenas quando o território passa de 'designado' para qualquer outro status (normalmente 'disponivel')
   if (before?.status !== 'designado' || after?.status === 'designado') {
     return;
   }
   
-  // Confirma que havia uma designação antes, que agora não existe mais
   if (!before?.assignment || after?.assignment) {
       return;
   }
@@ -540,7 +540,6 @@ export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/ter
 
   const batch = db.batch();
 
-  // Cria notificação para o usuário que devolveu (se não for custom)
   if (!returningUserUid.startsWith('custom_')) {
       const userRef = db.collection("users").doc(returningUserUid);
       const userNotifRef = userRef.collection('notifications').doc();
@@ -550,12 +549,11 @@ export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/ter
         link: `/dashboard/territorios/${event.params.terrId}`,
         type: 'territory_returned',
         isRead: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
+        createdAt: admin.firestore.Timestamp.now()
       };
       batch.set(userNotifRef, userNotification);
   }
 
-  // Cria notificação para os administradores
   const adminsQuery = db.collection("users")
     .where('congregationId', '==', event.params.congId)
     .where('role', 'in', ['Administrador', 'Dirigente', 'Servo de Territórios']);
@@ -569,7 +567,7 @@ export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/ter
           link: '/dashboard/administracao',
           type: 'territory_available',
           isRead: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
+          createdAt: admin.firestore.Timestamp.now()
         };
 
         adminsSnapshot.forEach(doc => {
@@ -710,7 +708,7 @@ export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(a
                     link: "/dashboard/meus-territorios",
                     type: 'territory_overdue',
                     isRead: false,
-                    createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp,
+                    createdAt: admin.firestore.Timestamp.now(),
                 };
                 
                 batch.set(notificationRef, notification);
