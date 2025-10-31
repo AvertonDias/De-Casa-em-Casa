@@ -1,5 +1,21 @@
-
 /** @type {import('next').NextConfig} */
+import pwa from '@ducanh2912/next-pwa';
+
+const isDev = process.env.NODE_ENV === 'development';
+
+const withPWA = pwa({
+  dest: 'public',
+  disable: isDev,
+  // add your own strategies
+  // cacheOnFrontEndNav: true,
+  // aggressiveFrontEndNavCaching: true,
+  reloadOnOnline: true,
+  swcMinify: true,
+  workboxOptions: {
+    disableDevLogs: true,
+  }
+});
+
 const nextConfig = {
   images: {
     remotePatterns: [
@@ -12,4 +28,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);
