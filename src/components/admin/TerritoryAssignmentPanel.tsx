@@ -7,7 +7,7 @@ import { db, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, History, Loader, X, MessageCircle } from 'lucide-react';
+import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, MessageCircle, History, Loader, X } from 'lucide-react';
 import { Menu, Transition } from '@headlessui/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -19,8 +19,6 @@ import type { Territory, AppUser, AssignmentHistoryLog } from '@/types/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
-
-const functions = getFunctions(app, 'southamerica-east1');
 
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
@@ -113,11 +111,10 @@ export default function TerritoryAssignmentPanel() {
     const assignedUser = users.find(u => u.uid === user.uid);
     const territory = territories.find(t => t.id === territoryId);
     
-    // Dispara notificação por WhatsApp se o usuário tiver o número
     if (assignedUser?.whatsapp && territory) {
         const formattedDueDate = format(assignment.dueDate.toDate(), 'dd/MM/yyyy');
-        const message = `Olá, ${user.name}. O território *${territory.number} - ${territory.name}* foi designado para você. Por favor, devolva até ${formattedDueDate}.`;
-        const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
+        const message = `Olá, o território *${territory.number} - ${territory.name}* foi designado para você! Devolva até ${formattedDueDate}.`;
+        const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, ''); // Remove non-digit characters
         const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     }
@@ -219,24 +216,39 @@ export default function TerritoryAssignmentPanel() {
   };
   
   const handleNotifyOverdue = async (territory: Territory) => {
-      // A notificação automática será gerenciada pela Cloud Function.
-      // Esta função no cliente apenas abre o WhatsApp como um atalho.
-      if (!territory.assignment) return;
-      const assignedUser = users.find(u => u.uid === territory.assignment!.uid);
+    if (!territory.assignment) return;
+    
+    const assignedUser = users.find(u => u.uid === territory.assignment!.uid);
+    if (!assignedUser || !assignedUser.whatsapp) {
+      toast({
+        title: "Usuário sem WhatsApp",
+        description: `Não foi possível notificar ${territory.assignment.name} pois não há um número de WhatsApp cadastrado.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
-      if (!assignedUser?.whatsapp) {
-          toast({
-              title: "Usuário sem WhatsApp",
-              description: `Não é possível notificar ${territory.assignment.name} pois não há WhatsApp cadastrado.`,
-              variant: "destructive",
-          });
-          return;
-      }
+    try {
+        const link = `${window.location.origin}/dashboard/meus-territorios`;
+        const message = `Olá, este é um lembrete de que o território "${territory.name}" está com a devolução pendente, por favor atualize o quanto antes. Acesse aqui: ${link}`;
+        const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
+        const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+        
+        toast({
+          title: "WhatsApp Aberto",
+          description: `A mensagem para ${assignedUser.name} está pronta para ser enviada.`,
+          variant: "default",
+        });
 
-      const message = `Olá, ${assignedUser.name}. Lembrete amigável de que o território "${territory.name}" está com o prazo de devolução vencido. Por favor, devolva assim que possível. Obrigado!`;
-      const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
-      const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
-      window.open(whatsappUrl, '_blank');
+    } catch (error: any) {
+      console.error("Erro ao abrir WhatsApp:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível abrir o WhatsApp.",
+        variant: "destructive",
+      });
+    }
   };
   
   const filteredTerritories = territories.filter(t => {
@@ -345,7 +357,7 @@ export default function TerritoryAssignmentPanel() {
                                              <>
                                                  <Menu.Item><button onClick={() => handleOpenReturnModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <CheckCircle size={16} className="mr-2"/>Devolver</button></Menu.Item>
                                                  <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <RotateCw size={16} className="mr-2"/>Reatribuir</button></Menu.Item>
-                                                 {isOverdue && <Menu.Item><button onClick={() => handleNotifyOverdue(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground disabled:opacity-50'><MessageCircle size={16} className="mr-2"/>Notificar Atraso</button></Menu.Item>}
+                                                 {isOverdue && <Menu.Item><button onClick={() => handleNotifyOverdue(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground disabled:opacity-50'> <MessageCircle size={16} className="mr-2"/>Notificar Atraso</button></Menu.Item>}
                                              </>
                                          ) : (
                                               <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <BookUser size={16} className="mr-2"/>Designar</button></Menu.Item>
@@ -395,7 +407,7 @@ export default function TerritoryAssignmentPanel() {
       />
        <ConfirmationModal
         isOpen={isConfirmDeleteOpen}
-        onClose={() => setIsConfirmDeleteOpen(false)}
+        onClose={()={() => setIsConfirmDeleteOpen(false)}
         onConfirm={handleConfirmDeleteLog}
         title="Confirmar Exclusão"
         message={`Tem certeza que deseja excluir o registro de ${logToDelete?.log.name}? Esta ação não pode ser desfeita.`}
@@ -403,3 +415,5 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
+
+    
