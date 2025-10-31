@@ -148,12 +148,11 @@ export const onHouseChange = onDocumentWritten(
   async (event) => {
     const before = event.data?.before.data();
     const after = event.data?.after.data();
-    if (!event.data?.after.exists) return null; // documento deletado, tratado por onDelete
+    if (!event.data?.after.exists) return null;
 
     const { congregationId, territoryId, quadraId } = event.params;
     const quadraRef = db.doc(`congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
 
-    // Atualiza estatísticas da quadra
     try {
       await db.runTransaction(async (tx) => {
         const casasSnap = await tx.get(quadraRef.collection("casas"));
@@ -165,7 +164,6 @@ export const onHouseChange = onDocumentWritten(
       console.error("onHouseChange: Erro atualização estatísticas quadra:", e);
     }
 
-    // Log automático na primeira casa trabalhada do dia
     if (before?.status === false && after?.status === true) {
       const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
       const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -255,8 +253,8 @@ export const onNewUserPending = onDocumentCreated(
     try {
       const roles = ['Administrador', 'Dirigente', 'Servo de Territórios'];
       const snapshots = await Promise.all(roles.map(r => db.collection("users").where('congregationId', '==', newUser.congregationId).where('role', '==', r).get()));
-      const admins = snapshots.flatMap(s => s.docs);
-      if (admins.length === 0) return null;
+      const adminsAndManagers = snapshots.flatMap(s => s.docs);
+      if (adminsAndManagers.length === 0) return null;
 
       const batch = db.batch();
       const notif: Omit<Notification,'id'> = {
@@ -269,7 +267,7 @@ export const onNewUserPending = onDocumentCreated(
       };
 
       const notified = new Set<string>();
-      admins.forEach(doc => {
+      adminsAndManagers.forEach(doc => {
         if (!notified.has(doc.id)) {
           batch.set(doc.ref.collection('notifications').doc(), notif);
           notified.add(doc.id);
@@ -285,45 +283,33 @@ export const onNewUserPending = onDocumentCreated(
 export const onTerritoryAssigned = onDocumentWritten(
   "congregations/{congId}/territories/{terrId}",
   async (event) => {
-    const before = event.data?.before.data() as Territory|undefined;
-    const after = event.data?.after.data() as Territory|undefined;
-    if (!after?.assignment || before?.assignment) return;
+    const before = event.data?.before.data() as Territory | undefined;
+    const after = event.data?.after.data() as Territory | undefined;
 
-    const { uid } = after.assignment;
-    if (uid.startsWith('custom_')) return;
+    // Condição melhorada: notifica se a atribuição foi adicionada ou alterada.
+    if (after?.assignment && before?.assignment?.uid !== after.assignment.uid) {
+      const { uid, name } = after.assignment;
+      const territoryId = event.params.terrId;
+      if (uid.startsWith('custom_')) return;
 
-    const notif: Omit<Notification,'id'> = {
-      title: "Novo Território Designado",
-      body: `O território "${after.name}" foi designado para você.`,
-      link: `/dashboard/territorios/${after.id}`,
-      type: 'territory_assigned',
-      isRead: false,
-      createdAt: admin.firestore.Timestamp.now()
-    };
+      console.log(`[Notification] Detectada designação para ${name} (${uid}) no território ${territoryId}.`);
+      
+      const notif: Omit<Notification, 'id'> = {
+        title: "Novo Território Designado",
+        body: `O território "${after.name}" foi designado para você.`,
+        link: `/dashboard/territorios/${territoryId}`,
+        type: 'territory_assigned',
+        isRead: false,
+        createdAt: admin.firestore.Timestamp.now()
+      };
 
-    try {
-      const userRef = db.collection("users").doc(uid);
-      await userRef.collection('notifications').add(notif);
-
-      const userDoc = await userRef.get();
-      const tokens: string[] = userDoc.data()?.fcmTokens || [];
-      if (tokens.length > 0) {
-        const payload: admin.messaging.MessagingPayload = {
-          notification: {
-            title: "Novo Território Designado!",
-            body: `Você recebeu o território "${after.name}". Devolver até ${format(after.assignment.dueDate.toDate(),'dd/MM/yyyy')}.`,
-            icon: "/icon-192x192.jpg",
-          },
-          webpush: { fcmOptions: { link: `/dashboard/territorios/${after.id}` } }
-        };
-        const res = await admin.messaging().sendEachForMulticast({ tokens, ...payload });
-        const invalidTokens = res.responses.map((r,i)=>r.success?null:tokens[i]).filter(t=>t);
-        if (invalidTokens.length) {
-          await userRef.update({ fcmTokens: tokens.filter(t => !invalidTokens.includes(t)) });
-        }
+      try {
+        const userRef = db.collection("users").doc(uid);
+        await userRef.collection('notifications').add(notif);
+        console.log(`[Notification] Notificação interna para ${uid} criada com sucesso.`);
+      } catch (err) {
+        console.error(`[Notification] Falha CRÍTICA ao gravar notificação no Firestore para ${uid}:`, err);
       }
-    } catch (err: any) {
-      console.error("onTerritoryAssigned: Falha ao enviar notificação/FMC", err);
     }
   }
 );
@@ -331,44 +317,63 @@ export const onTerritoryAssigned = onDocumentWritten(
 export const onTerritoryReturned = onDocumentWritten(
   "congregations/{congId}/territories/{terrId}",
   async (event) => {
-    const before = event.data?.before.data() as Territory|undefined;
-    const after = event.data?.after.data() as Territory|undefined;
-    if (!before?.assignment || after?.assignment) return;
+    const before = event.data?.before.data() as Territory | undefined;
+    const after = event.data?.after.data() as Territory | undefined;
 
-    const batch = db.batch();
-    const congId = event.params.congId;
-    const territoryName = after!.name;
-    const returningUid = before.assignment.uid;
+    // Condição melhorada: notifica se a atribuição foi removida.
+    if (before?.assignment && !after?.assignment) {
+      const congId = event.params.congId;
+      const territoryName = after!.name;
+      const returningUid = before.assignment.uid;
 
-    if (!returningUid.startsWith('custom_')) {
-      batch.set(db.collection("users").doc(returningUid).collection('notifications').doc(), {
-        title: "Território Devolvido",
-        body: `Você devolveu o território "${territoryName}". Obrigado!`,
-        link: `/dashboard/territorios/${event.params.terrId}`,
-        type: 'territory_returned',
-        isRead: false,
-        createdAt: admin.firestore.Timestamp.now()
-      });
+      console.log(`[Notification] Detectada devolução do território ${territoryName} por ${returningUid}.`);
+
+      const batch = db.batch();
+
+      // Notificação para o usuário que devolveu (se não for custom)
+      if (!returningUid.startsWith('custom_')) {
+        const userNotif: Omit<Notification, 'id'> = {
+          title: "Território Devolvido",
+          body: `Você devolveu o território "${territoryName}". Obrigado!`,
+          link: `/dashboard/territorios/${event.params.terrId}`,
+          type: 'territory_returned',
+          isRead: false,
+          createdAt: admin.firestore.Timestamp.now()
+        };
+        batch.set(db.collection("users").doc(returningUid).collection('notifications').doc(), userNotif);
+      }
+
+      // Notificação para os administradores/servos
+      try {
+        const managerRoles = ['Administrador', 'Dirigente', 'Servo de Territórios'];
+        const managerSnapshots = await Promise.all(managerRoles.map(r => db.collection("users").where('congregationId', '==', congId).where('role', '==', r).get()));
+        const managers = managerSnapshots.flatMap(s => s.docs);
+        
+        const notified = new Set<string>();
+        const adminNotif: Omit<Notification, 'id'> = {
+          title: "Território Disponível",
+          body: `O território "${territoryName}" foi devolvido e está disponível para designação.`,
+          link: '/dashboard/administracao',
+          type: 'territory_available',
+          isRead: false,
+          createdAt: admin.firestore.Timestamp.now()
+        };
+        managers.forEach(doc => {
+          if (!notified.has(doc.id)) {
+            batch.set(doc.ref.collection('notifications').doc(), adminNotif);
+            notified.add(doc.id);
+          }
+        });
+        
+        await batch.commit();
+        console.log(`[Notification] Notificação de devolução enviada para o usuário e ${notified.size} gerente(s).`);
+      } catch (err) {
+        console.error("onTerritoryReturned: Falha ao notificar gerentes", err);
+      }
     }
-
-    const roles = ['Administrador','Dirigente','Servo de Territórios'];
-    try {
-      const snapshots = await Promise.all(roles.map(r => db.collection("users").where('congregationId','==',congId).where('role','==',r).get()));
-      const admins = snapshots.flatMap(s=>s.docs);
-      const notified = new Set<string>();
-      const adminNotif: Omit<Notification,'id'> = {
-        title: "Território Disponível",
-        body: `O território "${territoryName}" foi devolvido e está disponível para designação.`,
-        link: '/dashboard/administracao',
-        type: 'territory_available',
-        isRead: false,
-        createdAt: admin.firestore.Timestamp.now()
-      };
-      admins.forEach(doc=>{ if(!notified.has(doc.id)){ batch.set(doc.ref.collection('notifications').doc(),adminNotif); notified.add(doc.id); } });
-      await batch.commit();
-    } catch (err){ console.error("onTerritoryReturned: Falha notificar admins",err);}
   }
 );
+
 
 export const onDeleteTerritory = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}", async (event) => {
   if (!event.data) return null;
@@ -402,3 +407,5 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
+
+    
