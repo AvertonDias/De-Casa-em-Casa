@@ -4,19 +4,23 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, deleteField, arrayUnion, Timestamp } from 'firebase/firestore';
-import { Territory } from '@/types/types';
-import { Map, Clock, CheckCircle, Loader, AlertTriangle } from 'lucide-react';
+import { collection, query, where, onSnapshot, doc, updateDoc, deleteField, arrayUnion, Timestamp, writeBatch, getDocs } from 'firebase/firestore';
+import { Territory, Notification } from '@/types/types';
+import { Map, Clock, CheckCircle, Loader, AlertTriangle, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import withAuth from '@/components/withAuth';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 function MyTerritoriesPage() {
   const { user } = useUser();
+  const { toast } = useToast();
   const [assignedTerritories, setAssignedTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [territoryToReturn, setTerritoryToReturn] = useState<Territory | null>(null);
@@ -68,6 +72,61 @@ function MyTerritoriesPage() {
     }
   };
 
+  const handleSyncOldNotifications = async () => {
+    if (!user || assignedTerritories.length === 0) return;
+    setIsSyncing(true);
+
+    try {
+      const notificationsRef = collection(db, 'users', user.uid, 'notifications');
+      const existingNotifsSnapshot = await getDocs(query(notificationsRef, where('type', '==', 'territory_assigned')));
+      const existingNotifLinks = new Set(existingNotifsSnapshot.docs.map(doc => doc.data().link));
+
+      const batch = writeBatch(db);
+      let notificationsAdded = 0;
+
+      assignedTerritories.forEach(territory => {
+        const territoryLink = `/dashboard/territorios/${territory.id}`;
+        if (!existingNotifLinks.has(territoryLink)) {
+          const notification: Omit<Notification, 'id'> = {
+              title: "Território Designado",
+              body: `O território "${territory.name}" foi designado para você.`,
+              link: territoryLink,
+              type: 'territory_assigned',
+              isRead: true, // Marca como lida para não gerar alerta
+              createdAt: territory.assignment?.assignedAt || Timestamp.now(),
+          };
+          const newNotifRef = doc(collection(db, `users/${user.uid}/notifications`));
+          batch.set(newNotifRef, notification);
+          notificationsAdded++;
+        }
+      });
+      
+      if (notificationsAdded > 0) {
+        await batch.commit();
+        toast({
+          title: "Sincronização Concluída",
+          description: `${notificationsAdded} notificações de designação foram adicionadas ao seu histórico.`,
+        });
+      } else {
+        toast({
+          title: "Tudo em dia!",
+          description: "Nenhuma notificação nova precisou ser criada.",
+        });
+      }
+
+    } catch (error) {
+      console.error("Erro ao sincronizar notificações antigas:", error);
+      toast({
+        title: "Erro na Sincronização",
+        description: "Não foi possível criar as notificações antigas.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+
   if (loading) {
       return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary"/></div>
   }
@@ -75,9 +134,15 @@ function MyTerritoriesPage() {
   return (
     <>
       <div className="p-4 md:p-8 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Meus Territórios Designados</h1>
-          <p className="text-muted-foreground">Aqui estão os territórios que estão sob sua responsabilidade.</p>
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+            <div>
+              <h1 className="text-3xl font-bold">Meus Territórios Designados</h1>
+              <p className="text-muted-foreground">Aqui estão os territórios que estão sob sua responsabilidade.</p>
+            </div>
+            <Button variant="outline" onClick={handleSyncOldNotifications} disabled={isSyncing}>
+                <RefreshCw size={16} className={`mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? 'Sincronizando...' : 'Sincronizar Notificações'}
+            </Button>
         </div>
 
         {assignedTerritories.length > 0 ? (
