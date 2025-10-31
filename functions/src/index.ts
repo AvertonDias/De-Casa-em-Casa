@@ -466,10 +466,9 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
     const beforeData = event.data?.before.data() as Territory | undefined;
     const afterData = event.data?.after.data() as Territory | undefined;
 
-    // Condição para notificar: era sem dono e agora tem, OU o dono mudou.
     const shouldNotify = afterData?.assignment?.uid && (beforeData?.assignment?.uid !== afterData.assignment.uid);
 
-    if (!shouldNotify || afterData.assignment!.uid.startsWith('custom_')) {
+    if (!shouldNotify || !afterData || afterData.assignment!.uid.startsWith('custom_')) {
         return;
     }
 
@@ -491,7 +490,6 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
         console.log(`[Notification] Notificação interna criada para ${assignedUid}.`);
     } catch (err) {
         console.error(`[Notification] Falha ao gravar notificação no Firestore para ${assignedUid}:`, err);
-        // Não retorna, para que o envio push ainda possa ser tentado.
     }
 
     // --- 2. Envia a notificação PUSH (FCM) em um bloco separado ---
@@ -531,7 +529,6 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
             }
         }
     } catch (error) {
-        // O erro do push não interrompe mais a função
         console.error(`[Notification] Erro (ignorado) ao enviar notificação PUSH para ${assignedUid}:`, error);
     }
 });
