@@ -187,7 +187,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
                       <span>{link.name}</span>
                     </div>
                     {hasUnread && (
-                      <span className="absolute left-1 top-1 w-2.5 h-2.5 bg-destructive rounded-full animate-indicator-pulse"></span>
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-destructive rounded-full animate-indicator-pulse"></span>
                     )}
                   </Link>
                 </li>
