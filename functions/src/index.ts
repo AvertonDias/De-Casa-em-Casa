@@ -3,23 +3,71 @@ import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
+import * as cors from "cors";
 import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import { randomBytes } from 'crypto';
-import * as cors from "cors";
 import { AppUser, Notification, Territory } from "./types";
 
 const corsHandler = cors({ origin: true });
 
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
+if (!admin.apps.length) admin.initializeApp();
 const db = admin.firestore();
 
-setGlobalOptions({ 
-  region: "southamerica-east1",
-});
+setGlobalOptions({ region: "southamerica-east1" });
 
+// ========================================================================
+//   HELPER FUNCTIONS
+// ========================================================================
+
+// Divide array em chunks
+function chunkArray<T>(arr: T[], chunkSize: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += chunkSize) {
+    chunks.push(arr.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
+// Cria notificação em batch, respeitando limite de 500 writes
+async function createNotificationsBatch(userRefs: admin.firestore.DocumentReference[], notification: Omit<Notification, 'id'>) {
+  const batches = chunkArray(userRefs, 500);
+  for (const batchRefs of batches) {
+    const batch = db.batch();
+    batchRefs.forEach(ref => {
+      batch.set(ref.collection('notifications').doc(), notification);
+    });
+    await batch.commit();
+  }
+}
+
+// Envia FCM em chunks de 500 tokens
+async function sendFcmNotification(tokens: string[], payload: admin.messaging.MessagingPayload) {
+  const tokenChunks = chunkArray(tokens, 500);
+  for (const chunk of tokenChunks) {
+    const response = await admin.messaging().sendEachForMulticast({ tokens: chunk, ...payload });
+    // Remove tokens inválidos
+    const invalidTokens = response.responses
+      .map((r, i) => (r.success ? null : chunk[i]))
+      .filter((t): t is string => t !== null);
+    if (invalidTokens.length > 0) {
+      console.warn(`[FCM] Removendo ${invalidTokens.length} tokens inválidos.`);
+      const validTokens = chunk.filter(t => !invalidTokens.includes(t));
+      await db.collection("users").where("fcmTokens", "array-contains-any", chunk).get()
+        .then(snap => snap.forEach(doc => doc.ref.update({ fcmTokens: validTokens })));
+    }
+  }
+}
+
+// Função para pegar admins/dirigentes/servos de uma congregação
+async function getManagersOfCongregation(congregationId: string): Promise<admin.firestore.DocumentReference[]> {
+  const roles = ['Administrador', 'Dirigente', 'Servo de Territórios'];
+  const usersSnap = await db.collection("users")
+    .where('congregationId', '==', congregationId)
+    .where('role', 'in', roles)
+    .get();
+  return usersSnap.docs.map(doc => doc.ref);
+}
 
 // ========================================================================
 //   FUNÇÕES HTTPS (onRequest) - Padrão Unificado com CORS
