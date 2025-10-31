@@ -1,6 +1,7 @@
 
 rules_version = '2';
 
+// Forçando a atualização das regras em [timestamp]
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -40,7 +41,7 @@ service cloud.firestore {
     // Regras para a Coleção de Usuários
     match /users/{userId} {
       // Um usuário só pode ler seu próprio documento ou se for admin/dirigente da mesma congregação
-      allow get: if request.auth.uid == userId || (getUserData().role in ['Administrador', 'Dirigente'] && getUserData().congregationId == resource.data.congregationId);
+      allow get: if request.auth.uid == userId || (getUserData().role in ['Administrador', 'Dirigente', 'Servo de Territórios'] && getUserData().congregationId == resource.data.congregationId);
       
       // Qualquer usuário autenticado pode listar os usuários (a query no app já filtra pela congregação correta)
       allow list: if request.auth != null;
@@ -51,7 +52,7 @@ service cloud.firestore {
       // Permite que o próprio usuário atualize seu perfil, ou que um Admin/Dirigente atualize
       // um usuário da *mesma* congregação.
       allow update: if request.auth.uid == userId ||
-                       (getUserData().role in ['Administrador', 'Dirigente'] &&
+                       (getUserData().role in ['Administrador', 'Dirigente', 'Servo de Territórios'] &&
                         getUserData().congregationId == resource.data.congregationId);
       
       // Apenas Admins podem deletar usuários (e não a si mesmos)
