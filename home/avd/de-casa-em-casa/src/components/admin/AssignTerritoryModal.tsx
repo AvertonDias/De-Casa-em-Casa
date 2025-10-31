@@ -1,10 +1,8 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { Territory, AppUser } from "@/types/types";
-import { X, ExternalLink } from 'lucide-react';
-import Link from 'next/link';
+import { X, Search } from 'lucide-react';
 
 interface AssignTerritoryModalProps {
   isOpen: boolean;
@@ -20,29 +18,52 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
   const [assignmentDate, setAssignmentDate] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [error, setError] = useState('');
+  const [userSearchTerm, setUserSearchTerm] = useState('');
   
-  const today = new Date().toISOString().split('T')[0];
   const isFreeChoice = selectedUid === 'free-choice';
 
   useEffect(() => {
     if (isOpen) {
+      const newAssignmentDate = new Date();
+      newAssignmentDate.setMinutes(newAssignmentDate.getMinutes() - newAssignmentDate.getTimezoneOffset());
+      const newDueDate = new Date(newAssignmentDate);
+      newDueDate.setMonth(newDueDate.getMonth() + 2);
+
+      setAssignmentDate(newAssignmentDate.toISOString().split('T')[0]);
+      setDueDate(newDueDate.toISOString().split('T')[0]);
+      
       setSelectedUid('');
       setCustomName('');
-      setAssignmentDate(today);
-      const futureDate = new Date();
-      futureDate.setMonth(futureDate.getMonth() + 2);
-      setDueDate(futureDate.toISOString().split('T')[0]);
       setError('');
+      setUserSearchTerm(''); // Limpa a busca ao abrir
     }
-  }, [isOpen, today]);
+  }, [isOpen]);
+  
+  useEffect(() => {
+    if (assignmentDate) {
+      const baseDate = new Date(assignmentDate);
+      baseDate.setMinutes(baseDate.getMinutes() + baseDate.getTimezoneOffset());
+      if (!isNaN(baseDate.getTime())) {
+          const newDueDate = new Date(baseDate);
+          newDueDate.setMonth(newDueDate.getMonth() + 2);
+          setDueDate(newDueDate.toISOString().split('T')[0]);
+      }
+    }
+  }, [assignmentDate]);
+
 
   const handleDueDateSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const monthsToAdd = parseInt(event.target.value, 10);
-    if (isNaN(monthsToAdd)) return;
+    if (isNaN(monthsToAdd) || !assignmentDate) return;
 
-    const futureDate = new Date();
-    futureDate.setMonth(futureDate.getMonth() + monthsToAdd);
-    setDueDate(futureDate.toISOString().split('T')[0]);
+    const baseDate = new Date(assignmentDate);
+    baseDate.setMinutes(baseDate.getMinutes() + baseDate.getTimezoneOffset());
+
+    if (!isNaN(baseDate.getTime())) {
+      const futureDate = new Date(baseDate);
+      futureDate.setMonth(futureDate.getMonth() + monthsToAdd);
+      setDueDate(futureDate.toISOString().split('T')[0]);
+    }
   };
   
   const handleSave = () => {
@@ -71,6 +92,10 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
     onClose();
   };
 
+  const filteredUsers = users.filter(user => 
+    user.name.toLowerCase().includes(userSearchTerm.toLowerCase())
+  );
+
   if (!isOpen || !territory) return null;
 
   return (
@@ -84,16 +109,28 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
         </p>
         
         <div className="space-y-4">
+          <div className="relative">
+            <label className="block text-sm font-medium mb-1">Buscar Publicador:</label>
+            <Search className="absolute left-3 top-9 -translate-y-1/2 text-muted-foreground" size={18}/>
+            <input 
+              type="text"
+              placeholder="Digite para buscar..."
+              value={userSearchTerm}
+              onChange={(e) => setUserSearchTerm(e.target.value)}
+              className="w-full bg-input rounded-md p-2 pl-10 border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium mb-1">Designar para:</label>
-            <select value={selectedUid} onChange={(e) => setSelectedUid(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border">
+            <select value={selectedUid} onChange={(e) => setSelectedUid(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary">
               <option value="" disabled>Selecione um publicador...</option>
-              {users.map(user => (
+              <option value="free-choice" className="font-semibold text-primary">-- Digitar Outro Nome --</option>
+              {filteredUsers.map(user => (
                 <option key={user.uid} value={user.uid}>
                   {user.name}{user.status !== 'ativo' ? ` (${user.status})` : ''}
                 </option>
               ))}
-              <option value="free-choice" className="font-semibold text-primary">-- Digitar Outro Nome --</option>
             </select>
           </div>
 
@@ -106,7 +143,7 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
                       value={customName}
                       onChange={(e) => setCustomName(e.target.value)}
                       placeholder="Ex: Campanha Especial, Grupo de Carro"
-                      className="w-full bg-input rounded-md p-2 border border-border"
+                      className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"
                   />
               </div>
           )}
@@ -114,11 +151,11 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
           <div className="flex gap-4">
             <div className="w-1/2">
               <label className="block text-sm font-medium mb-1">Data de Designação:</label>
-              <input type="date" value={assignmentDate} onChange={(e) => setAssignmentDate(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border"/>
+              <input type="date" value={assignmentDate} onChange={(e) => setAssignmentDate(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"/>
             </div>
             <div className="w-1/2">
               <label className="block text-sm font-medium mb-1">Data para Devolução:</label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border"/>
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"/>
             </div>
           </div>
           
@@ -126,7 +163,7 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
             <label className="block text-sm font-medium mb-1">Definir Devolução Rápida:</label>
             <select 
               onChange={handleDueDateSelect} 
-              className="w-full bg-input rounded-md p-2 border border-border text-muted-foreground"
+              className="w-full bg-input rounded-md p-2 border border-border text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               value=""
             >
               <option value="" disabled>Escolha um período...</option>
@@ -156,5 +193,3 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
     </div>
   );
 }
-
-    
