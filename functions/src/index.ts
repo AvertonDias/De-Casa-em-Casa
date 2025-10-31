@@ -1,4 +1,5 @@
 
+
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
@@ -467,12 +468,10 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
     const beforeData = event.data.before.exists ? event.data.before.data() as Territory : null;
     const afterData = event.data.after.exists ? event.data.after.data() as Territory : null;
     
-    if (!afterData) return; // Documento foi deletado, outra função trata disso.
+    if (!afterData) return;
 
     const oldUid = beforeData?.assignment?.uid;
     const newUid = afterData.assignment?.uid;
-
-    // A notificação só deve ser enviada se o UID da designação mudou de algo (ou nada) para um novo valor.
     const shouldNotify = newUid && (oldUid !== newUid);
 
     if (!shouldNotify || newUid.startsWith('custom_')) {
@@ -485,7 +484,6 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
     const userRef = db.collection("users").doc(uid);
 
     try {
-        // Passo 1: Criar a notificação interna. Isso é prioridade.
         const notification: Omit<Notification, 'id'> = {
             title: "Novo Território Designado",
             body: `O território "${territoryName}" foi designado para você.`,
@@ -496,53 +494,50 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
         };
         await userRef.collection('notifications').add(notification);
 
-        // Passo 2: Tentar enviar notificação PUSH. Falhas aqui não devem quebrar a função.
-        try {
-            const userDoc = await userRef.get();
-            if (!userDoc.exists) {
-                console.warn(`[onTerritoryAssigned] Usuário ${uid} não encontrado para notificação PUSH.`);
-                return;
-            }
-            
-            const tokens = userDoc.data()?.fcmTokens;
-            console.log(`[onTerritoryAssigned] Tokens encontrados para ${userDoc.data()?.name}:`, tokens);
-
-            if (tokens && Array.isArray(tokens) && tokens.length > 0) {
-                const formattedDueDate = format(dueDate.toDate(), 'dd/MM/yyyy');
-                const payload = {
-                    notification: {
-                        title: "Novo Território Designado!",
-                        body: `Você recebeu o território "${territoryName}". Devolver até ${formattedDueDate}.`,
-                        icon: "/icon-192x192.jpg",
-                        click_action: `/dashboard/territorios/${territoryId}`,
-                    },
-                };
-                
-                const response = await admin.messaging().sendToDevice(tokens, payload);
-                
-                const tokensToRemove: string[] = [];
-                response.results.forEach((result, index) => {
-                    const error = result.error;
-                    if (error) {
-                        console.error(`Falha ao enviar notificação para o token: ${tokens[index]}`, error);
-                        if (error.code === 'messaging/invalid-registration-token' ||
-                            error.code === 'messaging/registration-token-not-registered') {
-                            tokensToRemove.push(tokens[index]);
-                        }
-                    }
-                });
-
-                if (tokensToRemove.length > 0) {
-                    console.log(`[onTerritoryAssigned] Removendo ${tokensToRemove.length} tokens inválidos.`);
-                    await userRef.update({
-                        fcmTokens: admin.firestore.FieldValue.arrayRemove(...tokensToRemove)
-                    });
-                }
-            }
-        } catch (pushError) {
-            console.warn('[onTerritoryAssigned] Falha ao enviar notificação PUSH. A notificação interna já foi criada.', pushError);
+        const userDoc = await userRef.get();
+        if (!userDoc.exists) {
+            console.warn(`[onTerritoryAssigned] Usuário ${uid} não encontrado para notificação PUSH.`);
+            return;
         }
+        
+        const tokens = userDoc.data()?.fcmTokens;
+        console.log(`[onTerritoryAssigned] Tokens encontrados para ${userDoc.data()?.name}:`, tokens);
 
+        if (tokens && Array.isArray(tokens) && tokens.length > 0) {
+            const formattedDueDate = format(dueDate.toDate(), 'dd/MM/yyyy');
+            const payload: admin.messaging.MessagingPayload = {
+                notification: {
+                    title: "Novo Território Designado!",
+                    body: `Você recebeu o território "${territoryName}". Devolver até ${formattedDueDate}.`,
+                    icon: "/icon-192x192.jpg",
+                },
+                webpush: {
+                  fcmOptions: {
+                    link: `/dashboard/territorios/${territoryId}`
+                  }
+                }
+            };
+            
+            const response = await admin.messaging().sendEachForMulticast({ tokens, ...payload });
+            
+            const invalidTokens: string[] = [];
+            response.responses.forEach((result, index) => {
+                const error = result.error;
+                if (error) {
+                    console.warn(`[onTerritoryAssigned] Falha ao enviar para token: ${tokens[index]}`, error);
+                    if (error.code === 'messaging/invalid-registration-token' ||
+                        error.code === 'messaging/registration-token-not-registered') {
+                        invalidTokens.push(tokens[index]);
+                    }
+                }
+            });
+
+            if (invalidTokens.length > 0) {
+                console.log(`[onTerritoryAssigned] Removendo ${invalidTokens.length} tokens inválidos.`);
+                const validTokens = tokens.filter((t) => !invalidTokens.includes(t));
+                await userRef.update({ fcmTokens: validTokens });
+            }
+        }
     } catch (error) {
         console.error(`[onTerritoryAssigned] Falha CRÍTICA ao processar designação para UID ${uid}:`, error);
     }
@@ -553,7 +548,6 @@ export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/ter
   const before = event.data?.before.data() as Territory | undefined;
   const after = event.data?.after.data() as Territory | undefined;
 
-  // Só aciona se o território ESTAVA designado e AGORA NÃO ESTÁ mais.
   if (!before?.assignment || after?.assignment) {
     return;
   }
@@ -563,7 +557,6 @@ export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/ter
 
   const batch = db.batch();
 
-  // 1. Notificar o publicador que devolveu (se não for custom)
   if (!returningUserUid.startsWith('custom_')) {
       const userRef = db.collection("users").doc(returningUserUid);
       const userNotifRef = userRef.collection('notifications').doc();
@@ -578,7 +571,6 @@ export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/ter
       batch.set(userNotifRef, userNotification);
   }
 
-  // 2. Notificar todos os administradores e dirigentes
   const rolesToQuery = ['Administrador', 'Dirigente', 'Servo de Territórios'];
   
   try {

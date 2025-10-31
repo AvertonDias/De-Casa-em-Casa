@@ -1,4 +1,5 @@
 
+
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
 import Image from 'next/image';
@@ -7,7 +8,7 @@ import { usePathname } from "next/navigation";
 import { auth, db, messaging, app } from "@/lib/firebase"; // Import app
 import { useUser } from '@/contexts/UserContext';
 import { useTheme } from 'next-themes';
-import { doc, arrayUnion, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { getToken } from 'firebase/messaging';
 
 import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell } from 'lucide-react';
@@ -322,15 +323,13 @@ function DashboardLayout({ children }: { children: ReactNode }) {
               serviceWorkerRegistration: swRegistration
             });
             if (token) {
-              console.log('FCM Token:', token);
               const userRef = doc(db, 'users', user.uid);
-              await updateDoc(userRef, {
-                fcmTokens: arrayUnion(token)
-              });
+              // Sobrescreve os tokens antigos com um array contendo apenas o novo token
+              await setDoc(userRef, { fcmTokens: [token] }, { merge: true });
             }
           }
         } catch (error) {
-          console.error('Erro ao obter permissão de notificação:', error);
+          console.error('Erro ao obter permissão ou token de notificação:', error);
         }
       }
     };
@@ -386,3 +385,4 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 }
 
 export default withAuth(DashboardLayout);
+
