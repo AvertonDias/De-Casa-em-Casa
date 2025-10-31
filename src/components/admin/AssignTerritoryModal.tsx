@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -36,7 +35,7 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
       setSelectedUid('');
       setCustomName('');
       setError('');
-      setUserSearchTerm(''); // Limpa a busca ao abrir
+      setUserSearchTerm('');
     }
   }, [isOpen]);
   
@@ -110,29 +109,28 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
         </p>
         
         <div className="space-y-4">
-          <div className="relative">
-            <label className="block text-sm font-medium mb-1">Buscar Publicador:</label>
-            <Search className="absolute left-3 top-9 -translate-y-1/2 text-muted-foreground" size={18}/>
-            <input 
-              type="text"
-              placeholder="Digite para buscar..."
-              value={userSearchTerm}
-              onChange={(e) => setUserSearchTerm(e.target.value)}
-              className="w-full bg-input rounded-md p-2 pl-10 border border-border focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
           <div>
             <label className="block text-sm font-medium mb-1">Designar para:</label>
-            <select value={selectedUid} onChange={(e) => setSelectedUid(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary">
-              <option value="" disabled>Selecione um publicador...</option>
-              <option value="free-choice" className="font-semibold text-primary">-- Digitar Outro Nome --</option>
-              {filteredUsers.map(user => (
-                <option key={user.uid} value={user.uid}>
-                  {user.name}{user.status !== 'ativo' ? ` (${user.status})` : ''}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-col border border-border rounded-md bg-input focus-within:ring-2 focus-within:ring-primary">
+              <div className="relative p-2 border-b border-border">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18}/>
+                <input 
+                  type="text"
+                  placeholder="Buscar publicador..."
+                  value={userSearchTerm}
+                  onChange={(e) => setUserSearchTerm(e.target.value)}
+                  className="w-full bg-transparent pl-8 focus:outline-none"
+                />
+              </div>
+              <select value={selectedUid} onChange={(e) => setSelectedUid(e.target.value)} className="w-full bg-transparent rounded-b-md p-2 h-40 focus:outline-none" size={5}>
+                <option value="free-choice" className="font-semibold text-primary py-1">-- Digitar Outro Nome --</option>
+                {filteredUsers.map(user => (
+                  <option key={user.uid} value={user.uid} className="py-1">
+                    {user.name}{user.status !== 'ativo' ? ` (${user.status})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {isFreeChoice && (
