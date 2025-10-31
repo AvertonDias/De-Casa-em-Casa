@@ -175,12 +175,12 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
           {isFreeChoice && (
               <div>
                   <label htmlFor="custom-name" className="block text-sm font-medium mb-1">Nome da Designação Livre:</label>
-                  <input
+                  <Input
                       id="custom-name"
                       type="text"
                       value={customName}
                       onChange={(e) => setCustomName(e.target.value)}
-                      placeholder="Ex: Campanha Especial, Grupo de Carro"
+                      placeholder="Ex: Campanha Especial, Campo de Sábado"
                       className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"
                   />
               </div>
