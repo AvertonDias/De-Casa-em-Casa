@@ -1,3 +1,4 @@
+
 // src/types/types.ts
 
 import { Timestamp, FieldValue } from "firebase/firestore";
@@ -21,7 +22,7 @@ export interface Notification {
   title: string;
   body: string;
   link?: string;
-  type: 'territory_assigned' | 'territory_overdue' | 'user_pending' | 'announcement';
+  type: 'territory_assigned' | 'territory_overdue' | 'user_pending' | 'announcement' | 'territory_returned' | 'territory_available';
   isRead: boolean;
   createdAt: Timestamp;
 }

@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import { GetSignedUrlConfig } from "@google-cloud/storage";
 import { randomBytes } from 'crypto';
 import * as cors from "cors";
-import { AppUser } from "./types";
+import { AppUser, Notification, Territory } from "./types";
 
 const corsHandler = cors({ origin: true });
 
@@ -426,13 +426,13 @@ export const onNewUserPending = onDocumentCreated("users/{userId}", async (event
         if (adminsSnapshot.empty) return null;
 
         const batch = db.batch();
-        const notification = {
+        const notification: Omit<Notification, 'id'> = {
             title: "Novo Usuário Pendente",
             body: `O publicador "${newUser.name}" solicitou acesso à congregação.`,
             link: "/dashboard/usuarios",
-            type: 'user_pending' as const,
+            type: 'user_pending',
             isRead: false,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp,
         };
 
         adminsSnapshot.forEach(doc => {
@@ -449,28 +449,39 @@ export const onNewUserPending = onDocumentCreated("users/{userId}", async (event
 
 
 export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/territories/{terrId}", async (event) => {
-  const dataBefore = event.data?.before.data();
-  const dataAfter = event.data?.after.data();
+  const before = event.data?.before.data() as Territory | undefined;
+  const after = event.data?.after.data() as Territory | undefined;
 
-  if (!dataAfter?.assignment || dataBefore?.assignment?.uid === dataAfter.assignment?.uid) {
+  // Condição: dispara se um território passa a ter uma designação (antes não tinha)
+  // ou se o UID da designação muda.
+  const wasAssigned = !!before?.assignment;
+  const isAssigned = !!after?.assignment;
+  const uidChanged = before?.assignment?.uid !== after?.assignment?.uid;
+
+  if (!isAssigned || (wasAssigned && !uidChanged)) {
+    return null;
+  }
+
+  const { uid, name } = after.assignment!;
+  const territoryName = after.name;
+  
+  // Ignora designações 'custom' que não são para usuários reais
+  if (uid.startsWith('custom_')) {
       return null;
   }
 
-  const { uid } = dataAfter.assignment;
-  const territoryName = dataAfter.name;
-  
   try {
       const userRef = db.collection("users").doc(uid);
       const userDoc = await userRef.get();
       if (!userDoc.exists) return null;
 
-      const notification = {
+      const notification: Omit<Notification, 'id'> = {
         title: "Novo Território Designado",
         body: `O território "${territoryName}" foi designado para você.`,
         link: `/dashboard/meus-territorios`,
-        type: 'territory_assigned' as const,
+        type: 'territory_assigned',
         isRead: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
+        createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
       };
 
       await userRef.collection('notifications').add(notification);
@@ -478,6 +489,70 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
   } catch (error) {
       console.error(`[onTerritoryAssigned] Falha ao criar notificação de designação:`, error);
   }
+});
+
+export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/territories/{terrId}", async (event) => {
+  const before = event.data?.before.data() as Territory | undefined;
+  const after = event.data?.after.data() as Territory | undefined;
+
+  // Condição: dispara se o status mudou de 'designado' para 'disponivel'
+  if (before?.status !== 'designado' || after?.status !== 'disponivel') {
+    return;
+  }
+  
+  // Pega os detalhes do histórico para saber quem devolveu
+  const oldHistoryLength = before?.assignmentHistory?.length || 0;
+  const newHistoryLength = after?.assignmentHistory?.length || 0;
+
+  if (newHistoryLength <= oldHistoryLength) return; // Nenhuma devolução real ocorreu
+
+  const lastReturn = after.assignmentHistory![newHistoryLength - 1];
+  const returningUserUid = lastReturn.uid;
+  const territoryName = after.name;
+
+  const batch = db.batch();
+
+  // 1. Notificação para o usuário que devolveu
+  if (!returningUserUid.startsWith('custom_')) {
+      const userRef = db.collection("users").doc(returningUserUid);
+      const userNotifRef = userRef.collection('notifications').doc();
+      const userNotification: Omit<Notification, 'id'> = {
+        title: "Território Devolvido",
+        body: `Você devolveu o território "${territoryName}". Obrigado!`,
+        link: `/dashboard/territorios/${event.params.terrId}`,
+        type: 'territory_returned',
+        isRead: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
+      };
+      batch.set(userNotifRef, userNotification);
+  }
+
+  // 2. Notificação para Admins e Dirigentes
+  const adminsQuery = db.collection("users")
+    .where('congregationId', '==', event.params.congId)
+    .where('role', 'in', ['Administrador', 'Dirigente', 'Servo de Territórios']);
+  
+  const adminsSnapshot = await adminsQuery.get();
+  if (adminsSnapshot.empty) {
+      await batch.commit(); // Commita a primeira notificação mesmo se não houver admins
+      return;
+  }
+
+  const adminNotification: Omit<Notification, 'id'> = {
+    title: "Território Disponível",
+    body: `O território "${territoryName}" foi devolvido e está disponível para designação.`,
+    link: '/dashboard/administracao',
+    type: 'territory_available',
+    isRead: false,
+    createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp
+  };
+
+  adminsSnapshot.forEach(doc => {
+    const notificationsRef = doc.ref.collection('notifications').doc();
+    batch.set(notificationsRef, adminNotification);
+  });
+  
+  await batch.commit();
 });
 
 export const onDeleteTerritory = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}", async (event) => {
@@ -594,18 +669,18 @@ export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(a
             for (const terrDoc of overdueSnapshot.docs) {
                 const territory = terrDoc.data();
                 const assignment = territory.assignment;
-                if (!assignment || !assignment.uid) continue;
+                if (!assignment || !assignment.uid || assignment.uid.startsWith('custom_')) continue;
 
                 const userRef = db.collection('users').doc(assignment.uid);
                 const notificationRef = userRef.collection('notifications').doc();
                 
-                const notification = {
+                const notification: Omit<Notification, 'id'> = {
                     title: "Território Vencido!",
                     body: `Lembrete: O território "${territory.name}" está com o prazo de devolução vencido.`,
                     link: "/dashboard/meus-territorios",
-                    type: 'territory_overdue' as const,
+                    type: 'territory_overdue',
                     isRead: false,
-                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    createdAt: admin.firestore.FieldValue.serverTimestamp() as admin.firestore.Timestamp,
                 };
                 
                 batch.set(notificationRef, notification);
