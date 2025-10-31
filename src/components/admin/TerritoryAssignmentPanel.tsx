@@ -102,12 +102,17 @@ export default function TerritoryAssignmentPanel() {
     if (!currentUser?.congregationId) return;
     
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
+    
+    const assignedAt = new Date();
+    const newDueDate = new Date(dueDate + 'T12:00:00'); // Mantém a data de devolução do modal
+
     const assignment = {
         uid: user.uid,
         name: user.name,
-        assignedAt: Timestamp.fromDate(new Date(assignmentDate + 'T12:00:00')),
-        dueDate: Timestamp.fromDate(new Date(dueDate + 'T12:00:00')),
+        assignedAt: Timestamp.fromDate(assignedAt),
+        dueDate: Timestamp.fromDate(newDueDate),
     };
+
     await updateDoc(territoryRef, { status: 'designado', assignment });
 
     const assignedUser = users.find(u => u.uid === user.uid);
