@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 import { auth, db, messaging, app } from "@/lib/firebase"; // Import app
 import { useUser } from '@/contexts/UserContext';
 import { useTheme } from 'next-themes';
-import { doc, setDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { getToken } from 'firebase/messaging';
 
 import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell } from 'lucide-react';
@@ -325,7 +325,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
             if (token) {
               const userRef = doc(db, 'users', user.uid);
               // Sobrescreve os tokens antigos com um array contendo apenas o novo token
-              await setDoc(userRef, { fcmTokens: [token] }, { merge: true });
+              await updateDoc(userRef, { fcmTokens: [token] });
             }
           }
         } catch (error) {
@@ -385,4 +385,3 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 }
 
 export default withAuth(DashboardLayout);
-
