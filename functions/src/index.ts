@@ -467,12 +467,15 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
     const beforeData = event.data.before.exists ? event.data.before.data() as Territory : null;
     const afterData = event.data.after.exists ? event.data.after.data() as Territory : null;
     
-    if (!afterData) return;
+    if (!afterData) return; // Documento foi deletado, outra função trata disso.
 
     const oldUid = beforeData?.assignment?.uid;
     const newUid = afterData.assignment?.uid;
 
-    if (oldUid === newUid || !newUid || newUid.startsWith('custom_')) {
+    // A notificação só deve ser enviada se o UID da designação mudou de algo (ou nada) para um novo valor.
+    const shouldNotify = newUid && (oldUid !== newUid);
+
+    if (!shouldNotify || newUid.startsWith('custom_')) {
         return;
     }
     
@@ -482,13 +485,7 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
     const userRef = db.collection("users").doc(uid);
 
     try {
-        const userDoc = await userRef.get();
-        if (!userDoc.exists) {
-            console.error(`[onTerritoryAssigned] Usuário ${uid} não encontrado.`);
-            return;
-        }
-
-        // 1. Criar Notificação Interna
+        // Passo 1: Criar a notificação interna. Isso é prioridade.
         const notification: Omit<Notification, 'id'> = {
             title: "Novo Território Designado",
             body: `O território "${territoryName}" foi designado para você.`,
@@ -499,25 +496,30 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
         };
         await userRef.collection('notifications').add(notification);
 
-        // 2. Enviar Notificação Push (FCM)
-        const tokens = userDoc.data()?.fcmTokens;
-        console.log(`[onTerritoryAssigned] Tokens encontrados para ${userDoc.data()?.name}:`, tokens);
-
-        if (tokens && Array.isArray(tokens) && tokens.length > 0) {
-            const formattedDueDate = format(dueDate.toDate(), 'dd/MM/yyyy');
-            const payload = {
-                notification: {
-                    title: "Novo Território Designado!",
-                    body: `Você recebeu o território "${territoryName}". Devolver até ${formattedDueDate}.`,
-                    icon: "/icon-192x192.jpg",
-                    click_action: `/dashboard/territorios/${territoryId}`,
-                },
-            };
+        // Passo 2: Tentar enviar notificação PUSH. Falhas aqui não devem quebrar a função.
+        try {
+            const userDoc = await userRef.get();
+            if (!userDoc.exists) {
+                console.warn(`[onTerritoryAssigned] Usuário ${uid} não encontrado para notificação PUSH.`);
+                return;
+            }
             
-            try {
+            const tokens = userDoc.data()?.fcmTokens;
+            console.log(`[onTerritoryAssigned] Tokens encontrados para ${userDoc.data()?.name}:`, tokens);
+
+            if (tokens && Array.isArray(tokens) && tokens.length > 0) {
+                const formattedDueDate = format(dueDate.toDate(), 'dd/MM/yyyy');
+                const payload = {
+                    notification: {
+                        title: "Novo Território Designado!",
+                        body: `Você recebeu o território "${territoryName}". Devolver até ${formattedDueDate}.`,
+                        icon: "/icon-192x192.jpg",
+                        click_action: `/dashboard/territorios/${territoryId}`,
+                    },
+                };
+                
                 const response = await admin.messaging().sendToDevice(tokens, payload);
                 
-                // 3. Limpar Tokens Inválidos
                 const tokensToRemove: string[] = [];
                 response.results.forEach((result, index) => {
                     const error = result.error;
@@ -536,11 +538,9 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
                         fcmTokens: admin.firestore.FieldValue.arrayRemove(...tokensToRemove)
                     });
                 }
-            } catch (pushError) {
-                // Se a notificação PUSH falhar, apenas loga o erro e continua.
-                // A notificação interna já foi criada.
-                console.warn('[onTerritoryAssigned] Falha ao enviar notificação PUSH. A notificação interna foi criada.', pushError);
             }
+        } catch (pushError) {
+            console.warn('[onTerritoryAssigned] Falha ao enviar notificação PUSH. A notificação interna já foi criada.', pushError);
         }
 
     } catch (error) {
@@ -757,3 +757,5 @@ export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(a
         console.error("Erro ao verificar territórios vencidos:", error);
     }
 });
+
+    
