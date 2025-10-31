@@ -1,5 +1,3 @@
-
-
 // functions/src/index.ts
 import { https, setGlobalOptions, pubsub } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted, onDocumentCreated } from "firebase-functions/v2/firestore";
@@ -466,16 +464,17 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
     const beforeData = event.data?.before.data() as Territory | undefined;
     const afterData = event.data?.after.data() as Territory | undefined;
 
-    const shouldNotify = afterData?.assignment?.uid && (beforeData?.assignment?.uid !== afterData.assignment.uid);
+    // Condição para designação: O campo 'assignment' não existia antes e agora existe.
+    const shouldNotify = !beforeData?.assignment && afterData?.assignment;
 
-    if (!shouldNotify || !afterData || afterData.assignment!.uid.startsWith('custom_')) {
+    if (!shouldNotify || !afterData || !afterData.assignment || afterData.assignment.uid.startsWith('custom_')) {
         return;
     }
 
-    const { uid: assignedUid } = afterData.assignment!;
+    const { uid: assignedUid } = afterData.assignment;
     const { name: territoryName, id: territoryId } = afterData;
 
-    // --- 1. Cria a notificação interna primeiro ---
+    // --- 1. Cria a notificação interna ---
     const notificationData: Omit<Notification, 'id'> = {
         title: "Novo Território Designado",
         body: `O território "${territoryName}" foi designado para você.`,
@@ -487,12 +486,13 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
 
     try {
         await db.collection("users").doc(assignedUid).collection("notifications").add(notificationData);
-        console.log(`[Notification] Notificação interna criada para ${assignedUid}.`);
+        console.log(`[Notification] Notificação interna para DESIGNÇÃO criada para ${assignedUid}.`);
     } catch (err) {
         console.error(`[Notification] Falha ao gravar notificação no Firestore para ${assignedUid}:`, err);
+        // Não retorna, para que o envio PUSH ainda possa ser tentado.
     }
 
-    // --- 2. Envia a notificação PUSH (FCM) em um bloco separado ---
+    // --- 2. Tenta enviar a notificação PUSH (FCM) em um bloco separado ---
     try {
         const userDoc = await db.collection("users").doc(assignedUid).get();
         if (!userDoc.exists) {
@@ -529,24 +529,27 @@ export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/ter
             }
         }
     } catch (error) {
-        console.error(`[Notification] Erro (ignorado) ao enviar notificação PUSH para ${assignedUid}:`, error);
+        console.warn(`[Notification] Erro (ignorado) ao enviar notificação PUSH para ${assignedUid}:`, error);
     }
 });
 
 
 export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/territories/{terrId}", async (event) => {
-  const before = event.data?.before.data() as Territory | undefined;
-  const after = event.data?.after.data() as Territory | undefined;
+  const beforeData = event.data?.before.data() as Territory | undefined;
+  const afterData = event.data?.after.data() as Territory | undefined;
 
-  if (!before?.assignment || after?.assignment) {
+  // Condição para devolução: O campo 'assignment' existia antes e agora não existe mais.
+  if (!beforeData?.assignment || afterData?.assignment) {
     return;
   }
   
-  const returningUserUid = before.assignment.uid;
-  const territoryName = after!.name;
+  const returningUserUid = beforeData.assignment.uid;
+  const territoryName = afterData!.name;
+  const congregationId = event.params.congId;
 
   const batch = db.batch();
 
+  // 1. Notificar o usuário que devolveu (se não for designação livre)
   if (!returningUserUid.startsWith('custom_')) {
       const userRef = db.collection("users").doc(returningUserUid);
       const userNotifRef = userRef.collection('notifications').doc();
@@ -561,12 +564,13 @@ export const onTerritoryReturned = onDocumentWritten("congregations/{congId}/ter
       batch.set(userNotifRef, userNotification);
   }
 
+  // 2. Notificar todos os administradores, dirigentes e servos de territórios
   const rolesToQuery = ['Administrador', 'Dirigente', 'Servo de Territórios'];
   
   try {
     const adminQueries = rolesToQuery.map(role => 
         db.collection("users")
-          .where('congregationId', '==', event.params.congId)
+          .where('congregationId', '==', congregationId)
           .where('role', '==', role)
           .get()
     );
@@ -739,5 +743,3 @@ export const checkOverdueTerritories = pubsub.schedule("every 24 hours").onRun(a
         console.error("Erro ao verificar territórios vencidos:", error);
     }
 });
-
-    
