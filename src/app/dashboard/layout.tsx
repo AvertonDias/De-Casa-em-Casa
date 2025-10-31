@@ -63,38 +63,31 @@ function ThemeSwitcher() {
 }
 
 
-function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) {
+function Sidebar({ 
+    isOpen, 
+    onClose, 
+    pendingUsersCount, 
+    unreadNotificationsCount 
+}: { 
+    isOpen: boolean; 
+    onClose: () => void;
+    pendingUsersCount: number;
+    unreadNotificationsCount: number;
+}) {
   const pathname = usePathname();
   const { user, logout } = useUser();
-  const [pendingUsersCount, setPendingUsersCount] = useState(0);
-  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(2); // Simulação de notificações não lidas
   const { showInstallButton, canPrompt, deviceInfo, onInstall } = usePWAInstall();
   const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false);
   const [isShareApiSupported, setIsShareApiSupported] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false); // Estado para o modal de perfil
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   useEffect(() => {
-    // Roda apenas no cliente para acessar o 'navigator'
     if (typeof navigator !== 'undefined' && 'share' in navigator) {
       setIsShareApiSupported(true);
     }
   }, []);
     
-  useEffect(() => {
-    if (user && ['Administrador', 'Dirigente', 'Servo de Territórios'].includes(user.role) && user.congregationId) {
-      const q = query(
-        collection(db, 'users'),
-        where('congregationId', '==', user.congregationId),
-        where('status', '==', 'pendente')
-      );
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        setPendingUsersCount(snapshot.size);
-      });
-      return () => unsubscribe();
-    }
-  }, [user]);
-
   const handleLogout = async () => {
     await logout();
   };
@@ -149,7 +142,7 @@ function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; })
         
         <div className="flex flex-col items-center mb-8 gap-4">
             <div className="w-full flex justify-center items-center">
-                <div className="flex-1"></div> {/* Spacer Left */}
+                <div className="flex-1"></div>
                 <Image
                     src="/icon-192x192.jpg"
                     alt="Logo"
@@ -281,9 +274,25 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useUser();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [pendingUsersCount, setPendingUsersCount] = useState(0);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(2); // Simulação
 
   // Ativa o sistema de presença para o usuário logado
   usePresence();
+
+  useEffect(() => {
+    if (user && ['Administrador', 'Dirigente', 'Servo de Territórios'].includes(user.role) && user.congregationId) {
+      const q = query(
+        collection(db, 'users'),
+        where('congregationId', '==', user.congregationId),
+        where('status', '==', 'pendente')
+      );
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        setPendingUsersCount(snapshot.size);
+      });
+      return () => unsubscribe();
+    }
+  }, [user]);
 
   useEffect(() => {
     const requestPermission = async () => {
@@ -315,19 +324,32 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   }, [user, loading]);
 
   if (loading || !user) {
-    // A tela de carregamento ou redirecionamento é tratada pelo HOC 'withAuth'
     return null;
   }
   
+  const hasUnreadItems = pendingUsersCount > 0 || unreadNotificationsCount > 0;
+
   return (
       <div className="flex h-screen bg-background">
           <FeedbackAnnouncementModal onOpenProfileModal={() => setIsProfileModalOpen(true)} />
           
-          <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />
+          <Sidebar 
+            isOpen={isSidebarOpen} 
+            onClose={() => setSidebarOpen(false)}
+            pendingUsersCount={pendingUsersCount}
+            unreadNotificationsCount={unreadNotificationsCount}
+          />
 
           <div className="flex-1 flex flex-col overflow-hidden">
               <header className="md:hidden bg-background p-4 text-foreground shadow-md flex justify-between items-center border-b border-border">
-                  <button onClick={() => setSidebarOpen(true)} aria-label="Abrir menu"><Menu size={24} /></button>
+                  <div className="relative">
+                    <button onClick={() => setSidebarOpen(true)} aria-label="Abrir menu">
+                      <Menu size={24} />
+                    </button>
+                    {hasUnreadItems && (
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-destructive rounded-full animate-indicator-pulse"></span>
+                    )}
+                  </div>
                   <h1 className="text-lg font-bold">De Casa em Casa</h1>
                   <ThemeSwitcher /> 
               </header>
