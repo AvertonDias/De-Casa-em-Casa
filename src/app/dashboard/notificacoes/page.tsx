@@ -13,27 +13,38 @@ import { type Notification } from '@/types/types';
 import { Button } from '@/components/ui/button';
 
 function NotificacoesPage() {
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser(); // Usa o loading do context
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    // Aguarda o carregamento do usuário terminar
+    if (userLoading) {
+      return; 
+    }
+    // Se não houver usuário após o carregamento, para a execução
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     const notificationsRef = collection(db, `users/${user.uid}/notifications`);
     const q = query(notificationsRef, orderBy('createdAt', 'desc'));
     
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedNotifications = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         } as Notification));
         setNotifications(fetchedNotifications);
-        setLoading(false);
+        setLoading(false); // <-- Isso agora será chamado corretamente
+    }, (error) => {
+        console.error("Erro ao buscar notificações: ", error);
+        setLoading(false); // Para o loading mesmo se houver erro
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, userLoading]);
 
   // Marca as notificações como lidas quando a página é visualizada
   useEffect(() => {
