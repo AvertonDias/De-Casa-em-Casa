@@ -101,18 +101,21 @@ export const deleteUserAccount = https.onCall(async (data, context) => {
     callingUserSnap.data()?.role === "Administrador";
 
   if (!isAdmin) {
-    throw new https.HttpsError(
-      "permission-denied",
-      "Sem permissão para excluir outros usuários.",
-    );
+    if (callingUserUid !== userIdToDelete) {
+      throw new https.HttpsError(
+        "permission-denied",
+        "Sem permissão para excluir outros usuários.",
+      );
+    }
+  } else {
+    if (callingUserUid === userIdToDelete) {
+      throw new https.HttpsError(
+        "permission-denied",
+        "Um administrador não pode se autoexcluir por esta função.",
+      );
+    }
   }
 
-  if (callingUserUid === userIdToDelete) {
-    throw new https.HttpsError(
-      "permission-denied",
-      "Um administrador não pode se autoexcluir por esta função.",
-    );
-  }
 
   try {
     await admin.auth().deleteUser(userIdToDelete);

@@ -33,6 +33,8 @@ function AguardandoAprovacaoPage() {
                     const result: any = await getManagersForNotification({ congregationId: user.congregationId });
                     if (result.data.success) {
                         setAdminsAndLeaders(result.data.managers);
+                    } else {
+                        throw new Error(result.data.error || "Falha ao buscar contatos.");
                     }
                 } catch (error) {
                     console.error("Erro ao buscar administradores e dirigentes:", error);
@@ -88,7 +90,7 @@ function AguardandoAprovacaoPage() {
                         <Loader className="animate-spin text-primary mx-auto my-4" />
                       ) : (
                         <div className="space-y-3 text-left">
-                          {adminsAndLeaders.map((contact) => (
+                          {adminsAndLeaders.length > 0 ? adminsAndLeaders.map((contact) => (
                             <div key={contact.uid} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
                               <div>
                                 <p className="font-semibold">{contact.name}</p>
@@ -102,7 +104,7 @@ function AguardandoAprovacaoPage() {
                                 <MessageCircle size={16} className="mr-2"/> Notificar
                               </Button>
                             </div>
-                          ))}
+                          )) : <p className="text-sm text-center text-muted-foreground">Nenhum dirigente ou administrador com WhatsApp cadastrado foi encontrado.</p>}
                         </div>
                       )}
                     </AccordionContent>
