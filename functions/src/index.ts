@@ -6,7 +6,10 @@ import {
 } from "firebase-functions/v2/firestore";
 import {onValueWritten} from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
+import * as cors from "cors";
 import type {AppUser, Notification} from "./types";
+
+const corsHandler = cors({origin: true});
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -15,10 +18,15 @@ const db = admin.firestore();
 setGlobalOptions({region: "southamerica-east1"});
 
 // ========================================================================
-//   FUNÇÕES CHAMÁVEIS (onCall)
+//   FUNÇÕES CHAMÁVEIS (onCall e onRequest)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onCall(async (data, context) => {
+export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
+  corsHandler(req, res, async () => {
+    if (req.method !== "POST") {
+      res.status(405).json({error: "Método não permitido"});
+      return;
+    }
     const {
       adminName,
       adminEmail,
@@ -26,7 +34,7 @@ export const createCongregationAndAdmin = https.onCall(async (data, context) => 
       congregationName,
       congregationNumber,
       whatsapp,
-    } = data;
+    } = req.body;
 
     if (
       !adminName ||
@@ -36,10 +44,8 @@ export const createCongregationAndAdmin = https.onCall(async (data, context) => 
       !congregationNumber ||
       !whatsapp
     ) {
-      throw new https.HttpsError(
-        "invalid-argument",
-        "Todos os campos são obrigatórios.",
-      );
+      res.status(400).json({error: "Todos os campos são obrigatórios."});
+      return;
     }
 
     let newUser;
@@ -49,10 +55,10 @@ export const createCongregationAndAdmin = https.onCall(async (data, context) => 
         .where("number", "==", congregationNumber)
         .get();
       if (!congQuery.empty) {
-        throw new https.HttpsError(
-          "already-exists",
-          "Uma congregação com este número já existe.",
-        );
+        res
+          .status(409)
+          .json({error: "Uma congregação com este número já existe."});
+        return;
       }
 
       newUser = await admin.auth().createUser({
@@ -86,11 +92,13 @@ export const createCongregationAndAdmin = https.onCall(async (data, context) => 
       });
 
       await batch.commit();
-      return {
-        success: true,
-        userId: newUser.uid,
-        message: "Congregação criada com sucesso!",
-      };
+      res
+        .status(200)
+        .json({
+          success: true,
+          userId: newUser.uid,
+          message: "Congregação criada com sucesso!",
+        });
     } catch (error: any) {
       if (newUser) {
         await admin
@@ -105,21 +113,15 @@ export const createCongregationAndAdmin = https.onCall(async (data, context) => 
       }
       console.error("Erro ao criar congregação e admin:", error);
       if (error.code === "auth/email-already-exists") {
-        throw new https.HttpsError(
-          "already-exists",
-          "Este e-mail já está em uso.",
-        );
+        res.status(409).json({error: "Este e-mail já está em uso."});
+      } else {
+        res
+          .status(500)
+          .json({error: error.message || "Erro interno no servidor"});
       }
-      if (error instanceof https.HttpsError) {
-        throw error;
-      }
-      throw new https.HttpsError(
-        "internal",
-        error.message || "Erro interno no servidor",
-      );
     }
-  },
-);
+  });
+});
 
 export const deleteUserAccount = https.onCall(async (data, context) => {
   const callingUserUid = context.auth?.uid;
@@ -233,35 +235,6 @@ export const notifyOnNewUser = https.onCall(async (data) => {
     );
   }
 });
-
-export const getManagersForNotification = https.onCall(async (data) => {
-  const {congregationId} = data;
-  if (!congregationId) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "O ID da congregação é necessário.",
-    );
-  }
-  try {
-    const roles = ["Administrador", "Dirigente"];
-    const q = db
-      .collection("users")
-      .where("congregationId", "==", congregationId)
-      .where("role", "in", roles);
-
-    const querySnapshot = await q.get();
-    const contacts = querySnapshot.docs.map((doc) => {
-      const {name, whatsapp, role} = doc.data();
-      return {uid: doc.id, name, whatsapp, role};
-    });
-
-    return {success: true, contacts};
-  } catch (error) {
-    console.error("Erro ao buscar gerentes:", error);
-    throw new https.HttpsError("internal", "Falha ao buscar contatos.");
-  }
-});
-
 
 export const notifyOnTerritoryAssigned = https.onCall(async (data, context) => {
   if (!context.auth) {
