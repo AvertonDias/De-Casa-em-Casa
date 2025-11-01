@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -20,7 +21,7 @@ function MyTerritoriesPage() {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [territoryToReturn, setTerritoryToReturn] = useState<Territory | null>(null);
 
-  const [sortBy, setSortBy] = useState<'dueDate' | 'assignedAt' | 'number'>('dueDate');
+  const [sortBy, setSortBy] = useState<'dueDate' | 'number'>('dueDate');
 
   useEffect(() => {
     if (!user?.congregationId || !user?.uid) {
@@ -43,9 +44,10 @@ function MyTerritoriesPage() {
       if (sortBy === 'number') {
         return a.number.localeCompare(b.number, undefined, { numeric: true });
       }
-      const dateA = sortBy === 'dueDate' ? a.assignment?.dueDate?.toMillis() : a.assignment?.assignedAt?.toMillis();
-      const dateB = sortBy === 'dueDate' ? b.assignment?.dueDate?.toMillis() : b.assignment?.assignedAt?.toMillis();
-      return (dateA || 0) - (dateB || 0);
+      
+      const dateA = a.assignment?.dueDate?.toMillis() || 0;
+      const dateB = b.assignment?.dueDate?.toMillis() || 0;
+      return dateA - dateB;
     });
   }, [assignedTerritories, sortBy]);
 
@@ -96,11 +98,10 @@ function MyTerritoriesPage() {
             <ArrowDownUp size={16} className="text-muted-foreground" />
             <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'dueDate' | 'assignedAt' | 'number')}
+                onChange={(e) => setSortBy(e.target.value as 'dueDate' | 'number')}
                 className="bg-input rounded-md p-2 border border-border"
             >
                 <option value="dueDate">Data de Devolução</option>
-                <option value="assignedAt">Data de Designação</option>
                 <option value="number">Número</option>
             </select>
           </div>
