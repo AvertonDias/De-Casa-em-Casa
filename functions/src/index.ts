@@ -3,7 +3,7 @@ import { https, setGlobalOptions } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
-import { Notification } from "./types";
+import type { Notification } from "./types";
 
 if (!admin.apps.length) admin.initializeApp();
 const db = admin.firestore();
@@ -88,12 +88,10 @@ export const deleteUserAccount = https.onCall(async (data, context) => {
     const isAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
 
     if (!isAdmin) {
-        // Se não for admin, só pode se auto-excluir
         if (callingUserUid !== userIdToDelete) {
           throw new https.HttpsError("permission-denied", "Sem permissão para excluir outros usuários.");
         }
     } else {
-        // Se for admin, não pode se auto-excluir por esta função
         if (callingUserUid === userIdToDelete) {
           throw new https.HttpsError("permission-denied", "Um administrador não pode se autoexcluir por esta função.");
         }
@@ -108,7 +106,6 @@ export const deleteUserAccount = https.onCall(async (data, context) => {
         return { success: true, message: "Operação de exclusão concluída." };
     } catch (error: any) {
         console.error("Erro CRÍTICO ao excluir usuário:", error);
-        // Se o usuário não existe no Auth, mas existe no Firestore, limpa o registro órfão
         if (error.code === 'auth/user-not-found') {
             const userDocRef = db.collection("users").doc(userIdToDelete);
             if ((await userDocRef.get()).exists) {
@@ -122,7 +119,6 @@ export const deleteUserAccount = https.onCall(async (data, context) => {
 
 
 export const notifyOnNewUser = https.onCall(async (data, context) => {
-    // A autenticação já é verificada pelo `onCall`
     const { newUserName, congregationId } = data;
     if (!newUserName || !congregationId) {
         throw new https.HttpsError('invalid-argument', 'Nome do novo usuário e ID da congregação são necessários.');
@@ -340,3 +336,5 @@ export const mirrorUserStatus = onValueWritten({ ref: "/status/{uid}", region: "
     }
     return null;
 });
+
+    
