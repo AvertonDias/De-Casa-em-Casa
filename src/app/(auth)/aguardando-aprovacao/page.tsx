@@ -13,12 +13,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 
-const functions = getFunctions(app, 'southamerica-east1');
-const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
-
+const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/getManagersForNotification';
 
 function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();
@@ -26,17 +23,33 @@ function AguardandoAprovacaoPage() {
     const [isLoadingContacts, setIsLoadingContacts] = useState(true);
 
     const fetchAdminsAndLeaders = useCallback(async () => {
-        if (!user?.congregationId) return;
+        if (!user?.congregationId || !auth.currentUser) return;
+
         setIsLoadingContacts(true);
         try {
-            const result: any = await getManagersForNotification({ congregationId: user.congregationId });
+            const idToken = await auth.currentUser.getIdToken(true);
+            const response = await fetch(functionUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({ data: { congregationId: user.congregationId } }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Falha na resposta do servidor.');
+            }
+
+            const result = await response.json();
             
             if (result.data.success) {
                 setAdminsAndLeaders(result.data.managers);
             } else {
                 throw new Error(result.data.error || "Falha ao buscar contatos.");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Erro ao buscar administradores e dirigentes:", error);
         } finally {
             setIsLoadingContacts(false);
@@ -109,7 +122,7 @@ function AguardandoAprovacaoPage() {
                             </div>
                           )) : (
                             <p className="text-sm text-center text-muted-foreground">
-                              aqui deve aparecer os contatos dos dirigentes
+                              Nenhum dirigente ou administrador com WhatsApp cadastrado foi encontrado.
                             </p>
                           )}
                         </div>
