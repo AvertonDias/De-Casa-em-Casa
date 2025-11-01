@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, writeBatch, doc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, writeBatch, doc, updateDoc } from 'firebase/firestore';
 import withAuth from '@/components/withAuth';
 import { Bell, Inbox, AlertTriangle, CheckCheck, Loader, UserPlus, Milestone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -45,20 +45,11 @@ function NotificacoesPage() {
     return () => unsubscribe();
   }, [user, userLoading]);
 
-  // Marca as notificações como lidas quando a página é visualizada
-  useEffect(() => {
-      if (!user || notifications.length === 0) return;
-
-      const unreadNotifications = notifications.filter(n => !n.isRead);
-      if (unreadNotifications.length > 0) {
-        const batch = writeBatch(db);
-        unreadNotifications.forEach(n => {
-          const notifRef = doc(db, `users/${user.uid}/notifications`, n.id);
-          batch.update(notifRef, { isRead: true });
-        });
-        batch.commit().catch(err => console.error("Erro ao marcar notificações como lidas:", err));
-      }
-  }, [user, notifications]);
+  const handleMarkOneAsRead = async (notificationId: string) => {
+    if (!user) return;
+    const notifRef = doc(db, `users/${user.uid}/notifications`, notificationId);
+    await updateDoc(notifRef, { isRead: true });
+  };
 
   const handleMarkAllAsRead = async () => {
     if (!user) return;
@@ -107,7 +98,7 @@ function NotificacoesPage() {
             {notifications.length > 0 ? (
                 <div className="divide-y">
                     {notifications.map(notification => (
-                        <div key={notification.id} className={`p-4 flex items-start gap-4 transition-colors ${!notification.isRead ? 'bg-primary/10' : 'bg-transparent'}`}>
+                        <div key={notification.id} className={`p-4 flex flex-col sm:flex-row items-start gap-4 transition-colors ${!notification.isRead ? 'bg-primary/10' : 'bg-transparent'}`}>
                             <div className="mt-1">
                                 {getIconForType(notification.type)}
                             </div>
@@ -124,7 +115,11 @@ function NotificacoesPage() {
                                 </p>
                             </div>
                             {!notification.isRead && (
-                                <div className="w-2.5 h-2.5 bg-primary rounded-full mt-2" title="Não lida"></div>
+                                <div className="w-full sm:w-auto flex-shrink-0">
+                                    <Button size="sm" variant="outline" onClick={() => handleMarkOneAsRead(notification.id)}>
+                                        <CheckCheck size={16} className="mr-2"/> Marcar como lida
+                                    </Button>
+                                </div>
                             )}
                         </div>
                     ))}
