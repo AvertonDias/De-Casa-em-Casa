@@ -7,6 +7,9 @@ import {
 import {onValueWritten} from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import {format} from "date-fns";
+import * as cors from "cors";
+
+const corsHandler = cors({origin: true});
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -119,40 +122,50 @@ export const createCongregationAndAdmin = https.onCall(async ({data}) => {
 });
 
 
-export const getManagersForNotification = https.onCall(async ({data}) => {
-  const {congregationId} = data;
-  if (!congregationId) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "O ID da congregação é obrigatório.",
-    );
-  }
+export const getManagersForNotification = https.onRequest(
+  {cors: true},
+  (req, res) => {
+    corsHandler(req, res, async () => {
+      const {congregationId} = req.body.data;
+      if (!congregationId) {
+        res.status(400).json({
+          error: {
+            status: "INVALID_ARGUMENT",
+            message: "O ID da congregação é obrigatório.",
+          },
+        });
+        return;
+      }
 
-  try {
-    const rolesToFetch = ["Administrador", "Dirigente"];
-    const queryPromises = rolesToFetch.map((role) =>
-      db
-        .collection("users")
-        .where("congregationId", "==", congregationId)
-        .where("role", "==", role)
-        .get(),
-    );
-    const results = await Promise.all(queryPromises);
-    const managers = results.flatMap((snapshot) =>
-      snapshot.docs.map((doc) => {
-        const {name, whatsapp} = doc.data();
-        return {uid: doc.id, name, whatsapp};
-      }),
-    );
-    return {success: true, managers};
-  } catch (error: any) {
-    logger.error("Erro ao buscar gerentes:", error);
-    throw new https.HttpsError(
-      "internal",
-      "Falha ao buscar contatos dos responsáveis.",
-    );
-  }
-});
+      try {
+        const rolesToFetch = ["Administrador", "Dirigente"];
+        const queryPromises = rolesToFetch.map((role) =>
+          db
+            .collection("users")
+            .where("congregationId", "==", congregationId)
+            .where("role", "==", role)
+            .get(),
+        );
+        const results = await Promise.all(queryPromises);
+        const managers = results.flatMap((snapshot) =>
+          snapshot.docs.map((doc) => {
+            const {name, whatsapp} = doc.data();
+            return {uid: doc.id, name, whatsapp};
+          }),
+        );
+        res.status(200).json({data: {success: true, managers}});
+      } catch (error: any) {
+        logger.error("Erro ao buscar gerentes:", error);
+        res.status(500).json({
+          error: {
+            status: "INTERNAL",
+            message: "Falha ao buscar contatos dos responsáveis.",
+          },
+        });
+      }
+    });
+  },
+);
 
 export const notifyOnNewUser = https.onCall(async ({data}) => {
     const {newUserName, congregationId} = data;
