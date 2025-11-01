@@ -13,6 +13,12 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
+
 
 function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();
@@ -23,23 +29,12 @@ function AguardandoAprovacaoPage() {
         if (!user?.congregationId) return;
         setIsLoadingContacts(true);
         try {
-            const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/getManagersForNotification', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ congregationId: user.congregationId })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-            }
+            const result: any = await getManagersForNotification({ congregationId: user.congregationId });
             
-            const result = await response.json();
-
-            if (result.success) {
-                setAdminsAndLeaders(result.managers);
+            if (result.data.success) {
+                setAdminsAndLeaders(result.data.managers);
             } else {
-                throw new Error(result.error || "Falha ao buscar contatos.");
+                throw new Error(result.data.error || "Falha ao buscar contatos.");
             }
         } catch (error) {
             console.error("Erro ao buscar administradores e dirigentes:", error);
@@ -47,6 +42,7 @@ function AguardandoAprovacaoPage() {
             setIsLoadingContacts(false);
         }
     }, [user?.congregationId]);
+
 
     useEffect(() => {
         if (user?.congregationId) {
@@ -111,7 +107,7 @@ function AguardandoAprovacaoPage() {
                                 <MessageCircle size={16} className="mr-2"/> Notificar
                               </Button>
                             </div>
-                          )) : <p className="text-sm text-center text-muted-foreground">Nenhum dirigente ou administrador com WhatsApp cadastrado foi encontrado.</p>}
+                          )) : <p className="text-sm text-center text-muted-foreground">aqui deve aparecer os contatos dos dirigentes</p>}
                         </div>
                       )}
                     </AccordionContent>
