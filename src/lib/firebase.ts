@@ -1,3 +1,4 @@
+
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
@@ -34,3 +35,4 @@ const db: Firestore = initializeFirestore(app, {
 
 // Exporta tudo para ser usado em outras partes do aplicativo
 export { app, auth, db, storage, functions, rtdb };
+

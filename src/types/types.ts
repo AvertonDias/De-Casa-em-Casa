@@ -1,3 +1,4 @@
+
 // src/types/types.ts
 
 import { Timestamp, FieldValue } from "firebase/firestore";
@@ -55,6 +56,8 @@ export interface Territory {
   status: 'disponivel' | 'designado'; // Novo status
   assignment?: Assignment | null; // Objeto com os detalhes da atribuição atual
   assignmentHistory?: AssignmentHistoryLog[]; // Array com o histórico
+  links?: RuralLink[]; // Adicionado para territórios rurais
+  workLogs?: any[]; // Adicionado para territórios rurais
 }
 
 export interface RuralLink {
@@ -187,3 +190,5 @@ export interface Campaign {
     clicks: number;
   };
 }
+
+    
