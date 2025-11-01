@@ -280,10 +280,8 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
-  // Ativa o sistema de presença para o usuário logado
   usePresence();
 
-  // Listener para novos usuários pendentes
   useEffect(() => {
     if (!user) return;
     
@@ -300,7 +298,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  // Listener para notificações não lidas
   useEffect(() => {
     if (!user) return;
     const q = query(
@@ -313,7 +310,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [user]);
 
-  // Listener para territórios designados ao usuário atual (para criar notificações)
   useEffect(() => {
       if (!user?.congregationId || !user?.uid) return;
       
@@ -321,43 +317,56 @@ function DashboardLayout({ children }: { children: ReactNode }) {
       const q = query(territoriesRef, where("assignment.uid", "==", user.uid));
       
       const unsubscribe = onSnapshot(q, (snapshot) => {
-          const assignedTerritories = snapshot.docs.map(doc => doc.data() as Territory);
+          const assignedTerritories = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as Territory);
           
           if (assignedTerritories.length > 0) {
               const notificationsRef = collection(db, 'users', user.uid, 'notifications');
               const batch = writeBatch(db);
               
               assignedTerritories.forEach(territory => {
-                  const notifLink = `/dashboard/territorios/${territory.id}`;
-                  // Idealmente, verificaríamos se já existe notificação para este link.
-                  // Para simplificar e garantir, criamos a notificação se o território está designado.
-                  // O Firestore pode sobrescrever se o ID do documento for o mesmo, ou podemos adicionar com ID aleatório.
-                  const notification: Omit<Notification, 'id'> = {
-                      title: "Território Designado",
-                      body: `O território "${territory.name}" foi designado para você.`,
-                      link: notifLink,
-                      type: 'territory_assigned',
-                      isRead: false,
-                      createdAt: territory.assignment?.assignedAt || Timestamp.now(),
-                  };
-                  const newNotifRef = doc(notificationsRef, `assigned_${territory.id}`); // ID determinístico
-                  batch.set(newNotifRef, notification, { merge: true }); // Use merge para não sobrescrever se já existir e for igual
+                  const isAssigned = territory.assignment && territory.assignment.uid === user.uid;
+                  const isOverdue = isAssigned && territory.assignment.dueDate.toDate() < new Date();
+
+                  if (isAssigned) {
+                      const notifLink = `/dashboard/territorios/${territory.id}`;
+                      const assignedNotif: Omit<Notification, 'id'> = {
+                          title: "Território Designado",
+                          body: `O território "${territory.name}" foi designado para você.`,
+                          link: notifLink,
+                          type: 'territory_assigned',
+                          isRead: false,
+                          createdAt: territory.assignment?.assignedAt || Timestamp.now(),
+                      };
+                      const assignedNotifRef = doc(notificationsRef, `assigned_${territory.id}`);
+                      batch.set(assignedNotifRef, assignedNotif, { merge: true });
+
+                      if (isOverdue) {
+                          const overdueNotif: Omit<Notification, 'id'> = {
+                              title: "Território Atrasado",
+                              body: `O território "${territory.name}" está com a devolução atrasada.`,
+                              link: notifLink,
+                              type: 'territory_overdue',
+                              isRead: false,
+                              createdAt: territory.assignment?.dueDate || Timestamp.now(),
+                          };
+                          const overdueNotifRef = doc(notificationsRef, `overdue_${territory.id}`);
+                          batch.set(overdueNotifRef, overdueNotif, { merge: true });
+                      }
+                  }
               });
 
-              batch.commit().catch(err => console.error("Erro ao criar notificações de designação:", err));
+              batch.commit().catch(err => console.error("Erro ao criar notificações:", err));
           }
       });
       return () => unsubscribe();
   }, [user]);
 
-
-  // Solicitação de permissão para notificações do browser
   useEffect(() => {
     const requestPermission = async () => {
-      if (user && user.status === 'ativo' && messaging && 'serviceWorker' in navigator) {
+      if (user && user.status === 'ativo' && typeof window !== 'undefined' && 'Notification' in window) {
         try {
-          const permission = await Notification.requestPermission();
-          if (permission === 'granted') {
+          const permission = await window.Notification.requestPermission();
+          if (permission === 'granted' && messaging) {
             const swRegistration = await navigator.serviceWorker.ready;
             const token = await getToken(messaging, { 
               vapidKey: 'BD_279ckw7U8KPc5KFJX-8V2UFyvJhnWVqa-XgvJnb91RHf0bjBn21hDHMOKxq1Hb2bEFnOdeclWRnKKsbFfhbk',
@@ -426,3 +435,5 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 
 export default withAuth(DashboardLayout);
 
+
+    
