@@ -78,7 +78,7 @@ export const deleteUserAccount = https.onCall(async (data, context) => {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
     const callingUserUid = context.auth.uid;
-    const userIdToDelete = data.uid;
+    const userIdToDelete = data.userIdToDelete;
 
     if (!userIdToDelete || typeof userIdToDelete !== 'string') {
         throw new https.HttpsError("invalid-argument", "ID inválido.");
@@ -117,8 +117,6 @@ export const deleteUserAccount = https.onCall(async (data, context) => {
 
 
 export const notifyOnNewUser = https.onCall(async (data, context) => {
-    // A autenticação é verificada automaticamente pelo onCall.
-    // Opcionalmente, você pode verificar se context.auth não é nulo se for uma regra de negócio.
     const { newUserName, congregationId } = data;
     if (!newUserName || !congregationId) {
         throw new https.HttpsError('invalid-argument', 'Nome do novo usuário e ID da congregação são necessários.');
