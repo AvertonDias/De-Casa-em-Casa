@@ -28,7 +28,6 @@ function PasswordResetAction() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const token = searchParams?.get('token') ?? null;
   const oobCode = searchParams?.get('oobCode') ?? null;
 
   useEffect(() => {
