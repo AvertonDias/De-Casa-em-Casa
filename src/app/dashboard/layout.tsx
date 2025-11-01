@@ -5,11 +5,11 @@ import { useEffect, useState, type ReactNode } from "react";
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from "next/navigation";
-import { auth, db, messaging, app } from "@/lib/firebase"; // Import app
+import { auth, db, app } from "@/lib/firebase"; // Import app
 import { useUser } from '@/contexts/UserContext';
 import { useTheme } from 'next-themes';
 import { doc, updateDoc, collection, query, where, onSnapshot, writeBatch, getDoc, setDoc } from 'firebase/firestore';
-import { getToken } from 'firebase/messaging';
+
 
 import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell } from 'lucide-react';
 import { cn } from "@/lib/utils";
@@ -325,7 +325,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
         const isOverdue = isAssigned && territory.assignment.dueDate.toDate() < new Date();
   
         if (isAssigned) {
-          // --- Lógica para Notificação de Designação ---
           const assignedNotifRef = doc(notificationsRef, `assigned_${territory.id}`);
           const assignedDoc = await getDoc(assignedNotifRef);
           if (!assignedDoc.exists()) {
@@ -340,7 +339,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
             await setDoc(assignedNotifRef, assignedNotif);
           }
   
-          // --- Lógica para Notificação de Atraso ---
           if (isOverdue) {
             const overdueNotifRef = doc(notificationsRef, `overdue_${territory.id}`);
             const overdueDoc = await getDoc(overdueNotifRef);
@@ -363,32 +361,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [user]);
   
-  useEffect(() => {
-    const requestPermission = async () => {
-      if (user && user.status === 'ativo' && typeof window !== 'undefined' && 'Notification' in window) {
-        try {
-          const permission = await window.Notification.requestPermission();
-          if (permission === 'granted' && messaging) {
-            const swRegistration = await navigator.serviceWorker.ready;
-            const token = await getToken(messaging, { 
-              vapidKey: 'BD_279ckw7U8KPc5KFJX-8V2UFyvJhnWVqa-XgvJnb91RHf0bjBn21hDHMOKxq1Hb2bEFnOdeclWRnKKsbFfhbk',
-              serviceWorkerRegistration: swRegistration
-            });
-            if (token) {
-              const userRef = doc(db, 'users', user.uid);
-              await updateDoc(userRef, { fcmTokens: [token] });
-            }
-          }
-        } catch (error) {
-          console.error('Erro ao obter permissão ou token de notificação:', error);
-        }
-      }
-    };
-    if(!loading) {
-      requestPermission();
-    }
-  }, [user, loading]);
-
   if (loading || !user) {
     return null;
   }

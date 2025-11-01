@@ -4,7 +4,6 @@ import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, initializeFirestore, memoryLocalCache, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getFunctions, type Functions } from "firebase/functions";
-import { getMessaging, type Messaging } from "firebase/messaging";
 import { getDatabase, type Database } from "firebase/database";
 
 // Your web app's Firebase configuration
@@ -25,7 +24,6 @@ const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : get
 const auth: Auth = getAuth(app);
 const storage: FirebaseStorage = getStorage(app);
 const functions: Functions = getFunctions(app, 'southamerica-east1');
-const messaging: Messaging | null = (typeof window !== 'undefined') ? getMessaging(app) : null;
 const rtdb: Database = getDatabase(app);
 
 // Inicialização robusta do Firestore com cache em memória para evitar problemas de rede
@@ -35,4 +33,4 @@ const db: Firestore = initializeFirestore(app, {
 
 
 // Exporta tudo para ser usado em outras partes do aplicativo
-export { app, auth, db, storage, functions, messaging, rtdb };
+export { app, auth, db, storage, functions, rtdb };
