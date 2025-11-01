@@ -122,47 +122,40 @@ export const createCongregationAndAdmin = https.onCall(async ({data}) => {
 });
 
 
-export const getManagersForNotification = https.onRequest(
-  {cors: true},
-  async (req, res) => {
-    corsHandler(req, res, async () => {
-      if (req.method !== "POST") {
-        res.status(405).json({error: "Método não permitido"});
-        return;
-      }
+export const getManagersForNotification = https.onCall(async ({data}) => {
+  const {congregationId} = data;
+  if (!congregationId) {
+    throw new https.HttpsError(
+      "invalid-argument",
+      "O ID da congregação é obrigatório.",
+    );
+  }
 
-      const {congregationId} = req.body.data;
-      if (!congregationId) {
-        res.status(400).json({error: "O ID da congregação é obrigatório."});
-        return;
-      }
-
-      try {
-        const rolesToFetch = ["Administrador", "Dirigente"];
-        const queryPromises = rolesToFetch.map((role) =>
-          db
-            .collection("users")
-            .where("congregationId", "==", congregationId)
-            .where("role", "==", role)
-            .get(),
-        );
-        const results = await Promise.all(queryPromises);
-        const managers = results.flatMap((snapshot) =>
-          snapshot.docs.map((doc) => {
-            const {name, whatsapp} = doc.data();
-            return {uid: doc.id, name, whatsapp};
-          }),
-        );
-        res.status(200).json({data: {success: true, managers}});
-      } catch (error: any) {
-        logger.error("Erro ao buscar gerentes:", error);
-        res
-          .status(500)
-          .json({error: "Falha ao buscar contatos dos responsáveis."});
-      }
-    });
-  },
-);
+  try {
+    const rolesToFetch = ["Administrador", "Dirigente"];
+    const queryPromises = rolesToFetch.map((role) =>
+      db
+        .collection("users")
+        .where("congregationId", "==", congregationId)
+        .where("role", "==", role)
+        .get(),
+    );
+    const results = await Promise.all(queryPromises);
+    const managers = results.flatMap((snapshot) =>
+      snapshot.docs.map((doc) => {
+        const {name, whatsapp} = doc.data();
+        return {uid: doc.id, name, whatsapp};
+      }),
+    );
+    return {success: true, managers};
+  } catch (error: any) {
+    logger.error("Erro ao buscar gerentes:", error);
+    throw new https.HttpsError(
+      "internal",
+      "Falha ao buscar contatos dos responsáveis.",
+    );
+  }
+});
 
 export const requestPasswordReset = https.onRequest(
   {cors: true},
@@ -574,24 +567,20 @@ export const onDeleteQuadra = onDocumentDeleted(
   },
 );
 
-export const notifyOnTerritoryAssigned = https.onRequest({cors: true}, async (req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Método não permitido' });
-        return;
+export const notifyOnTerritoryAssigned = https.onCall(async ({data, auth}) => {
+    if (!auth) {
+        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
-    const { territoryId, territoryName, assignedUid } = req.body.data;
+    const { territoryId, territoryName, assignedUid } = data;
 
     if (!territoryId || !territoryName || !assignedUid) {
-      res.status(400).json({ error: 'Dados insuficientes para enviar notificação.' });
-      return;
+      throw new https.HttpsError("invalid-argument", "Dados insuficientes para enviar notificação.");
     }
 
     try {
         const userDoc = await db.collection("users").doc(assignedUid).get();
         if (!userDoc.exists) {
-            res.status(404).json({ error: 'Usuário não encontrado.' });
-            return;
+            throw new https.HttpsError("not-found", "Usuário não encontrado.");
         }
 
         const notification: Omit<admin.firestore.DocumentData, 'id'> = {
@@ -606,12 +595,11 @@ export const notifyOnTerritoryAssigned = https.onRequest({cors: true}, async (re
         const notificationRef = db.collection('users').doc(assignedUid).collection('notifications');
         await notificationRef.add(notification);
 
-        res.status(200).json({ data: { success: true }});
+        return { success: true };
     } catch (error) {
         logger.error(`[notifyOnTerritoryAssigned] Erro:`, error);
-        res.status(500).json({ error: 'Falha ao criar notificação no servidor.' });
+        throw new https.HttpsError("internal", "Falha ao criar notificação no servidor.");
     }
-  });
 });
 
 

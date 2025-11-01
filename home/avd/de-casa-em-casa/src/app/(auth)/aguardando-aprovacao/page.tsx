@@ -36,7 +36,7 @@ function AguardandoAprovacaoPage() {
             } else {
                 throw new Error(result.data.error || "Falha ao buscar contatos.");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Erro ao buscar administradores e dirigentes:", error);
         } finally {
             setIsLoadingContacts(false);
