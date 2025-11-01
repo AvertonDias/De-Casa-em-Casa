@@ -15,8 +15,8 @@ setGlobalOptions({ region: "southamerica-east1" });
 //   FUNÇÕES CHAMÁVEIS (onCall)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onCall(async (req) => {
-    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.data;
+export const createCongregationAndAdmin = https.onCall(async ({ data }) => {
+    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = data;
 
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
         throw new https.HttpsError('invalid-argument', 'Todos os campos são obrigatórios.');
@@ -75,12 +75,12 @@ export const createCongregationAndAdmin = https.onCall(async (req) => {
 });
 
 
-export const deleteUserAccount = https.onCall(async (req) => {
-    if (!req.auth) {
+export const deleteUserAccount = https.onCall(async ({ data, auth }) => {
+    if (!auth) {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
-    const callingUserUid = req.auth.uid;
-    const { userIdToDelete } = req.data;
+    const callingUserUid = auth.uid;
+    const { userIdToDelete } = data;
 
     if (!userIdToDelete || typeof userIdToDelete !== 'string') {
         throw new https.HttpsError("invalid-argument", "ID inválido.");
@@ -118,8 +118,8 @@ export const deleteUserAccount = https.onCall(async (req) => {
 });
 
 
-export const notifyOnNewUser = https.onCall(async (req) => {
-    const { newUserName, congregationId } = req.data;
+export const notifyOnNewUser = https.onCall(async (data, context) => {
+    const { newUserName, congregationId } = data;
     if (!newUserName || !congregationId) {
         throw new https.HttpsError('invalid-argument', 'Nome do novo usuário e ID da congregação são necessários.');
     }
@@ -159,11 +159,11 @@ export const notifyOnNewUser = https.onCall(async (req) => {
 });
 
 
-export const notifyOnTerritoryAssigned = https.onCall(async (req) => {
-    if (!req.auth) {
+export const notifyOnTerritoryAssigned = https.onCall(async (data, context) => {
+    if (!context.auth) {
         throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
     }
-    const { territoryId, territoryName, assignedUid } = req.data;
+    const { territoryId, territoryName, assignedUid } = data;
     if (!territoryId || !territoryName || !assignedUid) {
         throw new https.HttpsError('invalid-argument', 'IDs e nomes são necessários.');
     }
@@ -314,5 +314,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
-
-    

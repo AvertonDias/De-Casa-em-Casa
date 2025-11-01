@@ -1,10 +1,9 @@
 
 "use client";
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -12,7 +11,7 @@ import { Loader, Eye, EyeOff } from "lucide-react";
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, app } from '@/lib/firebase';
-import { maskPhone } from '@/lib/utils';
+import { maskPhone } from '@/lib/utils'; 
 
 const functions = getFunctions(app, 'southamerica-east1');
 const createCongregationAndAdminFn = httpsCallable(functions, 'createCongregationAndAdmin');
@@ -25,12 +24,11 @@ export default function NovaCongregacaoPage() {
   const [congregationName, setCongregationName] = useState('');
   const [congregationNumber, setCongregationNumber] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
+  const [confirmWhatsapp, setConfirmWhatsapp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const router = useRouter();
   const { toast } = useToast();
 
   const handleCreateCongregation = async (e: React.FormEvent) => {
@@ -41,29 +39,33 @@ export default function NovaCongregacaoPage() {
       setErrorMessage("As senhas não coincidem.");
       return;
     }
-    if (!whatsapp.trim()) {
-        setErrorMessage("O campo WhatsApp é obrigatório.");
-        return;
+    if (whatsapp !== confirmWhatsapp) {
+      setErrorMessage("Os números de WhatsApp não coincidem.");
+      return;
+    }
+    if (whatsapp.trim().length < 15) {
+      setErrorMessage("Por favor, preencha o número de WhatsApp completo.");
+      return;
     }
     
     setIsLoading(true);
 
     try {
-        const result: any = await createCongregationAndAdminFn({
+        const dataToSend = {
             adminName: adminName.trim(),
             adminEmail: adminEmail.trim(),
             adminPassword: adminPassword,
             whatsapp: whatsapp,
             congregationName: congregationName.trim(),
             congregationNumber: congregationNumber.trim()
-        });
+        };
+
+        const result: any = await createCongregationAndAdminFn(dataToSend);
 
         if (result.data.success) {
             toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
             await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
             // O UserContext irá lidar com o redirecionamento para /dashboard
-        } else {
-            throw new Error(result.data.error || 'Falha ao criar congregação sem erro explícito.');
         }
 
     } catch (error: any) {
@@ -112,12 +114,24 @@ export default function NovaCongregacaoPage() {
                         <Input type="email" id="adminEmail" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required className="mt-1" />
                     </div>
                     <div>
-                        <Label htmlFor="whatsapp">Seu WhatsApp <span className="text-red-500">*</span></Label>
+                        <Label htmlFor="whatsapp">Seu WhatsApp</Label>
                         <Input 
                             type="tel" 
                             id="whatsapp" 
                             value={whatsapp} 
                             onChange={(e) => setWhatsapp(maskPhone(e.target.value))} 
+                            required 
+                            className="mt-1"
+                            placeholder="(XX) XXXXX-XXXX"
+                        />
+                    </div>
+                     <div>
+                        <Label htmlFor="confirmWhatsapp">Confirme seu WhatsApp</Label>
+                        <Input 
+                            type="tel" 
+                            id="confirmWhatsapp" 
+                            value={confirmWhatsapp} 
+                            onChange={(e) => setConfirmWhatsapp(maskPhone(e.target.value))} 
                             required 
                             className="mt-1"
                             placeholder="(XX) XXXXX-XXXX"
@@ -142,7 +156,7 @@ export default function NovaCongregacaoPage() {
                         <div className="text-destructive text-sm text-center">{errorMessage}</div>
                     )}
   
-                    <Button type="submit" disabled={isLoading || !adminEmail || !adminName || !congregationName || !congregationNumber || !whatsapp || adminPassword.length < 6 || adminPassword !== confirmPassword} className="w-full">
+                    <Button type="submit" disabled={isLoading || !adminEmail || !adminName || !congregationName || !congregationNumber || whatsapp.length < 15 || adminPassword.length < 6 || adminPassword !== confirmPassword || whatsapp !== confirmWhatsapp} className="w-full">
                         {isLoading ? <><Loader className="mr-2 h-4 w-4 animate-spin" /> Criando...</> : "Criar Congregação"}
                     </Button>
                 </form>
@@ -156,5 +170,3 @@ export default function NovaCongregacaoPage() {
         </div>
     );
 }
-
-    
