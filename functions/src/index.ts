@@ -3,17 +3,17 @@ import { https, setGlobalOptions } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
-import type { Notification } from "./types";
+import type { AppUser, Notification } from "./types";
 
 if (!admin.apps.length) admin.initializeApp();
 const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   FUNÇÕES CHAMÁVEIS (onCall)
+//   FUNÇÕES CHAMÁVEIS (onCall) - Implementação Correta
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onCall(async (data) => {
+export const createCongregationAndAdmin = https.onCall(async (data, context) => {
     const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = data;
 
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
@@ -336,5 +336,3 @@ export const mirrorUserStatus = onValueWritten({ ref: "/status/{uid}", region: "
     }
     return null;
 });
-
-    
