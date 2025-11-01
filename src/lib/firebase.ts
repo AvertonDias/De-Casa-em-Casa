@@ -1,8 +1,7 @@
-
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, initializeFirestore, memoryLocalCache, persistentLocalCache, persistentMultipleTabManager, type Firestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore, memoryLocalCache, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getFunctions, type Functions } from "firebase/functions";
 import { getMessaging, type Messaging } from "firebase/messaging";
@@ -29,8 +28,10 @@ const functions: Functions = getFunctions(app, 'southamerica-east1');
 const messaging: Messaging | null = (typeof window !== 'undefined') ? getMessaging(app) : null;
 const rtdb: Database = getDatabase(app);
 
-// Inicialização do Firestore com cache padrão em memória
-const db: Firestore = getFirestore(app);
+// Inicialização robusta do Firestore com cache em memória para evitar problemas de rede
+const db: Firestore = initializeFirestore(app, {
+  localCache: memoryLocalCache()
+});
 
 
 // Exporta tudo para ser usado em outras partes do aplicativo

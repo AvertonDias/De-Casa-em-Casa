@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -70,7 +69,7 @@ service cloud.firestore {
       match /notifications/{notificationId} {
         // Usuário pode ler suas próprias notificações
         allow read: if request.auth.uid == userId;
-        // Usuário pode escrever nas suas próprias, e o servidor (Cloud Functions) também pode
+        // Usuário pode escrever/deletar suas próprias, e o servidor (Cloud Functions) também pode
         allow write: if request.auth.uid == userId || request.auth == null;
       }
     }

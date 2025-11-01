@@ -293,15 +293,13 @@ export const onNewUserPending = onDocumentCreated(
 export const onTerritoryAssigned = onDocumentWritten(
   "congregations/{congId}/territories/{terrId}",
   async (event) => {
-    const beforeData = event.data?.before.data();
-    const afterData = event.data?.after.data();
+    const beforeData = event.data?.before.data() as Territory | undefined;
+    const afterData = event.data?.after.data() as Territory | undefined;
 
-    // Adicionados logs para depuração
     console.log("onTerritoryAssigned: Trigger disparado para terrId:", event.params.terrId);
     console.log("onTerritoryAssigned: Before data (raw):", JSON.stringify(beforeData));
     console.log("onTerritoryAssigned: After data (raw):", JSON.stringify(afterData));
 
-    // Condição melhorada: notifica se a atribuição foi adicionada ou alterada.
     if (afterData?.assignment && beforeData?.assignment?.uid !== afterData.assignment.uid) {
       const { uid, name } = afterData.assignment;
       const territoryId = event.params.terrId;
@@ -348,7 +346,6 @@ export const onTerritoryReturned = onDocumentWritten(
     console.log("onTerritoryReturned: Before:", before);
     console.log("onTerritoryReturned: After:", after);
 
-    // Condição melhorada: notifica se a atribuição foi removida.
     if (before?.assignment && !after?.assignment) {
       const congId = event.params.congId;
       const territoryName = after!.name;
@@ -357,7 +354,6 @@ export const onTerritoryReturned = onDocumentWritten(
 
       const batch = db.batch();
 
-      // Notificação para o usuário que devolveu (se não for custom)
       if (!returningUid.startsWith('custom_')) {
         const userNotif: Omit<Notification, 'id'> = {
           title: "Território Devolvido",
@@ -370,7 +366,6 @@ export const onTerritoryReturned = onDocumentWritten(
         batch.set(db.collection("users").doc(returningUid).collection('notifications').doc(), userNotif);
       }
 
-      // Notificação para os administradores/servos
       try {
         const managerRoles = ['Administrador', 'Dirigente', 'Servo de Territórios'];
         const managerSnapshots = await Promise.all(managerRoles.map(r => db.collection("users").where('congregationId', '==', congId).where('role', '==', r).get()));
