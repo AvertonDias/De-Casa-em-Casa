@@ -197,15 +197,6 @@ export const getManagersForNotification = https.onCall(async (data, context) => 
     if (!congregationId) {
         throw new https.HttpsError('invalid-argument', 'O ID da congregação é obrigatório.');
     }
-    
-    // Opcional: Adicionar uma verificação para garantir que apenas usuários (mesmo que pendentes) daquela congregação possam chamar isso.
-    // const callingUid = context.auth?.uid;
-    // if(callingUid) {
-    //   const userDoc = await db.collection('users').doc(callingUid).get();
-    //   if(!userDoc.exists() || userDoc.data()?.congregationId !== congregationId){
-    //      throw new https.HttpsError('permission-denied', 'Você não tem permissão para acessar os dados desta congregação.');
-    //   }
-    // }
 
     try {
         const rolesToFetch = ['Administrador', 'Dirigente'];
@@ -218,7 +209,7 @@ export const getManagersForNotification = https.onCall(async (data, context) => 
         const results = await Promise.all(queryPromises);
         const managers = results.flatMap(snapshot => 
             snapshot.docs.map(doc => {
-                const { name, whatsapp, uid } = doc.data() as AppUser;
+                const { name, whatsapp } = doc.data() as AppUser;
                 return { name, whatsapp, uid: doc.id }; // Retorna apenas dados seguros
             })
         );
