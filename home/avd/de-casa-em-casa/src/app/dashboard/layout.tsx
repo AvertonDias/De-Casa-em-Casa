@@ -5,11 +5,11 @@ import { useEffect, useState, type ReactNode } from "react";
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from "next/navigation";
-import { auth, db, messaging, app } from "@/lib/firebase"; // Import app
+import { auth, db, app } from "@/lib/firebase"; // Import app
 import { useUser } from '@/contexts/UserContext';
 import { useTheme } from 'next-themes';
-import { doc, updateDoc, collection, query, where, onSnapshot, writeBatch } from 'firebase/firestore';
-import { getToken } from 'firebase/messaging';
+import { doc, updateDoc, collection, query, where, onSnapshot, writeBatch, getDoc, setDoc } from 'firebase/firestore';
+
 
 import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell } from 'lucide-react';
 import { cn } from "@/lib/utils";
@@ -280,10 +280,8 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
-  // Ativa o sistema de presença para o usuário logado
   usePresence();
 
-  // Listener para novos usuários pendentes
   useEffect(() => {
     if (!user) return;
     
@@ -300,7 +298,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  // Listener para notificações não lidas
   useEffect(() => {
     if (!user) return;
     const q = query(
@@ -313,68 +310,60 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [user]);
 
-  // Listener para territórios designados ao usuário atual (para criar notificações)
   useEffect(() => {
-      if (!user?.congregationId || !user?.uid) return;
-      
-      const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-      const q = query(territoriesRef, where("assignment.uid", "==", user.uid));
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-          const assignedTerritories = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as Territory);
-          
-          if (assignedTerritories.length > 0) {
-              const notificationsRef = collection(db, 'users', user.uid, 'notifications');
-              const batch = writeBatch(db);
-              
-              assignedTerritories.forEach(territory => {
-                  const notifLink = `/dashboard/territorios/${territory.id}`;
-                  const notification: Omit<Notification, 'id'> = {
-                      title: "Território Designado",
-                      body: `O território "${territory.name}" foi designado para você.`,
-                      link: notifLink,
-                      type: 'territory_assigned',
-                      isRead: false,
-                      createdAt: territory.assignment?.assignedAt || Timestamp.now(),
-                  };
-                  const newNotifRef = doc(notificationsRef, `assigned_${territory.id}`); // ID determinístico
-                  batch.set(newNotifRef, notification, { merge: true });
-              });
+    if (!user?.congregationId || !user?.uid) return;
+  
+    const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
+    const q = query(territoriesRef, where("assignment.uid", "==", user.uid));
+  
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const notificationsRef = collection(db, 'users', user.uid, 'notifications');
+  
+      for (const territoryDoc of snapshot.docs) {
+        const territory = { id: territoryDoc.id, ...territoryDoc.data() } as Territory;
+        const isAssigned = territory.assignment && territory.assignment.uid === user.uid;
+        
+        if (isAssigned && territory.assignment) {
+          const isOverdue = territory.assignment.dueDate.toDate() < new Date();
 
-              batch.commit().catch(err => console.error("Erro ao criar notificações de designação:", err));
+          // Notificação de Designação
+          const assignedNotifRef = doc(notificationsRef, `assigned_${territory.id}`);
+          const assignedDoc = await getDoc(assignedNotifRef);
+          if (!assignedDoc.exists()) {
+            const assignedNotif: Omit<Notification, 'id'> = {
+              title: "Território Designado",
+              body: `O território "${territory.name}" foi designado para você.`,
+              link: `/dashboard/territorios/${territory.id}`,
+              type: 'territory_assigned',
+              isRead: false,
+              createdAt: territory.assignment?.assignedAt || Timestamp.now(),
+            };
+            await setDoc(assignedNotifRef, assignedNotif, { merge: true });
           }
-      });
-      return () => unsubscribe();
-  }, [user]);
-
-
-  // Solicitação de permissão para notificações do browser
-  useEffect(() => {
-    const requestPermission = async () => {
-      if (user && user.status === 'ativo' && messaging && typeof window !== 'undefined' && 'Notification' in window) {
-        try {
-          const permission = await window.Notification.requestPermission();
-          if (permission === 'granted') {
-            const swRegistration = await navigator.serviceWorker.ready;
-            const token = await getToken(messaging, { 
-              vapidKey: 'BD_279ckw7U8KPc5KFJX-8V2UFyvJhnWVqa-XgvJnb91RHf0bjBn21hDHMOKxq1Hb2bEFnOdeclWRnKKsbFfhbk',
-              serviceWorkerRegistration: swRegistration
-            });
-            if (token) {
-              const userRef = doc(db, 'users', user.uid);
-              await updateDoc(userRef, { fcmTokens: [token] });
+  
+          // Notificação de Atraso
+          if (isOverdue) {
+            const overdueNotifRef = doc(notificationsRef, `overdue_${territory.id}`);
+            const overdueDoc = await getDoc(overdueNotifRef);
+            if (!overdueDoc.exists()) {
+              const overdueNotif: Omit<Notification, 'id'> = {
+                title: "Território Atrasado",
+                body: `O território "${territory.name}" está com a devolução atrasada.`,
+                link: `/dashboard/meus-territorios`,
+                type: 'territory_overdue',
+                isRead: false,
+                createdAt: territory.assignment?.dueDate || Timestamp.now(),
+              };
+              await setDoc(overdueNotifRef, overdueNotif, { merge: true });
             }
           }
-        } catch (error) {
-          console.error('Erro ao obter permissão ou token de notificação:', error);
         }
       }
-    };
-    if(!loading) {
-      requestPermission();
-    }
-  }, [user, loading]);
-
+    });
+  
+    return () => unsubscribe();
+  }, [user]);
+  
   if (loading || !user) {
     return null;
   }
@@ -422,6 +411,5 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 }
 
 export default withAuth(DashboardLayout);
-
 
     
