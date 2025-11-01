@@ -215,9 +215,7 @@ export const notifyOnNewUser = https.onCall(async ({data}) => {
 export const requestPasswordReset = https.onRequest(
   {cors: true},
   async (req, res) => {
-    // Usar o cors handler aqui
-    const cors = (await import('cors'))({origin: true});
-    cors(req, res, async () => {
+    corsHandler(req, res, async () => {
       if (req.method !== "POST") {
         res.status(405).json({error: "Método não permitido."});
         return;

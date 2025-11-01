@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app, auth } from '@/lib/firebase';
+import { app } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
 const functions = getFunctions(app, 'southamerica-east1');
@@ -28,29 +28,10 @@ function AguardandoAprovacaoPage() {
     const [isLoadingContacts, setIsLoadingContacts] = useState(true);
 
     const fetchAdminsAndLeaders = useCallback(async () => {
-        if (!user?.congregationId || !auth.currentUser) return;
+        if (!user?.congregationId) return;
         setIsLoadingContacts(true);
-
         try {
-            const idToken = await auth.currentUser.getIdToken(true);
-            const response = await fetch(
-              "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/getManagersForNotification",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${idToken}`,
-                },
-                body: JSON.stringify({ data: { congregationId: user.congregationId } }),
-              },
-            );
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error.message || "Falha na comunicação com o servidor.");
-            }
-
-            const result = await response.json();
+            const result: any = await getManagersForNotification({ congregationId: user.congregationId });
             
             if (result.data.success) {
                 setAdminsAndLeaders(result.data.managers);
