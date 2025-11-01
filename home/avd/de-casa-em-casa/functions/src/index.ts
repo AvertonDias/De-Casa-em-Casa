@@ -10,7 +10,7 @@ const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   FUNÇÕES CHAMÁVEIS (onCall) - Implementação Correta
+//   FUNÇÕES CHAMÁVEIS (onCall)
 // ========================================================================
 
 export const createCongregationAndAdmin = https.onCall(async (data, context) => {
@@ -336,3 +336,5 @@ export const mirrorUserStatus = onValueWritten({ ref: "/status/{uid}", region: "
     }
     return null;
 });
+
+    

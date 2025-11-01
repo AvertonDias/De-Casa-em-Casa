@@ -351,7 +351,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   // Solicitação de permissão para notificações do browser
   useEffect(() => {
     const requestPermission = async () => {
-      if (user && user.status === 'ativo' && messaging && 'Notification' in window) {
+      if (user && user.status === 'ativo' && messaging && typeof window !== 'undefined' && 'Notification' in window) {
         try {
           const permission = await window.Notification.requestPermission();
           if (permission === 'granted') {
@@ -423,3 +423,5 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 
 export default withAuth(DashboardLayout);
 
+
+    
