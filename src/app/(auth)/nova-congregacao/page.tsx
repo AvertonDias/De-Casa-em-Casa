@@ -1,4 +1,3 @@
-
 "use client";
 import { useState } from 'react';
 import Image from 'next/image';
@@ -64,8 +63,6 @@ export default function NovaCongregacaoPage() {
             toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
             await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
             // O UserContext irá lidar com o redirecionamento para /dashboard
-        } else {
-            throw new Error(result.data.error || 'Falha ao criar congregação sem erro explícito.');
         }
 
     } catch (error: any) {
@@ -140,14 +137,14 @@ export default function NovaCongregacaoPage() {
                     <div className="relative">
                         <Label htmlFor="adminPassword">Senha (mínimo 6 caracteres)</Label>
                         <Input type={showPassword ? 'text' : 'password'} id="adminPassword" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
+                        <button type="button" onClick={()={() => setShowPassword(!showPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
                             {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
                         </button>
                     </div>
                      <div className="relative">
                         <Label htmlFor="confirmPassword">Confirmar Senha</Label>
                         <Input type={showConfirmPassword ? 'text' : 'password'} id="confirmPassword" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" />
-                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
+                        <button type="button" onClick={()={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
                             {showConfirmPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
                         </button>
                     </div>
