@@ -1,5 +1,4 @@
 
-
 import {https, setGlobalOptions, logger} from "firebase-functions/v2";
 import {
   onDocumentWritten,
@@ -8,9 +7,6 @@ import {
 import {onValueWritten} from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import {format} from "date-fns";
-import * as cors from "cors";
-
-const corsHandler = cors({origin: true});
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -123,67 +119,48 @@ export const createCongregationAndAdmin = https.onCall(async ({data}) => {
 });
 
 
-export const getManagersForNotification = https.onRequest(
-  {cors: true},
-  (req, res) => {
-    corsHandler(req, res, async () => {
-      if (req.method !== "POST") {
-        res.status(405).json({success: false, error: "Método não permitido."});
-        return;
-      }
+export const getManagersForNotification = https.onCall(async ({data}) => {
+  const {congregationId} = data;
+  if (!congregationId) {
+    throw new https.HttpsError(
+      "invalid-argument",
+      "O ID da congregação é obrigatório.",
+    );
+  }
 
-      const {congregationId} = req.body.data;
-      if (!congregationId) {
-        res
-          .status(400)
-          .json({
-            success: false,
-            error: "O ID da congregação é obrigatório.",
-          });
-        return;
-      }
+  try {
+    const rolesToFetch = ["Administrador", "Dirigente"];
+    const queryPromises = rolesToFetch.map((role) =>
+      db
+        .collection("users")
+        .where("congregationId", "==", congregationId)
+        .where("role", "==", role)
+        .get(),
+    );
+    const results = await Promise.all(queryPromises);
+    const managers = results.flatMap((snapshot) =>
+      snapshot.docs.map((doc) => {
+        const {name, whatsapp} = doc.data();
+        return {uid: doc.id, name, whatsapp};
+      }),
+    );
+    return {success: true, managers};
+  } catch (error: any) {
+    logger.error("Erro ao buscar gerentes:", error);
+    throw new https.HttpsError(
+      "internal",
+      "Falha ao buscar contatos dos responsáveis.",
+    );
+  }
+});
 
-      try {
-        const rolesToFetch = ["Administrador", "Dirigente"];
-        const queryPromises = rolesToFetch.map((role) =>
-          db
-            .collection("users")
-            .where("congregationId", "==", congregationId)
-            .where("role", "==", role)
-            .get(),
-        );
-        const results = await Promise.all(queryPromises);
-        const managers = results.flatMap((snapshot) =>
-          snapshot.docs.map((doc) => {
-            const {name, whatsapp} = doc.data();
-            return {uid: doc.id, name, whatsapp};
-          }),
-        );
-        res.status(200).json({success: true, data: {managers}});
-      } catch (error: any) {
-        logger.error("Erro ao buscar gerentes:", error);
-        res
-          .status(500)
-          .json({
-            success: false,
-            error: "Falha ao buscar contatos dos responsáveis.",
-          });
-      }
-    });
-  },
-);
-
-export const notifyOnNewUser = https.onRequest({cors: true}, (req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method !== "POST") {
-      return res.status(405).json({error: "Método não permitido."});
-    }
-
-    const {newUserName, congregationId} = req.body.data;
+export const notifyOnNewUser = https.onCall(async ({data}) => {
+    const {newUserName, congregationId} = data;
     if (!newUserName || !congregationId) {
-      return res
-        .status(400)
-        .json({error: "Dados insuficientes para notificação."});
+      throw new https.HttpsError(
+        "invalid-argument",
+        "Dados insuficientes para notificação.",
+      );
     }
 
     try {
@@ -212,30 +189,34 @@ export const notifyOnNewUser = https.onRequest({cors: true}, (req, res) => {
       }
 
       await Promise.all(notifications);
-      return res.status(200).json({success: true});
+      return {success: true};
     } catch (error) {
       logger.error("Erro ao criar notificações para novo usuário:", error);
-      return res
-        .status(500)
-        .json({error: "Falha ao enviar notificações."});
+      throw new https.HttpsError(
+        "internal",
+        "Falha ao enviar notificações.",
+      );
     }
-  });
 });
 
 export const requestPasswordReset = https.onRequest(
   {cors: true},
   async (req, res) => {
-    corsHandler(req, res, async () => {
+    // Usar o cors handler aqui
+    const cors = (await import('cors'))({origin: true});
+    cors(req, res, async () => {
       if (req.method !== "POST") {
-        return res.status(405).json({error: "Método não permitido."});
+        res.status(405).json({error: "Método não permitido."});
+        return;
       }
       const {email} = req.body;
       if (!email) {
-        return res.status(400).json({error: "O e-mail é obrigatório."});
+        res.status(400).json({error: "O e-mail é obrigatório."});
+        return;
       }
       try {
         const user = await admin.auth().getUserByEmail(email);
-        const token = (await admin.auth().createCustomToken(user.uid)) + "___" + crypto.randomUUID();
+        const token = crypto.randomUUID();
         const expires = Date.now() + 3600 * 1000; // 1 hora
 
         await db.collection("resetTokens").doc(token).set({
@@ -243,18 +224,18 @@ export const requestPasswordReset = https.onRequest(
           expires: admin.firestore.Timestamp.fromMillis(expires),
         });
 
-        return res.status(200).json({success: true, token});
+        res.status(200).json({success: true, token});
       } catch (error: any) {
         if (error.code === "auth/user-not-found") {
-          return res.status(200).json({
+          res.status(200).json({
             success: true,
             token: null,
             message: "Se o e-mail existir, um link será enviado.",
           });
+          return;
         }
         logger.error("Erro ao gerar token de redefinição:", error);
-        return res
-          .status(500)
+        res.status(500)
           .json({error: "Erro ao iniciar o processo de redefinição."});
       }
     });
@@ -702,5 +683,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   },
 );
-
-
