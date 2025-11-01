@@ -18,7 +18,7 @@ setGlobalOptions({region: "southamerica-east1"});
 //   FUNÇÕES CHAMÁVEIS (onCall)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onCall(async (data) => {
+export const createCongregationAndAdmin = https.onCall(async (data, context) => {
     const {
       adminName,
       adminEmail,
@@ -233,6 +233,35 @@ export const notifyOnNewUser = https.onCall(async (data) => {
     );
   }
 });
+
+export const getManagersForNotification = https.onCall(async (data) => {
+  const {congregationId} = data;
+  if (!congregationId) {
+    throw new https.HttpsError(
+      "invalid-argument",
+      "O ID da congregação é necessário.",
+    );
+  }
+  try {
+    const roles = ["Administrador", "Dirigente"];
+    const q = db
+      .collection("users")
+      .where("congregationId", "==", congregationId)
+      .where("role", "in", roles);
+
+    const querySnapshot = await q.get();
+    const contacts = querySnapshot.docs.map((doc) => {
+      const {name, whatsapp, role} = doc.data();
+      return {uid: doc.id, name, whatsapp, role};
+    });
+
+    return {success: true, contacts};
+  } catch (error) {
+    console.error("Erro ao buscar gerentes:", error);
+    throw new https.HttpsError("internal", "Falha ao buscar contatos.");
+  }
+});
+
 
 export const notifyOnTerritoryAssigned = https.onCall(async (data, context) => {
   if (!context.auth) {

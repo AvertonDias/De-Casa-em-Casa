@@ -5,8 +5,8 @@ import { useState, useEffect } from 'react';
 import { useUser } from "@/contexts/UserContext";
 import { Loader, MailCheck, MessageCircle, AlertTriangle } from "lucide-react";
 import withAuth from "@/components/withAuth";
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
 import { AppUser } from '@/types/types';
 import {
   Accordion,
@@ -15,6 +15,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const getManagersFn = httpsCallable(functions, 'getManagersForNotification');
 
 function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();
@@ -26,35 +29,10 @@ function AguardandoAprovacaoPage() {
             const fetchAdminsAndLeaders = async () => {
                 setIsLoadingContacts(true);
                 try {
-                    const usersRef = collection(db, 'users');
-                    
-                    const adminQuery = query(
-                        usersRef, 
-                        where('congregationId', '==', user.congregationId),
-                        where('role', '==', 'Administrador')
-                    );
-                    const leaderQuery = query(
-                        usersRef, 
-                        where('congregationId', '==', user.congregationId),
-                        where('role', '==', 'Dirigente')
-                    );
-
-                    const [adminSnapshot, leaderSnapshot] = await Promise.all([
-                        getDocs(adminQuery),
-                        getDocs(leaderQuery)
-                    ]);
-
-                    const contactsMap = new Map<string, AppUser>();
-                    
-                    adminSnapshot.forEach(doc => {
-                        contactsMap.set(doc.id, { uid: doc.id, ...doc.data() } as AppUser);
-                    });
-                    leaderSnapshot.forEach(doc => {
-                        contactsMap.set(doc.id, { uid: doc.id, ...doc.data() } as AppUser);
-                    });
-
-                    setAdminsAndLeaders(Array.from(contactsMap.values()));
-
+                    const result: any = await getManagersFn({ congregationId: user.congregationId });
+                    if(result.data.success) {
+                        setAdminsAndLeaders(result.data.contacts);
+                    }
                 } catch (error) {
                     console.error("Erro ao buscar administradores e dirigentes:", error);
                 } finally {

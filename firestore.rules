@@ -61,20 +61,24 @@ service cloud.firestore {
       // Usuário pode ler seu próprio perfil. CRÍTICO PARA O FUNCIONAMENTO DO APP.
       allow get: if request.auth.uid == userId;
 
-      // Usuário pode atualizar seu próprio perfil.
-      allow update: if request.auth.uid == userId;
+      // Usuário pode atualizar seu próprio perfil (nome, whatsapp, etc).
+      allow update: if request.auth.uid == userId && 
+                      // Impede o usuário de alterar seu próprio papel, status ou ID de congregação.
+                      !('role' in request.resource.data) &&
+                      !('status' in request.resource.data) &&
+                      !('congregationId' in request.resource.data);
 
-      // Admins podem ATUALIZAR outros usuários, mas apenas da sua própria congregação.
-      allow update: if isRole('Administrador') && 
-                      isUserInCongregation(resource.data.congregationId);
+      // Managers (Admin/Dirigente/Servo) podem ATUALIZAR outros usuários (status, papel).
+      allow update: if isManager() && isUserInCongregation(resource.data.congregationId);
 
       // Admins podem DELETAR outros usuários, mas apenas da sua própria congregação e não a si mesmos.
       allow delete: if isRole('Administrador') && 
                       request.auth.uid != userId && 
-                      isUserInCongregation(getUserData(userId).congregationId); // Acessa o dado do doc a ser deletado
+                      isUserInCongregation(getUserData(userId).congregationId);
       
-      // Managers (Admin/Dirigente/Servo) podem LISTAR usuários. A query no frontend já filtra por congregação.
-      allow list: if isManager();
+      // Managers (Admin/Dirigente/Servo) podem LISTAR usuários da sua congregação.
+      // O usuário pendente NÃO PODE listar ninguém.
+      allow list: if isManager() && isUserInCongregation(resource.data.congregationId);
 
 
       match /notifications/{notificationId} {
