@@ -4,9 +4,6 @@ import {onDocumentWritten, onDocumentDeleted} from "firebase-functions/v2/firest
 import {onValueWritten} from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import {format} from "date-fns";
-import * as cors from "cors";
-
-const corsHandler = cors({origin: true});
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -14,9 +11,11 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 setGlobalOptions({region: "southamerica-east1"});
 
+
 // ========================================================================
 //   FUNÇÕES HTTPS (onCall e onRequest)
 // ========================================================================
+
 export const createCongregationAndAdmin = https.onCall(async ({data}) => {
   const {
     adminName,

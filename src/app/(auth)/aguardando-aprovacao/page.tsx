@@ -16,8 +16,6 @@ import { Button } from '@/components/ui/button';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
 
-// Inicialize o serviço de funções uma vez, fora do componente.
-// A região deve ser a mesma onde suas Cloud Functions estão deployadas.
 const functions = getFunctions(app, 'southamerica-east1');
 const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
 
@@ -99,6 +97,7 @@ function AguardandoAprovacaoPage() {
                             <div key={contact.uid} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
                               <div>
                                 <p className="font-semibold">{contact.name}</p>
+                                <p className="text-sm text-muted-foreground">{contact.whatsapp}</p>
                               </div>
                               <Button 
                                 size="sm" 
