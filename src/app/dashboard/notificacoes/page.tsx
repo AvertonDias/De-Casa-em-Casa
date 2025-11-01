@@ -14,16 +14,14 @@ import { type Notification } from '@/types/types';
 import { Button } from '@/components/ui/button';
 
 function NotificacoesPage() {
-  const { user, loading: userLoading } = useUser(); // Usa o loading do context
+  const { user, loading: userLoading } = useUser();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Aguarda o carregamento do usuário terminar
     if (userLoading) {
       return; 
     }
-    // Se não houver usuário após o carregamento, para a execução
     if (!user) {
       setLoading(false);
       return;
@@ -38,10 +36,10 @@ function NotificacoesPage() {
             ...doc.data()
         } as Notification));
         setNotifications(fetchedNotifications);
-        setLoading(false); // <-- Isso agora será chamado corretamente
+        setLoading(false);
     }, (error) => {
         console.error("Erro ao buscar notificações: ", error);
-        setLoading(false); // Para o loading mesmo se houver erro
+        setLoading(false);
     });
 
     return () => unsubscribe();
@@ -109,13 +107,13 @@ function NotificacoesPage() {
             {notifications.length > 0 ? (
                 <div className="divide-y">
                     {notifications.map(notification => (
-                        <div key={notification.id} className={`p-4 flex items-start gap-4 ${!notification.isRead ? 'bg-primary/5' : ''}`}>
+                        <div key={notification.id} className={`p-4 flex items-start gap-4 transition-colors ${!notification.isRead ? 'bg-primary/10' : 'bg-transparent'}`}>
                             <div className="mt-1">
                                 {getIconForType(notification.type)}
                             </div>
                             <div className="flex-1">
-                                <p className={`font-semibold ${!notification.isRead ? 'text-foreground' : 'text-muted-foreground'}`}>{notification.title}</p>
-                                <p className="text-sm text-muted-foreground">{notification.body}</p>
+                                <p className={`transition-colors ${!notification.isRead ? 'font-bold text-foreground' : 'font-semibold text-muted-foreground'}`}>{notification.title}</p>
+                                <p className={`text-sm transition-colors ${!notification.isRead ? 'text-foreground/90' : 'text-muted-foreground'}`}>{notification.body}</p>
                                 {notification.link && (
                                     <Link href={notification.link} className="text-sm text-blue-500 hover:underline mt-1 block">
                                         Ver detalhes
