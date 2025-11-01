@@ -117,7 +117,15 @@ export const createCongregationAndAdmin = https.onCall(async ({data}) => {
 });
 
 
-export const getManagersForNotification = https.onCall(async (data) => {
+export const getManagersForNotification = https.onCall(async (data, context) => {
+  // Check authentication
+  if (!context.auth) {
+    throw new https.HttpsError(
+      "unauthenticated",
+      "Ação não autorizada. O usuário deve estar autenticado.",
+    );
+  }
+
   const {congregationId} = data;
 
   if (!congregationId) {

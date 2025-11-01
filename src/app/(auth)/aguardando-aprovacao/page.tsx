@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
 
+// Inicialize o serviço de funções uma vez, fora do componente.
+// A região deve ser a mesma onde suas Cloud Functions estão deployadas.
 const functions = getFunctions(app, 'southamerica-east1');
 const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
 
@@ -36,7 +38,7 @@ function AguardandoAprovacaoPage() {
             } else {
                 throw new Error(result.data.error || "Falha ao buscar contatos.");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Erro ao buscar administradores e dirigentes:", error);
         } finally {
             setIsLoadingContacts(false);
