@@ -5,11 +5,15 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'; 
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { auth, db, app } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { maskPhone } from '@/lib/utils'; // Importa a função de máscara
+import { maskPhone } from '@/lib/utils';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const notifyManagersFn = httpsCallable(functions, 'notifyManagersOfNewUser');
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -35,7 +39,6 @@ export default function SignUpPage() {
     setError(null);
     setter(maskPhone(e.target.value));
   };
-
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +72,9 @@ export default function SignUpPage() {
         role: "Publicador", 
         status: "pendente"
       });
+
+      // Chama a função onCall para notificar os gerentes
+      await notifyManagersFn({ newUserName: name.trim(), congregationId });
 
       toast({
         title: 'Solicitação enviada!',
@@ -147,3 +153,5 @@ export default function SignUpPage() {
     </div>
   );
 }
+
+    
