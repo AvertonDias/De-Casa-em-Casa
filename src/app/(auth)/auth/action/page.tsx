@@ -5,6 +5,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { getAuth, confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,11 +14,12 @@ import { Loader, KeyRound, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucid
 import { useToast } from '@/hooks/use-toast';
 import { app } from '@/lib/firebase';
 
+const auth = getAuth(app);
+
 function PasswordResetAction() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   
-  // Stages: 'verifying', 'form', 'success', 'error'
   const [stage, setStage] = useState<'verifying' | 'form' | 'success' | 'error'>('verifying');
   const [error, setError] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -27,15 +29,26 @@ function PasswordResetAction() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const token = searchParams?.get('token') ?? null;
+  const oobCode = searchParams?.get('oobCode') ?? null;
 
   useEffect(() => {
-    if (!token) {
-      setError('Token de redefinição inválido ou ausente. Por favor, solicite um novo link.');
-      setStage('error');
-    } else {
-      setStage('form');
-    }
-  }, [token]);
+    const handleVerifyToken = async () => {
+      if (!oobCode) {
+        setError('Token de redefinição inválido ou ausente. Por favor, solicite um novo link.');
+        setStage('error');
+        return;
+      }
+      try {
+        await verifyPasswordResetCode(auth, oobCode);
+        setStage('form');
+      } catch (err: any) {
+        console.error("Erro ao verificar token:", err);
+        setError('O link de redefinição é inválido, expirou ou já foi utilizado. Por favor, solicite um novo.');
+        setStage('error');
+      }
+    };
+    handleVerifyToken();
+  }, [oobCode]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,42 +61,22 @@ function PasswordResetAction() {
         setError('A senha deve ter no mínimo 6 caracteres.');
         return;
     }
-    if (!token) {
-        setError('Token não encontrado.');
+    if (!oobCode) {
+        setError('Token de redefinição não encontrado.');
         return;
     }
 
     setStage('verifying');
 
-    const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/resetPasswordWithToken';
     try {
-      const response = await fetch(functionUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, newPassword }),
-      });
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || `Ocorreu um erro desconhecido.`);
-      }
-
+      await confirmPasswordReset(auth, oobCode, newPassword);
       setStage('success');
-      
     } catch (err: any) {
-      console.error("Erro ao redefinir senha com token:", err);
-      
+      console.error("Erro ao redefinir senha:", err);
       let errorMessage = 'Ocorreu um erro inesperado. Tente novamente.';
-      if (err.message) {
-        if (err.message.includes('inválido ou já utilizado')) {
-          errorMessage = 'O link de redefinição é inválido ou já foi utilizado.';
-        } else if (err.message.includes('expirou')) {
-          errorMessage = 'O link de redefinição expirou. Por favor, solicite um novo.';
-        } else {
-          errorMessage = err.message;
-        }
+      if (err.code === 'auth/invalid-action-code') {
+          errorMessage = 'O link de redefinição é inválido, expirou ou já foi utilizado.';
       }
-
       toast({
         title: "Erro ao redefinir senha",
         description: errorMessage,
@@ -100,7 +93,7 @@ function PasswordResetAction() {
         return (
           <div className="text-center">
             <Loader className="mx-auto h-12 w-12 text-primary animate-spin" />
-            <p className="mt-4 text-muted-foreground">Processando...</p>
+            <p className="mt-4 text-muted-foreground">Verificando link...</p>
           </div>
         );
 
@@ -187,5 +180,3 @@ export default function PasswordResetActionPage() {
     </Suspense>
   );
 }
-
-    

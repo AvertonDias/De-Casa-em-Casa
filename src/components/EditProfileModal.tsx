@@ -3,15 +3,19 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { reauthenticateWithCredential, EmailAuthProvider, updateProfile } from 'firebase/auth';
-import { auth, app } from '@/lib/firebase';
+import { reauthenticateWithCredential, EmailAuthProvider, updateProfile, getAuth, sendPasswordResetEmail } from 'firebase/auth';
+import { app } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Eye, EyeOff, Trash2, KeyRound, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
-import { sendEmail } from '@/lib/emailService';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+
+const auth = getAuth(app);
+const functions = getFunctions(app, 'southamerica-east1');
+const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
@@ -126,41 +130,22 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetLoading(true);
     setError(null);
     setPasswordResetSuccess(null);
+    
+    const actionCodeSettings = {
+      url: `${window.location.origin}/`,
+      handleCodeInApp: true,
+    };
 
-    const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset';
     try {
-        const response = await fetch(functionUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: user.email }),
-        });
-      
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.error || 'Falha ao solicitar token.');
-        }
-      
-        const { token } = result;
-
-        if (token) {
-            const resetLink = `${window.location.origin}/auth/action?token=${token}`;
-            const templateParams = {
-              email: user.email,
-              link: resetLink,
-            };
-            
-            await sendEmail('template_uw6rp1c', templateParams);
-        }
-      
+        await sendPasswordResetEmail(auth, user.email, actionCodeSettings);
         setPasswordResetSuccess(
             `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`
         );
-
     } catch (error: any) {
       console.error("Erro no processo de redefinição de senha:", error);
       toast({
         title: "Erro ao enviar e-mail",
-        description: error.message || "Não foi possível iniciar o processo de redefinição. Tente novamente.",
+        description: "Não foi possível iniciar o processo de redefinição. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -178,20 +163,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setError(null);
     
     try {
-        const idToken = await auth.currentUser.getIdToken(true);
-        const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/deleteUserAccount';
-
         const credential = EmailAuthProvider.credential(auth.currentUser.email, passwordForDelete);
         await reauthenticateWithCredential(auth.currentUser, credential);
         
-        await fetch(functionUrl, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`
-          },
-          body: JSON.stringify({ userIdToDelete: user.uid }),
-        });
+        await deleteUserAccountFn({ userIdToDelete: user.uid });
         
         toast({
           title: "Conta Excluída",
@@ -203,7 +178,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
     } catch (error: any) {
          console.error("Erro na autoexclusão:", error);
-         if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+         if (error.code?.includes('auth/invalid-credential') || error.code?.includes('auth/wrong-password')) {
              setError("Senha incorreta. A exclusão foi cancelada.");
          } else {
             setError(error.message || "Ocorreu um erro ao tentar excluir a conta.");
