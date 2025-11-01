@@ -143,7 +143,6 @@ export default function TerritoryAssignmentPanel() {
               territoryName: currentTerritory.name || 'Território Desconhecido',
               assignedUid: assignedUser.uid,
             });
-            console.log(`[Frontend] Notificação onCall enviada para ${assignedUser.uid}`);
           } catch (callError: any) {
             console.error("Erro ao chamar a função de notificação:", callError);
             toast({ title: "Aviso", description: "O território foi salvo, mas a notificação interna falhou.", variant: "default" });
@@ -345,7 +344,7 @@ export default function TerritoryAssignmentPanel() {
       const matchesSearch = searchTerm === '' || t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.number.toLowerCase().includes(searchTerm.toLowerCase());
       
       return matchesType && matchesStatus && matchesSearch;
-  }).sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
+  });
 
   if(loading) return <div className="text-center p-8"><Loader className="animate-spin mx-auto text-primary" /></div>
 

@@ -3,14 +3,14 @@ import { https, setGlobalOptions } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
-import type { AppUser, Notification } from "./types";
+import type { AppUser, Notification, Territory } from "./types";
 
 if (!admin.apps.length) admin.initializeApp();
 const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   FUNÇÕES CHAMÁVEIS (onCall) - Implementação Correta
+//   FUNÇÕES CHAMÁVEIS (onCall)
 // ========================================================================
 
 export const createCongregationAndAdmin = https.onCall(async (data, context) => {
