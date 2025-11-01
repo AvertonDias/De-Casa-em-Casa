@@ -4,9 +4,6 @@ import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/fire
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { AppUser, Notification, Territory } from "./types";
-import * as cors from "cors";
-
-const corsHandler = cors({ origin: true });
 
 if (!admin.apps.length) admin.initializeApp();
 const db = admin.firestore();
@@ -15,6 +12,109 @@ setGlobalOptions({ region: "southamerica-east1" });
 // ========================================================================
 //   FUNÇÕES CHAMÁVEIS (onCall)
 // ========================================================================
+
+export const createCongregationAndAdmin = https.onCall(async (data) => {
+    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = data;
+
+    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
+        throw new https.HttpsError('invalid-argument', 'Todos os campos são obrigatórios.');
+    }
+
+    let newUser;
+    try {
+        const congQuery = await db.collection('congregations').where('number', '==', congregationNumber).get();
+        if (!congQuery.empty) {
+            throw new https.HttpsError('already-exists', 'Uma congregação com este número já existe.');
+        }
+
+        newUser = await admin.auth().createUser({
+            email: adminEmail,
+            password: adminPassword,
+            displayName: adminName,
+        });
+
+        const batch = db.batch();
+        const newCongregationRef = db.collection('congregations').doc();
+        batch.set(newCongregationRef, {
+            name: congregationName,
+            number: congregationNumber,
+            territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        const userDocRef = db.collection("users").doc(newUser.uid);
+        batch.set(userDocRef, {
+            name: adminName,
+            email: adminEmail,
+            whatsapp,
+            congregationId: newCongregationRef.id,
+            role: "Administrador",
+            status: "ativo"
+        });
+
+        await batch.commit();
+        return { success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' };
+    } catch (error: any) {
+        if (newUser) {
+            await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
+                console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`, deleteError);
+            });
+        }
+        console.error("Erro ao criar congregação e admin:", error);
+        if (error.code === 'auth/email-already-exists') {
+            throw new https.HttpsError('already-exists', 'Este e-mail já está em uso.');
+        }
+        if (error instanceof https.HttpsError) {
+          throw error;
+        }
+        throw new https.HttpsError('internal', error.message || 'Erro interno no servidor');
+    }
+});
+
+
+export const deleteUserAccount = https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
+    }
+    const callingUserUid = context.auth.uid;
+    const userIdToDelete = data.uid;
+
+    if (!userIdToDelete || typeof userIdToDelete !== 'string') {
+        throw new https.HttpsError("invalid-argument", "ID inválido.");
+    }
+
+    const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
+    const isAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
+
+    if (!isAdmin && callingUserUid !== userIdToDelete) {
+        throw new https.HttpsError("permission-denied", "Sem permissão.");
+    }
+
+    if (isAdmin && callingUserUid === userIdToDelete) {
+        throw new https.HttpsError("permission-denied", "Admin não pode se autoexcluir.");
+    }
+
+    try {
+        await admin.auth().deleteUser(userIdToDelete);
+        const userDocRef = db.collection("users").doc(userIdToDelete);
+        if ((await userDocRef.get()).exists) {
+            await userDocRef.delete();
+        }
+        return { success: true, message: "Operação de exclusão concluída." };
+    } catch (error: any) {
+        console.error("Erro CRÍTICO ao excluir usuário:", error);
+        if (error.code === 'auth/user-not-found') {
+            const userDocRef = db.collection("users").doc(userIdToDelete);
+            if ((await userDocRef.get()).exists) {
+                await userDocRef.delete();
+            }
+            return { success: true, message: "Usuário não encontrado na Auth, mas removido do Firestore." };
+        }
+        throw new https.HttpsError("internal", `Falha na exclusão: ${error.message}`);
+    }
+});
+
 
 export const notifyOnNewUser = https.onCall(async (data, context) => {
     // A autenticação é verificada automaticamente pelo onCall.

@@ -9,8 +9,12 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Loader, Eye, EyeOff } from "lucide-react"; 
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, app } from '@/lib/firebase';
 import { maskPhone } from '@/lib/utils'; 
+
+const functions = getFunctions(app, 'southamerica-east1');
+const createCongregationAndAdminFn = httpsCallable(functions, 'createCongregationAndAdmin');
 
 export default function NovaCongregacaoPage() {
   const [adminName, setAdminName] = useState('');
@@ -47,33 +51,21 @@ export default function NovaCongregacaoPage() {
     setIsLoading(true);
 
     try {
-        const functionUrl = "https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin";
-
-        const response = await fetch(functionUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                adminName: adminName.trim(),
-                adminEmail: adminEmail.trim(),
-                adminPassword: adminPassword,
-                whatsapp: whatsapp,
-                congregationName: congregationName.trim(),
-                congregationNumber: congregationNumber.trim()
-            })
+        const result: any = await createCongregationAndAdminFn({
+            adminName: adminName.trim(),
+            adminEmail: adminEmail.trim(),
+            adminPassword: adminPassword,
+            whatsapp: whatsapp,
+            congregationName: congregationName.trim(),
+            congregationNumber: congregationNumber.trim()
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.error || 'Erro desconhecido no servidor.');
-        }
-        
-        if (result.success) {
+        if (result.data.success) {
             toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
             await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
             // O UserContext irá lidar com o redirecionamento para /dashboard
         } else {
-            throw new Error(result.error || 'Falha ao criar congregação sem erro explícito.');
+            throw new Error(result.data.error || 'Falha ao criar congregação sem erro explícito.');
         }
 
     } catch (error: any) {
