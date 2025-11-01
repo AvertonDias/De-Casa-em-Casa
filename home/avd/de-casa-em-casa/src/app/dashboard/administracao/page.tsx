@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -8,7 +9,6 @@ import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
 
 // --- Dynamic Imports ---
-// Estes componentes serão carregados apenas quando forem necessários.
 const TerritoryAssignmentPanel = dynamic(
   () => import('@/components/admin/TerritoryAssignmentPanel'),
   { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
@@ -22,14 +22,17 @@ const CongregationEditForm = dynamic(
 
 function AdminPage() {
   const { user } = useUser();
+  
+  const isAdmin = user?.role === 'Administrador';
+  const isManager = isAdmin || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios';
+
   const [activeTab, setActiveTab] = useState('assignment');
 
-  // Verifica se o usuário tem permissão para ver esta página
-  if (!user || user.role !== 'Administrador') {
+  if (!user || !isManager) {
     return (
       <div className="p-4 text-center">
         <h1 className="font-bold text-xl">Acesso Negado</h1>
-        <p className="text-muted-foreground">Apenas administradores podem acessar esta área.</p>
+        <p className="text-muted-foreground">Você não tem permissão para acessar esta área.</p>
       </div>
     );
   }
@@ -48,13 +51,13 @@ function AdminPage() {
     <div className="p-4 md:p-8 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Administração</h1>
-        <p className="text-muted-foreground">Ferramentas para gerenciar a congregação.</p>
+        <p className="text-muted-foreground">Ferramentas para gerenciar os territórios e a congregação.</p>
       </div>
 
       <div className="border-b border-border overflow-x-auto">
         <div className="flex items-center">
             <TabButton id="assignment" label="Designar Territórios" icon={BookUser} />
-            {user.role === 'Administrador' && (
+            {isAdmin && (
               <TabButton id="congregation" label="Editar Congregação" icon={Edit} />
             )}
             
@@ -69,7 +72,7 @@ function AdminPage() {
       </div>
       <div className="mt-6">
         {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
-        {activeTab === 'congregation' && user.role === 'Administrador' && <CongregationEditForm />}
+        {activeTab === 'congregation' && isAdmin && <CongregationEditForm />}
       </div>
     </div>
   );
