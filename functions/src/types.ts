@@ -7,7 +7,6 @@ export interface AppUser {
   congregationId: string;
   role: 'Administrador' | 'Dirigente' | 'Publicador' | 'pendente';
   status: 'ativo' | 'inativo' | 'pendente' | 'rejeitado';
-  fcmTokens?: string[];
   isOnline?: boolean;
   lastSeen?: any;
 }
@@ -21,4 +20,17 @@ export interface CreateCongregationData {
     whatsapp: string;
 }
 
+export interface Notification {
+  id: string;
+  title: string;
+  body: string;
+  link?: string;
+  type: 'territory_assigned' | 'territory_overdue' | 'user_pending' | 'announcement' | 'territory_returned' | 'territory_available';
+  isRead: boolean;
+  createdAt: any;
+}
+
+export interface Territory {
+    id: string;
+}
     
