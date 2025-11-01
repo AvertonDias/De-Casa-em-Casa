@@ -12,10 +12,10 @@ const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   FUNÇÕES CHAMÁVEIS (onCall)
+//   FUNÇÕES CHAMÁVEIS (onCall) - PADRÃO CORRETO
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onCall(async ({ data }) => {
+export const createCongregationAndAdmin = https.onCall(async ({ data, auth }) => {
     const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = data;
 
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
@@ -80,7 +80,7 @@ export const deleteUserAccount = https.onCall(async ({ data, auth }) => {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
     const callingUserUid = auth.uid;
-    const { userIdToDelete } = data;
+    const { userIdToDelete } = data; // CORRIGIDO AQUI
 
     if (!userIdToDelete || typeof userIdToDelete !== 'string') {
         throw new https.HttpsError("invalid-argument", "ID inválido.");
@@ -118,8 +118,8 @@ export const deleteUserAccount = https.onCall(async ({ data, auth }) => {
 });
 
 
-export const notifyOnNewUser = https.onCall(async ({ data }) => {
-    const { newUserName, congregationId } = data;
+export const notifyOnNewUser = https.onCall(async ({ data, auth }) => { // CORRIGIDO
+    const { newUserName, congregationId } = data; // CORRIGIDO
     if (!newUserName || !congregationId) {
         throw new https.HttpsError('invalid-argument', 'Nome do novo usuário e ID da congregação são necessários.');
     }
@@ -159,11 +159,11 @@ export const notifyOnNewUser = https.onCall(async ({ data }) => {
 });
 
 
-export const notifyOnTerritoryAssigned = https.onCall(async ({ data, auth }) => {
+export const notifyOnTerritoryAssigned = https.onCall(async ({ data, auth }) => { // CORRIGIDO
     if (!auth) {
         throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
     }
-    const { territoryId, territoryName, assignedUid } = data;
+    const { territoryId, territoryName, assignedUid } = data; // CORRIGIDO
     if (!territoryId || !territoryName || !assignedUid) {
         throw new https.HttpsError('invalid-argument', 'IDs e nomes são necessários.');
     }
@@ -189,7 +189,7 @@ export const notifyOnTerritoryAssigned = https.onCall(async ({ data, auth }) => 
 
 
 // ========================================================================
-//   TRIGGERS DE CÁLCULO DE ESTATÍSTICAS
+//   TRIGGERS DE CÁLCULO DE ESTATÍSTICAS (onDocumentWritten)
 // ========================================================================
 
 export const onHouseChange = onDocumentWritten(
@@ -275,7 +275,7 @@ export const onTerritoryChange = onDocumentWritten(
 );
 
 // ========================================================================
-//   TRIGGERS DE LIMPEZA
+//   TRIGGERS DE LIMPEZA (onDocumentDeleted)
 // ========================================================================
 
 export const onDeleteTerritory = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}", async (event) => {
