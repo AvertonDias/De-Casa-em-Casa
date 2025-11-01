@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 import { auth, db, messaging, app } from "@/lib/firebase"; // Import app
 import { useUser } from '@/contexts/UserContext';
 import { useTheme } from 'next-themes';
-import { doc, updateDoc, collection, query, where, onSnapshot, writeBatch } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, onSnapshot, writeBatch, getDoc, setDoc } from 'firebase/firestore';
 import { getToken } from 'firebase/messaging';
 
 import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell } from 'lucide-react';
@@ -311,56 +311,58 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-      if (!user?.congregationId || !user?.uid) return;
-      
-      const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-      const q = query(territoriesRef, where("assignment.uid", "==", user.uid));
-      
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-          const assignedTerritories = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as Territory);
-          
-          if (assignedTerritories.length > 0) {
-              const notificationsRef = collection(db, 'users', user.uid, 'notifications');
-              const batch = writeBatch(db);
-              
-              assignedTerritories.forEach(territory => {
-                  const isAssigned = territory.assignment && territory.assignment.uid === user.uid;
-                  const isOverdue = isAssigned && territory.assignment.dueDate.toDate() < new Date();
-
-                  if (isAssigned) {
-                      const notifLink = `/dashboard/territorios/${territory.id}`;
-                      const assignedNotif: Omit<Notification, 'id'> = {
-                          title: "Território Designado",
-                          body: `O território "${territory.name}" foi designado para você.`,
-                          link: notifLink,
-                          type: 'territory_assigned',
-                          isRead: false,
-                          createdAt: territory.assignment?.assignedAt || Timestamp.now(),
-                      };
-                      const assignedNotifRef = doc(notificationsRef, `assigned_${territory.id}`);
-                      batch.set(assignedNotifRef, assignedNotif, { merge: true });
-
-                      if (isOverdue) {
-                          const overdueNotif: Omit<Notification, 'id'> = {
-                              title: "Território Atrasado",
-                              body: `O território "${territory.name}" está com a devolução atrasada.`,
-                              link: notifLink,
-                              type: 'territory_overdue',
-                              isRead: false,
-                              createdAt: territory.assignment?.dueDate || Timestamp.now(),
-                          };
-                          const overdueNotifRef = doc(notificationsRef, `overdue_${territory.id}`);
-                          batch.set(overdueNotifRef, overdueNotif, { merge: true });
-                      }
-                  }
-              });
-
-              batch.commit().catch(err => console.error("Erro ao criar notificações:", err));
+    if (!user?.congregationId || !user?.uid) return;
+  
+    const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
+    const q = query(territoriesRef, where("assignment.uid", "==", user.uid));
+  
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const notificationsRef = collection(db, 'users', user.uid, 'notifications');
+  
+      for (const territoryDoc of snapshot.docs) {
+        const territory = { id: territoryDoc.id, ...territoryDoc.data() } as Territory;
+        const isAssigned = territory.assignment && territory.assignment.uid === user.uid;
+        const isOverdue = isAssigned && territory.assignment.dueDate.toDate() < new Date();
+  
+        if (isAssigned) {
+          // --- Lógica para Notificação de Designação ---
+          const assignedNotifRef = doc(notificationsRef, `assigned_${territory.id}`);
+          const assignedDoc = await getDoc(assignedNotifRef);
+          if (!assignedDoc.exists()) {
+            const assignedNotif: Omit<Notification, 'id'> = {
+              title: "Território Designado",
+              body: `O território "${territory.name}" foi designado para você.`,
+              link: `/dashboard/territorios/${territory.id}`,
+              type: 'territory_assigned',
+              isRead: false,
+              createdAt: territory.assignment?.assignedAt || Timestamp.now(),
+            };
+            await setDoc(assignedNotifRef, assignedNotif);
           }
-      });
-      return () => unsubscribe();
+  
+          // --- Lógica para Notificação de Atraso ---
+          if (isOverdue) {
+            const overdueNotifRef = doc(notificationsRef, `overdue_${territory.id}`);
+            const overdueDoc = await getDoc(overdueNotifRef);
+            if (!overdueDoc.exists()) {
+              const overdueNotif: Omit<Notification, 'id'> = {
+                title: "Território Atrasado",
+                body: `O território "${territory.name}" está com a devolução atrasada.`,
+                link: `/dashboard/territorios/${territory.id}`,
+                type: 'territory_overdue',
+                isRead: false,
+                createdAt: territory.assignment?.dueDate || Timestamp.now(),
+              };
+              await setDoc(overdueNotifRef, overdueNotif);
+            }
+          }
+        }
+      }
+    });
+  
+    return () => unsubscribe();
   }, [user]);
-
+  
   useEffect(() => {
     const requestPermission = async () => {
       if (user && user.status === 'ativo' && typeof window !== 'undefined' && 'Notification' in window) {
@@ -434,6 +436,5 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 }
 
 export default withAuth(DashboardLayout);
-
 
     
