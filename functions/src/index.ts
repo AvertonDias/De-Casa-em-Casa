@@ -248,13 +248,23 @@ export const onNewUserPending = onDocumentCreated(
   "users/{userId}",
   async (event) => {
     const newUser = event.data?.data();
-    if (!newUser || newUser.status !== 'pendente' || !newUser.congregationId) return null;
+    console.log("onNewUserPending: Novo usuário disparado:", newUser);
+    if (!newUser || newUser.status !== 'pendente' || !newUser.congregationId) {
+      console.log("onNewUserPending: Condição inicial não atendida.");
+      return null;
+    }
+    console.log("onNewUserPending: Usuário PENDENTE encontrado.");
 
     try {
       const roles = ['Administrador', 'Dirigente', 'Servo de Territórios'];
+      console.log("onNewUserPending: Buscando admins/gerentes para congregação:", newUser.congregationId);
       const snapshots = await Promise.all(roles.map(r => db.collection("users").where('congregationId', '==', newUser.congregationId).where('role', '==', r).get()));
       const adminsAndManagers = snapshots.flatMap(s => s.docs);
-      if (adminsAndManagers.length === 0) return null;
+      console.log("onNewUserPending: Administradores/gerentes encontrados:", adminsAndManagers.map(d => d.id));
+      if (adminsAndManagers.length === 0) {
+        console.log("onNewUserPending: Nenhum administrador/gerente encontrado.");
+        return null;
+      }
 
       const batch = db.batch();
       const notif: Omit<Notification,'id'> = {
@@ -324,14 +334,16 @@ export const onTerritoryReturned = onDocumentWritten(
   async (event) => {
     const before = event.data?.before.data() as Territory | undefined;
     const after = event.data?.after.data() as Territory | undefined;
+    console.log("onTerritoryReturned: Trigger disparado para terrId:", event.params.terrId);
+    console.log("onTerritoryReturned: Before:", before);
+    console.log("onTerritoryReturned: After:", after);
 
     // Condição melhorada: notifica se a atribuição foi removida.
     if (before?.assignment && !after?.assignment) {
       const congId = event.params.congId;
       const territoryName = after!.name;
       const returningUid = before.assignment.uid;
-
-      console.log(`[Notification] Detectada devolução do território ${territoryName} por ${returningUid}.`);
+      console.log("onTerritoryReturned: Devolução detectada por:", returningUid);
 
       const batch = db.batch();
 
