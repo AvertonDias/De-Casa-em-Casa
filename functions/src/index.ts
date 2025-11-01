@@ -4,78 +4,98 @@ import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/fire
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { AppUser, Notification, Territory } from "./types";
+import * as cors from "cors";
+
+const corsHandler = cors({ origin: true });
 
 if (!admin.apps.length) admin.initializeApp();
 const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   FUNÇÕES CHAMÁVEIS (onCall)
+//   FUNÇÕES CHAMÁVEIS (onCall) - AGORA USANDO onRequest COM CORS
 // ========================================================================
 
-export const notifyOnNewUser = https.onCall(async (request) => {
-    if (!request.auth) throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
-    
-    const { newUserName, congregationId } = request.data;
-    if (!newUserName || !congregationId) throw new https.HttpsError('invalid-argument', 'Nome do novo usuário e ID da congregação são necessários.');
+export const notifyOnNewUser = https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            res.status(405).send('Method Not Allowed');
+            return;
+        }
 
-    try {
-        const roles = ['Administrador', 'Dirigente', 'Servo de Territórios'];
-        const snapshots = await Promise.all(roles.map(r => db.collection("users").where('congregationId', '==', congregationId).where('role', '==', r).get()));
-        const managers = snapshots.flatMap(s => s.docs);
+        const { newUserName, congregationId } = req.body.data;
+        if (!newUserName || !congregationId) {
+            res.status(400).json({ error: { message: 'Nome do novo usuário e ID da congregação são necessários.' }});
+            return;
+        }
 
-        if (managers.length === 0) return { success: true, message: 'Nenhum gerente para notificar.' };
+        try {
+            const roles = ['Administrador', 'Dirigente', 'Servo de Territórios'];
+            const snapshots = await Promise.all(roles.map(r => db.collection("users").where('congregationId', '==', congregationId).where('role', '==', r).get()));
+            const managers = snapshots.flatMap(s => s.docs);
 
-        const batch = db.batch();
+            if (managers.length === 0) {
+                res.status(200).json({ data: { success: true, message: 'Nenhum gerente para notificar.' } });
+                return;
+            }
+
+            const batch = db.batch();
+            const notif: Omit<Notification, 'id'> = {
+                title: "Novo Usuário Pendente",
+                body: `O publicador "${newUserName}" solicitou acesso à congregação.`,
+                link: "/dashboard/usuarios",
+                type: 'user_pending',
+                isRead: false,
+                createdAt: admin.firestore.Timestamp.now()
+            };
+
+            const notified = new Set<string>();
+            managers.forEach(doc => {
+                if (!notified.has(doc.id)) {
+                    batch.set(doc.ref.collection('notifications').doc(), notif);
+                    notified.add(doc.id);
+                }
+            });
+            await batch.commit();
+            res.status(200).json({ data: { success: true, message: `Notificado(s) ${notified.size} gerente(s).` } });
+        } catch (err) {
+            console.error("notifyOnNewUser: Falha ao notificar gerentes", err);
+            res.status(500).json({ error: { message: 'Falha ao criar notificações para os gerentes.' }});
+        }
+    });
+});
+
+export const notifyOnTerritoryAssigned = https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            res.status(405).send('Method Not Allowed');
+            return;
+        }
+        
+        const { territoryId, territoryName, assignedUid } = req.body.data;
+        if (!territoryId || !territoryName || !assignedUid) {
+            res.status(400).json({ error: { message: 'IDs e nomes são necessários.' }});
+            return;
+        }
+        
         const notif: Omit<Notification, 'id'> = {
-            title: "Novo Usuário Pendente",
-            body: `O publicador "${newUserName}" solicitou acesso à congregação.`,
-            link: "/dashboard/usuarios",
-            type: 'user_pending',
+            title: "Novo Território Designado",
+            body: `O território "${territoryName || 'Desconhecido'}" foi designado para você.`,
+            link: `/dashboard/territorios/${territoryId}`,
+            type: 'territory_assigned',
             isRead: false,
             createdAt: admin.firestore.Timestamp.now()
         };
 
-        const notified = new Set<string>();
-        managers.forEach(doc => {
-            if (!notified.has(doc.id)) {
-                batch.set(doc.ref.collection('notifications').doc(), notif);
-                notified.add(doc.id);
-            }
-        });
-        await batch.commit();
-        return { success: true, message: `Notificado(s) ${notified.size} gerente(s).` };
-    } catch (err) {
-        console.error("notifyOnNewUser: Falha ao notificar gerentes", err);
-        throw new https.HttpsError("internal", "Falha ao criar notificações para os gerentes.");
-    }
-});
-
-export const notifyOnTerritoryAssigned = https.onCall(async (request) => {
-    if (!request.auth) throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
-
-    const { territoryId, territoryName, assignedUid } = request.data;
-    if (!territoryId || !territoryName || !assignedUid) {
-        throw new https.HttpsError('invalid-argument', 'IDs e nomes são necessários.');
-    }
-    
-    const notif: Omit<Notification, 'id'> = {
-        title: "Novo Território Designado",
-        body: `O território "${territoryName || 'Desconhecido'}" foi designado para você.`,
-        link: `/dashboard/territorios/${territoryId}`,
-        type: 'territory_assigned',
-        isRead: false,
-        createdAt: admin.firestore.Timestamp.now()
-    };
-
-    try {
-        const userRef = db.collection("users").doc(assignedUid);
-        await userRef.collection('notifications').add(notif);
-        return { success: true, message: `Notificação de designação criada para ${assignedUid}.` };
-    } catch (err) {
-        console.error(`notifyOnTerritoryAssigned: FALHA CRÍTICA ao gravar notificação para ${assignedUid}:`, err);
-        throw new https.HttpsError("internal", "Falha ao criar notificação para o usuário.");
-    }
+        try {
+            const userRef = db.collection("users").doc(assignedUid);
+            await userRef.collection('notifications').add(notif);
+            res.status(200).json({ data: { success: true, message: `Notificação de designação criada para ${assignedUid}.` } });
+        } catch (err) {
+            console.error(`notifyOnTerritoryAssigned: FALHA CRÍTICA ao gravar notificação para ${assignedUid}:`, err);
+            res.status(500).json({ error: { message: 'Falha ao criar notificação para o usuário.' }});
+        }
+    });
 });
 
 
