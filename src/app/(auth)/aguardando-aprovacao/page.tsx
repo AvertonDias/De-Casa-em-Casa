@@ -13,10 +13,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
-import { app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
 
-// Inicialize o serviço de funções uma vez, fora do componente.
 const functions = getFunctions(app, 'southamerica-east1');
 const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
 
@@ -37,7 +36,7 @@ function AguardandoAprovacaoPage() {
             } else {
                 throw new Error(result.data.error || "Falha ao buscar contatos.");
             }
-        } catch (error: any) {
+        } catch (error) {
             console.error("Erro ao buscar administradores e dirigentes:", error);
         } finally {
             setIsLoadingContacts(false);
@@ -110,7 +109,7 @@ function AguardandoAprovacaoPage() {
                             </div>
                           )) : (
                             <p className="text-sm text-center text-muted-foreground">
-                              Nenhum dirigente ou administrador com WhatsApp cadastrado foi encontrado.
+                              aqui deve aparecer os contatos dos dirigentes
                             </p>
                           )}
                         </div>
