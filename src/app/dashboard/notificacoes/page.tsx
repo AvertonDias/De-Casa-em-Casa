@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, writeBatch, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, writeBatch, doc, updateDoc, limit } from 'firebase/firestore';
 import withAuth from '@/components/withAuth';
 import { Bell, Inbox, AlertTriangle, CheckCheck, Loader, UserPlus, Milestone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -28,7 +28,7 @@ function NotificacoesPage() {
     }
 
     const notificationsRef = collection(db, `users/${user.uid}/notifications`);
-    const q = query(notificationsRef, orderBy('createdAt', 'desc'));
+    const q = query(notificationsRef, orderBy('createdAt', 'desc'), limit(50));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedNotifications = snapshot.docs.map(doc => ({
@@ -106,7 +106,7 @@ function NotificacoesPage() {
                                 <p className={`transition-colors ${!notification.isRead ? 'font-bold text-foreground' : 'font-semibold text-muted-foreground'}`}>{notification.title}</p>
                                 <p className={`text-sm transition-colors ${!notification.isRead ? 'text-foreground/90' : 'text-muted-foreground'}`}>{notification.body}</p>
                                 {notification.link && (
-                                    <Link href={notification.link} className="text-sm text-blue-500 hover:underline mt-1 block">
+                                    <Link href={notification.link} className="text-sm text-blue-500 hover:underline mt-1 block" onClick={() => handleMarkOneAsRead(notification.id)}>
                                         Ver detalhes
                                     </Link>
                                 )}
