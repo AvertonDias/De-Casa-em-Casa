@@ -143,7 +143,6 @@ export default function TerritoryAssignmentPanel() {
               territoryName: currentTerritory.name || 'Território Desconhecido',
               assignedUid: assignedUser.uid,
             });
-            console.log(`[Frontend] Notificação onCall enviada para ${assignedUser.uid}`);
           } catch (callError: any) {
             console.error("Erro ao chamar a função de notificação:", callError);
             toast({ title: "Aviso", description: "O território foi salvo, mas a notificação interna falhou.", variant: "default" });
