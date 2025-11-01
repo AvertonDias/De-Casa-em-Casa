@@ -6,7 +6,7 @@ import {
 } from "firebase-functions/v2/firestore";
 import {onValueWritten} from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
-import type {AppUser, Notification, CreateCongregationData} from "./types";
+import type {AppUser, Notification} from "./types";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -18,7 +18,7 @@ setGlobalOptions({region: "southamerica-east1"});
 //   FUNÇÕES CHAMÁVEIS (onCall)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onCall(async (data, context) => {
+export const createCongregationAndAdmin = https.onCall(async (data) => {
     const {
       adminName,
       adminEmail,
