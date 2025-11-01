@@ -118,7 +118,7 @@ export const deleteUserAccount = https.onCall(async ({ data, auth }) => {
 });
 
 
-export const notifyOnNewUser = https.onCall(async (data, context) => {
+export const notifyOnNewUser = https.onCall(async ({ data }) => {
     const { newUserName, congregationId } = data;
     if (!newUserName || !congregationId) {
         throw new https.HttpsError('invalid-argument', 'Nome do novo usuário e ID da congregação são necessários.');
@@ -159,8 +159,8 @@ export const notifyOnNewUser = https.onCall(async (data, context) => {
 });
 
 
-export const notifyOnTerritoryAssigned = https.onCall(async (data, context) => {
-    if (!context.auth) {
+export const notifyOnTerritoryAssigned = https.onCall(async ({ data, auth }) => {
+    if (!auth) {
         throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
     }
     const { territoryId, territoryName, assignedUid } = data;
@@ -314,3 +314,5 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
+
+    
