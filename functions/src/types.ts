@@ -5,7 +5,7 @@ export interface AppUser {
   name: string;
   whatsapp?: string;
   congregationId: string;
-  role: 'Administrador' | 'Dirigente' | 'Publicador' | 'pendente';
+  role: 'Administrador' | 'Dirigente' | 'Publicador' | 'Servo de Territórios';
   status: 'ativo' | 'inativo' | 'pendente' | 'rejeitado';
   isOnline?: boolean;
   lastSeen?: any;
@@ -33,4 +33,3 @@ export interface Notification {
 export interface Territory {
     id: string;
 }
-    

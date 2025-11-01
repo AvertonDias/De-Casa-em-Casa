@@ -3,7 +3,7 @@ import { https, setGlobalOptions } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
-import type { AppUser, Notification, Territory } from "./types";
+import type { AppUser, Notification, CreateCongregationData } from "./types";
 
 if (!admin.apps.length) admin.initializeApp();
 const db = admin.firestore();
@@ -13,7 +13,7 @@ setGlobalOptions({ region: "southamerica-east1" });
 //   FUNÇÕES CHAMÁVEIS (onCall)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onCall(async (data, context) => {
+export const createCongregationAndAdmin = https.onCall(async (data: CreateCongregationData, context) => {
     const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = data;
 
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {

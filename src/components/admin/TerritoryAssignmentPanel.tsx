@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -21,7 +21,7 @@ import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const callNotifyOnTerritoryAssigned = httpsCallable(functions, 'notifyOnTerritoryAssigned');
+const notifyOnTerritoryAssigned = httpsCallable(functions, 'notifyOnTerritoryAssigned');
 
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
@@ -69,20 +69,13 @@ export default function TerritoryAssignmentPanel() {
   useEffect(() => {
     if (!currentUser?.congregationId) return;
     const terRef = collection(db, 'congregations', currentUser.congregationId, 'territories');
-    const unsub = onSnapshot(query(terRef, orderBy('number', 'asc')), (snapshot) => {
+    const unsub = onSnapshot(query(terRef, orderBy('number')), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
       setTerritories(data);
       setLoading(false);
-    }, (error) => {
-        console.error("Erro ao buscar territórios:", error);
-        toast({
-            title: "Erro ao carregar territórios",
-            description: error.message || "Verifique suas permissões.",
-            variant: "destructive"
-        });
     });
     return () => unsub();
-  }, [currentUser, toast]);
+  }, [currentUser]);
   
   useEffect(() => {
     if (!currentUser?.congregationId) return;
@@ -95,81 +88,53 @@ export default function TerritoryAssignmentPanel() {
     const unsub = onSnapshot(q, (snapshot) => {
       setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser)));
     }, (error) => {
-      console.error("Erro ao buscar usuários:", error); 
-      toast({
-          title: "Erro ao carregar usuários",
-          description: error.message || "Verifique suas permissões no Firestore para a coleção 'users'.",
-          variant: "destructive"
-      });
+      console.error("Erro ao buscar usuários:", error);
     });
 
     return () => unsub();
-  }, [currentUser, toast]);
+  }, [currentUser]);
 
   const handleOpenAssignModal = (territory: Territory) => {
     setSelectedTerritory(territory);
     setIsAssignModalOpen(true);
   };
   
-  const handleSaveAssignment = async (territoryId: string, assignedUser: { uid: string; name: string }, assignmentDate: string, dueDate: string) => {
-    if (!currentUser?.congregationId || !currentUser.uid) {
-      toast({ title: "Erro", description: "Dados do usuário atual incompletos.", variant: "destructive" });
-      return;
-    }
+  const handleSaveAssignment = async (territoryId: string, user: { uid: string; name: string }, assignmentDate: string, dueDate: string) => {
+    if (!currentUser?.congregationId) return;
     
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
-    const currentTerritory = territories.find(t => t.id === territoryId);
-    if (!currentTerritory) {
-        toast({ title: "Erro", description: "Território não encontrado para salvar.", variant: "destructive" });
-        return;
-    }
-
-    const assignmentData = {
-        uid: assignedUser.uid,
-        name: assignedUser.name,
+    
+    const assignment = {
+        uid: user.uid,
+        name: user.name,
         assignedAt: Timestamp.fromDate(new Date(assignmentDate + 'T12:00:00')),
         dueDate: Timestamp.fromDate(new Date(dueDate + 'T12:00:00')),
     };
 
-    setIsAssignModalOpen(false);
-
-    try {
-        await updateDoc(territoryRef, { status: 'designado', assignment: assignmentData });
-        
-        if (!assignedUser.uid.startsWith('custom_') && assignedUser.uid !== currentTerritory.assignment?.uid) {
-          try {
-            await callNotifyOnTerritoryAssigned({
-              territoryId: territoryId,
-              territoryName: currentTerritory.name || 'Território Desconhecido',
-              assignedUid: assignedUser.uid,
-            });
-          } catch (callError: any) {
-            console.error("Erro ao chamar a função de notificação:", callError);
-            toast({ title: "Aviso", description: "O território foi salvo, mas a notificação interna falhou.", variant: "default" });
-          }
-        }
-
-        const userForWhatsapp = users.find(u => u.uid === assignedUser.uid);
-        if (userForWhatsapp?.whatsapp && !assignedUser.uid.startsWith('custom_')) {
-            const formattedDueDate = format(assignmentData.dueDate.toDate(), 'dd/MM/yyyy');
-            const message = `Olá, o território *${currentTerritory.number} - ${currentTerritory.name}* foi designado para você! Devolva até ${formattedDueDate}.`;
-            const whatsappNumber = userForWhatsapp.whatsapp.replace(/\D/g, '');
-            const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
-            window.open(whatsappUrl, '_blank');
-        }
-
-        toast({
-          title: "Sucesso!",
-          description: "Atribuição do território salva.",
+    await updateDoc(territoryRef, { status: 'designado', assignment });
+    
+    if (!user.uid.startsWith('custom_')) {
+      try {
+        await notifyOnTerritoryAssigned({
+          territoryId: territoryId,
+          territoryName: territories.find(t => t.id === territoryId)?.name || 'Desconhecido',
+          assignedUid: user.uid,
         });
+      } catch (error) {
+        console.error("Erro ao chamar a função de notificação:", error);
+        toast({ title: "Aviso", description: "O território foi salvo, mas a notificação interna falhou.", variant: "default" });
+      }
+    }
 
-    } catch (error: any) {
-      console.error("Erro ao salvar atribuição:", error);
-      toast({
-        title: "Erro",
-        description: error.message || "Ocorreu um erro ao salvar a atribuição.",
-        variant: "destructive",
-      });
+    const assignedUser = users.find(u => u.uid === user.uid);
+    const territory = territories.find(t => t.id === territoryId);
+    
+    if (assignedUser?.whatsapp && territory && !user.uid.startsWith('custom_')) {
+        const formattedDueDate = format(assignment.dueDate.toDate(), 'dd/MM/yyyy');
+        const message = `Olá, o território *${territory.number} - ${territory.name}* foi designado para você! Devolva até ${formattedDueDate}.`;
+        const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
+        const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
     }
   };
 
@@ -192,18 +157,11 @@ export default function TerritoryAssignmentPanel() {
       completedAt: Timestamp.fromDate(new Date(returnDate + 'T12:00:00')),
     };
 
-    try {
-        await updateDoc(territoryRef, {
-            status: 'disponivel',
-            assignment: deleteField(),
-            assignmentHistory: arrayUnion(historyLog)
-        });
-        toast({ title: "Sucesso!", description: "Território devolvido e histórico atualizado." });
-        setIsReturnModalOpen(false);
-    } catch (error: any) {
-        console.error("Erro ao devolver território:", error);
-        toast({ title: "Erro", description: error.message || "Falha ao devolver território.", variant: "destructive" });
-    }
+    await updateDoc(territoryRef, {
+      status: 'disponivel',
+      assignment: deleteField(),
+      assignmentHistory: arrayUnion(historyLog)
+    });
   };
 
   const handleOpenEditLogModal = (log: AssignmentHistoryLog) => {
@@ -212,21 +170,18 @@ export default function TerritoryAssignmentPanel() {
   };
 
   const handleSaveHistoryLog = async (originalLog: AssignmentHistoryLog, updatedData: { name: string; assignedAt: Date; completedAt: Date; }) => {
-    if (!currentUser?.congregationId || !selectedTerritory) {
-        toast({ title: "Erro", description: "Dados incompletos para salvar o log.", variant: "destructive" });
-        return;
-    }
+    if (!currentUser?.congregationId || !selectedTerritory) return;
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', selectedTerritory.id);
 
     try {
         await runTransaction(db, async (transaction) => {
             const territoryDoc = await transaction.get(territoryRef);
-            if (!territoryDoc.exists()) throw new Error("Território não encontrado para atualizar histórico.");
+            if (!territoryDoc.exists()) throw "Território não encontrado";
             
             const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
             
             const newHistory = currentHistory.map(log => {
-                if (log.uid === originalLog.uid && log.assignedAt.isEqual(originalLog.assignedAt)) {
+                if (log.name === originalLog.name && log.assignedAt.isEqual(originalLog.assignedAt)) {
                     return {
                         ...log,
                         name: updatedData.name,
@@ -238,11 +193,8 @@ export default function TerritoryAssignmentPanel() {
             });
             transaction.update(territoryRef, { assignmentHistory: newHistory });
         });
-        toast({ title: "Sucesso!", description: "Registro do histórico atualizado." });
-        setIsEditLogModalOpen(false);
-    } catch (e: any) {
+    } catch (e) {
         console.error("Erro ao salvar histórico:", e);
-        toast({ title: "Erro", description: e.message || "Falha ao salvar o registro do histórico.", variant: "destructive" });
     }
   };
   
@@ -252,10 +204,7 @@ export default function TerritoryAssignmentPanel() {
   };
 
   const handleConfirmDeleteLog = async () => {
-    if (!logToDelete || !currentUser?.congregationId) {
-        toast({ title: "Erro", description: "Dados incompletos para deletar o log.", variant: "destructive" });
-        return;
-    }
+    if (!logToDelete || !currentUser?.congregationId) return;
 
     const { territoryId, log: logToDeleteData } = logToDelete;
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
@@ -266,7 +215,7 @@ export default function TerritoryAssignmentPanel() {
             const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
             
             const logToRemove = currentHistory.find(log => 
-                log.uid === logToDeleteData.uid && 
+                log.name === logToDeleteData.name && 
                 log.assignedAt.isEqual(logToDeleteData.assignedAt)
             );
             
@@ -274,12 +223,10 @@ export default function TerritoryAssignmentPanel() {
                 await updateDoc(territoryRef, {
                     assignmentHistory: arrayRemove(logToRemove)
                 });
-                toast({ title: "Sucesso!", description: "Registro do histórico excluído." });
             }
         }
-    } catch (e: any) {
+    } catch (e) {
         console.error("Erro ao deletar o registro do histórico:", e);
-        toast({ title: "Erro", description: e.message || "Falha ao deletar o registro do histórico.", variant: "destructive" });
     } finally {
         setIsConfirmDeleteOpen(false);
         setLogToDelete(null);
@@ -344,7 +291,7 @@ export default function TerritoryAssignmentPanel() {
       const matchesSearch = searchTerm === '' || t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.number.toLowerCase().includes(searchTerm.toLowerCase());
       
       return matchesType && matchesStatus && matchesSearch;
-  });
+  }).sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
 
   if(loading) return <div className="text-center p-8"><Loader className="animate-spin mx-auto text-primary" /></div>
 

@@ -23,15 +23,12 @@ const CongregationEditForm = dynamic(
 function AdminPage() {
   const { user } = useUser();
   
-  // Apenas Administradores e Servos podem ver esta página.
-  // A aba de edição da congregação só aparece para Admins.
   const isAdmin = user?.role === 'Administrador';
-  const isServo = user?.role === 'Servo de Territórios';
+  const isManager = isAdmin || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios';
 
-  // O estado inicial da aba ativa depende se o usuário é Admin.
-  const [activeTab, setActiveTab] = useState(isAdmin ? 'assignment' : 'assignment');
+  const [activeTab, setActiveTab] = useState('assignment');
 
-  if (!user || (!isAdmin && !isServo)) {
+  if (!user || !isManager) {
     return (
       <div className="p-4 text-center">
         <h1 className="font-bold text-xl">Acesso Negado</h1>
