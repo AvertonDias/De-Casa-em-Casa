@@ -13,63 +13,79 @@ service cloud.firestore {
     }
 
     function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
+      // Retorna os dados do usuário autenticado apenas se ele existir
+      return isAuth() && userExists(userId) ? get(/databases/$(database)/documents/users/$(userId)).data : null;
     }
     
     function isUserInCongregation(congId) {
       // Garante que o usuário está autenticado e seu documento existe antes de ler a congregação.
+      // E que o congId do recurso que está sendo acessado/modificado é o mesmo do usuário.
       return isAuth() && userExists(request.auth.uid) && getUserData(request.auth.uid).congregationId == congId;
     }
     
     function isRole(role) {
+      // Verifica se o usuário autenticado tem um determinado role
       return isAuth() && userExists(request.auth.uid) && getUserData(request.auth.uid).role == role;
     }
     
     function isManager() {
+      // Verifica se o usuário autenticado tem um papel de gerente
       return isAuth() && userExists(request.auth.uid) && getUserData(request.auth.uid).role in ['Administrador', 'Dirigente', 'Servo de Territórios'];
     }
 
     // --- Coleções ---
 
     match /congregations/{congId} {
-      // Qualquer um pode ler dados da congregação.
+      // Qualquer um pode ler dados da congregação (ex: para exibir lista de congregações no login/cadastro).
       allow read: if true;
-      // Apenas Admins autenticados e com documento existente podem escrever.
+      // Apenas Admins autenticados e com documento existente podem criar/atualizar/excluir congregações.
       allow write: if isRole('Administrador');
 
       match /territories/{terrId} {
-        // Acesso permitido se o usuário pertence à congregação.
+        // Acesso permitido se o usuário autenticado pertence à mesma congregação do território.
         allow read, write: if isUserInCongregation(congId);
 
         match /quadras/{quadraId} {
+          // Acesso permitido se o usuário autenticado pertence à mesma congregação da quadra.
           allow read, write: if isUserInCongregation(congId);
 
           match /casas/{casaId} {
+            // Acesso permitido se o usuário autenticado pertence à mesma congregação da casa.
             allow read, write: if isUserInCongregation(congId);
           }
         }
 
         match /activityHistory/{activityId} {
+            // Acesso permitido se o usuário autenticado pertence à mesma congregação do histórico de atividade.
             allow read, write: if isUserInCongregation(congId);
         }
       }
     }
 
     match /users/{userId} {
-      // Usuário pode criar seu próprio documento.
+      // Usuário pode criar seu próprio documento quando se registra.
       allow create: if request.auth.uid == userId;
 
       // Usuário pode ler e atualizar seu próprio perfil.
       allow get, update: if request.auth.uid == userId;
 
-      // Admins podem atualizar e deletar outros usuários (mas não a si mesmos).
-      allow update: if isRole('Administrador');
-      allow delete: if isRole('Administrador') && request.auth.uid != userId;
+      // Admins podem atualizar outros usuários, mas apenas da sua própria congregação.
+      // Admins também não podem se auto-atualizar por esta regra (eles usam a regra acima para si mesmos).
+      allow update: if isRole('Administrador') && 
+                      isUserInCongregation(resource.data.congregationId); // Admin só pode atualizar users da sua congregação.
+
+      // Admins podem deletar outros usuários, mas apenas da sua própria congregação e não a si mesmos.
+      allow delete: if isRole('Administrador') && 
+                      request.auth.uid != userId && 
+                      isUserInCongregation(resource.data.congregationId); // Admin só pode deletar users da sua congregação.
       
-      // Managers podem listar usuários da sua própria congregação.
-      allow list: if isManager();
+      // Managers (Admin/Dirigente/Servo) podem listar usuários da sua própria congregação.
+      allow list: if isManager() && request.query.resource.data.congregationId == getUserData(request.auth.uid).congregationId;
+
 
       match /notifications/{notificationId} {
+        // Usuário pode ler e escrever suas próprias notificações.
+        // As Cloud Functions podem escrever aqui como admin, o que é permitido.
         allow read, write: if request.auth.uid == userId;
       }
     }
@@ -77,11 +93,14 @@ service cloud.firestore {
     match /feedbacks/{feedbackId} {
       // Qualquer usuário autenticado pode criar um feedback.
       allow create: if isAuth();
-      allow read, update, delete: if false; // Ninguém pode ler/alterar feedbacks.
+      // Ninguém pode ler, atualizar ou deletar feedbacks diretamente do frontend.
+      // Acesso para admins deve ser via Cloud Function.
+      allow read, update, delete: if false; 
     }
 
     match /resetTokens/{tokenId} {
-      // Ninguém pode ler ou escrever tokens de redefinição diretamente.
+      // Ninguém pode ler ou escrever tokens de redefinição diretamente do frontend.
+      // Acesso é exclusivo das Cloud Functions (que rodam como admin).
       allow read, write: if false;
     }
   }
