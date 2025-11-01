@@ -114,11 +114,16 @@ export default function TerritoryAssignmentPanel() {
     await updateDoc(territoryRef, { status: 'designado', assignment });
     
     if (!user.uid.startsWith('custom_')) {
-      await notifyOnTerritoryAssigned({
-        territoryId: territoryId,
-        territoryName: territories.find(t => t.id === territoryId)?.name || 'Desconhecido',
-        assignedUid: user.uid,
-      });
+      try {
+        await notifyOnTerritoryAssigned({
+          territoryId: territoryId,
+          territoryName: territories.find(t => t.id === territoryId)?.name || 'Desconhecido',
+          assignedUid: user.uid,
+        });
+      } catch (error) {
+        console.error("Erro ao chamar a função de notificação:", error);
+        toast({ title: "Aviso", description: "O território foi salvo, mas a notificação interna falhou.", variant: "default" });
+      }
     }
 
     const assignedUser = users.find(u => u.uid === user.uid);
