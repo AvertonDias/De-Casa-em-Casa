@@ -44,7 +44,7 @@ function MyTerritoriesPage() {
       if (sortBy === 'number') {
         return a.number.localeCompare(b.number, undefined, { numeric: true });
       }
-      
+      // Default to 'dueDate'
       const dateA = a.assignment?.dueDate?.toMillis() || 0;
       const dateB = b.assignment?.dueDate?.toMillis() || 0;
       return dateA - dateB;
