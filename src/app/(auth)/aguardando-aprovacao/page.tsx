@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -12,12 +13,12 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
-import { app } from '@/lib/firebase'; // Importa 'app'
+import { app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
 // Inicialize o serviço de funções uma vez, fora do componente.
-const functionsInstance = getFunctions(app, 'southamerica-east1');
-const callGetManagersForNotification = httpsCallable(functionsInstance, 'getManagersForNotification');
+const functions = getFunctions(app, 'southamerica-east1');
+const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
 
 
 function AguardandoAprovacaoPage() {
@@ -29,14 +30,14 @@ function AguardandoAprovacaoPage() {
         if (!user?.congregationId) return;
         setIsLoadingContacts(true);
         try {
-            const result: any = await callGetManagersForNotification({ congregationId: user.congregationId });
+            const result: any = await getManagersForNotification({ congregationId: user.congregationId });
             
             if (result.data.success) {
                 setAdminsAndLeaders(result.data.managers);
             } else {
                 throw new Error(result.data.error || "Falha ao buscar contatos.");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Erro ao buscar administradores e dirigentes:", error);
         } finally {
             setIsLoadingContacts(false);
@@ -109,7 +110,7 @@ function AguardandoAprovacaoPage() {
                             </div>
                           )) : (
                             <p className="text-sm text-center text-muted-foreground">
-                              aqui deve aparecer os contatos dos dirigentes
+                              Nenhum dirigente ou administrador com WhatsApp cadastrado foi encontrado.
                             </p>
                           )}
                         </div>
