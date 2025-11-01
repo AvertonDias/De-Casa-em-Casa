@@ -31,6 +31,12 @@ function MyTerritoriesPage() {
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
+      // Ordena os territórios pela data de devolução (dueDate)
+      data.sort((a, b) => {
+        const dateA = a.assignment?.dueDate?.toMillis() || 0;
+        const dateB = b.assignment?.dueDate?.toMillis() || 0;
+        return dateA - dateB;
+      });
       setAssignedTerritories(data);
       setLoading(false);
     });
@@ -131,3 +137,4 @@ function MyTerritoriesPage() {
 }
 
 export default withAuth(MyTerritoriesPage);
+
