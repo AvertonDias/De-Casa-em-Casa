@@ -323,7 +323,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
         const territory = { id: territoryDoc.id, ...territoryDoc.data() } as Territory;
         const isAssigned = territory.assignment && territory.assignment.uid === user.uid;
         
-        if (isAssigned) {
+        if (isAssigned && territory.assignment) {
           const isOverdue = territory.assignment.dueDate.toDate() < new Date();
 
           // Notificação de Designação
