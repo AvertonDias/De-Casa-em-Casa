@@ -49,8 +49,10 @@ function AguardandoAprovacaoPage() {
     }, [user?.congregationId]);
 
     useEffect(() => {
-        fetchAdminsAndLeaders();
-    }, [fetchAdminsAndLeaders]);
+        if (user?.congregationId) {
+            fetchAdminsAndLeaders();
+        }
+    }, [user?.congregationId, fetchAdminsAndLeaders]);
 
     const handleNotify = (contact: AppUser) => {
         if (!user || !contact.whatsapp) return;
