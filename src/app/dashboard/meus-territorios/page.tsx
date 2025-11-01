@@ -4,8 +4,8 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, deleteField, arrayUnion, Timestamp, writeBatch, getDocs } from 'firebase/firestore';
-import { Territory, Notification } from '@/types/types';
+import { collection, query, where, onSnapshot, doc, updateDoc, deleteField, arrayUnion, Timestamp } from 'firebase/firestore';
+import { Territory } from '@/types/types';
 import { Map, Clock, CheckCircle, Loader, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -30,52 +30,12 @@ function MyTerritoriesPage() {
     const q = query(territoriesRef, where("assignment.uid", "==", user.uid));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const territoriesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
-      setAssignedTerritories(territoriesData);
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
+      setAssignedTerritories(data);
       setLoading(false);
-
-      // Sincronização automática
-      if (territoriesData.length > 0) {
-        syncOldNotifications(territoriesData, user.uid);
-      }
     });
     return () => unsubscribe();
   }, [user]);
-
-  const syncOldNotifications = async (territories: Territory[], userId: string) => {
-    try {
-      const notificationsRef = collection(db, 'users', userId, 'notifications');
-      const q = query(notificationsRef, where('type', '==', 'territory_assigned'));
-      const existingNotifsSnapshot = await getDocs(q);
-      const existingNotifLinks = new Set(existingNotifsSnapshot.docs.map(doc => doc.data().link));
-
-      const batch = writeBatch(db);
-      let notificationsAdded = 0;
-
-      territories.forEach(territory => {
-        const territoryLink = `/dashboard/territorios/${territory.id}`;
-        if (!existingNotifLinks.has(territoryLink)) {
-          const notification: Omit<Notification, 'id'> = {
-            title: "Território Designado",
-            body: `O território "${territory.name}" foi designado para você.`,
-            link: territoryLink,
-            type: 'territory_assigned',
-            isRead: false, // <-- ALTERAÇÃO PRINCIPAL AQUI
-            createdAt: territory.assignment?.assignedAt || Timestamp.now(),
-          };
-          const newNotifRef = doc(collection(db, `users/${userId}/notifications`));
-          batch.set(newNotifRef, notification);
-          notificationsAdded++;
-        }
-      });
-      
-      if (notificationsAdded > 0) {
-        await batch.commit();
-      }
-    } catch (error) {
-      console.error("Erro ao sincronizar notificações automaticamente:", error);
-    }
-  };
 
   const handleOpenReturnModal = (territory: Territory) => {
     setTerritoryToReturn(territory);

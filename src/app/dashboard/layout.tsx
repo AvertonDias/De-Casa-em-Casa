@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 import { auth, db, messaging, app } from "@/lib/firebase"; // Import app
 import { useUser } from '@/contexts/UserContext';
 import { useTheme } from 'next-themes';
-import { doc, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, onSnapshot, writeBatch } from 'firebase/firestore';
 import { getToken } from 'firebase/messaging';
 
 import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell } from 'lucide-react';
@@ -30,6 +30,8 @@ import withAuth from "@/components/withAuth";
 import { usePresence } from "@/hooks/usePresence";
 import { EditProfileModal } from "@/components/EditProfileModal"; // Importar o modal de perfil
 import { FeedbackAnnouncementModal } from "@/components/FeedbackAnnouncementModal";
+import { Territory, Notification } from "@/types/types";
+import { Timestamp } from "firebase/firestore";
 
 
 // Componente para trocar o tema (agora mais robusto)
@@ -281,10 +283,10 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   // Ativa o sistema de presença para o usuário logado
   usePresence();
 
+  // Listener para novos usuários pendentes
   useEffect(() => {
     if (!user) return;
     
-    // Listener for pending users
     if (['Administrador', 'Dirigente', 'Servo de Territórios'].includes(user.role) && user.congregationId) {
       const q = query(
         collection(db, 'users'),
@@ -298,9 +300,9 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
+  // Listener para notificações não lidas
   useEffect(() => {
     if (!user) return;
-    // Listener for unread notifications
     const q = query(
       collection(db, 'users', user.uid, 'notifications'),
       where('isRead', '==', false)
@@ -311,6 +313,45 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [user]);
 
+  // Listener para territórios designados ao usuário atual (para criar notificações)
+  useEffect(() => {
+      if (!user?.congregationId || !user?.uid) return;
+      
+      const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
+      const q = query(territoriesRef, where("assignment.uid", "==", user.uid));
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+          const assignedTerritories = snapshot.docs.map(doc => doc.data() as Territory);
+          
+          if (assignedTerritories.length > 0) {
+              const notificationsRef = collection(db, 'users', user.uid, 'notifications');
+              const batch = writeBatch(db);
+              
+              assignedTerritories.forEach(territory => {
+                  const notifLink = `/dashboard/territorios/${territory.id}`;
+                  // Idealmente, verificaríamos se já existe notificação para este link.
+                  // Para simplificar e garantir, criamos a notificação se o território está designado.
+                  // O Firestore pode sobrescrever se o ID do documento for o mesmo, ou podemos adicionar com ID aleatório.
+                  const notification: Omit<Notification, 'id'> = {
+                      title: "Território Designado",
+                      body: `O território "${territory.name}" foi designado para você.`,
+                      link: notifLink,
+                      type: 'territory_assigned',
+                      isRead: false,
+                      createdAt: territory.assignment?.assignedAt || Timestamp.now(),
+                  };
+                  const newNotifRef = doc(notificationsRef, `assigned_${territory.id}`); // ID determinístico
+                  batch.set(newNotifRef, notification, { merge: true }); // Use merge para não sobrescrever se já existir e for igual
+              });
+
+              batch.commit().catch(err => console.error("Erro ao criar notificações de designação:", err));
+          }
+      });
+      return () => unsubscribe();
+  }, [user]);
+
+
+  // Solicitação de permissão para notificações do browser
   useEffect(() => {
     const requestPermission = async () => {
       if (user && user.status === 'ativo' && messaging && 'serviceWorker' in navigator) {
@@ -324,7 +365,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
             });
             if (token) {
               const userRef = doc(db, 'users', user.uid);
-              // Sobrescreve os tokens antigos com um array contendo apenas o novo token
               await updateDoc(userRef, { fcmTokens: [token] });
             }
           }
@@ -385,3 +425,4 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 }
 
 export default withAuth(DashboardLayout);
+
