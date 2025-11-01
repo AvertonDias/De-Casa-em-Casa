@@ -116,7 +116,6 @@ export default function TerritoryAssignmentPanel() {
 
     await updateDoc(territoryRef, { status: 'designado', assignment });
     
-    // Dispara a notificação via onCall
     if (!user.uid.startsWith('custom_')) {
       await notifyOnTerritoryAssigned({
         territoryId: territoryId,
@@ -359,7 +358,7 @@ export default function TerritoryAssignmentPanel() {
                               </span>
                           </div>
                           <div className="col-span-12 sm:col-span-4 text-sm text-muted-foreground text-left">
-                              {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : 'N/A'}
+                              {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : ''}
                           </div>
                        </div>
                        <div className="flex items-center justify-end flex-shrink-0 ml-2 sm:col-span-2">
@@ -374,7 +373,7 @@ export default function TerritoryAssignmentPanel() {
                                              <>
                                                  <Menu.Item><button onClick={() => handleOpenReturnModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <CheckCircle size={16} className="mr-2"/>Devolver</button></Menu.Item>
                                                  <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <RotateCw size={16} className="mr-2"/>Reatribuir</button></Menu.Item>
-                                                 {isOverdue && <Menu.Item><button onClick={() => handleNotifyOverdue(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground disabled:opacity-50'> <MessageCircle size={16} className="mr-2"/>Notificar Atraso</button></Menu.Item>}
+                                                 {isOverdue && <Menu.Item><button onClick={() => handleNotifyOverdue(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground disabled:opacity-50'> <MessageCircle size={16} className="mr-2"/>Notificar atraso</button></Menu.Item>}
                                              </>
                                          ) : (
                                               <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <BookUser size={16} className="mr-2"/>Designar</button></Menu.Item>
@@ -432,3 +431,5 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
+
+    
