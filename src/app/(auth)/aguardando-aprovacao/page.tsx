@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -20,7 +21,7 @@ const getManagersForNotification = httpsCallable(functions, 'getManagersForNotif
 
 
 function AguardandoAprovacaoPage() {
-    const { user, loading } = useUser();
+    const { user, loading, logout } = useUser();
     const [adminsAndLeaders, setAdminsAndLeaders] = useState<AppUser[]>([]);
     const [isLoadingContacts, setIsLoadingContacts] = useState(true);
 
