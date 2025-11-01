@@ -5,42 +5,57 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // Helper Functions
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    // CHECA SE O DOCUMENTO DO USUÁRIO EXISTE ANTES DE TENTAR LER
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
     }
 
+    function isUserInCongregation(congId) {
+        return isSignedIn() && getUserData(request.auth.uid).congregationId == congId;
+    }
+
+    function isRole(role) {
+        return isSignedIn() && getUserData(request.auth.uid).role == role;
+    }
+    
+    function isManager() {
+        return isSignedIn() && getUserData(request.auth.uid).role in ['Administrador', 'Dirigente', 'Servo de Territórios'];
+    }
+
+
     // Regras para a coleção de Feedbacks
-    // Permite que qualquer usuário autenticado crie (escreva) um feedback.
     match /feedbacks/{feedbackId} {
-      allow create: if request.auth != null;
-      allow read, update, delete: if false; // Ninguém pode ler, alterar ou apagar feedbacks.
+      allow create: if isSignedIn();
+      allow read, update, delete: if false;
     }
 
     // Regras para a Coleção de Congregações
     match /congregations/{congId} {
-      // QUALQUER UM PODE LER a lista de congregações ou um documento específico.
-      // Isso é necessário para a página de cadastro verificar se um número de congregação existe.
-      // A informação (nome/número) não é sensível.
+      // Qualquer um pode ler, autenticado ou não.
       allow read: if true;
 
-      // Apenas administradores podem criar, atualizar ou deletar congregações.
-      allow write: if getUserData().role == 'Administrador';
+      // Apenas administradores podem escrever.
+      allow write: if isRole('Administrador');
 
       // Regras para subcoleções de Territórios
       match /territories/{terrId} {
-        allow read, write: if getUserData().congregationId == congId;
+        allow read, write: if isUserInCongregation(congId);
 
         match /quadras/{quadraId} {
-          allow read, write: if getUserData().congregationId == congId;
+          allow read, write: if isUserInCongregation(congId);
 
           match /casas/{casaId} {
-            allow read, write: if getUserData().congregationId == congId;
+            allow read, write: if isUserInCongregation(congId);
           }
         }
 
         // Histórico de Atividade
         match /activityHistory/{activityId} {
-            allow read, write: if getUserData().congregationId == congId;
+            allow read, write: if isUserInCongregation(congId);
         }
       }
     }
@@ -53,12 +68,22 @@ service cloud.firestore {
       // Um usuário pode criar seu próprio documento (durante o cadastro).
       allow create: if request.auth.uid == userId;
 
-      // Admins e Dirigentes podem ler a lista de usuários da sua própria congregação.
-      allow list: if getUserData().role IN ['Administrador', 'Dirigente'] &&
-                    getUserData().congregationId == resource.data.congregationId;
+      // Admins, Dirigentes e Servos de Territórios podem ler a lista de usuários da sua própria congregação.
+      allow list: if isManager() && isUserInCongregation(resource.data.congregationId);
                     
       // Administradores podem atualizar/deletar qualquer usuário.
-      allow write: if getUserData().role == 'Administrador';
+      allow write: if isRole('Administrador');
+    }
+
+    // Regras para a Coleção de Notificações
+    match /users/{userId}/notifications/{notificationId} {
+        // Usuário pode ler, criar, atualizar e apagar suas próprias notificações.
+        allow read, write: if request.auth.uid == userId;
+    }
+
+    // Regras para Tokens de Redefinição de Senha (gerenciados pelo backend)
+    match /resetTokens/{tokenId} {
+        allow read, write: if false;
     }
   }
 }
