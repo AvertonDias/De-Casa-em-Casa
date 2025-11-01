@@ -1,12 +1,10 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from "@/contexts/UserContext";
 import { Loader, MailCheck, MessageCircle } from "lucide-react";
 import withAuth from "@/components/withAuth";
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
 import { AppUser } from '@/types/types';
 import {
   Accordion,
@@ -16,36 +14,43 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
 
-const functions = getFunctions(app, 'southamerica-east1');
-const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
-
-
 function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();
     const [adminsAndLeaders, setAdminsAndLeaders] = useState<AppUser[]>([]);
     const [isLoadingContacts, setIsLoadingContacts] = useState(true);
 
-    useEffect(() => {
-        if (user?.congregationId) {
-            const fetchAdminsAndLeaders = async () => {
-                setIsLoadingContacts(true);
-                try {
-                    const result: any = await getManagersForNotification({ congregationId: user.congregationId });
-                    if (result.data.success) {
-                        setAdminsAndLeaders(result.data.managers);
-                    } else {
-                        throw new Error(result.data.error || "Falha ao buscar contatos.");
-                    }
-                } catch (error) {
-                    console.error("Erro ao buscar administradores e dirigentes:", error);
-                } finally {
-                    setIsLoadingContacts(false);
-                }
-            };
+    const fetchAdminsAndLeaders = useCallback(async () => {
+        if (!user?.congregationId) return;
+        setIsLoadingContacts(true);
+        try {
+            const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/getManagersForNotification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ congregationId: user.congregationId })
+            });
 
-            fetchAdminsAndLeaders();
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+
+            if (result.success) {
+                setAdminsAndLeaders(result.managers);
+            } else {
+                throw new Error(result.error || "Falha ao buscar contatos.");
+            }
+        } catch (error) {
+            console.error("Erro ao buscar administradores e dirigentes:", error);
+        } finally {
+            setIsLoadingContacts(false);
         }
     }, [user?.congregationId]);
+
+    useEffect(() => {
+        fetchAdminsAndLeaders();
+    }, [fetchAdminsAndLeaders]);
 
     const handleNotify = (contact: AppUser) => {
         if (!user || !contact.whatsapp) return;
