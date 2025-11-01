@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, deleteField, arrayUnion, Timestamp } from 'firebase/firestore';
 import { Territory } from '@/types/types';
-import { Map, Clock, CheckCircle, Loader, AlertTriangle } from 'lucide-react';
+import { Map, Clock, CheckCircle, Loader, AlertTriangle, ArrowDownUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
@@ -21,6 +21,8 @@ function MyTerritoriesPage() {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [territoryToReturn, setTerritoryToReturn] = useState<Territory | null>(null);
 
+  const [sortBy, setSortBy] = useState<'dueDate' | 'assignedAt' | 'number'>('dueDate');
+
   useEffect(() => {
     if (!user?.congregationId || !user?.uid) {
       if(user) setLoading(false);
@@ -31,17 +33,22 @@ function MyTerritoriesPage() {
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
-      // Ordena os territórios pela data de devolução (dueDate)
-      data.sort((a, b) => {
-        const dateA = a.assignment?.dueDate?.toMillis() || 0;
-        const dateB = b.assignment?.dueDate?.toMillis() || 0;
-        return dateA - dateB;
-      });
       setAssignedTerritories(data);
       setLoading(false);
     });
     return () => unsubscribe();
   }, [user]);
+
+  const sortedTerritories = useMemo(() => {
+    return [...assignedTerritories].sort((a, b) => {
+      if (sortBy === 'number') {
+        return a.number.localeCompare(b.number, undefined, { numeric: true });
+      }
+      const dateA = sortBy === 'dueDate' ? a.assignment?.dueDate?.toMillis() : a.assignment?.assignedAt?.toMillis();
+      const dateB = sortBy === 'dueDate' ? b.assignment?.dueDate?.toMillis() : b.assignment?.assignedAt?.toMillis();
+      return (dateA || 0) - (dateB || 0);
+    });
+  }, [assignedTerritories, sortBy]);
 
   const handleOpenReturnModal = (territory: Territory) => {
     setTerritoryToReturn(territory);
@@ -81,14 +88,28 @@ function MyTerritoriesPage() {
   return (
     <>
       <div className="p-4 md:p-8 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Meus Territórios Designados</h1>
-          <p className="text-muted-foreground">Aqui estão os territórios que estão sob sua responsabilidade.</p>
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Meus Territórios Designados</h1>
+            <p className="text-muted-foreground">Aqui estão os territórios que estão sob sua responsabilidade.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <ArrowDownUp size={16} className="text-muted-foreground" />
+            <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'dueDate' | 'assignedAt' | 'number')}
+                className="bg-input rounded-md p-2 border border-border"
+            >
+                <option value="dueDate">Data de Devolução</option>
+                <option value="assignedAt">Data de Designação</option>
+                <option value="number">Número</option>
+            </select>
+          </div>
         </div>
 
-        {assignedTerritories.length > 0 ? (
+        {sortedTerritories.length > 0 ? (
           <div className="space-y-4">
-            {assignedTerritories.map(t => {
+            {sortedTerritories.map(t => {
               const isOverdue = t.assignment && t.assignment.dueDate.toDate() < new Date();
               return (
                 <div key={t.id} className={`bg-card p-4 rounded-lg shadow-md ${isOverdue ? 'border-l-4 border-red-500' : ''}`}>
@@ -137,4 +158,3 @@ function MyTerritoriesPage() {
 }
 
 export default withAuth(MyTerritoriesPage);
-
