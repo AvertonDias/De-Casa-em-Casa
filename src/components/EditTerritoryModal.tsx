@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -206,7 +205,7 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
               <div className="border-t border-red-500/30 pt-4 mt-4">
                 <h3 className="text-red-400 font-semibold flex items-center mb-2"><AlertCircle className="mr-2"/>Ações de Risco</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => onReset(territory.id)} disabled={isProcessing} className="p-2 border border-yellow-500 text-yellow-500 rounded-md hover:bg-yellow-500/20">Limpar Território</button>
+                  <button onClick={() => onReset(territory.id)} className="p-2 border border-yellow-500 text-yellow-500 rounded-md hover:bg-yellow-500/20">Limpar Território</button>
                   <button onClick={() => onDelete(territory.id)} className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700">Excluir Território</button>
                 </div>
               </div>
