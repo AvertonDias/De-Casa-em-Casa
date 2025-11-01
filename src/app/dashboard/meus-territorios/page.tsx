@@ -3,7 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db } from '@/lib/firebase';
+import { db, app } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, onSnapshot, doc, updateDoc, deleteField, arrayUnion, Timestamp, writeBatch, getDocs } from 'firebase/firestore';
 import { Territory, Notification } from '@/types/types';
 import { Map, Clock, CheckCircle, Loader, AlertTriangle, RefreshCw } from 'lucide-react';
@@ -14,6 +15,9 @@ import withAuth from '@/components/withAuth';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const notifyOnTerritoryReturned = httpsCallable(functions, 'notifyOnTerritoryReturned');
 
 function MyTerritoriesPage() {
   const { user } = useUser();
@@ -64,6 +68,7 @@ function MyTerritoriesPage() {
         assignment: deleteField(),
         assignmentHistory: arrayUnion(historyLog)
       });
+      // A função onCall não é mais necessária aqui, pois não existe mais o trigger onTerritoryReturned
     } catch(error) {
       console.error("Erro ao devolver o território:", error);
     } finally {

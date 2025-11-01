@@ -21,6 +21,7 @@ import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
 
 const functions = getFunctions(app, 'southamerica-east1');
+const notifyOnTerritoryAssigned = httpsCallable(functions, 'notifyOnTerritoryAssigned');
 
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
@@ -104,7 +105,7 @@ export default function TerritoryAssignmentPanel() {
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
     
     const assignedAt = new Date();
-    const newDueDate = new Date(dueDate + 'T12:00:00'); // Mantém a data de devolução do modal
+    const newDueDate = new Date(dueDate + 'T12:00:00');
 
     const assignment = {
         uid: user.uid,
@@ -114,6 +115,15 @@ export default function TerritoryAssignmentPanel() {
     };
 
     await updateDoc(territoryRef, { status: 'designado', assignment });
+    
+    // Dispara a notificação via onCall
+    if (!user.uid.startsWith('custom_')) {
+      await notifyOnTerritoryAssigned({
+        territoryId: territoryId,
+        territoryName: territories.find(t => t.id === territoryId)?.name || 'Desconhecido',
+        assignedUid: user.uid,
+      });
+    }
 
     const assignedUser = users.find(u => u.uid === user.uid);
     const territory = territories.find(t => t.id === territoryId);
@@ -422,5 +432,3 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
-
-    

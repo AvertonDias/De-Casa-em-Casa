@@ -3,7 +3,6 @@ import { https, setGlobalOptions } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
-import { format } from 'date-fns';
 import { AppUser, Notification, Territory } from "./types";
 
 if (!admin.apps.length) admin.initializeApp();
@@ -14,7 +13,7 @@ setGlobalOptions({ region: "southamerica-east1" });
 //   FUNÇÕES CHAMÁVEIS (onCall)
 // ========================================================================
 
-export const notifyManagersOfNewUser = https.onCall(async (request) => {
+export const notifyOnNewUser = https.onCall(async (request) => {
     if (!request.auth) throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
     
     const { newUserName, congregationId } = request.data;
@@ -47,104 +46,38 @@ export const notifyManagersOfNewUser = https.onCall(async (request) => {
         await batch.commit();
         return { success: true, message: `Notificado(s) ${notified.size} gerente(s).` };
     } catch (err) {
-        console.error("notifyManagersOfNewUser: Falha ao notificar gerentes", err);
+        console.error("notifyOnNewUser: Falha ao notificar gerentes", err);
         throw new https.HttpsError("internal", "Falha ao criar notificações para os gerentes.");
     }
 });
 
+export const notifyOnTerritoryAssigned = https.onCall(async (request) => {
+    if (!request.auth) throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
 
-export const onTerritoryAssigned = onDocumentWritten(
-    "congregations/{congId}/territories/{terrId}",
-    async (event) => {
-        const beforeData = event.data?.before.data() as Territory | undefined;
-        const afterData = event.data?.after.data() as Territory | undefined;
-
-        if (afterData?.assignment && beforeData?.assignment?.uid !== afterData.assignment.uid) {
-            const { uid, name } = afterData.assignment;
-            const territoryId = event.params.terrId;
-            const territoryName = afterData.name;
-            
-            console.log(`[Notification] Designação detectada: UID=${uid}, Nome=${name} (Território: ${territoryName})`);
-
-            if (uid.startsWith('custom_')) {
-                console.log(`[Notification] UID atribuído '${uid}' é customizado, pulando notificação.`);
-                return null;
-            }
-
-            const notif: Omit<Notification, 'id'> = {
-                title: "Novo Território Designado",
-                body: `O território "${territoryName || 'Desconhecido'}" foi designado para você.`,
-                link: `/dashboard/territorios/${territoryId}`,
-                type: 'territory_assigned',
-                isRead: false,
-                createdAt: admin.firestore.Timestamp.now()
-            };
-
-            try {
-                const userRef = db.collection("users").doc(uid);
-                await userRef.collection('notifications').add(notif);
-                console.log(`[Notification] Notificação interna para usuário ${uid} criada com sucesso.`);
-            } catch (err) {
-                console.error(`[Notification] FALHA CRÍTICA ao gravar notificação no Firestore para usuário ${uid}:`, err);
-            }
-        }
+    const { territoryId, territoryName, assignedUid } = request.data;
+    if (!territoryId || !territoryName || !assignedUid) {
+        throw new https.HttpsError('invalid-argument', 'IDs e nomes são necessários.');
     }
-);
+    
+    const notif: Omit<Notification, 'id'> = {
+        title: "Novo Território Designado",
+        body: `O território "${territoryName || 'Desconhecido'}" foi designado para você.`,
+        link: `/dashboard/territorios/${territoryId}`,
+        type: 'territory_assigned',
+        isRead: false,
+        createdAt: admin.firestore.Timestamp.now()
+    };
 
-
-export const onTerritoryReturned = onDocumentWritten(
-    "congregations/{congId}/territories/{terrId}",
-    async (event) => {
-        const before = event.data?.before.data() as Territory | undefined;
-        const after = event.data?.after.data() as Territory | undefined;
-
-        if (before?.assignment && !after?.assignment) {
-            const congId = event.params.congId;
-            const territoryName = after!.name;
-            const returningUid = before.assignment.uid;
-
-            const batch = db.batch();
-
-            if (!returningUid.startsWith('custom_')) {
-                const userNotif: Omit<Notification, 'id'> = {
-                    title: "Território Devolvido",
-                    body: `Você devolveu o território "${territoryName}". Obrigado!`,
-                    link: `/dashboard/territorios/${event.params.terrId}`,
-                    type: 'territory_returned',
-                    isRead: false,
-                    createdAt: admin.firestore.Timestamp.now()
-                };
-                batch.set(db.collection("users").doc(returningUid).collection('notifications').doc(), userNotif);
-            }
-
-            try {
-                const managerRoles = ['Administrador', 'Dirigente', 'Servo de Territórios'];
-                const managerSnapshots = await Promise.all(managerRoles.map(r => db.collection("users").where('congregationId', '==', congId).where('role', '==', r).get()));
-                const managers = managerSnapshots.flatMap(s => s.docs);
-                
-                const notified = new Set<string>();
-                const adminNotif: Omit<Notification, 'id'> = {
-                    title: "Território Disponível",
-                    body: `O território "${territoryName}" foi devolvido e está disponível para designação.`,
-                    link: '/dashboard/administracao',
-                    type: 'territory_available',
-                    isRead: false,
-                    createdAt: admin.firestore.Timestamp.now()
-                };
-                managers.forEach(doc => {
-                    if (!notified.has(doc.id)) {
-                        batch.set(doc.ref.collection('notifications').doc(), adminNotif);
-                        notified.add(doc.id);
-                    }
-                });
-                
-                await batch.commit();
-            } catch (err) {
-                console.error("onTerritoryReturned: Falha ao notificar gerentes", err);
-            }
-        }
+    try {
+        const userRef = db.collection("users").doc(assignedUid);
+        await userRef.collection('notifications').add(notif);
+        return { success: true, message: `Notificação de designação criada para ${assignedUid}.` };
+    } catch (err) {
+        console.error(`notifyOnTerritoryAssigned: FALHA CRÍTICA ao gravar notificação para ${assignedUid}:`, err);
+        throw new https.HttpsError("internal", "Falha ao criar notificação para o usuário.");
     }
-);
+});
+
 
 // ========================================================================
 //   TRIGGERS DE CÁLCULO DE ESTATÍSTICAS
@@ -272,5 +205,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
-
-    
