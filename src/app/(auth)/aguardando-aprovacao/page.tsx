@@ -1,13 +1,61 @@
-
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from "@/contexts/UserContext";
-import { Loader, MailCheck } from "lucide-react";
+import { Loader, MailCheck, MessageCircle } from "lucide-react";
 import withAuth from "@/components/withAuth";
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
+import { AppUser } from '@/types/types';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Button } from '@/components/ui/button';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
+
 
 function AguardandoAprovacaoPage() {
-    const { user, loading, logout } = useUser();
+    const { user, loading } = useUser();
+    const [adminsAndLeaders, setAdminsAndLeaders] = useState<AppUser[]>([]);
+    const [isLoadingContacts, setIsLoadingContacts] = useState(true);
+
+    useEffect(() => {
+        if (user?.congregationId) {
+            const fetchAdminsAndLeaders = async () => {
+                setIsLoadingContacts(true);
+                try {
+                    const result: any = await getManagersForNotification({ congregationId: user.congregationId });
+                    if (result.data.success) {
+                        setAdminsAndLeaders(result.data.managers);
+                    }
+                } catch (error) {
+                    console.error("Erro ao buscar administradores e dirigentes:", error);
+                } finally {
+                    setIsLoadingContacts(false);
+                }
+            };
+
+            fetchAdminsAndLeaders();
+        }
+    }, [user?.congregationId]);
+
+    const handleNotify = (contact: AppUser) => {
+        if (!user || !contact.whatsapp) return;
+        
+        const contactFirstName = contact.name.split(' ')[0];
+        const userFirstName = user.name.split(' ')[0];
+
+        const message = `Olá, ${contactFirstName}. O publicador "${userFirstName}" está aguardando aprovação de acesso no aplicativo De Casa em Casa.`;
+        const whatsappNumber = contact.whatsapp.replace(/\D/g, ''); // Remove caracteres não numéricos
+        const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
+
+        window.open(whatsappUrl, '_blank');
+    };
 
     if (loading) {
         return (
@@ -28,8 +76,39 @@ function AguardandoAprovacaoPage() {
                     Sua solicitação de acesso para a congregação <span className="font-semibold text-foreground">{user?.congregationName || '...'}</span> foi enviada.
                 </p>
                 <p className="text-muted-foreground">
-                    Um administrador ou dirigente foi notificado e irá aprovar seu acesso em breve.
+                    Para agilizar, você pode notificar um dos dirigentes abaixo.
                 </p>
+
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="item-1">
+                    <AccordionTrigger className="font-semibold">Notificar um responsável</AccordionTrigger>
+                    <AccordionContent>
+                      {isLoadingContacts ? (
+                        <Loader className="animate-spin text-primary mx-auto my-4" />
+                      ) : (
+                        <div className="space-y-3 text-left">
+                          {adminsAndLeaders.map((contact) => (
+                            <div key={contact.uid} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                              <div>
+                                <p className="font-semibold">{contact.name}</p>
+                              </div>
+                              <Button 
+                                size="sm" 
+                                onClick={() => handleNotify(contact)}
+                                disabled={!contact.whatsapp}
+                                title={!contact.whatsapp ? "Este usuário não tem WhatsApp cadastrado" : `Enviar mensagem para ${contact.name}`}
+                              >
+                                <MessageCircle size={16} className="mr-2"/> Notificar
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+
+
                 <div className="pt-4">
                     <button
                         onClick={logout}

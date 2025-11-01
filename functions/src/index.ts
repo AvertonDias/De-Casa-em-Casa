@@ -6,10 +6,7 @@ import {
 } from "firebase-functions/v2/firestore";
 import {onValueWritten} from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
-import * as cors from "cors";
 import type {AppUser, Notification} from "./types";
-
-const corsHandler = cors({origin: true});
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -18,116 +15,74 @@ const db = admin.firestore();
 setGlobalOptions({region: "southamerica-east1"});
 
 // ========================================================================
-//   FUNÇÕES CHAMÁVEIS (onCall e onRequest)
+//   FUNÇÕES CHAMÁVEIS (onCall)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method !== "POST") {
-      res.status(405).json({error: "Método não permitido"});
-      return;
-    }
-    const {
-      adminName,
-      adminEmail,
-      adminPassword,
-      congregationName,
-      congregationNumber,
-      whatsapp,
-    } = req.body;
+export const createCongregationAndAdmin = https.onCall(async (data, context) => {
+    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = data;
 
-    if (
-      !adminName ||
-      !adminEmail ||
-      !adminPassword ||
-      !congregationName ||
-      !congregationNumber ||
-      !whatsapp
-    ) {
-      res.status(400).json({error: "Todos os campos são obrigatórios."});
-      return;
+    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
+        throw new https.HttpsError('invalid-argument', 'Todos os campos são obrigatórios.');
     }
 
     let newUser;
     try {
-      const congQuery = await db
-        .collection("congregations")
-        .where("number", "==", congregationNumber)
-        .get();
-      if (!congQuery.empty) {
-        res
-          .status(409)
-          .json({error: "Uma congregação com este número já existe."});
-        return;
-      }
+        const congQuery = await db.collection('congregations').where('number', '==', congregationNumber).get();
+        if (!congQuery.empty) {
+            throw new https.HttpsError('already-exists', 'Uma congregação com este número já existe.');
+        }
 
-      newUser = await admin.auth().createUser({
-        email: adminEmail,
-        password: adminPassword,
-        displayName: adminName,
-      });
-
-      const batch = db.batch();
-      const newCongregationRef = db.collection("congregations").doc();
-      batch.set(newCongregationRef, {
-        name: congregationName,
-        number: congregationNumber,
-        territoryCount: 0,
-        ruralTerritoryCount: 0,
-        totalQuadras: 0,
-        totalHouses: 0,
-        totalHousesDone: 0,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      const userDocRef = db.collection("users").doc(newUser.uid);
-      batch.set(userDocRef, {
-        name: adminName,
-        email: adminEmail,
-        whatsapp,
-        congregationId: newCongregationRef.id,
-        role: "Administrador",
-        status: "ativo",
-      });
-
-      await batch.commit();
-      res
-        .status(200)
-        .json({
-          success: true,
-          userId: newUser.uid,
-          message: "Congregação criada com sucesso!",
+        newUser = await admin.auth().createUser({
+            email: adminEmail,
+            password: adminPassword,
+            displayName: adminName,
         });
+
+        const batch = db.batch();
+        const newCongregationRef = db.collection('congregations').doc();
+        batch.set(newCongregationRef, {
+            name: congregationName,
+            number: congregationNumber,
+            territoryCount: 0, ruralTerritoryCount: 0, totalQuadras: 0, totalHouses: 0, totalHousesDone: 0,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        const userDocRef = db.collection("users").doc(newUser.uid);
+        batch.set(userDocRef, {
+            name: adminName,
+            email: adminEmail,
+            whatsapp,
+            congregationId: newCongregationRef.id,
+            role: "Administrador",
+            status: "ativo"
+        });
+
+        await batch.commit();
+        return { success: true, userId: newUser.uid, message: 'Congregação criada com sucesso!' };
     } catch (error: any) {
-      if (newUser) {
-        await admin
-          .auth()
-          .deleteUser(newUser.uid)
-          .catch((deleteError) => {
-            console.error(
-              `Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`,
-              deleteError,
-            );
-          });
-      }
-      console.error("Erro ao criar congregação e admin:", error);
-      if (error.code === "auth/email-already-exists") {
-        res.status(409).json({error: "Este e-mail já está em uso."});
-      } else {
-        res
-          .status(500)
-          .json({error: error.message || "Erro interno no servidor"});
-      }
+        if (newUser) {
+            await admin.auth().deleteUser(newUser.uid).catch(deleteError => {
+                console.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`, deleteError);
+            });
+        }
+        console.error("Erro ao criar congregação e admin:", error);
+        if (error.code === 'auth/email-already-exists') {
+            throw new https.HttpsError('already-exists', 'Este e-mail já está em uso.');
+        }
+        if (error instanceof https.HttpsError) {
+          throw error;
+        }
+        throw new https.HttpsError('internal', error.message || 'Erro interno no servidor');
     }
-  });
 });
 
+
 export const deleteUserAccount = https.onCall(async (data, context) => {
-  const callingUserUid = context.auth?.uid;
-  if (!callingUserUid) {
+  if (!context.auth) {
     throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
   }
+  const callingUserUid = context.auth.uid;
   const {userIdToDelete} = data;
 
   if (!userIdToDelete || typeof userIdToDelete !== "string") {
@@ -182,7 +137,7 @@ export const deleteUserAccount = https.onCall(async (data, context) => {
   }
 });
 
-export const notifyOnNewUser = https.onCall(async (data) => {
+export const notifyOnNewUser = https.onCall(async (data, context) => {
   const {newUserName, congregationId} = data;
   if (!newUserName || !congregationId) {
     throw new https.HttpsError(
@@ -235,6 +190,47 @@ export const notifyOnNewUser = https.onCall(async (data) => {
     );
   }
 });
+
+
+export const getManagersForNotification = https.onCall(async (data, context) => {
+    const { congregationId } = data;
+    if (!congregationId) {
+        throw new https.HttpsError('invalid-argument', 'O ID da congregação é obrigatório.');
+    }
+    
+    // Opcional: Adicionar uma verificação para garantir que apenas usuários (mesmo que pendentes) daquela congregação possam chamar isso.
+    // const callingUid = context.auth?.uid;
+    // if(callingUid) {
+    //   const userDoc = await db.collection('users').doc(callingUid).get();
+    //   if(!userDoc.exists() || userDoc.data()?.congregationId !== congregationId){
+    //      throw new https.HttpsError('permission-denied', 'Você não tem permissão para acessar os dados desta congregação.');
+    //   }
+    // }
+
+    try {
+        const rolesToFetch = ['Administrador', 'Dirigente'];
+        const queryPromises = rolesToFetch.map(role => 
+            db.collection('users')
+              .where('congregationId', '==', congregationId)
+              .where('role', '==', role)
+              .get()
+        );
+        const results = await Promise.all(queryPromises);
+        const managers = results.flatMap(snapshot => 
+            snapshot.docs.map(doc => {
+                const { name, whatsapp, uid } = doc.data() as AppUser;
+                return { name, whatsapp, uid: doc.id }; // Retorna apenas dados seguros
+            })
+        );
+        
+        return { success: true, managers };
+        
+    } catch (error) {
+        console.error("Erro ao buscar gerentes:", error);
+        throw new https.HttpsError('internal', 'Falha ao buscar contatos dos responsáveis.');
+    }
+});
+
 
 export const notifyOnTerritoryAssigned = https.onCall(async (data, context) => {
   if (!context.auth) {
