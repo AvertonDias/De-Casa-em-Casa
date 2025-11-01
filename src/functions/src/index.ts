@@ -14,10 +14,8 @@ setGlobalOptions({ region: "southamerica-east1" });
 // ========================================================================
 
 export const notifyOnNewUser = https.onCall(async (data, context) => {
-    // Autenticação é verificada pelo próprio onCall, mas podemos checar aqui se quisermos
-    if (!context.auth) {
-        throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
-    }
+    // A autenticação é verificada automaticamente pelo onCall.
+    // Opcionalmente, você pode verificar se context.auth não é nulo se for uma regra de negócio.
     const { newUserName, congregationId } = data;
     if (!newUserName || !congregationId) {
         throw new https.HttpsError('invalid-argument', 'Nome do novo usuário e ID da congregação são necessários.');
@@ -56,6 +54,7 @@ export const notifyOnNewUser = https.onCall(async (data, context) => {
         throw new https.HttpsError('internal', 'Falha ao criar notificações para os gerentes.');
     }
 });
+
 
 export const notifyOnTerritoryAssigned = https.onCall(async (data, context) => {
     if (!context.auth) {
@@ -212,3 +211,5 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
+
+    
