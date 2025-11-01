@@ -42,7 +42,7 @@ function AguardandoAprovacaoPage() {
             console.error("Erro ao buscar administradores e dirigentes:", error);
             toast({
                 title: "Erro ao buscar contatos",
-                description: "Não foi possível carregar a lista de responsáveis. Verifique sua conexão ou tente mais tarde.",
+                description: "Não foi possível carregar la lista de responsáveis. Verifique sua conexão ou tente mais tarde.",
                 variant: "destructive"
             });
         } finally {
