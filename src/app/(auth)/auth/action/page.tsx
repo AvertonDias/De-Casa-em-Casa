@@ -5,21 +5,23 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { getAuth, confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader, KeyRound, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
 
-const auth = getAuth(app);
+const functions = getFunctions(app, 'southamerica-east1');
+const resetPasswordWithTokenFn = httpsCallable(functions, 'resetPasswordWithToken');
 
 function PasswordResetAction() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   
+  // Stages: 'verifying', 'form', 'success', 'error'
   const [stage, setStage] = useState<'verifying' | 'form' | 'success' | 'error'>('verifying');
   const [error, setError] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -28,26 +30,16 @@ function PasswordResetAction() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const oobCode = searchParams?.get('oobCode') ?? null;
+  const token = searchParams?.get('token') ?? null;
 
   useEffect(() => {
-    const handleVerifyToken = async () => {
-      if (!oobCode) {
-        setError('Token de redefinição inválido ou ausente. Por favor, solicite um novo link.');
-        setStage('error');
-        return;
-      }
-      try {
-        await verifyPasswordResetCode(auth, oobCode);
-        setStage('form');
-      } catch (err: any) {
-        console.error("Erro ao verificar token:", err);
-        setError('O link de redefinição é inválido, expirou ou já foi utilizado. Por favor, solicite um novo.');
-        setStage('error');
-      }
-    };
-    handleVerifyToken();
-  }, [oobCode]);
+    if (!token) {
+      setError('Token de redefinição inválido ou ausente. Por favor, solicite um novo link.');
+      setStage('error');
+    } else {
+      setStage('form');
+    }
+  }, [token]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,22 +52,35 @@ function PasswordResetAction() {
         setError('A senha deve ter no mínimo 6 caracteres.');
         return;
     }
-    if (!oobCode) {
-        setError('Token de redefinição não encontrado.');
+    if (!token) {
+        setError('Token não encontrado.');
         return;
     }
 
     setStage('verifying');
 
     try {
-      await confirmPasswordReset(auth, oobCode, newPassword);
-      setStage('success');
-    } catch (err: any) {
-      console.error("Erro ao redefinir senha:", err);
-      let errorMessage = 'Ocorreu um erro inesperado. Tente novamente.';
-      if (err.code === 'auth/invalid-action-code') {
-          errorMessage = 'O link de redefinição é inválido, expirou ou já foi utilizado.';
+      const result: any = await resetPasswordWithTokenFn({ token, newPassword });
+      
+      const { success, error: functionError } = result.data;
+      if (!success) {
+        throw new Error(functionError || `Ocorreu um erro desconhecido.`);
       }
+
+      setStage('success');
+      
+    } catch (err: any) {
+      console.error("Erro ao redefinir senha com token:", err);
+      
+      let errorMessage = 'Ocorreu um erro inesperado. Tente novamente.';
+      if (err.message) {
+        if (err.message.includes('not-found')) {
+          errorMessage = 'O link de redefinição é inválido ou já foi utilizado.';
+        } else if (err.message.includes('deadline-exceeded')) {
+          errorMessage = 'O link de redefinição expirou. Por favor, solicite um novo.';
+        }
+      }
+
       toast({
         title: "Erro ao redefinir senha",
         description: errorMessage,
@@ -92,7 +97,7 @@ function PasswordResetAction() {
         return (
           <div className="text-center">
             <Loader className="mx-auto h-12 w-12 text-primary animate-spin" />
-            <p className="mt-4 text-muted-foreground">Verificando link...</p>
+            <p className="mt-4 text-muted-foreground">Processando...</p>
           </div>
         );
 

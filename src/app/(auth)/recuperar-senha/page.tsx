@@ -8,10 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
-import { app } from '@/lib/firebase';
-
-const auth = getAuth(app);
+import { sendEmail } from '@/lib/emailService';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -23,26 +20,40 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    const actionCodeSettings = {
-      url: `${window.location.origin}/`,
-      handleCodeInApp: true,
-    };
-
+    const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset';
     try {
-      await sendPasswordResetEmail(auth, email, actionCodeSettings);
+      const response = await fetch(functionUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Falha ao gerar o token de redefinição.');
+      }
+      
+      const { token } = result;
+      
+      if (token) {
+          const resetLink = `${window.location.origin}/auth/action?token=${token}`;
+          const templateParams = {
+              email: email,
+              link: resetLink,
+          };
+            
+          await sendEmail('template_b5pqm7s', templateParams);
+      }
+      
       setIsSubmitted(true);
+
     } catch (err: any) {
       console.error("Erro no processo de reset:", err);
-      if (err.code === 'auth/user-not-found') {
-        // Mesmo que o usuário não exista, mostramos sucesso para não vazar informações.
-        setIsSubmitted(true);
-      } else {
-        toast({
-          title: "Erro na Solicitação",
-          description: 'Ocorreu um erro ao processar sua solicitação. Verifique o e-mail digitado ou tente novamente mais tarde.',
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Erro na Solicitação",
+        description: err.message || 'Ocorreu um erro ao processar sua solicitação. Tente novamente mais tarde.',
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
