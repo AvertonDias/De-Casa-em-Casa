@@ -60,7 +60,7 @@ function MyTerritoriesPage() {
             body: `O território "${territory.name}" foi designado para você.`,
             link: territoryLink,
             type: 'territory_assigned',
-            isRead: true, // Marca como lida para não gerar alerta
+            isRead: false, // <-- ALTERAÇÃO PRINCIPAL AQUI
             createdAt: territory.assignment?.assignedAt || Timestamp.now(),
           };
           const newNotifRef = doc(collection(db, `users/${userId}/notifications`));
