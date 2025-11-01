@@ -123,10 +123,10 @@ export const createCongregationAndAdmin = https.onCall(
 );
 
 export const deleteUserAccount = https.onCall(async (data, context) => {
-  if (!context.auth) {
+  const callingUserUid = context.auth?.uid;
+  if (!callingUserUid) {
     throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
   }
-  const callingUserUid = context.auth.uid;
   const {userIdToDelete} = data;
 
   if (!userIdToDelete || typeof userIdToDelete !== "string") {
@@ -145,19 +145,17 @@ export const deleteUserAccount = https.onCall(async (data, context) => {
     callingUserSnap.data()?.role === "Administrador";
 
   if (!isAdmin) {
-    if (callingUserUid !== userIdToDelete) {
-      throw new https.HttpsError(
-        "permission-denied",
-        "Sem permissão para excluir outros usuários.",
-      );
-    }
-  } else {
-    if (callingUserUid === userIdToDelete) {
-      throw new https.HttpsError(
-        "permission-denied",
-        "Um administrador não pode se autoexcluir por esta função.",
-      );
-    }
+    throw new https.HttpsError(
+      "permission-denied",
+      "Sem permissão para excluir outros usuários.",
+    );
+  }
+
+  if (callingUserUid === userIdToDelete) {
+    throw new https.HttpsError(
+      "permission-denied",
+      "Um administrador não pode se autoexcluir por esta função.",
+    );
   }
 
   try {
@@ -505,3 +503,5 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   },
 );
+
+    
