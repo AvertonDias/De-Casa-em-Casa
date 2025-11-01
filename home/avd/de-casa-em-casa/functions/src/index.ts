@@ -336,5 +336,3 @@ export const mirrorUserStatus = onValueWritten({ ref: "/status/{uid}", region: "
     }
     return null;
 });
-
-    
