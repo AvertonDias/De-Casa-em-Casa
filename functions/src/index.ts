@@ -7,9 +7,6 @@ import {
 import {onValueWritten} from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import {format} from "date-fns";
-import * as cors from "cors";
-
-const corsHandler = cors({origin: true});
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -122,7 +119,11 @@ export const createCongregationAndAdmin = https.onCall(async ({data}) => {
 });
 
 
-export const getManagersForNotification = https.onCall(async ({data}) => {
+export const getManagersForNotification = https.onCall(async ({data, auth}) => {
+  if (!auth) {
+    throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
+  }
+
   const {congregationId} = data;
   if (!congregationId) {
     throw new https.HttpsError(
@@ -153,82 +154,6 @@ export const getManagersForNotification = https.onCall(async ({data}) => {
     throw new https.HttpsError(
       "internal",
       "Falha ao buscar contatos dos responsáveis.",
-    );
-  }
-});
-
-export const requestPasswordReset = https.onRequest(
-  {cors: true},
-  async (req, res) => {
-    corsHandler(req, res, async () => {
-      if (req.method !== "POST") {
-        return res.status(405).json({error: "Método não permitido."});
-      }
-      const {email} = req.body;
-      if (!email) {
-        return res.status(400).json({error: "O e-mail é obrigatório."});
-      }
-      try {
-        const user = await admin.auth().getUserByEmail(email);
-        const token = crypto.randomUUID();
-        const expires = Date.now() + 3600 * 1000; // 1 hora
-
-        await db.collection("resetTokens").doc(token).set({
-          uid: user.uid,
-          expires: admin.firestore.Timestamp.fromMillis(expires),
-        });
-
-        return res.status(200).json({success: true, token});
-      } catch (error: any) {
-        if (error.code === "auth/user-not-found") {
-          return res.status(200).json({
-            success: true,
-            token: null,
-            message: "Se o e-mail existir, um link será enviado.",
-          });
-        }
-        logger.error("Erro ao gerar token de redefinição:", error);
-        return res
-          .status(500)
-          .json({error: "Erro ao iniciar o processo de redefinição."});
-      }
-    });
-  },
-);
-
-export const resetPasswordWithToken = https.onCall(async ({data}) => {
-  const {token, newPassword} = data;
-  if (!token || !newPassword) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "Token e nova senha são obrigatórios.",
-    );
-  }
-
-  const tokenRef = db.collection("resetTokens").doc(token);
-  const tokenDoc = await tokenRef.get();
-
-  if (!tokenDoc.exists) {
-    throw new https.HttpsError("not-found", "Token inválido ou já utilizado.");
-  }
-  if (tokenDoc.data()?.expires.toMillis() < Date.now()) {
-    await tokenRef.delete();
-    throw new https.HttpsError(
-      "deadline-exceeded",
-      "O token de redefinição expirou.",
-    );
-  }
-
-  try {
-    const uid = tokenDoc.data()?.uid;
-    await admin.auth().updateUser(uid, {password: newPassword});
-    await tokenRef.delete(); // Token é de uso único
-    return {success: true, message: "Senha redefinida com sucesso."};
-  } catch (error: any) {
-    logger.error("Erro ao redefinir senha com token:", error);
-    throw new https.HttpsError(
-      "internal",
-      "Falha ao atualizar a senha do usuário.",
     );
   }
 });

@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
@@ -22,6 +23,7 @@ const getManagersForNotification = httpsCallable(functions, 'getManagersForNotif
 
 function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();
+    const { toast } = useToast();
     const [adminsAndLeaders, setAdminsAndLeaders] = useState<AppUser[]>([]);
     const [isLoadingContacts, setIsLoadingContacts] = useState(true);
 
@@ -38,10 +40,15 @@ function AguardandoAprovacaoPage() {
             }
         } catch (error: any) {
             console.error("Erro ao buscar administradores e dirigentes:", error);
+            toast({
+                title: "Erro ao buscar contatos",
+                description: "Não foi possível carregar a lista de responsáveis. Verifique sua conexão ou tente mais tarde.",
+                variant: "destructive"
+            });
         } finally {
             setIsLoadingContacts(false);
         }
-    }, [user?.congregationId]);
+    }, [user?.congregationId, toast]);
 
 
     useEffect(() => {
@@ -97,7 +104,6 @@ function AguardandoAprovacaoPage() {
                             <div key={contact.uid} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
                               <div>
                                 <p className="font-semibold">{contact.name}</p>
-                                <p className="text-sm text-muted-foreground">{contact.whatsapp}</p>
                               </div>
                               <Button 
                                 size="sm" 
