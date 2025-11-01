@@ -3,17 +3,17 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { reauthenticateWithCredential, EmailAuthProvider, updateProfile, getAuth, sendPasswordResetEmail } from 'firebase/auth';
-import { app } from '@/lib/firebase';
+import { reauthenticateWithCredential, EmailAuthProvider, updateProfile } from 'firebase/auth';
+import { auth, app } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Eye, EyeOff, Trash2, KeyRound, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
+import { sendEmail } from '@/lib/emailService';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
-const auth = getAuth(app);
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
 
@@ -130,22 +130,45 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetLoading(true);
     setError(null);
     setPasswordResetSuccess(null);
-    
-    const actionCodeSettings = {
-      url: `${window.location.origin}/`,
-      handleCodeInApp: true,
-    };
 
+    const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset';
     try {
-        await sendPasswordResetEmail(auth, user.email, actionCodeSettings);
+        const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: user.email }),
+        });
+      
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || 'Falha ao solicitar token.');
+        }
+      
+        const { token } = result;
+
+        if (token) {
+            const resetLink = `${window.location.origin}/auth/action?token=${token}`;
+            const templateParams = {
+              to_email: user.email,
+              to_name: user.name,
+              subject: 'Redefinição de Senha - De Casa em Casa',
+              message: 'Você solicitou a redefinição de sua senha. Clique no botão abaixo para criar uma nova. Se você não solicitou isso, ignore este e-mail.',
+              action_button_text: 'Redefinir Minha Senha',
+              action_link: resetLink,
+            };
+            
+            await sendEmail('template_geral', templateParams);
+        }
+      
         setPasswordResetSuccess(
             `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`
         );
+
     } catch (error: any) {
       console.error("Erro no processo de redefinição de senha:", error);
       toast({
         title: "Erro ao enviar e-mail",
-        description: "Não foi possível iniciar o processo de redefinição. Tente novamente.",
+        description: error.message || "Não foi possível iniciar o processo de redefinição. Tente novamente.",
         variant: "destructive",
       });
     } finally {

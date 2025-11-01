@@ -1,4 +1,3 @@
-
 // src/app/auth/action/page.tsx
 "use client";
 
@@ -62,9 +61,9 @@ function PasswordResetAction() {
     try {
       const result: any = await resetPasswordWithTokenFn({ token, newPassword });
       
-      const { success, error: functionError } = result.data;
+      const { success, message: functionMessage, error: functionError } = result.data;
       if (!success) {
-        throw new Error(functionError || `Ocorreu um erro desconhecido.`);
+        throw new Error(functionError || functionMessage || `Ocorreu um erro desconhecido.`);
       }
 
       setStage('success');
@@ -73,10 +72,11 @@ function PasswordResetAction() {
       console.error("Erro ao redefinir senha com token:", err);
       
       let errorMessage = 'Ocorreu um erro inesperado. Tente novamente.';
-      if (err.message) {
-        if (err.message.includes('not-found')) {
+      // A HttpsError do Firebase vem com um código no `err.code`
+      if (err.code) {
+        if (err.code.includes('not-found')) {
           errorMessage = 'O link de redefinição é inválido ou já foi utilizado.';
-        } else if (err.message.includes('deadline-exceeded')) {
+        } else if (err.code.includes('deadline-exceeded')) {
           errorMessage = 'O link de redefinição expirou. Por favor, solicite um novo.';
         }
       }
