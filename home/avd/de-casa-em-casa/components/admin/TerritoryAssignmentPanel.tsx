@@ -136,7 +136,7 @@ export default function TerritoryAssignmentPanel() {
     try {
         await updateDoc(territoryRef, { status: 'designado', assignment: assignmentData });
         
-        // CORRIGIDO: Notificar sempre que salvar, não apenas na troca de usuário.
+        // A notificação agora é acionada aqui
         if (!assignedUser.uid.startsWith('custom_')) {
           try {
             await callNotifyOnTerritoryAssigned({
@@ -146,7 +146,7 @@ export default function TerritoryAssignmentPanel() {
             });
           } catch (callError: any) {
             console.error("Erro ao chamar a função de notificação:", callError);
-            toast({ title: "Aviso", description: "O território foi salvo, mas a notificação interna falhou.", variant: "default" });
+            toast({ title: "Aviso", description: "O território foi salvo, mas a notificação interna falhou. Verifique o console para mais detalhes.", variant: "default" });
           }
         }
 
