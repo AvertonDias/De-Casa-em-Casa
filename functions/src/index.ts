@@ -5,7 +5,9 @@ import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { AppUser, Notification, Territory } from "./types";
 
-if (!admin.apps.length) admin.initializeApp();
+if (!admin.apps.length) {
+    admin.initializeApp();
+}
 const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
@@ -13,8 +15,8 @@ setGlobalOptions({ region: "southamerica-east1" });
 //   FUNÇÕES CHAMÁVEIS (onCall)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onCall(async (data) => {
-    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = data;
+export const createCongregationAndAdmin = https.onCall(async (req) => {
+    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.data;
 
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
         throw new https.HttpsError('invalid-argument', 'Todos os campos são obrigatórios.');
@@ -73,12 +75,12 @@ export const createCongregationAndAdmin = https.onCall(async (data) => {
 });
 
 
-export const deleteUserAccount = https.onCall(async (data, context) => {
-    if (!context.auth) {
+export const deleteUserAccount = https.onCall(async (req) => {
+    if (!req.auth) {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
-    const callingUserUid = context.auth.uid;
-    const userIdToDelete = data.userIdToDelete;
+    const callingUserUid = req.auth.uid;
+    const { userIdToDelete } = req.data;
 
     if (!userIdToDelete || typeof userIdToDelete !== 'string') {
         throw new https.HttpsError("invalid-argument", "ID inválido.");
@@ -116,8 +118,8 @@ export const deleteUserAccount = https.onCall(async (data, context) => {
 });
 
 
-export const notifyOnNewUser = https.onCall(async (data, context) => {
-    const { newUserName, congregationId } = data;
+export const notifyOnNewUser = https.onCall(async (req) => {
+    const { newUserName, congregationId } = req.data;
     if (!newUserName || !congregationId) {
         throw new https.HttpsError('invalid-argument', 'Nome do novo usuário e ID da congregação são necessários.');
     }
@@ -157,11 +159,11 @@ export const notifyOnNewUser = https.onCall(async (data, context) => {
 });
 
 
-export const notifyOnTerritoryAssigned = https.onCall(async (data, context) => {
-    if (!context.auth) {
+export const notifyOnTerritoryAssigned = https.onCall(async (req) => {
+    if (!req.auth) {
         throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
     }
-    const { territoryId, territoryName, assignedUid } = data;
+    const { territoryId, territoryName, assignedUid } = req.data;
     if (!territoryId || !territoryName || !assignedUid) {
         throw new https.HttpsError('invalid-argument', 'IDs e nomes são necessários.');
     }
