@@ -1,12 +1,10 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from "@/contexts/UserContext";
 import { Loader, MailCheck, MessageCircle } from "lucide-react";
 import withAuth from "@/components/withAuth";
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { AppUser } from '@/types/types';
 import {
   Accordion,
@@ -15,36 +13,42 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
+
 
 function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();
     const [adminsAndLeaders, setAdminsAndLeaders] = useState<AppUser[]>([]);
     const [isLoadingContacts, setIsLoadingContacts] = useState(true);
 
-    useEffect(() => {
-        if (user?.congregationId) {
-            const fetchAdminsAndLeaders = async () => {
-                setIsLoadingContacts(true);
-                try {
-                    const usersRef = collection(db, 'users');
-                    const q = query(
-                        usersRef, 
-                        where('congregationId', '==', user.congregationId),
-                        where('role', 'in', ['Administrador', 'Dirigente'])
-                    );
-                    const querySnapshot = await getDocs(q);
-                    const contacts = querySnapshot.docs.map(doc => doc.data() as AppUser);
-                    setAdminsAndLeaders(contacts);
-                } catch (error) {
-                    console.error("Erro ao buscar administradores e dirigentes:", error);
-                } finally {
-                    setIsLoadingContacts(false);
-                }
-            };
-
-            fetchAdminsAndLeaders();
+    const fetchAdminsAndLeaders = useCallback(async () => {
+        if (!user?.congregationId) return;
+        setIsLoadingContacts(true);
+        try {
+            const result: any = await getManagersForNotification({ congregationId: user.congregationId });
+            
+            if (result.data.success) {
+                setAdminsAndLeaders(result.data.managers);
+            } else {
+                throw new Error(result.data.error || "Falha ao buscar contatos.");
+            }
+        } catch (error) {
+            console.error("Erro ao buscar administradores e dirigentes:", error);
+        } finally {
+            setIsLoadingContacts(false);
         }
     }, [user?.congregationId]);
+
+
+    useEffect(() => {
+        if (user?.congregationId) {
+            fetchAdminsAndLeaders();
+        }
+    }, [user?.congregationId, fetchAdminsAndLeaders]);
 
     const handleNotify = (contact: AppUser) => {
         if (!user || !contact.whatsapp) return;
@@ -89,7 +93,7 @@ function AguardandoAprovacaoPage() {
                         <Loader className="animate-spin text-primary mx-auto my-4" />
                       ) : (
                         <div className="space-y-3 text-left">
-                          {adminsAndLeaders.map((contact) => (
+                          {adminsAndLeaders.length > 0 ? adminsAndLeaders.map((contact) => (
                             <div key={contact.uid} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
                               <div>
                                 <p className="font-semibold">{contact.name}</p>
@@ -103,7 +107,11 @@ function AguardandoAprovacaoPage() {
                                 <MessageCircle size={16} className="mr-2"/> Notificar
                               </Button>
                             </div>
-                          ))}
+                          )) : (
+                            <p className="text-sm text-center text-muted-foreground">
+                              Nenhum dirigente ou administrador com WhatsApp cadastrado foi encontrado.
+                            </p>
+                          )}
                         </div>
                       )}
                     </AccordionContent>
@@ -125,3 +133,5 @@ function AguardandoAprovacaoPage() {
 }
 
 export default withAuth(AguardandoAprovacaoPage);
+
+    
