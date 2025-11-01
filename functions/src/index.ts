@@ -1,4 +1,3 @@
-
 import {https, setGlobalOptions, logger} from "firebase-functions/v2";
 import {
   onDocumentWritten,
@@ -7,7 +6,6 @@ import {
 import {onValueWritten} from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import {format} from "date-fns";
-
 
 if (!admin.apps.length) {
   admin.initializeApp();
