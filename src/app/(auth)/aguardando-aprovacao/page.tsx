@@ -13,9 +13,12 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
-import { auth } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
 
-const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/getManagersForNotification';
+const functions = getFunctions(app, 'southamerica-east1');
+const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
+
 
 function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();
@@ -23,33 +26,17 @@ function AguardandoAprovacaoPage() {
     const [isLoadingContacts, setIsLoadingContacts] = useState(true);
 
     const fetchAdminsAndLeaders = useCallback(async () => {
-        if (!user?.congregationId || !auth.currentUser) return;
-
+        if (!user?.congregationId) return;
         setIsLoadingContacts(true);
         try {
-            const idToken = await auth.currentUser.getIdToken(true);
-            const response = await fetch(functionUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`,
-                },
-                body: JSON.stringify({ data: { congregationId: user.congregationId } }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Falha na resposta do servidor.');
-            }
-
-            const result = await response.json();
+            const result: any = await getManagersForNotification({ congregationId: user.congregationId });
             
             if (result.data.success) {
                 setAdminsAndLeaders(result.data.managers);
             } else {
                 throw new Error(result.data.error || "Falha ao buscar contatos.");
             }
-        } catch (error: any) {
+        } catch (error) {
             console.error("Erro ao buscar administradores e dirigentes:", error);
         } finally {
             setIsLoadingContacts(false);

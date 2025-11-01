@@ -117,60 +117,39 @@ export const createCongregationAndAdmin = https.onCall(async ({data}) => {
 });
 
 
-export const getManagersForNotification = https.onRequest((req, res) => {
-    corsHandler(req, res, async () => {
-        if (req.method !== 'POST') {
-            res.status(405).json({ error: 'Método não permitido' });
-            return;
-        }
+export const getManagersForNotification = https.onCall(async (data) => {
+  const {congregationId} = data;
 
-        const idToken = req.headers.authorization?.split('Bearer ')[1];
-        if (!idToken) {
-            res.status(401).json({ error: 'Ação não autorizada. Token de autenticação ausente.' });
-            return;
-        }
+  if (!congregationId) {
+    throw new https.HttpsError(
+      "invalid-argument",
+      "O ID da congregação é obrigatório.",
+    );
+  }
 
-        try {
-            const decodedToken = await admin.auth().verifyIdToken(idToken);
-            const { congregationId } = req.body.data;
-
-            if (!congregationId) {
-                res.status(400).json({ error: 'ID da congregação é obrigatório.' });
-                return;
-            }
-            
-            const userDoc = await db.collection('users').doc(decodedToken.uid).get();
-            if (!userDoc.exists || userDoc.data()?.congregationId !== congregationId) {
-                res.status(403).json({ error: 'Permissão negada para acessar esta congregação.' });
-                return;
-            }
-
-            const rolesToFetch = ["Administrador", "Dirigente"];
-            const queryPromises = rolesToFetch.map((role) =>
-                db.collection("users")
-                  .where("congregationId", "==", congregationId)
-                  .where("role", "==", role)
-                  .get(),
-            );
-            const results = await Promise.all(queryPromises);
-            const managers = results.flatMap((snapshot) =>
-                snapshot.docs.map((doc) => {
-                    const { name, whatsapp } = doc.data();
-                    return { uid: doc.id, name, whatsapp };
-                }),
-            );
-
-            res.status(200).json({ data: { success: true, managers } });
-
-        } catch (error: any) {
-            logger.error("Erro ao buscar gerentes:", error);
-            if (error.code === 'auth/id-token-expired') {
-                res.status(401).json({ error: "Token de autenticação expirado." });
-            } else {
-                res.status(500).json({ error: error.message || 'Falha ao buscar contatos dos responsáveis.' });
-            }
-        }
-    });
+  try {
+    const rolesToFetch = ["Administrador", "Dirigente"];
+    const queryPromises = rolesToFetch.map((role) =>
+      db.collection("users")
+        .where("congregationId", "==", congregationId)
+        .where("role", "==", role)
+        .get(),
+    );
+    const results = await Promise.all(queryPromises);
+    const managers = results.flatMap((snapshot) =>
+      snapshot.docs.map((doc) => {
+        const {name, whatsapp} = doc.data();
+        return {uid: doc.id, name, whatsapp};
+      }),
+    );
+    return {success: true, managers};
+  } catch (error: any) {
+    logger.error("Erro ao buscar gerentes:", error);
+    throw new https.HttpsError(
+      "internal",
+      "Falha ao buscar contatos dos responsáveis.",
+    );
+  }
 });
 
 
