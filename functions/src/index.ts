@@ -285,15 +285,20 @@ export const onTerritoryAssigned = onDocumentWritten(
   async (event) => {
     const before = event.data?.before.data() as Territory | undefined;
     const after = event.data?.after.data() as Territory | undefined;
+    console.log("onTerritoryAssigned: Trigger disparado para terrId:", event.params.terrId);
+    console.log("onTerritoryAssigned: Before:", JSON.stringify(before, null, 2));
+    console.log("onTerritoryAssigned: After:", JSON.stringify(after, null, 2));
 
     // Condição melhorada: notifica se a atribuição foi adicionada ou alterada.
     if (after?.assignment && before?.assignment?.uid !== after.assignment.uid) {
       const { uid, name } = after.assignment;
       const territoryId = event.params.terrId;
-      if (uid.startsWith('custom_')) return;
+      console.log("onTerritoryAssigned: Designação detectada para:", uid, name);
+      if (uid.startsWith('custom_')) {
+          console.log("onTerritoryAssigned: UID customizado, ignorando.");
+          return;
+      }
 
-      console.log(`[Notification] Detectada designação para ${name} (${uid}) no território ${territoryId}.`);
-      
       const notif: Omit<Notification, 'id'> = {
         title: "Novo Território Designado",
         body: `O território "${after.name}" foi designado para você.`,
@@ -407,5 +412,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
-
-    
