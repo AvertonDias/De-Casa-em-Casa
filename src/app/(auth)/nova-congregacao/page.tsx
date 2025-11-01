@@ -51,14 +51,16 @@ export default function NovaCongregacaoPage() {
     setIsLoading(true);
 
     try {
-        const result: any = await createCongregationAndAdminFn({
+        const dataToSend = {
             adminName: adminName.trim(),
             adminEmail: adminEmail.trim(),
             adminPassword: adminPassword,
             whatsapp: whatsapp,
             congregationName: congregationName.trim(),
             congregationNumber: congregationNumber.trim()
-        });
+        };
+
+        const result: any = await createCongregationAndAdminFn(dataToSend);
 
         if (result.data.success) {
             toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
