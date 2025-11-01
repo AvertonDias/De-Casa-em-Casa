@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app, auth } from '@/lib/firebase';
+import { app } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
 const functions = getFunctions(app, 'southamerica-east1');
@@ -31,27 +31,12 @@ function AguardandoAprovacaoPage() {
         if (!user?.congregationId) return;
         setIsLoadingContacts(true);
         try {
-            const idToken = await auth.currentUser?.getIdToken();
-            const response = await fetch("https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/getManagersForNotification", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`
-                },
-                body: JSON.stringify({ data: { congregationId: user.congregationId } })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Falha ao buscar contatos.');
-            }
-
-            const result = await response.json();
+            const result: any = await getManagersForNotification({ congregationId: user.congregationId });
             
-            if (result.success) {
+            if (result.data.success) {
                 setAdminsAndLeaders(result.data.managers);
             } else {
-                throw new Error(result.error || "Falha ao buscar contatos.");
+                throw new Error(result.data.error || "Falha ao buscar contatos.");
             }
         } catch (error: any) {
             console.error("Erro ao buscar administradores e dirigentes:", error);
