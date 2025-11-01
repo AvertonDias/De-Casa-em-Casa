@@ -1,3 +1,4 @@
+
 import {https, setGlobalOptions, logger} from "firebase-functions/v2";
 import {
   onDocumentWritten,
@@ -6,6 +7,9 @@ import {
 import {onValueWritten} from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import {format} from "date-fns";
+import * as cors from "cors";
+
+const corsHandler = cors({origin: true});
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -117,48 +121,69 @@ export const createCongregationAndAdmin = https.onCall(async ({data}) => {
   }
 });
 
-export const getManagersForNotification = https.onCall(async ({data, auth}) => {
-  if (!auth) {
-    throw new https.HttpsError(
-      "unauthenticated",
-      "Ação não autorizada. Faça login.",
-    );
-  }
-  const {congregationId} = data;
+export const getManagersForNotification = https.onRequest(
+  (request, response) => {
+    corsHandler(request, response, async () => {
+      const idToken = request.headers.authorization?.split("Bearer ")[1];
+      if (!idToken) {
+        response.status(401).send({
+          error: {
+            code: "unauthenticated",
+            message: "Ação não autorizada. Faça login.",
+          },
+        });
+        return;
+      }
 
-  if (!congregationId) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "ID da congregação é obrigatório.",
-    );
-  }
+      try {
+        await admin.auth().verifyIdToken(idToken);
+      } catch (error) {
+        response.status(401).send({
+          error: {
+            code: "unauthenticated",
+            message: "Token inválido ou expirado.",
+          },
+        });
+        return;
+      }
 
-  try {
-    const rolesToFetch = ["Administrador", "Dirigente"];
-    const queryPromises = rolesToFetch.map((role) =>
-      db
-        .collection("users")
-        .where("congregationId", "==", congregationId)
-        .where("role", "==", role)
-        .get(),
-    );
-    const results = await Promise.all(queryPromises);
-    const managers = results.flatMap((snapshot) =>
-      snapshot.docs.map((doc) => {
-        const {name, whatsapp} = doc.data();
-        return {uid: doc.id, name, whatsapp};
-      }),
-    );
+      const {congregationId} = request.body;
+      if (!congregationId) {
+        response
+          .status(400)
+          .send({error: {code: "invalid-argument", message: "ID da congregação é obrigatório."}});
+        return;
+      }
 
-    return {success: true, managers};
-  } catch (error: any) {
-    logger.error("Erro ao buscar gerentes:", error);
-    throw new https.HttpsError(
-      "internal",
-      error.message || "Falha ao buscar contatos dos responsáveis.",
-    );
-  }
-});
+      try {
+        const rolesToFetch = ["Administrador", "Dirigente"];
+        const queryPromises = rolesToFetch.map((role) =>
+          db
+            .collection("users")
+            .where("congregationId", "==", congregationId)
+            .where("role", "==", role)
+            .get(),
+        );
+        const results = await Promise.all(queryPromises);
+        const managers = results.flatMap((snapshot) =>
+          snapshot.docs.map((doc) => {
+            const {name, whatsapp} = doc.data();
+            return {uid: doc.id, name, whatsapp};
+          }),
+        );
+        response.status(200).send({success: true, managers});
+      } catch (error: any) {
+        logger.error("Erro ao buscar gerentes:", error);
+        response.status(500).send({
+          error: {
+            code: "internal",
+            message: error.message || "Falha ao buscar contatos dos responsáveis.",
+          },
+        });
+      }
+    });
+  },
+);
 
 
 export const deleteUserAccount = https.onCall(async ({data, auth}) => {
