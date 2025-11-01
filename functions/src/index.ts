@@ -1,4 +1,3 @@
-
 import { https, setGlobalOptions } from "firebase-functions/v2";
 import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
@@ -186,28 +185,30 @@ export const notifyOnTerritoryAssigned = https.onCall(async ({ data, auth }) => 
     }
 });
 
+// === FUNÇÃO requestPasswordReset - CORRIGIDA E CONVERTIDA PARA ONCALL ===
 export const requestPasswordReset = https.onCall(async ({ data }) => {
-    const { email } = data;
+    const { email, origin } = data; // Assumindo que 'origin' é passado do frontend
     if (!email) {
         throw new https.HttpsError('invalid-argument', 'O e-mail é obrigatório.');
     }
 
     try {
         const user = await admin.auth().getUserByEmail(email);
-        const token = randomBytes(32).toString('hex');
-        const expires = admin.firestore.Timestamp.now().toMillis() + 3600 * 1000; // 1 hora
+        
+        // A Cloud Function deve gerar o link completo aqui
+        const actionCodeSettings = {
+          url: `${origin}/auth/action?mode=resetPassword`, // Adapte para a sua rota de redefinição no frontend
+          handleCodeInApp: true,
+        };
+        const resetLink = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
 
-        const tokenRef = db.collection('resetTokens').doc(token);
-        await tokenRef.set({
-            uid: user.uid,
-            expires: admin.firestore.Timestamp.fromMillis(expires)
-        });
-
-        return { success: true, token: token };
+        // Retorna o link completo para o frontend
+        return { success: true, resetLink: resetLink };
 
     } catch (error: any) {
         if (error.code === 'auth/user-not-found') {
             console.log(`requestPasswordReset: Tentativa para e-mail não existente: ${email}`);
+            // É uma boa prática não informar ao frontend se o usuário existe ou não por segurança
             return { success: true, message: 'Se um usuário com este e-mail existir, um link de redefinição será enviado.' };
         }
         console.error("Erro em requestPasswordReset:", error);
@@ -215,10 +216,14 @@ export const requestPasswordReset = https.onCall(async ({ data }) => {
     }
 });
 
+
 export const resetPasswordWithToken = https.onCall(async ({ data }) => {
     const { token, newPassword } = data;
     if (!token || !newPassword) {
         throw new https.HttpsError('invalid-argument', 'Token e nova senha são obrigatórios.');
+    }
+    if (newPassword.length < 6) { // Adicionado validação de comprimento de senha
+        throw new https.HttpsError('invalid-argument', 'A senha deve ter no mínimo 6 caracteres.');
     }
 
     const tokenRef = db.collection('resetTokens').doc(token);
@@ -230,13 +235,13 @@ export const resetPasswordWithToken = https.onCall(async ({ data }) => {
 
     const { uid, expires } = tokenDoc.data()!;
     if (expires.toMillis() < Date.now()) {
-        await tokenRef.delete();
+        await tokenRef.delete(); // Limpa o token expirado
         throw new https.HttpsError('deadline-exceeded', 'O link de redefinição expirou. Por favor, solicite um novo.');
     }
 
     try {
         await admin.auth().updateUser(uid, { password: newPassword });
-        await tokenRef.delete();
+        await tokenRef.delete(); // Token usado, então o excluímos
         return { success: true, message: 'Senha redefinida com sucesso!' };
     } catch (error: any) {
         console.error(`Falha ao redefinir a senha para o UID ${uid}:`, error);
@@ -244,17 +249,19 @@ export const resetPasswordWithToken = https.onCall(async ({ data }) => {
     }
 });
 
+
 export const resetTerritoryProgress = https.onCall(async ({ data, auth }) => {
     if (!auth) throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
 
     const { congregationId, territoryId } = data;
-    if (!congregationId || !territoryId) throw new https.HttpsError("invalid-argument", "IDs faltando.");
+    if (!congregationId || !territoryId) throw new https.HttpsError("invalid-argument", "IDs de congregação e território são necessários.");
     
     const adminUserSnap = await db.collection("users").doc(auth.uid).get();
     if (adminUserSnap.data()?.role !== "Administrador") throw new https.HttpsError("permission-denied", "Ação restrita a administradores.");
     
-    const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
-    await db.recursiveDelete(db.collection(historyPath));
+    // Deleta o histórico de atividades
+    const activityHistoryRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/activityHistory`);
+    await db.recursiveDelete(activityHistoryRef); // Usar a referência de coleção
 
     const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
     let housesUpdatedCount = 0;
@@ -279,31 +286,43 @@ export const resetTerritoryProgress = https.onCall(async ({ data, auth }) => {
     return { success: true, message: "Nenhuma alteração necessária." };
 });
 
+
 // ========================================================================
 //   TRIGGERS DE CÁLCULO DE ESTATÍSTICAS
 // ========================================================================
 
 export const onHouseChange = onDocumentWritten("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}", async (event) => {
-    if (!event.data?.after.exists) return null;
+    // Retorna null explicitamente se não há dados after (documento foi excluído)
+    if (!event.data?.after.exists) return null; 
+    
     const { congregationId, territoryId, quadraId } = event.params;
     const quadraRef = db.doc(`congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
     
     try {
       await db.runTransaction(async (tx) => {
         const casasSnap = await tx.get(quadraRef.collection("casas"));
-        tx.update(quadraRef, { 
-          totalHouses: casasSnap.size, 
-          housesDone: casasSnap.docs.filter(d => d.data().status === true).length 
-        });
+        const totalHouses = casasSnap.size;
+        const housesDone = casasSnap.docs.filter(d => d.data().status === true).length;
+        
+        // Atualiza apenas se houver casas, ou explicitamente define para 0
+        tx.update(quadraRef, { totalHouses, housesDone });
       });
-    } catch(e) { console.error("onHouseChange Transaction Error:", e); }
+    } catch(e) { 
+      console.error("onHouseChange Transaction Error (updating quadra stats):", e); 
+      // Não joga erro para não causar retries infinitos no trigger
+    }
 
+    // Se o status da casa mudou de false para true, atualiza lastUpdate do território
     if (event.data.before.data()?.status === false && event.data.after.data()?.status === true) {
       await db.doc(`congregations/${congregationId}/territories/${territoryId}`).update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
     }
+    return null; // Triggers devem sempre retornar void ou Promise<void> ou null
 });
 
 export const onQuadraChange = onDocumentWritten("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}", async (event) => {
+    // Retorna null explicitamente se não há dados after
+    if (!event.data?.after.exists) return null;
+
     const { congregationId, territoryId } = event.params;
     const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
     const quadrasSnap = await territoryRef.collection("quadras").get();
@@ -319,6 +338,9 @@ export const onQuadraChange = onDocumentWritten("congregations/{congregationId}/
 });
 
 export const onTerritoryChange = onDocumentWritten("congregations/{congregationId}/territories/{territoryId}", async (event) => {
+    // Retorna null explicitamente se não há dados after
+    if (!event.data?.after.exists) return null;
+
     const { congregationId } = event.params;
     const congRef = db.doc(`congregations/${congregationId}`);
     const terrSnap = await congRef.collection("territories").get();
@@ -327,7 +349,7 @@ export const onTerritoryChange = onDocumentWritten("congregations/{congregationI
     terrSnap.forEach(d => {
       const data = d.data();
       if (data.type === 'rural') rural++;
-      else {
+      else { // Assumindo que 'type' não rural é 'urbano'
         urban++;
         totalHouses += data.stats?.totalHouses || 0;
         totalHousesDone += data.stats?.housesDone || 0;
@@ -342,8 +364,33 @@ export const onTerritoryChange = onDocumentWritten("congregations/{congregationI
 //   TRIGGERS DE LIMPEZA
 // ========================================================================
 
-export const onDeleteTerritory = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}", (event) => event.data ? db.recursiveDelete(event.data.ref) : null);
-export const onDeleteQuadra = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}", (event) => event.data ? db.recursiveDelete(event.data.ref) : null);
+export const onDeleteTerritory = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}", async (event) => {
+  if (!event.data) return null; // Retorna null se não houver dados
+  try { 
+      await db.recursiveDelete(event.data.ref); 
+      console.log(`onDeleteTerritory: Documento e subcoleções de ${event.data.ref.path} excluídos recursivamente.`);
+  }
+  catch(err: any){ 
+      console.error("onDeleteTerritory: Erro ao excluir recursivamente:", err); 
+      // Lançar o erro pode causar retries no trigger.
+      // Dependendo da sua necessidade, você pode lançar ou apenas logar.
+      // throw new https.HttpsError('internal', 'Falha na exclusão recursiva do território.');
+  }
+  return null; // Triggers devem retornar void ou Promise<void> ou null
+});
+
+export const onDeleteQuadra = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}", async (event)=>{
+if (!event.data) return null; // Retorna null se não houver dados
+try{ 
+    await db.recursiveDelete(event.data.ref); 
+    console.log(`onDeleteQuadra: Documento e subcoleções de ${event.data.ref.path} excluídos recursivamente.`);
+}
+catch(err: any){ 
+    console.error("onDeleteQuadra: Erro ao excluir recursivamente:", err);
+    // throw new https.HttpsError('internal', 'Falha na exclusão recursiva da quadra.');
+}
+return null; // Triggers devem retornar void ou Promise<void> ou null
+});
 
 // ========================================================================
 //   SISTEMA DE PRESENÇA
@@ -354,9 +401,26 @@ export const mirrorUserStatus = onValueWritten({ ref: "/status/{uid}", region: "
     const uid = event.params.uid;
     const userDocRef = db.doc(`users/${uid}`);
     try {
-      const updateData = { isOnline: eventStatus?.state === 'online', lastSeen: admin.firestore.FieldValue.serverTimestamp() };
-      await userDocRef.update(updateData);
+      // Cria o documento do usuário se ele não existir ao invés de lançar erro 'not-found'
+      // Isso é comum para espelhar presença de novos usuários antes de terem um doc 'users' completo.
+      const userDoc = await userDocRef.get();
+      if (!userDoc.exists) {
+        // Criar um documento básico se não existir
+        await userDocRef.set({
+          uid: uid,
+          isOnline: eventStatus?.state === 'online',
+          lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+          // Outros campos podem ser adicionados depois pelo createCongregationAndAdmin
+        }, { merge: true }); // Usar merge true para não sobrescrever se existir
+      } else {
+        await userDocRef.update({ 
+          isOnline: eventStatus?.state === 'online', 
+          lastSeen: admin.firestore.FieldValue.serverTimestamp() 
+        });
+      }
     } catch (err: any) {
-      if (err.code !== 'not-found') console.error(`[Presence Mirror] Falha para ${uid}:`, err);
+      // Loga erros, mas não impede o trigger de finalizar
+      console.error(`[Presence Mirror] Falha para ${uid}:`, err);
     }
+    return null; // Triggers devem retornar void ou Promise<void> ou null
 });
