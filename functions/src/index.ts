@@ -301,21 +301,13 @@ export const onTerritoryAssigned = onDocumentWritten(
     console.log("onTerritoryAssigned: Before data (raw):", JSON.stringify(beforeData));
     console.log("onTerritoryAssigned: After data (raw):", JSON.stringify(afterData));
 
-    // Assume 'uid' e 'name' são campos top-level para o usuário designado no documento do território.
-    // E 'description' é o nome do território.
-    const assignedUserUidBefore = beforeData?.uid;
-    const assignedUserUidAfter = afterData?.uid;
-    const assignedUserNameAfter = afterData?.name; // 'Ton' no exemplo da imagem
-    const territoryName = afterData?.description; // 'Território do condomínio águas da serra' no exemplo
-
-    // Condição: Verifica se o UID do usuário atribuído mudou ou se uma atribuição foi adicionada
-    // (ou seja, afterData.uid existe e é diferente do antes)
-    if (assignedUserUidAfter && assignedUserUidBefore !== assignedUserUidAfter) {
-      const uid = assignedUserUidAfter;
-      const name = assignedUserNameAfter; // Nome do usuário atribuído
-      const currentTerritoryName = territoryName; // Nome do território
-
-      console.log(`[Notification] Designação detectada: UID=${uid}, Nome=${name} (Território: ${currentTerritoryName})`);
+    // Condição melhorada: notifica se a atribuição foi adicionada ou alterada.
+    if (afterData?.assignment && beforeData?.assignment?.uid !== afterData.assignment.uid) {
+      const { uid, name } = afterData.assignment;
+      const territoryId = event.params.terrId;
+      const territoryName = afterData.name;
+      
+      console.log(`[Notification] Designação detectada: UID=${uid}, Nome=${name} (Território: ${territoryName})`);
 
       if (uid.startsWith('custom_')) {
         console.log(`[Notification] UID atribuído '${uid}' é customizado, pulando notificação.`);
@@ -324,8 +316,8 @@ export const onTerritoryAssigned = onDocumentWritten(
 
       const notif: Omit<Notification, 'id'> = {
         title: "Novo Território Designado",
-        body: `O território "${currentTerritoryName || 'Desconhecido'}" foi designado para você.`,
-        link: `/dashboard/territorios/${event.params.terrId}`,
+        body: `O território "${territoryName || 'Desconhecido'}" foi designado para você.`,
+        link: `/dashboard/territorios/${territoryId}`,
         type: 'territory_assigned',
         isRead: false,
         createdAt: admin.firestore.Timestamp.now()
@@ -337,12 +329,11 @@ export const onTerritoryAssigned = onDocumentWritten(
         console.log(`[Notification] Notificação interna para usuário ${uid} criada com sucesso.`);
       } catch (err) {
         console.error(`[Notification] FALHA CRÍTICA ao gravar notificação no Firestore para usuário ${uid}:`, err);
-        // Considere enviar um alerta para você mesmo aqui (ex: via Slack, Email, etc.)
       }
     } else {
       console.log("onTerritoryAssigned: Condição para notificação de designação não atendida.");
-      if (!assignedUserUidAfter) console.log("onTerritoryAssigned: Nenhum UID de usuário atribuído após a mudança.");
-      if (assignedUserUidBefore === assignedUserUidAfter && assignedUserUidAfter !== undefined) console.log("onTerritoryAssigned: UID do usuário atribuído não mudou.");
+      if (!afterData?.assignment) console.log("onTerritoryAssigned: Nenhum UID de usuário atribuído após a mudança.");
+      if (beforeData?.assignment?.uid === afterData?.assignment?.uid && afterData?.assignment?.uid !== undefined) console.log("onTerritoryAssigned: UID do usuário atribuído não mudou.");
     }
     return null;
   }
