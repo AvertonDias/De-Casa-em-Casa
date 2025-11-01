@@ -222,46 +222,6 @@ export const getManagersForNotification = https.onCall(async (data, context) => 
     }
 });
 
-
-export const notifyOnTerritoryAssigned = https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
-  }
-  const {territoryId, territoryName, assignedUid} = data;
-  if (!territoryId || !territoryName || !assignedUid) {
-    throw new https.HttpsError("invalid-argument", "IDs e nomes são necessários.");
-  }
-
-  const notif: Omit<Notification, "id"> = {
-    title: "Novo Território Designado",
-    body: `O território "${
-      territoryName || "Desconhecido"
-    }" foi designado para você.`,
-    link: `/dashboard/territorios/${territoryId}`,
-    type: "territory_assigned",
-    isRead: false,
-    createdAt: admin.firestore.Timestamp.now(),
-  };
-
-  try {
-    const userRef = db.collection("users").doc(assignedUid);
-    await userRef.collection("notifications").add(notif);
-    return {
-      success: true,
-      message: `Notificação de designação criada para ${assignedUid}.`,
-    };
-  } catch (err) {
-    console.error(
-      `notifyOnTerritoryAssigned: FALHA CRÍTICA ao gravar notificação para ${assignedUid}:`,
-      err,
-    );
-    throw new https.HttpsError(
-      "internal",
-      "Falha ao criar notificação para o usuário.",
-    );
-  }
-});
-
 export const resetTerritoryProgress = https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
