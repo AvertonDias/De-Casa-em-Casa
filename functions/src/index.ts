@@ -80,7 +80,7 @@ export const deleteUserAccount = https.onCall(async ({ data, auth }) => {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
     const callingUserUid = auth.uid;
-    const { userIdToDelete } = data; // CORRIGIDO AQUI
+    const { userIdToDelete } = data; 
 
     if (!userIdToDelete || typeof userIdToDelete !== 'string') {
         throw new https.HttpsError("invalid-argument", "ID inválido.");
@@ -118,8 +118,8 @@ export const deleteUserAccount = https.onCall(async ({ data, auth }) => {
 });
 
 
-export const notifyOnNewUser = https.onCall(async ({ data, auth }) => { // CORRIGIDO
-    const { newUserName, congregationId } = data; // CORRIGIDO
+export const notifyOnNewUser = https.onCall(async ({ data, auth }) => {
+    const { newUserName, congregationId } = data;
     if (!newUserName || !congregationId) {
         throw new https.HttpsError('invalid-argument', 'Nome do novo usuário e ID da congregação são necessários.');
     }
@@ -159,11 +159,11 @@ export const notifyOnNewUser = https.onCall(async ({ data, auth }) => { // CORRI
 });
 
 
-export const notifyOnTerritoryAssigned = https.onCall(async ({ data, auth }) => { // CORRIGIDO
+export const notifyOnTerritoryAssigned = https.onCall(async ({ data, auth }) => {
     if (!auth) {
         throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
     }
-    const { territoryId, territoryName, assignedUid } = data; // CORRIGIDO
+    const { territoryId, territoryName, assignedUid } = data;
     if (!territoryId || !territoryName || !assignedUid) {
         throw new https.HttpsError('invalid-argument', 'IDs e nomes são necessários.');
     }
@@ -314,5 +314,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
-
-    

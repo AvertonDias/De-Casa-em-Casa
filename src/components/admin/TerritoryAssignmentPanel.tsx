@@ -104,14 +104,11 @@ export default function TerritoryAssignmentPanel() {
     
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
     
-    const assignedAt = new Date();
-    const newDueDate = new Date(dueDate + 'T12:00:00');
-
     const assignment = {
         uid: user.uid,
         name: user.name,
-        assignedAt: Timestamp.fromDate(assignedAt),
-        dueDate: Timestamp.fromDate(newDueDate),
+        assignedAt: Timestamp.fromDate(new Date(assignmentDate + 'T12:00:00')),
+        dueDate: Timestamp.fromDate(new Date(dueDate + 'T12:00:00')),
     };
 
     await updateDoc(territoryRef, { status: 'designado', assignment });
@@ -431,5 +428,3 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
-
-    
