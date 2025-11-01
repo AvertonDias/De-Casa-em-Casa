@@ -18,8 +18,7 @@ setGlobalOptions({region: "southamerica-east1"});
 //   FUNÇÕES CHAMÁVEIS (onCall)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onCall(
-  async (data: CreateCongregationData) => {
+export const createCongregationAndAdmin = https.onCall(async (data, context) => {
     const {
       adminName,
       adminEmail,
