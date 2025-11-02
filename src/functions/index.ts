@@ -1,4 +1,3 @@
-
 // src/functions/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
@@ -355,7 +354,7 @@ export const resetTerritoryProgress = https.onRequest(
       logger.log(`[resetTerritory] Histórico para ${territoryId} deletado com sucesso.`);
 
       let housesUpdatedCount = 0;
-      await db.runTransaction(async (transaction) => {
+      await db.runTransaction(async (transaction: admin.firestore.Transaction) => {
           const quadrasSnapshot = await transaction.get(quadrasRef);
           const housesToUpdate: { ref: admin.firestore.DocumentReference, data: { status: boolean } }[] = [];
           
@@ -600,5 +599,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
-
-    
