@@ -135,11 +135,11 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     try {
         const result: any = await requestPasswordResetFn({ email: user.email });
         const { success, token, message } = result.data;
-
-        if (!success) {
-            throw new Error(message || 'Falha ao solicitar token.');
+        
+        if (!success && message) {
+          throw new Error(message);
         }
-      
+
         if (token) {
             const resetLink = `${window.location.origin}/auth/action?token=${token}`;
             const templateParams = {

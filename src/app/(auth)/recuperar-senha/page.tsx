@@ -29,8 +29,8 @@ export default function ForgotPasswordPage() {
       const result: any = await requestPasswordResetFn({ email });
       const { success, token, message } = result.data;
       
-      if (!success) {
-        throw new Error(message || 'Falha ao gerar o token de redefinição.');
+      if (!success && message) {
+        throw new Error(message);
       }
       
       if (token) {
