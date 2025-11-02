@@ -1,3 +1,4 @@
+
 // src/functions/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
@@ -9,6 +10,7 @@ import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import { format } from "date-fns";
 import * as crypto from "crypto";
+import type { Request, Response } from "express";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -19,8 +21,6 @@ setGlobalOptions({ region: "southamerica-east1" });
 // ========================================================================
 //   CORS WRAPPER
 // ========================================================================
-import type { Request, Response } from "express";
-
 export function withCors(
   handler: (req: Request, res: Response) => Promise<void> | void
 ) {
@@ -36,8 +36,9 @@ export function withCors(
   };
 }
 
+
 // ========================================================================
-//   FUNÇÕES HTTPS (Corrigidas com o wrapper)
+//   FUNÇÕES HTTPS (onCall transformadas em onRequest com withCors)
 // ========================================================================
 
 export const createCongregationAndAdmin = https.onRequest(
@@ -333,7 +334,6 @@ export const deleteUserAccount = https.onRequest(
   })
 );
 
-
 export const notifyOnTerritoryAssigned = https.onRequest(
   withCors(async (req, res) => {
     try {
@@ -384,7 +384,7 @@ export const notifyOnTerritoryAssigned = https.onRequest(
 );
 
 // ========================================================================
-//   GATILHOS FIRESTORE (Não precisam de CORS)
+//   GATILHOS FIRESTORE (UNIFICADOS)
 // ========================================================================
 
 async function updateCongregationStats(congregationId: string) {
@@ -447,24 +447,21 @@ export const onWriteTerritoryData = onDocumentWritten(
   "congregations/{congId}/territories/{terrId}/{anyCollection}/{anyId}",
   async (event) => {
     const { congId, terrId, anyCollection } = event.params;
-
-    // Se a mudança foi em uma casa, atualiza a quadra e o território.
+    
+    // Se a mudança foi em uma casa (que está dentro de uma quadra)
     if (anyCollection === "quadras" && event.data?.after.ref.parent.parent) {
-      const quadraId = event.data.after.ref.id;
+      const quadraId = event.data.after.ref.parent.parent.id;
       const quadraRef = db.doc(`congregations/${congId}/territories/${terrId}/quadras/${quadraId}`);
       
-      // Atualiza estatísticas da quadra
       const casasSnapshot = await quadraRef.collection("casas").get();
       const totalHousesInQuadra = casasSnapshot.size;
       const housesDoneInQuadra = casasSnapshot.docs.filter(
         (doc) => doc.data().status === true
       ).length;
+      
       await quadraRef.update({ totalHouses: totalHousesInQuadra, housesDone: housesDoneInQuadra });
-
-      // Dispara a atualização do território
       await updateTerritoryStats(congId, terrId);
 
-      // Lógica de log de atividade que estava na onHouseChange
       const beforeData = event.data?.before.data();
       const afterData = event.data?.after.data();
       if (beforeData?.status === false && afterData?.status === true) {
@@ -565,7 +562,6 @@ export const onDeleteQuadra = onDocumentDeleted(
   }
 );
 
-
 // ============================================================================
 //   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
 // ============================================================================
@@ -600,3 +596,11 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
+
+// DEPRECATED FUNCTIONS - To be removed
+export const onHouseChange = https.onRequest((req, res) => res.status(200).send("DEPRECATED"));
+export const onQuadraChange = https.onRequest((req, res) => res.status(200).send("DEPRECATED"));
+export const onTerritoryChange = https.onRequest((req, res) => res.status(200).send("DEPRECATED"));
+export const sendFeedbackEmail = https.onRequest((req, res) => res.status(200).send("DEPRECATED"));
+export const generateUploadUrl = https.onRequest((req, res) => res.status(200).send("DEPRECATED"));
+export const resetTerritoryProgress = https.onRequest((req, res) => res.status(200).send("DEPRECATED"));
