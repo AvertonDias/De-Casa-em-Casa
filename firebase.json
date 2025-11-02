@@ -16,7 +16,7 @@
   },
   "functions": [
     {
-      "source": "functions",
+      "source": "src/functions",
       "codebase": "default",
       "runtime": "nodejs20"
     }

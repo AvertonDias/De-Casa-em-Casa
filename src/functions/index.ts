@@ -6,7 +6,7 @@ import {
   onDocumentDeleted,
 } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import { format } from "date-fns";
 import * as crypto from "crypto";
 import type { Request, Response } from "express";
@@ -130,10 +130,6 @@ export const createCongregationAndAdmin = https.onRequest(
 export const getManagersForNotification = https.onRequest(
   withCors(async (req, res) => {
     try {
-      if (!req.body.data.auth) {
-        res.status(401).json({ error: "Ação não autorizada." });
-        return;
-      }
       const { congregationId } = req.body.data;
       if (!congregationId) {
         res.status(400).json({ error: "O ID da congregação é obrigatório." });
@@ -151,7 +147,7 @@ export const getManagersForNotification = https.onRequest(
 
       const results = await Promise.all(queryPromises);
       const managers = results.flatMap((snapshot) =>
-        snapshot.docs.map((doc) => {
+        snapshot.docs.map((doc: admin.firestore.QueryDocumentSnapshot) => {
           const { name, whatsapp } = doc.data();
           return { uid: doc.id, name, whatsapp };
         })
@@ -295,12 +291,15 @@ export const resetPasswordWithToken = https.onRequest(
 export const deleteUserAccount = https.onRequest(
   withCors(async (req, res) => {
     try {
-      if (!req.body.data.auth) {
-        res.status(401).json({ error: "Ação não autorizada." });
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        res.status(401).json({ error: "Ação não autorizada. Sem token." });
         return;
       }
-
-      const callingUserUid = req.body.data.auth.uid;
+      const idToken = authHeader.split('Bearer ')[1];
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const callingUserUid = decodedToken.uid;
+      
       const { userIdToDelete } = req.body.data;
 
       if (!userIdToDelete) {
@@ -328,59 +327,63 @@ export const deleteUserAccount = https.onRequest(
       res.status(200).json({data: { success: true }});
     } catch (error: any) {
       logger.error("Erro ao excluir usuário:", error);
-      res.status(500).json({ error: "Falha na exclusão." });
+      if (error.code === 'auth/id-token-expired') {
+        res.status(401).json({ error: "Token expirado. Faça login novamente."});
+      } else {
+        res.status(500).json({ error: error.message || "Falha na exclusão." });
+      }
     }
   })
 );
 
-export const notifyOnTerritoryAssigned = https.onRequest(
+export const resetTerritoryProgress = https.onRequest(
   withCors(async (req, res) => {
     try {
-      const { data } = req.body;
-      if (!data || !data.auth) {
-        res.status(401).json({ error: "Ação não autorizada." });
+      const { congregationId, territoryId } = req.body.data;
+
+      if (!congregationId || !territoryId) {
+        res.status(400).json({ error: "IDs faltando." });
         return;
       }
+      
+      const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
+      const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
+      
+      await db.recursiveDelete(db.collection(historyPath));
+      logger.log(`[resetTerritory] Histórico para ${territoryId} deletado com sucesso.`);
 
-      const { territoryId, territoryName, assignedUid } = data;
-      if (!territoryId || !territoryName || !assignedUid) {
-        res.status(400).json({ error: "Dados insuficientes." });
-        return;
-      }
-
-      const userDoc = await db.collection("users").doc(assignedUid).get();
-      if (!userDoc.exists) {
-        res.status(404).json({ error: "Usuário não encontrado." });
-        return;
-      }
-
-      const notification = {
-        title: "Você recebeu um novo território!",
-        body: `O território "${territoryName}" foi designado para você.`,
-        link: "/dashboard/meus-territorios",
-        type: "territory_assigned",
-        isRead: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-
-      await db
-        .collection("users")
-        .doc(assignedUid)
-        .collection("notifications")
-        .add(notification);
-
-      logger.info(
-        `[notifyOnTerritoryAssigned] Notificação criada com sucesso para ${assignedUid}`
-      );
-      res.status(200).json({ data: { success: true } });
-    } catch (error: any) {
-      logger.error("[notifyOnTerritoryAssigned] Erro:", error);
-      res.status(500).json({
-        error: error.message || "Falha ao criar notificação.",
+      let housesUpdatedCount = 0;
+      await db.runTransaction(async (transaction) => {
+          const quadrasSnapshot = await transaction.get(quadrasRef);
+          const housesToUpdate: { ref: admin.firestore.DocumentReference, data: { status: boolean } }[] = [];
+          
+          for (const quadraDoc of quadrasSnapshot.docs) {
+              const casasSnapshot = await transaction.get(quadraDoc.ref.collection("casas"));
+              casasSnapshot.forEach(casaDoc => {
+                  if (casaDoc.data().status === true) {
+                      housesToUpdate.push({ ref: casaDoc.ref, data: { status: false } });
+                      housesUpdatedCount++;
+                  }
+              });
+          }
+          
+          for (const houseUpdate of housesToUpdate) {
+              transaction.update(houseUpdate.ref, houseUpdate.data);
+          }
       });
+      
+      if (housesUpdatedCount > 0) {
+        res.status(200).json({data: { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` }});
+      } else {
+        res.status(200).json({data: { success: true, message: "Nenhuma alteração necessária, nenhuma casa estava marcada como 'feita'." }});
+      }
+    } catch (error: any) {
+        logger.error(`[resetTerritory] FALHA CRÍTICA ao limpar o território:`, error);
+        res.status(500).json({ error: "Falha ao processar a limpeza do território." });
     }
   })
 );
+
 
 // ========================================================================
 //   GATILHOS FIRESTORE (UNIFICADOS)
