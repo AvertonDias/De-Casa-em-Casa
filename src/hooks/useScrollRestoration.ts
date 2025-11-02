@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from "react";
@@ -13,21 +14,21 @@ export function useScrollRestoration() {
     if (!pathname) return;
 
     const key = `scroll-pos:${pathname}`;
-
-    const handleScroll = () => {
-      sessionStorage.setItem(key, String(window.scrollY));
-    };
-    
-    // Salva a posição ao rolar
-    window.addEventListener("scroll", handleScroll);
-    
-    // Restaura ao carregar
     const saved = sessionStorage.getItem(key);
+
+    // Restaura a posição do scroll ao entrar na página
     if (saved) {
         // Atraso para garantir que a página esteja renderizada
         setTimeout(() => window.scrollTo(0, Number(saved)), 50);
     }
 
+
+    // Salva a posição ao rolar
+    const handleScroll = () => {
+      sessionStorage.setItem(key, String(window.scrollY));
+    };
+
+    window.addEventListener("scroll", handleScroll);
 
     // Remove o listener quando sair
     return () => {
