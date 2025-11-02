@@ -6,12 +6,6 @@ import { useUser } from "@/contexts/UserContext";
 import { Loader, MailCheck, MessageCircle } from "lucide-react";
 import withAuth from "@/components/withAuth";
 import { AppUser } from '@/types/types';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -93,43 +87,39 @@ function AguardandoAprovacaoPage() {
                     Para agilizar, você pode notificar um dos dirigentes ou administradores abaixo.
                 </p>
 
-                <Accordion type="single" collapsible className="w-full text-left">
-                  <AccordionItem value="item-1">
-                    <AccordionTrigger className="font-semibold hover:no-underline">Notificar um responsável</AccordionTrigger>
-                    <AccordionContent>
-                      {isLoadingContacts ? (
-                        <div className="flex justify-center p-4">
-                            <Loader className="animate-spin text-primary" />
-                        </div>
-                      ) : (
-                        <div className="space-y-3 pt-2">
-                          {adminsAndLeaders.length > 0 ? adminsAndLeaders.map((contact) => (
-                            <div key={contact.uid} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9">
-                                  <AvatarFallback>{getInitials(contact.name)}</AvatarFallback>
-                                </Avatar>
-                                <p className="font-semibold">{contact.name}</p>
-                              </div>
-                              <Button 
-                                size="sm" 
-                                onClick={() => handleNotify(contact)}
-                                disabled={!contact.whatsapp}
-                                title={!contact.whatsapp ? "Este usuário não tem WhatsApp cadastrado" : `Enviar mensagem para ${contact.name}`}
-                              >
-                                <MessageCircle size={16} className="mr-2"/> Notificar
-                              </Button>
+                <div className="w-full text-left pt-4">
+                    <h3 className="font-semibold text-center mb-4">Notificar um responsável</h3>
+                    {isLoadingContacts ? (
+                    <div className="flex justify-center p-4">
+                        <Loader className="animate-spin text-primary" />
+                    </div>
+                    ) : (
+                    <div className="space-y-3 pt-2">
+                        {adminsAndLeaders.length > 0 ? adminsAndLeaders.map((contact) => (
+                        <div key={contact.uid} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                            <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9">
+                                <AvatarFallback>{getInitials(contact.name)}</AvatarFallback>
+                            </Avatar>
+                            <p className="font-semibold">{contact.name}</p>
                             </div>
-                          )) : (
-                            <p className="text-sm text-center text-muted-foreground py-4">
-                              Nenhum dirigente ou administrador com WhatsApp cadastrado foi encontrado.
-                            </p>
-                          )}
+                            <Button 
+                            size="sm" 
+                            onClick={() => handleNotify(contact)}
+                            disabled={!contact.whatsapp}
+                            title={!contact.whatsapp ? "Este usuário não tem WhatsApp cadastrado" : `Enviar mensagem para ${contact.name}`}
+                            >
+                            <MessageCircle size={16} className="mr-2"/> Notificar
+                            </Button>
                         </div>
-                      )}
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+                        )) : (
+                        <p className="text-sm text-center text-muted-foreground py-4">
+                            Nenhum dirigente ou administrador com WhatsApp cadastrado foi encontrado.
+                        </p>
+                        )}
+                    </div>
+                    )}
+                </div>
 
 
                 <div className="pt-4">
