@@ -25,6 +25,14 @@ setGlobalOptions({region: "southamerica-east1"});
 export const createCongregationAndAdmin = https.onRequest(
   {cors: true},
   async (req, res) => {
+    if (req.method === "OPTIONS") {
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Access-Control-Allow-Methods", "POST");
+      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      res.status(204).send();
+      return;
+    }
+
     if (req.method !== "POST") {
       res.status(405).json({error: "Método não permitido"});
       return;
@@ -459,7 +467,7 @@ export const notifyOnTerritoryAssigned = https.onCall(async (request) => {
     const notification: Omit<admin.firestore.DocumentData, "id"> = {
       title: "Você recebeu um novo território!",
       body: `O território "${territoryName}" foi designado para você.`,
-      link: `/dashboard/territorios/${territoryId}`,
+      link: `/dashboard/meus-territorios`,
       type: "territory_assigned",
       isRead: false,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
