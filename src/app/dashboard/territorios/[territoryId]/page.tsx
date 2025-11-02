@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { doc, onSnapshot, collection, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs } from "firebase/firestore";
@@ -154,8 +155,8 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
     
     const unsubTerritory = onSnapshot(territoryRef, (docSnap) => { 
         if (docSnap.exists()) {
-            const data = docSnap.data() as Territory;
-            setTerritory({ id: docSnap.id, ...data });
+            const data = { id: docSnap.id, ...docSnap.data() } as Territory;
+            setTerritory(data);
         } else {
             setTerritory(null);
         }
