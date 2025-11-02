@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -21,7 +22,7 @@ const detectUserAgent = () => {
 
 export const usePWAInstall = () => {
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isAppInstalled, setIsAppInstalled] = useState(false);
+  const [isAppInstalled, setIsAppInstalled] = useState(true); // Começa como true por padrão
   const [deviceInfo, setDeviceInfo] = useState({ isMobile: false, isIOS: false });
 
   useEffect(() => {
@@ -32,8 +33,13 @@ export const usePWAInstall = () => {
       setInstallPromptEvent(event as BeforeInstallPromptEvent);
     };
 
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsAppInstalled(true);
+    // Verifica o modo de display APENAS no lado do cliente
+    if (typeof window !== 'undefined') {
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+          setIsAppInstalled(true);
+        } else {
+          setIsAppInstalled(false);
+        }
     }
     
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);

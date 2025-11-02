@@ -1,30 +1,29 @@
+
 "use client";
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Download, Share, ArrowDown } from 'lucide-react';
+import { Download, Share } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 
 export function InstallPwaModal() {
   const { showInstallButton, canPrompt, onInstall, deviceInfo } = usePWAInstall();
   const [isDismissed, setIsDismissed] = useState(false);
 
-  // Mensagens de instrução específicas para cada plataforma
+  // Mensagens de instrução específicas para quando o botão de instalar não está disponível
   const instructions = {
     ios: "No Safari, toque no ícone de 'Compartilhar' e depois em 'Adicionar à Tela de Início'.",
-    android: "Toque no botão abaixo ou procure no menu do navegador a opção 'Instalar aplicativo' ou 'Adicionar à tela inicial'.",
     other: "Procure no menu do seu navegador pela opção 'Instalar aplicativo' ou 'Adicionar à tela inicial'."
   };
 
   const getInstructions = () => {
     if (deviceInfo.isIOS) return instructions.ios;
-    if (canPrompt) return instructions.android;
     return instructions.other;
   };
-
-  // Se o usuário já dispensou o modal, não exibe novamente
-  if (isDismissed) {
+  
+  // Se o app já estiver instalado ou o usuário já dispensou o modal, não exibe nada.
+  if (isDismissed || !showInstallButton) {
     return null;
   }
   
@@ -45,19 +44,22 @@ export function InstallPwaModal() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="p-4 my-4 bg-muted/50 border border-border rounded-lg text-center">
-          <p className="font-semibold">Como Instalar:</p>
-          <p className="text-muted-foreground text-sm mt-2">{getInstructions()}</p>
-          {deviceInfo.isIOS && <Share className="mx-auto mt-3 text-primary" />}
-        </div>
+        {/* Lógica Condicional: Mostra o botão se possível, senão mostra as instruções */}
+        {canPrompt ? (
+           <div className="pt-4">
+              <Button onClick={onInstall} className="w-full" size="lg">
+                <Download className="mr-2" /> Instalar Agora
+              </Button>
+           </div>
+        ) : (
+          <div className="p-4 my-4 bg-muted/50 border border-border rounded-lg text-center">
+            <p className="font-semibold">Como Instalar:</p>
+            <p className="text-muted-foreground text-sm mt-2">{getInstructions()}</p>
+            {deviceInfo.isIOS && <Share className="mx-auto mt-3 text-primary" />}
+          </div>
+        )}
         
-        <DialogFooter className="flex flex-col sm:flex-col sm:space-x-0 gap-2">
-          {/* O botão de instalação direta só aparece se o navegador permitir (Android/Chrome) */}
-          {canPrompt && (
-            <Button onClick={onInstall} className="w-full" size="lg">
-              <Download className="mr-2" /> Instalar Agora
-            </Button>
-          )}
+        <DialogFooter className="sm:justify-center">
            <Button variant="ghost" onClick={() => setIsDismissed(true)} className="w-full text-muted-foreground">
             Lembrar mais tarde
           </Button>
