@@ -61,6 +61,7 @@ export default function NovaCongregacaoPage() {
             congregationNumber: congregationNumber.trim()
         };
         
+        // Usando httpsCallable que lida com a autenticação
         const result: any = await createCongregationAndAdminFn(dataToSend);
         
         const resultData = result.data as { success: boolean, userId?: string, message?: string, error?: string };
@@ -69,7 +70,7 @@ export default function NovaCongregacaoPage() {
             toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
             await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
         } else {
-            throw new Error(resultData.error || resultData.message || "Ocorreu um erro desconhecido.");
+            throw new Error(resultData.error || "Ocorreu um erro desconhecido.");
         }
 
     } catch (error: any) {

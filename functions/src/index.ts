@@ -9,10 +9,6 @@ import {onValueWritten} from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import {format} from "date-fns";
 import * as crypto from "crypto";
-import * as cors from "cors";
-
-// Configuração global de CORS
-const corsHandler = cors({origin: true});
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -20,112 +16,105 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 setGlobalOptions({region: "southamerica-east1"});
 
+
 // ========================================================================
-//   FUNÇÕES HTTPS (agora como onRequest com CORS)
+//   FUNÇÕES HTTPS (agora como onRequest com CORS manual)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onRequest(
-  (req, res) => {
-    corsHandler(req, res, async () => {
-      // O SDK httpsCallable envolve os dados em um objeto 'data'
-      const {
-        adminName,
-        adminEmail,
-        adminPassword,
-        congregationName,
-        congregationNumber,
-        whatsapp,
-      } = req.body.data; 
+const setCorsHeaders = (req: https.Request, res: https.Response) => {
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+};
 
-      if (
-        !adminName ||
-        !adminEmail ||
-        !adminPassword ||
-        !congregationName ||
-        !congregationNumber ||
-        !whatsapp
-      ) {
-        res.status(400).json({error: "Todos os campos são obrigatórios."});
+export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res);
+    if (req.method === "OPTIONS") {
+        res.status(204).send("");
         return;
-      }
+    }
+    
+    const {
+      adminName,
+      adminEmail,
+      adminPassword,
+      congregationName,
+      congregationNumber,
+      whatsapp,
+    } = req.body.data;
 
-      let newUser;
-      try {
-        const congQuery = await db
-          .collection("congregations")
-          .where("number", "==", congregationNumber)
-          .get();
-        if (!congQuery.empty) {
-          res
-            .status(409)
-            .json({error: "Uma congregação com este número já existe."});
+    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp ) {
+      res.status(400).json({error: "Todos os campos são obrigatórios."});
+      return;
+    }
+
+    let newUser;
+    try {
+      const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).get();
+      if (!congQuery.empty) {
+          res.status(409).json({error: "Uma congregação com este número já existe."});
           return;
-        }
-
-        newUser = await admin.auth().createUser({
-          email: adminEmail,
-          password: adminPassword,
-          displayName: adminName,
-        });
-
-        const batch = db.batch();
-        const newCongregationRef = db.collection("congregations").doc();
-        batch.set(newCongregationRef, {
-          name: congregationName,
-          number: congregationNumber,
-          territoryCount: 0,
-          ruralTerritoryCount: 0,
-          totalQuadras: 0,
-          totalHouses: 0,
-          totalHousesDone: 0,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        const userDocRef = db.collection("users").doc(newUser.uid);
-        batch.set(userDocRef, {
-          name: adminName,
-          email: adminEmail,
-          whatsapp: whatsapp,
-          congregationId: newCongregationRef.id,
-          role: "Administrador",
-          status: "ativo",
-        });
-
-        await batch.commit();
-        res.status(200).json({data: {
-          success: true,
-          userId: newUser.uid,
-          message: "Congregação criada com sucesso!",
-        }});
-      } catch (error: any) {
-        if (newUser) {
-          await admin
-            .auth()
-            .deleteUser(newUser.uid)
-            .catch((deleteError) => {
-              logger.error(
-                `Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`,
-                deleteError,
-              );
-            });
-        }
-        if (error.code === "auth/email-already-exists") {
-          res.status(409).json({error: "Este e-mail já está em uso."});
-        } else {
-          logger.error("Erro ao criar congregação e admin:", error);
-          res
-            .status(500)
-            .json({error: error.message || "Erro interno no servidor"});
-        }
       }
-    });
-  },
-);
 
-export const getManagersForNotification = https.onRequest((req, res) => {
-  corsHandler(req, res, async () => {
-    // Para onCall, o auth vem no corpo da requisição
+      newUser = await admin.auth().createUser({
+        email: adminEmail,
+        password: adminPassword,
+        displayName: adminName,
+      });
+
+      const batch = db.batch();
+      const newCongregationRef = db.collection("congregations").doc();
+      batch.set(newCongregationRef, {
+        name: congregationName,
+        number: congregationNumber,
+        territoryCount: 0,
+        ruralTerritoryCount: 0,
+        totalQuadras: 0,
+        totalHouses: 0,
+        totalHousesDone: 0,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      const userDocRef = db.collection("users").doc(newUser.uid);
+      batch.set(userDocRef, {
+        name: adminName,
+        email: adminEmail,
+        whatsapp: whatsapp,
+        congregationId: newCongregationRef.id,
+        role: "Administrador",
+        status: "ativo",
+      });
+
+      await batch.commit();
+      res.status(200).json({data: {
+        success: true,
+        userId: newUser.uid,
+        message: "Congregação criada com sucesso!",
+      }});
+    } catch (error: any) {
+      if (newUser) {
+        await admin.auth().deleteUser(newUser.uid).catch((deleteError) => {
+            logger.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`, deleteError);
+        });
+      }
+      if (error.code === "auth/email-already-exists") {
+        res.status(409).json({error: "Este e-mail já está em uso."});
+      } else {
+        logger.error("Erro ao criar congregação e admin:", error);
+        res.status(500).json({error: error.message || "Erro interno no servidor"});
+      }
+    }
+});
+
+
+export const getManagersForNotification = https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res);
+    if (req.method === "OPTIONS") {
+        res.status(204).send("");
+        return;
+    }
+    
     if (!req.body.data.auth) {
       res.status(401).json({error: "Usuário não autenticado."});
       return;
@@ -138,11 +127,7 @@ export const getManagersForNotification = https.onRequest((req, res) => {
     try {
       const rolesToFetch = ["Administrador", "Dirigente"];
       const queryPromises = rolesToFetch.map((role) =>
-        db
-          .collection("users")
-          .where("congregationId", "==", congregationId)
-          .where("role", "==", role)
-          .get(),
+        db.collection("users").where("congregationId", "==", congregationId).where("role", "==", role).get(),
       );
       const results = await Promise.all(queryPromises);
       const managers = results.flatMap((snapshot) =>
@@ -159,11 +144,15 @@ export const getManagersForNotification = https.onRequest((req, res) => {
       logger.error("Erro ao buscar gerentes:", error);
       res.status(500).json({error: "Falha ao buscar contatos."});
     }
-  });
 });
 
-export const notifyOnNewUser = https.onRequest((req, res) => {
-  corsHandler(req, res, async () => {
+export const notifyOnNewUser = https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res);
+    if (req.method === "OPTIONS") {
+        res.status(204).send("");
+        return;
+    }
+
     const {newUserName, congregationId} = req.body.data;
     if (!newUserName || !congregationId) {
       res.status(400).json({error: "Dados insuficientes."});
@@ -173,11 +162,7 @@ export const notifyOnNewUser = https.onRequest((req, res) => {
       const rolesToNotify = ["Administrador", "Dirigente"];
       const notifications: Promise<any>[] = [];
       for (const role of rolesToNotify) {
-        const usersToNotifySnapshot = await db
-          .collection("users")
-          .where("congregationId", "==", congregationId)
-          .where("role", "==", role)
-          .get();
+        const usersToNotifySnapshot = await db.collection("users").where("congregationId", "==", congregationId).where("role", "==", role).get();
         usersToNotifySnapshot.forEach((userDoc) => {
           const notification = {
             title: "Novo Usuário Aguardando Aprovação",
@@ -198,11 +183,15 @@ export const notifyOnNewUser = https.onRequest((req, res) => {
       logger.error("Erro ao criar notificações para novo usuário:", error);
       res.status(500).json({error: "Falha ao enviar notificações."});
     }
-  });
 });
 
-export const requestPasswordReset = https.onRequest((req, res) => {
-  corsHandler(req, res, async () => {
+export const requestPasswordReset = https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res);
+    if (req.method === "OPTIONS") {
+        res.status(204).send("");
+        return;
+    }
+
     const {email} = req.body.data;
     if (!email) {
       res.status(400).json({error: "O e-mail é obrigatório."});
@@ -212,13 +201,10 @@ export const requestPasswordReset = https.onRequest((req, res) => {
       const user = await admin.auth().getUserByEmail(email);
       const token = crypto.randomUUID();
       const expires = Date.now() + 3600 * 1000;
-      await db
-        .collection("resetTokens")
-        .doc(token)
-        .set({
+      await db.collection("resetTokens").doc(token).set({
           uid: user.uid,
           expires: admin.firestore.Timestamp.fromMillis(expires),
-        });
+      });
       res.status(200).json({data: {success: true, token}});
     } catch (error: any) {
       if (error.code === "auth/user-not-found") {
@@ -232,11 +218,15 @@ export const requestPasswordReset = https.onRequest((req, res) => {
       logger.error("Erro ao gerar token:", error);
       res.status(500).json({error: "Erro ao iniciar redefinição."});
     }
-  });
 });
 
-export const resetPasswordWithToken = https.onRequest((req, res) => {
-  corsHandler(req, res, async () => {
+export const resetPasswordWithToken = https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res);
+    if (req.method === "OPTIONS") {
+        res.status(204).send("");
+        return;
+    }
+
     const {token, newPassword} = req.body.data;
     if (!token || !newPassword) {
       res.status(400).json({error: "Token e senha são obrigatórios."});
@@ -245,7 +235,7 @@ export const resetPasswordWithToken = https.onRequest((req, res) => {
     const tokenRef = db.collection("resetTokens").doc(token);
     const tokenDoc = await tokenRef.get();
     if (!tokenDoc.exists || tokenDoc.data()?.expires.toMillis() < Date.now()) {
-      await tokenRef.delete();
+      if(tokenDoc.exists) await tokenRef.delete();
       res.status(400).json({error: "Token inválido ou expirado."});
       return;
     }
@@ -258,16 +248,22 @@ export const resetPasswordWithToken = https.onRequest((req, res) => {
       logger.error("Erro ao redefinir senha:", error);
       res.status(500).json({error: "Falha ao atualizar senha."});
     }
-  });
 });
 
-export const deleteUserAccount = https.onRequest((req, res) => {
-  corsHandler(req, res, async () => {
+export const deleteUserAccount = https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res);
+    if (req.method === "OPTIONS") {
+        res.status(204).send("");
+        return;
+    }
+    
+    // As chamadas via httpsCallable colocam o auth no req.body.data.auth
     const callingUserUid = req.body.data.auth?.uid;
     if (!callingUserUid) {
       res.status(401).json({error: "Ação não autorizada."});
       return;
     }
+
     const {userIdToDelete} = req.body.data;
     if (!userIdToDelete) {
       res.status(400).json({error: "ID inválido."});
@@ -297,12 +293,15 @@ export const deleteUserAccount = https.onRequest((req, res) => {
         logger.error("Erro CRÍTICO ao excluir usuário:", error);
         res.status(500).json({ error: `Falha na exclusão: ${error.message}` });
     }
-  });
 });
 
+export const resetTerritoryProgress = https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res);
+    if (req.method === "OPTIONS") {
+        res.status(204).send("");
+        return;
+    }
 
-export const resetTerritoryProgress = https.onRequest((req, res) => {
-  corsHandler(req, res, async () => {
     const uid = req.body.data.auth?.uid;
     if (!uid) {
       res.status(401).json({error: "Ação não autorizada."});
@@ -347,26 +346,35 @@ export const resetTerritoryProgress = https.onRequest((req, res) => {
         logger.error(`[resetTerritory] FALHA CRÍTICA:`, error);
         res.status(500).json({ error: "Falha ao processar a limpeza do território." });
     }
-  });
 });
 
-export const notifyOnTerritoryAssigned = https.onRequest((req, res) => {
-  corsHandler(req, res, async () => {
-    if (!req.body.data.auth) {
-      res.status(401).json({error: "Ação não autorizada."});
-      return;
+export const notifyOnTerritoryAssigned = https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res);
+    if (req.method === "OPTIONS") {
+        res.status(204).send("");
+        return;
     }
-    const {territoryId, territoryName, assignedUid} = req.body.data;
-    if (!territoryId || !territoryName || !assignedUid) {
-      res.status(400).json({error: "Dados insuficientes."});
-      return;
-    }
+    
+    // Lógica principal da função
     try {
-      const userDoc = await db.collection("users").doc(assignedUid).get();
-      if (!userDoc.exists) {
-        res.status(404).json({error: "Usuário não encontrado."});
+      const { data } = req.body;
+      if (!data || !data.auth) {
+        res.status(401).json({ error: "Ação não autorizada." });
         return;
       }
+
+      const { territoryId, territoryName, assignedUid } = data;
+      if (!territoryId || !territoryName || !assignedUid) {
+        res.status(400).json({ error: "Dados insuficientes." });
+        return;
+      }
+
+      const userDoc = await db.collection("users").doc(assignedUid).get();
+      if (!userDoc.exists) {
+        res.status(404).json({ error: "Usuário não encontrado." });
+        return;
+      }
+
       const notification = {
         title: "Você recebeu um novo território!",
         body: `O território "${territoryName}" foi designado para você.`,
@@ -375,15 +383,20 @@ export const notifyOnTerritoryAssigned = https.onRequest((req, res) => {
         isRead: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       };
-      // Usando addDoc para criar ID único
-      await db.collection("users").doc(assignedUid).collection("notifications").add(notification);
-      res.status(200).json({data: {success: true}});
+
+      await db
+        .collection("users")
+        .doc(assignedUid)
+        .collection("notifications")
+        .add(notification);
+
+      res.status(200).json({ data: { success: true } });
     } catch (error) {
       logger.error("[notifyOnTerritoryAssigned] Erro:", error);
-      res.status(500).json({error: "Falha ao criar notificação."});
+      res.status(500).json({ error: "Falha ao criar notificação." });
     }
-  });
 });
+
 
 
 // ========================================================================
