@@ -13,6 +13,7 @@ import { UserListItem } from './UserListItem';
 import { EditUserByAdminModal } from './EditUserByAdminModal'; // Importar o novo modal
 import { subDays, subMonths, subHours } from 'date-fns';
 import type { AppUser, Congregation } from '@/types/types';
+import { useToast } from '@/hooks/use-toast';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
@@ -20,6 +21,7 @@ const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
 
 export default function UserManagement() {
   const { user: currentUser, loading: userLoading } = useUser(); 
+  const { toast } = useToast();
 
   const [users, setUsers] = useState<AppUser[]>([]);
   const [congregation, setCongregation] = useState<Congregation | null>(null);
@@ -48,12 +50,13 @@ export default function UserManagement() {
     setIsConfirmModalOpen(false);
     try {
         await deleteUserAccountFn({ userIdToDelete: userToDelete.uid });
+        toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {
-        console.error("Erro ao chamar a função para excluir usuário:", error);
+        toast({ title: "Erro", description: error.message || "Falha ao excluir usuário.", variant: "destructive"});
     } finally {
         setUserToDelete(null);
     }
-  }, [userToDelete, currentUser]);
+  }, [userToDelete, currentUser, toast]);
   
   const openDeleteConfirm = useCallback((userId: string, userName: string) => {
     if (currentUser?.role !== 'Administrador') return;
@@ -91,26 +94,36 @@ export default function UserManagement() {
     }
   }, [currentUser, userLoading]);
   
-  const handleUserUpdate = useCallback(async (userId: string, dataToUpdate: object) => {
-    try {
-      if (!currentUser) return;
-      const permissions = dataToUpdate as Partial<AppUser>;
-      if (currentUser.role !== 'Administrador') {
-        if (permissions.role) {
-          console.error("Apenas administradores podem alterar perfis.");
-          return;
-        }
-      }
-      if (currentUser.uid === userId && permissions.role && permissions.role !== 'Administrador') {
-          alert("Você não pode rebaixar a si mesmo.");
-          return;
-      }
-      const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, dataToUpdate);
-    } catch (error) {
-      console.error("Erro ao atualizar usuário:", error);
+  const handleUserUpdate = async (userId: string, dataToUpdate: Partial<AppUser>) => {
+    if (!currentUser) return;
+    
+    if (currentUser.role !== 'Administrador' && dataToUpdate.role) {
+      toast({ title: "Permissão Negada", description: "Apenas administradores podem alterar perfis.", variant: "destructive" });
+      return;
     }
-  }, [currentUser]);
+    if (currentUser.uid === userId && dataToUpdate.role && dataToUpdate.role !== 'Administrador') {
+        toast({ title: "Ação Inválida", description: "Você não pode rebaixar a si mesmo.", variant: "destructive" });
+        return;
+    }
+    
+    // Optimistic UI Update
+    setUsers(prevUsers => prevUsers.map(u => u.uid === userId ? { ...u, ...dataToUpdate } : u));
+    
+    const userRef = doc(db, 'users', userId);
+    try {
+        await updateDoc(userRef, dataToUpdate);
+    } catch (error: any) {
+        console.error("Erro ao atualizar usuário:", error);
+        toast({ title: "Erro de Sincronização", description: "A atualização falhou. Revertendo.", variant: "destructive"});
+        // Revert on error
+        const userDoc = await onSnapshot(doc(db, 'users', userId), (doc) => {
+            if (doc.exists()) {
+                 setUsers(prevUsers => prevUsers.map(u => u.uid === userId ? ({ uid: doc.id, ...doc.data() } as AppUser) : u));
+            }
+        });
+        userDoc();
+    }
+  };
 
   const stats = useMemo(() => {
     const onlineCount = users.filter(u => u.isOnline === true).length;
@@ -342,4 +355,3 @@ export default function UserManagement() {
     </>
   );
 }
-
