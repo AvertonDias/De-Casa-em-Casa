@@ -77,8 +77,7 @@ service cloud.firestore {
                       isUserInCongregation(getUserData(userId).congregationId);
       
       // Qualquer usuário autenticado pode listar os usuários da sua própria congregação.
-      // Isso é necessário para que um usuário pendente possa ver os contatos dos administradores.
-      allow list: if isAuth() && request.query.where[0][2] == getUserData(request.auth.uid).congregationId;
+      allow list: if isAuth() && request.query.congregationId == getUserData(request.auth.uid).congregationId;
 
 
       match /notifications/{notificationId} {
