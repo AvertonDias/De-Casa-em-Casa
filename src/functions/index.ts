@@ -187,7 +187,7 @@ export const notifyOnNewUser = https.onRequest(
           .where("congregationId", "==", congregationId)
           .where("role", "==", role)
           .get();
-        usersToNotifySnapshot.forEach((userDoc) => {
+        usersToNotifySnapshot.forEach((userDoc: QueryDocumentSnapshot) => {
           const notification = {
             title: "Novo Usuário Aguardando Aprovação",
             body: `O usuário "${newUserName}" solicitou acesso à congregação.`,
