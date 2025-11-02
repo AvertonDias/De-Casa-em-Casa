@@ -82,21 +82,21 @@ const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React
       <path
         d="M5 12h14"
         className={cn(
-          "transition-all duration-300",
-          isOpen && "opacity-0 translate-x-2"
+          "transition-all duration-500",
+          isOpen && "opacity-0"
         )}
       />
       <path
         d="M5 6h14"
         className={cn(
-          "transition-all duration-300 origin-center",
+          "transition-all duration-500 origin-center",
           isOpen && "rotate-45 translate-y-[6px]"
         )}
       />
       <path
         d="M5 18h14"
         className={cn(
-          "transition-all duration-300 origin-center",
+          "transition-all duration-500 origin-center",
           isOpen && "-rotate-45 -translate-y-[6px]"
         )}
       />
@@ -182,9 +182,9 @@ function Sidebar({
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}>
         
-        <div className="flex flex-col items-center mb-8 gap-4">
-            <div className="w-full flex justify-between items-start">
-                <div className="w-8" /> {/* Espaçador */}
+        <div className="flex flex-col items-center mb-8">
+            <div className="w-full flex justify-between items-start mb-4">
+                <div className="w-8" />
                 <Image
                     src="/icon-192x192.jpg"
                     alt="Logo"
@@ -200,7 +200,7 @@ function Sidebar({
                     <button onClick={onClose} className="md:hidden p-1 rounded-full"><AnimatedHamburgerIcon isOpen={isOpen} /></button>
                 </div>
             </div>
-            <h1 className="text-xl font-bold -mt-4">De Casa em Casa</h1>
+            <h1 className="text-xl font-bold">De Casa em Casa</h1>
         </div>
 
 
@@ -453,5 +453,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
 
 
