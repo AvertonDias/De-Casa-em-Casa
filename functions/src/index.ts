@@ -8,6 +8,25 @@ import {onValueWritten} from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import {format} from "date-fns";
 import * as crypto from "crypto";
+import * as cors from "cors";
+
+const allowlist = [
+    "https://de-casa-em-casa.vercel.app",
+    "https://de-casa-em-casa.web.app",
+    "https://de-casa-em-casa-e5bb5.web.app",
+    /https:\/\/de-casa-em-casa--.*-e5bb5\.web\.app$/,
+    /https:\/\/.*\.cloudworkstations\.dev$/,
+    "http://localhost:3000",
+];
+const corsHandler = cors({
+    origin: (origin, callback) => {
+        if (!origin || allowlist.some((r) => (typeof r === "string" ? r === origin : r.test(origin)))) {
+            callback(null, true);
+        } else {
+            callback(new Error("Not allowed by CORS"));
+        }
+    },
+});
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -122,52 +141,52 @@ export const createCongregationAndAdmin = https.onCall(async (request) => {
   }
 });
 
-export const getManagersForNotification = https.onCall(async (request) => {
-  if (!request.auth) {
-      throw new https.HttpsError(
-          "unauthenticated",
-          "O usuário deve estar autenticado para realizar esta ação.",
-      );
-  }
+export const getManagersForNotification = https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== "POST") {
+            return res.status(405).json({ error: "Método não permitido." });
+        }
 
-  const { congregationId } = request.data;
-  if (!congregationId) {
-      throw new https.HttpsError(
-          "invalid-argument",
-          "O ID da congregação é obrigatório.",
-      );
-  }
+        const idToken = req.headers.authorization?.split("Bearer ")[1];
+        if (!idToken) {
+            return res.status(401).json({ error: "Usuário não autenticado." });
+        }
+        try {
+            await admin.auth().verifyIdToken(idToken);
+        } catch (error) {
+            return res.status(401).json({ error: "Token inválido ou expirado." });
+        }
 
-  try {
-      const rolesToFetch = ["Administrador", "Dirigente"];
-      const queryPromises = rolesToFetch.map((role) =>
-          db
-              .collection("users")
-              .where("congregationId", "==", congregationId)
-              .where("role", "==", role)
-              .get(),
-      );
+        const { congregationId } = req.body;
+        if (!congregationId) {
+            return res.status(400).json({ error: "O ID da congregação é obrigatório." });
+        }
 
-      const results = await Promise.all(queryPromises);
-      
-      const managers = results.flatMap((snapshot) =>
-          snapshot.docs.map((doc) => {
-              const { name, whatsapp } = doc.data();
-              return { uid: doc.id, name, whatsapp };
-          }),
-      );
-      
-      const uniqueManagers = Array.from(new Map(managers.map(item => [item['uid'], item])).values());
+        try {
+            const rolesToFetch = ["Administrador", "Dirigente"];
+            const queryPromises = rolesToFetch.map((role) =>
+                db.collection("users")
+                  .where("congregationId", "==", congregationId)
+                  .where("role", "==", role)
+                  .get()
+            );
 
-      return { success: true, managers: uniqueManagers };
+            const results = await Promise.all(queryPromises);
+            const managers = results.flatMap((snapshot) =>
+                snapshot.docs.map((doc) => {
+                    const { name, whatsapp } = doc.data();
+                    return { uid: doc.id, name, whatsapp };
+                })
+            );
+            
+            const uniqueManagers = Array.from(new Map(managers.map(item => [item['uid'], item])).values());
 
-  } catch (error) {
-      logger.error("Erro ao buscar gerentes:", error);
-      throw new https.HttpsError(
-          "internal",
-          "Falha ao buscar contatos dos responsáveis.",
-      );
-  }
+            return res.status(200).json({ success: true, managers: uniqueManagers });
+        } catch (error) {
+            logger.error("Erro ao buscar gerentes:", error);
+            return res.status(500).json({ error: "Falha ao buscar contatos dos responsáveis." });
+        }
+    });
 });
 
 
@@ -216,37 +235,39 @@ export const notifyOnNewUser = https.onCall(async (request) => {
     }
 });
 
-export const requestPasswordReset = https.onCall(async (request) => {
-  const {email} = request.data;
-  if (!email) {
-    throw new https.HttpsError("invalid-argument", "O e-mail é obrigatório.");
-  }
-  try {
-    const user = await admin.auth().getUserByEmail(email);
-    const token = crypto.randomUUID();
-    const expires = Date.now() + 3600 * 1000; // 1 hora
+export const requestPasswordReset = https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== "POST") {
+            return res.status(405).json({ error: "Método não permitido." });
+        }
+        
+        const { email } = req.body.data;
+        if (!email) {
+            return res.status(400).json({ error: "O e-mail é obrigatório." });
+        }
 
-    await db.collection("resetTokens").doc(token).set({
-      uid: user.uid,
-      expires: admin.firestore.Timestamp.fromMillis(expires),
+        try {
+            const user = await admin.auth().getUserByEmail(email);
+            const token = crypto.randomUUID();
+            const expires = Date.now() + 3600 * 1000; // 1 hora
+
+            await db.collection("resetTokens").doc(token).set({
+                uid: user.uid,
+                expires: admin.firestore.Timestamp.fromMillis(expires),
+            });
+            return res.status(200).json({ success: true, token });
+        } catch (error: any) {
+            if (error.code === "auth/user-not-found") {
+                return res.status(200).json({
+                    success: true,
+                    token: null,
+                    message: "Se o e-mail existir, um link será enviado.",
+                });
+            }
+            logger.error("Erro ao gerar token de redefinição:", error);
+            return res.status(500).json({ error: "Erro ao iniciar o processo de redefinição." });
+        }
     });
-
-    return {success: true, token};
-  } catch (error: any) {
-    if (error.code === "auth/user-not-found") {
-      // Não jogue um erro, apenas retorne sucesso para não revelar se um e-mail existe.
-      return {
-        success: true,
-        token: null,
-        message: "Se o e-mail existir, um link será enviado.",
-      };
-    }
-    logger.error("Erro ao gerar token de redefinição:", error);
-    throw new https.HttpsError(
-      "internal",
-      "Erro ao iniciar o processo de redefinição.",
-    );
-  }
 });
 
 
