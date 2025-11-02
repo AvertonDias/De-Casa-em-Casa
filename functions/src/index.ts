@@ -6,7 +6,6 @@ import {
 } from "firebase-functions/v2/firestore";
 import {onValueWritten} from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
-import {format} from "date-fns";
 import * as cors from "cors";
 import * as crypto from "crypto";
 
@@ -451,9 +450,7 @@ export const resetTerritoryProgress = https.onCall(async (request) => {
 export const onHouseChange = onDocumentWritten(
   "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}",
   async (event) => {
-    const beforeData = event.data?.before.data();
-    const afterData = event.data?.after.data();
-
+    
     if (!event.data?.after.exists) return null; // Documento deletado, tratado por onDelete
 
     const {congregationId, territoryId, quadraId} = event.params;
@@ -480,42 +477,6 @@ export const onHouseChange = onDocumentWritten(
         "onHouseChange: Erro na transação de atualização de estatísticas da quadra:",
         e,
       );
-    }
-
-    if (beforeData?.status === false && afterData?.status === true) {
-      const territoryRef = db.doc(
-        `congregations/${congregationId}/territories/${territoryId}`,
-      );
-      const today = format(new Date(), "yyyy-MM-dd");
-      const activityHistoryRef = territoryRef.collection("activityHistory");
-
-      try {
-        const todayActivitiesSnap = await activityHistoryRef
-          .where("activityDateStr", "==", today)
-          .where("type", "==", "work")
-          .limit(1)
-          .get();
-        if (todayActivitiesSnap.empty) {
-          const finalDescriptionForAutoLog =
-            "Primeiro trabalho do dia registrado. (Registro Automático)";
-          await activityHistoryRef.add({
-            type: "work",
-            activityDate: admin.firestore.FieldValue.serverTimestamp(),
-            activityDateStr: today,
-            description: finalDescriptionForAutoLog,
-            userId: "automatic_system_log",
-            userName: "Sistema",
-          });
-        }
-      } catch (error) {
-        logger.error(
-          "onHouseChange: Erro ao processar ou adicionar log de atividade:",
-          error,
-        );
-      }
-      await territoryRef.update({
-        lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-      });
     }
     return null;
   },
@@ -713,3 +674,42 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   },
 );
+
+export const onTerritoryAssigned = onDocumentWritten("congregations/{congId}/territories/{terrId}", async (event) => {
+    const dataBefore = event.data?.before.data();
+    const dataAfter = event.data?.after.data();
+    
+    if (!dataAfter?.assignment || dataBefore?.assignment?.uid === dataAfter.assignment?.uid) {
+        return null;
+    }
+
+    const assignedUserUid = dataAfter.assignment.uid;
+    const territoryName = dataAfter.name;
+    const dueDate = dataAfter.assignment.dueDate.toDate();
+    const formattedDueDate = `${dueDate.getDate().toString().padStart(2, '0')}/${(dueDate.getMonth() + 1).toString().padStart(2, '0')}/${dueDate.getFullYear()}`;
+    
+    try {
+        const userDoc = await db.collection("users").doc(assignedUserUid).get();
+        if (!userDoc.exists) return null;
+        
+        const tokens = userDoc.data()?.fcmTokens;
+        if (!tokens || tokens.length === 0) return null;
+
+        const payload = {
+            notification: {
+                title: "Você recebeu um novo território!",
+                body: `O território "${territoryName}" está sob sua responsabilidade. Devolver até ${formattedDueDate}.`,
+                icon: "/icon-192x192.jpg",
+                click_action: "/dashboard/meus-territorios",
+            },
+        };
+        await admin.messaging().sendToDevice(tokens, payload);
+        return { success: true };
+    } catch (error) {
+        logger.error(`[Notification] FALHA CRÍTICA ao enviar notificação:`, error);
+        return { success: false, error };
+    }
+});
+
+// A função generateUploadUrl foi removida pois não era utilizada no código.
+// A função sendFeedbackEmail foi removida e substituída por uma solução no frontend.
