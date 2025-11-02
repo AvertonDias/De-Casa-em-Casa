@@ -139,40 +139,43 @@ export const createCongregationAndAdmin = https.onCall(async ({data}) => {
 });
 
 
-export const getManagersForNotification = https.onCall(async ({data}) => {
-  const {congregationId} = data;
-  if (!congregationId) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "O ID da congregação é obrigatório.",
-    );
-  }
+export const getManagersForNotification = https.onRequest(async (req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            res.status(405).json({ success: false, error: 'Método não permitido' });
+            return;
+        }
 
-  try {
-    const rolesToFetch = ["Administrador", "Dirigente"];
-    const queryPromises = rolesToFetch.map((role) =>
-      db
-        .collection("users")
-        .where("congregationId", "==", congregationId)
-        .where("role", "==", role)
-        .get(),
-    );
-    const results = await Promise.all(queryPromises);
-    const managers = results.flatMap((snapshot) =>
-      snapshot.docs.map((doc) => {
-        const {name, whatsapp} = doc.data();
-        return {uid: doc.id, name, whatsapp};
-      }),
-    );
-    return {success: true, managers};
-  } catch (error: any) {
-    logger.error("Erro ao buscar gerentes:", error);
-    throw new https.HttpsError(
-      "internal",
-      "Falha ao buscar contatos dos responsáveis.",
-    );
-  }
+        const { congregationId } = req.body;
+        if (!congregationId) {
+            res.status(400).json({ success: false, error: "O ID da congregação é obrigatório." });
+            return;
+        }
+
+        try {
+            const rolesToFetch = ["Administrador", "Dirigente"];
+            const queryPromises = rolesToFetch.map((role) =>
+                db
+                    .collection("users")
+                    .where("congregationId", "==", congregationId)
+                    .where("role", "==", role)
+                    .get(),
+            );
+            const results = await Promise.all(queryPromises);
+            const managers = results.flatMap((snapshot) =>
+                snapshot.docs.map((doc) => {
+                    const { name, whatsapp } = doc.data();
+                    return { uid: doc.id, name, whatsapp };
+                }),
+            );
+            res.status(200).json({ success: true, managers });
+        } catch (error: any) {
+            logger.error("Erro ao buscar gerentes:", error);
+            res.status(500).json({ success: false, error: "Falha ao buscar contatos dos responsáveis." });
+        }
+    });
 });
+
 
 
 export const notifyOnNewUser = https.onCall(async ({data}) => {

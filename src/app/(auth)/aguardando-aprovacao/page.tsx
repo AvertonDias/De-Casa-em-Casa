@@ -13,13 +13,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-
-const functions = getFunctions(app, 'southamerica-east1');
-const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
-
+import { auth } from '@/lib/firebase';
 
 function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();
@@ -31,12 +26,32 @@ function AguardandoAprovacaoPage() {
         if (!user?.congregationId) return;
         setIsLoadingContacts(true);
         try {
-            const result: any = await getManagersForNotification({ congregationId: user.congregationId });
+            const token = await auth.currentUser?.getIdToken();
+            if (!token) {
+                throw new Error("Usuário não autenticado para fazer a requisição.");
+            }
             
-            if (result.data.success) {
-                setAdminsAndLeaders(result.data.managers);
+            const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/getManagersForNotification';
+            const response = await fetch(functionUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ congregationId: user.congregationId })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || "Falha na resposta da função.");
+            }
+
+            const result = await response.json();
+            
+            if (result.success) {
+                setAdminsAndLeaders(result.managers);
             } else {
-                throw new Error(result.data.error || "Falha ao buscar contatos.");
+                throw new Error(result.error || "Falha ao buscar contatos.");
             }
         } catch (error: any) {
             console.error("Erro ao buscar administradores e dirigentes:", error);
