@@ -682,5 +682,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   },
 );
-
-    

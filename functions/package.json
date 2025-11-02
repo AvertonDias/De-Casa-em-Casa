@@ -18,7 +18,6 @@
     "firebase-functions": "^5.0.1"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.17",
     "typescript": "^5.4.5"
   },
   "private": true
