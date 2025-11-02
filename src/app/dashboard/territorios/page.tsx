@@ -17,9 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Disclosure, Transition } from '@headlessui/react';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
-
-const SCROLL_POSITION_KEY = 'territories_scroll_position';
 
 // ========================================================================
 //   Componentes de Lista
@@ -103,6 +102,8 @@ const TerritoryRowPublicador = ({ territory }: { territory: Territory }) => (
 //   PÁGINA PRINCIPAL
 // ========================================================================
 function TerritoriosPage() {
+  useScrollRestoration(); // Hook para restaurar o scroll
+  
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -115,28 +116,6 @@ function TerritoriosPage() {
   const [sortBy, setSortBy] = useState('number');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      sessionStorage.setItem(SCROLL_POSITION_KEY, window.scrollY.toString());
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!loading) {
-      setTimeout(() => {
-        const scrollPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
-        if (scrollPosition) {
-          window.scrollTo(0, parseInt(scrollPosition, 10));
-          sessionStorage.removeItem(SCROLL_POSITION_KEY);
-        }
-      }, 50); 
-    }
-  }, [loading]);
 
   useEffect(() => {
     if (user?.status === 'ativo' && user.congregationId) {
@@ -360,5 +339,3 @@ function TerritoriosPage() {
 }
 
 export default withAuth(TerritoriosPage);
-
-    
