@@ -1,4 +1,3 @@
-
 // src/functions/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
