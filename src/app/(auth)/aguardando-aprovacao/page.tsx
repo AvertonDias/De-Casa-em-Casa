@@ -13,12 +13,15 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
+
 
 function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();
-    const { toast } = useToast();
     const [adminsAndLeaders, setAdminsAndLeaders] = useState<AppUser[]>([]);
     const [isLoadingContacts, setIsLoadingContacts] = useState(true);
 
@@ -26,44 +29,19 @@ function AguardandoAprovacaoPage() {
         if (!user?.congregationId) return;
         setIsLoadingContacts(true);
         try {
-            const token = await auth.currentUser?.getIdToken();
-            if (!token) {
-                throw new Error("Usuário não autenticado para fazer a requisição.");
-            }
+            const result: any = await getManagersForNotification({ congregationId: user.congregationId });
             
-            const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/getManagersForNotification';
-            const response = await fetch(functionUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ congregationId: user.congregationId })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || "Falha na resposta da função.");
-            }
-
-            const result = await response.json();
-            
-            if (result.success) {
-                setAdminsAndLeaders(result.managers);
+            if (result.data.success) {
+                setAdminsAndLeaders(result.data.managers);
             } else {
-                throw new Error(result.error || "Falha ao buscar contatos.");
+                throw new Error(result.data.error || "Falha ao buscar contatos.");
             }
         } catch (error: any) {
             console.error("Erro ao buscar administradores e dirigentes:", error);
-            toast({
-                title: "Erro ao buscar contatos",
-                description: "Não foi possível carregar a lista de responsáveis. Verifique sua conexão ou tente mais tarde.",
-                variant: "destructive"
-            });
         } finally {
             setIsLoadingContacts(false);
         }
-    }, [user?.congregationId, toast]);
+    }, [user?.congregationId]);
 
 
     useEffect(() => {
@@ -155,3 +133,5 @@ function AguardandoAprovacaoPage() {
 }
 
 export default withAuth(AguardandoAprovacaoPage);
+
+    
