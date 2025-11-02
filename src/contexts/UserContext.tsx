@@ -3,14 +3,14 @@
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, serverTimestamp, enableNetwork } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, app } from '@/lib/firebase';
 import type { AppUser, Congregation } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader } from 'lucide-react';
 
 // ▼▼▼ IMPORTAÇÕES DO REALTIME DATABASE (COM onValue) ▼▼▼
-import { getDatabase, ref, onDisconnect, set, onValue } from 'firebase/database';
+import { getDatabase, ref, onDisconnect, set } from 'firebase/database';
 
 const rtdb = getDatabase(app); // Inicializa o RTDB
 
@@ -65,18 +65,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Gerenciador de estado online/offline
-    const handleOnline = () => {
-      console.log('App online, reativando rede do Firestore.');
-      enableNetwork(db);
-    };
-    const handleOffline = () => {
-      console.log('App offline, acessando dados do cache.');
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       // Limpa listeners antigos antes de configurar novos.
       unsubscribeAllFirestoreListeners();
@@ -103,6 +91,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
               setUser({...userData, congregationName: congData?.name});
               setCongregation(congData);
               if(loading) setLoading(false);
+            }, (error) => {
+                console.error("Erro no listener de congregação:", error);
+                // Mesmo com erro na congregação, seta o usuário e para de carregar
+                setUser(userData);
+                setCongregation(null);
+                setLoading(false);
             });
             firestoreUnsubsRef.current.push(congListener);
           } else {
@@ -128,8 +122,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return () => {
         unsubscribeAuth();
         unsubscribeAllFirestoreListeners();
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -158,12 +150,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (user.status === 'ativo') {
       const isInitialRedirect = pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre' && !isAuthActionPage);
       if (isInitialRedirect) {
-        if (user.role === 'Administrador') {
+        if (user.role === 'Administrador' || user.role === 'Dirigente' || user.role === 'Servo de Territórios') {
           router.replace('/dashboard');
-        } else if (['Publicador', 'Dirigente', 'Servo de Territórios'].includes(user.role)) {
+        } else if (user.role === 'Publicador') {
           router.replace('/dashboard/territorios');
         } else {
-          // Fallback para usuários com roles desconhecidas
           router.replace('/dashboard');
         }
       }

@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useEffect, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext'; 
-import { getDatabase, ref, onValue, onDisconnect, set, serverTimestamp } from 'firebase/database';
+import { getDatabase, ref, onValue, onDisconnect, set, serverTimestamp, goOffline, goOnline } from 'firebase/database';
 import { app } from '@/lib/firebase';
 
 const rtdb = getDatabase(app);
@@ -18,12 +19,16 @@ export const usePresence = () => {
 
     const listener = onValue(connectedRef, (snap) => {
       if (snap.val() === false) {
+        // Se já sabemos que estamos offline, não fazemos nada.
+        // O onDisconnect já foi configurado.
         return;
       }
+      // Estando online, configuramos o que fazer quando a conexão cair
       onDisconnect(userStatusDatabaseRef).set({
         state: 'offline',
         last_changed: serverTimestamp(),
       }).then(() => {
+        // Estando online, nos marcamos como online
         set(userStatusDatabaseRef, {
           state: 'online',
           last_changed: serverTimestamp(),
@@ -34,13 +39,24 @@ export const usePresence = () => {
     return () => listener();
   }, [user?.uid]);
 
-
   useEffect(() => {
-    const unsubscribe = updateUserStatus();
+    // Gerenciadores de estado online/offline do navegador
+    const handleOnline = () => goOnline(rtdb);
+    const handleOffline = () => goOffline(rtdb);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    // Inicia o sistema de presença
+    const unsubscribePresence = updateUserStatus();
+    
+    // Limpeza
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
+      if (unsubscribePresence) {
+        unsubscribePresence();
       }
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, [updateUserStatus]);
 };
