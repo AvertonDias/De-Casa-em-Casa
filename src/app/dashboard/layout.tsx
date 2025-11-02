@@ -32,6 +32,7 @@ import { EditProfileModal } from "@/components/EditProfileModal"; // Importar o 
 import { FeedbackAnnouncementModal } from "@/components/FeedbackAnnouncementModal";
 import { Territory, Notification } from "@/types/types";
 import { Timestamp } from "firebase/firestore";
+import { format } from "date-fns";
 
 
 // Componente para trocar o tema (agora mais robusto)
@@ -342,7 +343,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user?.uid || !user.congregationId) return;
 
-    // Listener for unread notifications count
+    // Listener para contar notificações não lidas
     const qNotifications = query(
       collection(db, 'users', user.uid, 'notifications'),
       where('isRead', '==', false)
@@ -351,22 +352,21 @@ function DashboardLayout({ children }: { children: ReactNode }) {
       setUnreadNotificationsCount(snapshot.size);
     });
 
-    // Listener for assigned territories to create notifications
     const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-    const qTerritories = query(territoriesRef, where("assignment.uid", "==", user.uid));
-      
-    const unsubTerritories = onSnapshot(qTerritories, async (snapshot) => {
+    const userNotificationsRef = collection(db, 'users', user.uid, 'notifications');
+    
+    // Listener para criar notificações de territórios designados
+    const qAssigned = query(territoriesRef, where("assignment.uid", "==", user.uid));
+    const unsubAssigned = onSnapshot(qAssigned, async (snapshot) => {
       const batch = writeBatch(db);
       for (const docSnap of snapshot.docs) {
         const territory = { id: docSnap.id, ...docSnap.data() } as Territory;
-
         if (territory.assignment?.assignedAt) {
           const assignmentTimestamp = territory.assignment.assignedAt.toMillis();
           const notificationId = `assigned_${territory.id}_${assignmentTimestamp}`;
-          const notificationRef = doc(db, 'users', user.uid, 'notifications', notificationId);
-            
+          const notificationRef = doc(userNotificationsRef, notificationId);
+          
           const notificationDoc = await getDoc(notificationRef);
-
           if (!notificationDoc.exists()) {
             batch.set(notificationRef, {
               title: "Você recebeu um novo território!",
@@ -379,13 +379,44 @@ function DashboardLayout({ children }: { children: ReactNode }) {
           }
         }
       }
-      // Commita o batch de uma só vez, mesmo que esteja vazio.
       await batch.commit();
     });
 
+    // Listener para criar notificações de territórios atrasados
+    const qOverdue = query(territoriesRef, 
+      where("assignment.uid", "==", user.uid),
+      where("assignment.dueDate", "<", Timestamp.now())
+    );
+    const unsubOverdue = onSnapshot(qOverdue, async (snapshot) => {
+      const batch = writeBatch(db);
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+      for (const docSnap of snapshot.docs) {
+        const territory = { id: docSnap.id, ...docSnap.data() } as Territory;
+        const notificationId = `overdue_${territory.id}_${todayStr}`;
+        const notificationRef = doc(userNotificationsRef, notificationId);
+        
+        const notificationDoc = await getDoc(notificationRef);
+
+        if (!notificationDoc.exists()) {
+          batch.set(notificationRef, {
+            title: "Território Atrasado",
+            body: `O território "${territory.name}" está com a devolução atrasada.`,
+            link: `/dashboard/territorios/${territory.id}`,
+            type: "territory_overdue",
+            isRead: false,
+            createdAt: Timestamp.now(),
+          });
+        }
+      }
+      await batch.commit();
+    });
+
+
     return () => {
       unsubCount();
-      unsubTerritories();
+      unsubAssigned();
+      unsubOverdue();
     };
   }, [user]);
   
@@ -438,6 +469,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
 
 
 
