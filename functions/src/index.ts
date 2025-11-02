@@ -1,3 +1,4 @@
+
 // functions/src/index.ts
 import {https, setGlobalOptions, logger} from "firebase-functions/v2";
 import {
@@ -26,11 +27,7 @@ setGlobalOptions({region: "southamerica-east1"});
 export const createCongregationAndAdmin = https.onRequest(
   (req, res) => {
     corsHandler(req, res, async () => {
-      if (req.method !== "POST") {
-        res.status(405).json({error: "Método não permitido"});
-        return;
-      }
-
+      // O SDK httpsCallable envolve os dados em um objeto 'data'
       const {
         adminName,
         adminEmail,
@@ -38,7 +35,7 @@ export const createCongregationAndAdmin = https.onRequest(
         congregationName,
         congregationNumber,
         whatsapp,
-      } = req.body.data; // Os dados de onCall vêm dentro de um objeto 'data'
+      } = req.body.data; 
 
       if (
         !adminName ||
@@ -128,6 +125,7 @@ export const createCongregationAndAdmin = https.onRequest(
 
 export const getManagersForNotification = https.onRequest((req, res) => {
   corsHandler(req, res, async () => {
+    // Para onCall, o auth vem no corpo da requisição
     if (!req.body.data.auth) {
       res.status(401).json({error: "Usuário não autenticado."});
       return;
@@ -275,8 +273,30 @@ export const deleteUserAccount = https.onRequest((req, res) => {
       res.status(400).json({error: "ID inválido."});
       return;
     }
-    // ... restante da lógica ...
-    res.status(200).json({data: {success: true}});
+
+    const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
+    const isAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
+
+    if (!isAdmin && callingUserUid !== userIdToDelete) {
+        res.status(403).json({ error: "Sem permissão." });
+        return;
+    }
+    if (isAdmin && callingUserUid === userIdToDelete) {
+        res.status(403).json({ error: "Admin não pode se autoexcluir." });
+        return;
+    }
+
+    try {
+        await admin.auth().deleteUser(userIdToDelete);
+        const userDocRef = db.collection("users").doc(userIdToDelete);
+        if ((await userDocRef.get()).exists) {
+            await userDocRef.delete();
+        }
+        res.status(200).json({ data: { success: true, message: "Operação de exclusão concluída." } });
+    } catch (error: any) {
+        logger.error("Erro CRÍTICO ao excluir usuário:", error);
+        res.status(500).json({ error: `Falha na exclusão: ${error.message}` });
+    }
   });
 });
 
@@ -288,8 +308,45 @@ export const resetTerritoryProgress = https.onRequest((req, res) => {
       res.status(401).json({error: "Ação não autorizada."});
       return;
     }
-    // ... restante da lógica ...
-    res.status(200).json({data: {success: true}});
+    const { congregationId, territoryId } = req.body.data;
+    if (!congregationId || !territoryId) {
+        res.status(400).json({ error: "IDs faltando." });
+        return;
+    }
+
+    const adminUserSnap = await db.collection("users").doc(uid).get();
+    if (adminUserSnap.data()?.role !== "Administrador") {
+        res.status(403).json({ error: "Ação restrita a administradores." });
+        return;
+    }
+
+    const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
+    const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
+
+    try {
+        await db.recursiveDelete(db.collection(historyPath));
+        let housesUpdatedCount = 0;
+        await db.runTransaction(async (transaction) => {
+            const quadrasSnapshot = await transaction.get(quadrasRef);
+            for (const quadraDoc of quadrasSnapshot.docs) {
+                const casasSnapshot = await transaction.get(quadraDoc.ref.collection("casas"));
+                casasSnapshot.forEach(casaDoc => {
+                    if (casaDoc.data().status === true) {
+                        transaction.update(casaDoc.ref, { status: false });
+                        housesUpdatedCount++;
+                    }
+                });
+            }
+        });
+        if (housesUpdatedCount > 0) {
+          res.status(200).json({ data: { success: true, message: `Sucesso! ${housesUpdatedCount} casas resetadas.` } });
+        } else {
+          res.status(200).json({ data: { success: true, message: "Nenhuma casa precisou ser resetada." } });
+        }
+    } catch (error: any) {
+        logger.error(`[resetTerritory] FALHA CRÍTICA:`, error);
+        res.status(500).json({ error: "Falha ao processar a limpeza do território." });
+    }
   });
 });
 
@@ -318,6 +375,7 @@ export const notifyOnTerritoryAssigned = https.onRequest((req, res) => {
         isRead: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       };
+      // Usando addDoc para criar ID único
       await db.collection("users").doc(assignedUid).collection("notifications").add(notification);
       res.status(200).json({data: {success: true}});
     } catch (error) {

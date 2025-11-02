@@ -61,15 +61,15 @@ export default function NovaCongregacaoPage() {
             congregationNumber: congregationNumber.trim()
         };
         
-        // Usando httpsCallable
         const result: any = await createCongregationAndAdminFn(dataToSend);
+        
+        const resultData = result.data as { success: boolean, userId?: string, message?: string, error?: string };
 
-        if (result.data.success) {
+        if (resultData.success) {
             toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
             await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-            // O UserContext irá lidar com o redirecionamento para /dashboard
         } else {
-            throw new Error(result.data.error || "Ocorreu um erro desconhecido.");
+            throw new Error(resultData.error || resultData.message || "Ocorreu um erro desconhecido.");
         }
 
     } catch (error: any) {
