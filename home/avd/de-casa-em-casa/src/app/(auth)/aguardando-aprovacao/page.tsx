@@ -15,6 +15,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { getInitials } from '@/lib/utils';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
@@ -22,6 +25,7 @@ const getManagersForNotification = httpsCallable(functions, 'getManagersForNotif
 
 function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();
+    const { toast } = useToast();
     const [adminsAndLeaders, setAdminsAndLeaders] = useState<AppUser[]>([]);
     const [isLoadingContacts, setIsLoadingContacts] = useState(true);
 
@@ -38,10 +42,15 @@ function AguardandoAprovacaoPage() {
             }
         } catch (error: any) {
             console.error("Erro ao buscar administradores e dirigentes:", error);
+            toast({
+                title: "Erro ao buscar contatos",
+                description: "Não foi possível carregar a lista de dirigentes. Verifique sua conexão ou tente mais tarde.",
+                variant: "destructive"
+            })
         } finally {
             setIsLoadingContacts(false);
         }
-    }, [user?.congregationId]);
+    }, [user?.congregationId, toast]);
 
 
     useEffect(() => {
@@ -57,7 +66,7 @@ function AguardandoAprovacaoPage() {
         const userFirstName = user.name.split(' ')[0];
 
         const message = `Olá, ${contactFirstName}. O publicador "${userFirstName}" está aguardando aprovação de acesso no aplicativo De Casa em Casa.`;
-        const whatsappNumber = contact.whatsapp.replace(/\D/g, ''); // Remove caracteres não numéricos
+        const whatsappNumber = contact.whatsapp.replace(/\D/g, '');
         const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
         window.open(whatsappUrl, '_blank');
@@ -82,20 +91,25 @@ function AguardandoAprovacaoPage() {
                     Sua solicitação de acesso para a congregação <span className="font-semibold text-foreground">{user?.congregationName || '...'}</span> foi enviada.
                 </p>
                 <p className="text-muted-foreground">
-                    Para agilizar, você pode notificar um dos dirigentes abaixo.
+                    Para agilizar, você pode notificar um dos dirigentes ou administradores abaixo.
                 </p>
 
-                <Accordion type="single" collapsible className="w-full">
+                <Accordion type="single" collapsible className="w-full text-left">
                   <AccordionItem value="item-1">
-                    <AccordionTrigger className="font-semibold">Notificar um responsável</AccordionTrigger>
+                    <AccordionTrigger className="font-semibold hover:no-underline">Notificar um responsável</AccordionTrigger>
                     <AccordionContent>
                       {isLoadingContacts ? (
-                        <Loader className="animate-spin text-primary mx-auto my-4" />
+                        <div className="flex justify-center p-4">
+                            <Loader className="animate-spin text-primary" />
+                        </div>
                       ) : (
-                        <div className="space-y-3 text-left">
+                        <div className="space-y-3 pt-2">
                           {adminsAndLeaders.length > 0 ? adminsAndLeaders.map((contact) => (
                             <div key={contact.uid} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                              <div>
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-9 w-9">
+                                  <AvatarFallback>{getInitials(contact.name)}</AvatarFallback>
+                                </Avatar>
                                 <p className="font-semibold">{contact.name}</p>
                               </div>
                               <Button 
@@ -108,7 +122,7 @@ function AguardandoAprovacaoPage() {
                               </Button>
                             </div>
                           )) : (
-                            <p className="text-sm text-center text-muted-foreground">
+                            <p className="text-sm text-center text-muted-foreground py-4">
                               Nenhum dirigente ou administrador com WhatsApp cadastrado foi encontrado.
                             </p>
                           )}
@@ -120,12 +134,13 @@ function AguardandoAprovacaoPage() {
 
 
                 <div className="pt-4">
-                    <button
+                    <Button
                         onClick={logout}
-                        className="w-full px-4 py-2 font-semibold text-destructive-foreground bg-destructive rounded-md hover:bg-destructive/90"
+                        variant="destructive"
+                        className="w-full"
                     >
                         Sair
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>
@@ -133,5 +148,3 @@ function AguardandoAprovacaoPage() {
 }
 
 export default withAuth(AguardandoAprovacaoPage);
-
-    

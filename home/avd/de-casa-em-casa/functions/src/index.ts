@@ -132,58 +132,55 @@ export const createCongregationAndAdmin = https.onCall(async (request) => {
 });
 
 
-export const getManagersForNotification = https.onRequest(
-  {cors: true},
-  (req, res) => {
-    corsHandler(req, res, async () => {
-      if (req.method !== "POST") {
-        return res.status(405).json({error: "Método não permitido."});
-      }
+export const getManagersForNotification = https.onCall(async (request) => {
+    // 1. Autenticação: Garante que o usuário está logado.
+    if (!request.auth) {
+        throw new https.HttpsError(
+            "unauthenticated",
+            "O usuário deve estar autenticado para realizar esta ação.",
+        );
+    }
 
-      const idToken = req.headers.authorization?.split("Bearer ")[1];
-      if (!idToken) {
-        return res.status(401).json({error: "Usuário não autenticado."});
-      }
+    const { congregationId } = request.data;
+    if (!congregationId) {
+        throw new https.HttpsError(
+            "invalid-argument",
+            "O ID da congregação é obrigatório.",
+        );
+    }
 
-      try {
-        await admin.auth().verifyIdToken(idToken);
-      } catch (error) {
-        return res.status(401).json({error: "Token inválido ou expirado."});
-      }
-
-      const {congregationId} = req.body;
-      if (!congregationId) {
-        return res
-          .status(400)
-          .json({error: "O ID da congregação é obrigatório."});
-      }
-
-      try {
+    try {
         const rolesToFetch = ["Administrador", "Dirigente"];
         const queryPromises = rolesToFetch.map((role) =>
-          db
-            .collection("users")
-            .where("congregationId", "==", congregationId)
-            .where("role", "==", role)
-            .get(),
+            db
+                .collection("users")
+                .where("congregationId", "==", congregationId)
+                .where("role", "==", role)
+                .get(),
         );
+
         const results = await Promise.all(queryPromises);
+        
         const managers = results.flatMap((snapshot) =>
-          snapshot.docs.map((doc) => {
-            const {name, whatsapp} = doc.data();
-            return {uid: doc.id, name, whatsapp};
-          }),
+            snapshot.docs.map((doc) => {
+                const { name, whatsapp } = doc.data();
+                return { uid: doc.id, name, whatsapp };
+            }),
         );
-        return res.status(200).json({success: true, managers});
-      } catch (error: any) {
+        
+        // Remove duplicatas caso um usuário seja ambos (improvável, mas seguro)
+        const uniqueManagers = Array.from(new Map(managers.map(item => [item['uid'], item])).values());
+
+        return { success: true, managers: uniqueManagers };
+
+    } catch (error) {
         logger.error("Erro ao buscar gerentes:", error);
-        return res
-          .status(500)
-          .json({error: "Falha ao buscar contatos dos responsáveis."});
-      }
-    });
-  },
-);
+        throw new https.HttpsError(
+            "internal",
+            "Falha ao buscar contatos dos responsáveis.",
+        );
+    }
+});
 
 
 export const notifyOnNewUser = https.onCall(async (request) => {
