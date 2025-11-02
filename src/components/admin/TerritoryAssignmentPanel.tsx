@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -135,11 +136,10 @@ export default function TerritoryAssignmentPanel() {
     try {
         await updateDoc(territoryRef, { status: 'designado', assignment: assignmentData });
         
-        // Verifica se é uma designação real a um usuário e não é uma re-designação para a mesma pessoa
         if (!assignedUser.uid.startsWith('custom_') && assignedUser.uid !== currentTerritory.assignment?.uid) {
             try {
-                // Chama a Cloud Function para criar a notificação no backend
                 await callNotifyOnTerritoryAssigned({
+                    auth: { uid: currentUser.uid },
                     territoryId: territoryId,
                     territoryName: currentTerritory.name || 'Território Desconhecido',
                     assignedUid: assignedUser.uid,

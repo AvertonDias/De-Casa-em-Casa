@@ -350,45 +350,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     });
     return () => unsubscribe();
   }, [user]);
-
-  useEffect(() => {
-    if (!user?.congregationId || !user?.uid) return;
-  
-    const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-    const q = query(territoriesRef, where("assignment.uid", "==", user.uid));
-  
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const notificationsRef = collection(db, 'users', user.uid, 'notifications');
-  
-      for (const territoryDoc of snapshot.docs) {
-        const territory = { id: territoryDoc.id, ...territoryDoc.data() } as Territory;
-        const isAssigned = territory.assignment && territory.assignment.uid === user.uid;
-        
-        if (isAssigned && territory.assignment) {
-          const isOverdue = territory.assignment.dueDate.toDate() < new Date();
-  
-          // Notificação de Atraso
-          if (isOverdue) {
-            const overdueNotifRef = doc(notificationsRef, `overdue_${territory.id}`);
-            const overdueDoc = await getDoc(overdueNotifRef);
-            if (!overdueDoc.exists()) {
-              const overdueNotif: Omit<Notification, 'id'> = {
-                title: "Território Atrasado",
-                body: `O território "${territory.name}" está com a devolução atrasada.`,
-                link: `/dashboard/meus-territorios`,
-                type: 'territory_overdue',
-                isRead: false,
-                createdAt: territory.assignment?.dueDate || Timestamp.now(),
-              };
-              await setDoc(overdueNotifRef, overdueNotif);
-            }
-          }
-        }
-      }
-    });
-  
-    return () => unsubscribe();
-  }, [user]);
   
   if (loading || !user) {
     return null;
@@ -439,6 +400,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
 
 
 
