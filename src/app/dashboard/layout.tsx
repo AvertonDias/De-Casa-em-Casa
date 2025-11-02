@@ -184,7 +184,6 @@ function Sidebar({
         
         <div className="flex flex-col items-center mb-8 gap-4">
             <div className="w-full flex justify-center items-center">
-                <div className="flex-1"></div>
                 <Image
                     src="/icon-192x192.jpg"
                     alt="Logo"
@@ -193,12 +192,6 @@ function Sidebar({
                     className="rounded-lg"
                     priority
                 />
-                <div className="flex-1 flex justify-end">
-                    <div className="hidden md:block">
-                        <ThemeSwitcher />
-                    </div>
-                    <button onClick={onClose} className="md:hidden p-1 rounded-full"><AnimatedHamburgerIcon isOpen={isOpen} /></button>
-                </div>
             </div>
             <h1 className="text-xl font-bold">De Casa em Casa</h1>
         </div>
@@ -423,7 +416,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
           <div className="flex-1 flex flex-col overflow-hidden">
               <header className="md:hidden bg-background p-4 text-foreground shadow-md flex justify-between items-center border-b border-border">
                   <div className="relative">
-                    <button onClick={() => setSidebarOpen(true)} aria-label="Abrir menu">
+                    <button onClick={() => setSidebarOpen(!isSidebarOpen)} aria-label="Abrir menu">
                       <AnimatedHamburgerIcon isOpen={isSidebarOpen} />
                     </button>
                     {hasUnreadItems && (
