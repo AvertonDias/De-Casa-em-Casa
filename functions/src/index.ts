@@ -1,7 +1,6 @@
 
 import { https, logger, setGlobalOptions } from "firebase-functions/v2";
-import { onDocumentWritten, onDocumentDeleted } from "firebase-functions/v2/firestore";
-import { onValueWritten } from "firebase-functions/v2/database";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 
 if (!admin.apps.length) {
@@ -15,7 +14,7 @@ setGlobalOptions({ region: "southamerica-east1" });
 //   FUNÇÕES HTTPS (onCall)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onCall(async (data, context) => {
+export const createCongregationAndAdmin = https.onCall(async (data) => {
   const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = data;
   if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
     throw new https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
@@ -49,35 +48,39 @@ export const createCongregationAndAdmin = https.onCall(async (data, context) => 
   }
 });
 
-export const getManagersForNotification = https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new https.HttpsError("unauthenticated", "O usuário deve estar autenticado.");
-    }
-    const { congregationId } = data;
-    if (!congregationId) {
-        throw new https.HttpsError("invalid-argument", "O ID da congregação é obrigatório.");
-    }
-    try {
-        const rolesToFetch = ["Administrador", "Dirigente"];
-        const managers: any[] = [];
-        const promises = rolesToFetch.map(role => 
-            db.collection("users").where("congregationId", "==", congregationId").where("role", "==", role).get()
-        );
-        const snapshots = await Promise.all(promises);
-        snapshots.forEach(snapshot => {
-            snapshot.forEach(doc => {
-                const { name, whatsapp } = doc.data();
-                // Evita adicionar duplicados se um usuário tiver múltiplos papéis
-                if (!managers.some(m => m.uid === doc.id)) {
-                    managers.push({ uid: doc.id, name, whatsapp });
-                }
-            });
-        });
-        return { success: true, managers };
-    } catch (error) {
-        logger.error("Erro ao buscar gerentes:", error);
-        throw new https.HttpsError("internal", "Falha ao buscar contatos.");
-    }
+export const getManagersForNotification = https.onCall(async (request) => {
+  if (!request.auth) {
+      throw new https.HttpsError("unauthenticated", "O usuário deve estar autenticado.");
+  }
+  const { congregationId } = request.data;
+  if (!congregationId) {
+      throw new https.HttpsError("invalid-argument", "O ID da congregação é obrigatório.");
+  }
+  try {
+      const rolesToFetch = ["Administrador", "Dirigente"];
+      const managers: any[] = [];
+      
+      const queryPromises = rolesToFetch.map(role => 
+          db.collection("users")
+            .where("congregationId", "==", congregationId)
+            .where("role", "==", role)
+            .get()
+      );
+
+      const snapshots = await Promise.all(queryPromises);
+      snapshots.forEach(snapshot => {
+          snapshot.forEach(doc => {
+              const { name, whatsapp } = doc.data();
+              if (!managers.some(m => m.uid === doc.id)) {
+                  managers.push({ uid: doc.id, name, whatsapp });
+              }
+          });
+      });
+      return { success: true, managers };
+  } catch (error) {
+      logger.error("Erro ao buscar gerentes:", error);
+      throw new https.HttpsError("internal", "Falha ao buscar contatos.");
+  }
 });
 
 
@@ -86,9 +89,10 @@ export const getManagersForNotification = https.onCall(async (data, context) => 
 // ========================================================================
 
 export const onHouseChange = onDocumentWritten("congregations/{congId}/territories/{terrId}/quadras/{quadraId}/casas/{casaId}", async (event) => {
-  if (!event.data) return null;
+  if (!event.data) return;
   const { congId, terrId, quadraId } = event.params;
   const quadraRef = db.doc(`congregations/${congId}/territories/${terrId}/quadras/${quadraId}`);
+  
   return db.runTransaction(async (transaction) => {
     const casasSnapshot = await transaction.get(quadraRef.collection("casas"));
     const totalHouses = casasSnapshot.size;
@@ -98,64 +102,52 @@ export const onHouseChange = onDocumentWritten("congregations/{congId}/territori
 });
 
 export const onQuadraChange = onDocumentWritten("congregations/{congId}/territories/{terrId}/quadras/{quadraId}", async (event) => {
-  if (!event.data) return null;
+  if (!event.data) return;
   const { congId, terrId } = event.params;
-  const territoryRef = db.doc(`congregations/${congId}/territories/${terrId}`);
+  const territoryRef = db.doc(`congregations/${congId}/territorios/${terrId}`);
   const quadrasSnapshot = await territoryRef.collection("quadras").get();
+  
   let totalHouses = 0;
   let housesDone = 0;
   quadrasSnapshot.forEach(doc => {
       totalHouses += doc.data().totalHouses || 0;
       housesDone += doc.data().housesDone || 0;
   });
+  
   const progress = totalHouses > 0 ? (housesDone / totalHouses) : 0;
   return territoryRef.update({
-      stats: { totalHouses, housesDone }, progress, quadraCount: quadrasSnapshot.size,
+      stats: { totalHouses, housesDone },
+      progress,
+      quadraCount: quadrasSnapshot.size,
       lastUpdate: admin.firestore.FieldValue.serverTimestamp()
   });
 });
 
 export const onTerritoryChange = onDocumentWritten("congregations/{congId}/territories/{terrId}", async (event) => {
-    if (!event.data) return null;
-    const { congId } = event.params;
-    const congregationRef = db.doc(`congregations/${congId}`);
-    const territoriesSnapshot = await congregationRef.collection("territories").get();
-    let urbanCount = 0, ruralCount = 0, totalHouses = 0, totalHousesDone = 0, totalQuadras = 0;
-    territoriesSnapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.type === 'rural') ruralCount++;
-        else {
-            urbanCount++;
-            totalHouses += data.stats?.totalHouses || 0;
-            totalHousesDone += data.stats?.housesDone || 0;
-            totalQuadras += data.quadraCount || 0;
-        }
-    });
-    return congregationRef.update({
-        territoryCount: urbanCount, ruralTerritoryCount: ruralCount,
-        totalQuadras, totalHouses, totalHousesDone,
-        lastUpdate: admin.firestore.FieldValue.serverTimestamp()
-    });
-});
+  if (!event.data) return;
+  const { congId } = event.params;
+  const congregationRef = db.doc(`congregations/${congId}`);
+  const territoriesSnapshot = await congregationRef.collection("territories").get();
 
+  let urbanCount = 0, ruralCount = 0, totalHouses = 0, totalHousesDone = 0, totalQuadras = 0;
+  territoriesSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.type === 'rural') {
+        ruralCount++;
+      } else {
+          urbanCount++;
+          totalHouses += data.stats?.totalHouses || 0;
+          totalHousesDone += data.stats?.housesDone || 0;
+          totalQuadras += data.quadraCount || 0;
+      }
+  });
 
-// ============================================================================
-//   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
-// ============================================================================
-
-export const mirrorUserStatus = onValueWritten("/status/{uid}", async (event) => {
-  const { uid } = event.params;
-  const status = event.data.after.val();
-  const userDocRef = db.doc(`users/${uid}`);
-  try {
-    if (!status || status.state === 'offline') {
-      return userDocRef.update({ isOnline: false, lastSeen: admin.firestore.FieldValue.serverTimestamp() });
-    }
-    return userDocRef.update({ isOnline: true, lastSeen: admin.firestore.FieldValue.serverTimestamp() });
-  } catch (err: any) {
-    if (err.code !== 5) { // 5 = NOT_FOUND, ignora se o usuário não existe no Firestore
-      logger.error(`[Presence] Falha ao espelhar status para ${uid}:`, err);
-    }
-    return null;
-  }
+  return congregationRef.update({
+      territoryCount: urbanCount,
+      ruralTerritoryCount: ruralCount,
+      totalQuadras,
+      totalHouses,
+      totalHousesDone,
+      lastUpdate: admin.firestore.FieldValue.serverTimestamp()
+  });
 });
