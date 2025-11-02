@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -112,9 +111,9 @@ export default function TerritoryAssignmentPanel() {
   };
   
   const handleSaveAssignment = async (territoryId: string, assignedUser: { uid: string; name: string }, assignmentDate: string, dueDate: string) => {
-    if (!currentUser?.congregationId || !currentUser.uid) {
-      toast({ title: "Erro", description: "Dados do usuário atual incompletos.", variant: "destructive" });
-      return;
+    if (!currentUser?.congregationId) {
+        toast({ title: "Erro", description: "Dados do usuário atual incompletos.", variant: "destructive" });
+        return;
     }
     
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
@@ -136,14 +135,14 @@ export default function TerritoryAssignmentPanel() {
     try {
         await updateDoc(territoryRef, { status: 'designado', assignment: assignmentData });
         
+        // Verifica se é uma designação real a um usuário e não é uma re-designação para a mesma pessoa
         if (!assignedUser.uid.startsWith('custom_') && assignedUser.uid !== currentTerritory.assignment?.uid) {
             try {
-                // A chamada agora passa a autenticação e os dados dentro de `data`
+                // Chama a Cloud Function para criar a notificação no backend
                 await callNotifyOnTerritoryAssigned({
-                  auth: { uid: currentUser.uid },
-                  territoryId: territoryId,
-                  territoryName: currentTerritory.name || 'Território Desconhecido',
-                  assignedUid: assignedUser.uid,
+                    territoryId: territoryId,
+                    territoryName: currentTerritory.name || 'Território Desconhecido',
+                    assignedUid: assignedUser.uid,
                 });
             } catch (callError: any) {
                 console.error("Erro ao chamar a função de notificação:", callError);
@@ -173,7 +172,7 @@ export default function TerritoryAssignmentPanel() {
         variant: "destructive",
       });
     }
-  };
+};
 
   const handleOpenReturnModal = (territory: Territory) => {
     setSelectedTerritory(territory);
