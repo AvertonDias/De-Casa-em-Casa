@@ -19,16 +19,12 @@ export const usePresence = () => {
 
     const listener = onValue(connectedRef, (snap) => {
       if (snap.val() === false) {
-        // Se já sabemos que estamos offline, não fazemos nada.
-        // O onDisconnect já foi configurado.
         return;
       }
-      // Estando online, configuramos o que fazer quando a conexão cair
       onDisconnect(userStatusDatabaseRef).set({
         state: 'offline',
         last_changed: serverTimestamp(),
       }).then(() => {
-        // Estando online, nos marcamos como online
         set(userStatusDatabaseRef, {
           state: 'online',
           last_changed: serverTimestamp(),
@@ -38,6 +34,7 @@ export const usePresence = () => {
 
     return () => listener();
   }, [user?.uid]);
+
 
   useEffect(() => {
     // Gerenciadores de estado online/offline do navegador

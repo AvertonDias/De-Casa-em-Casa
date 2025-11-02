@@ -3,14 +3,14 @@
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp, enableNetwork } from 'firebase/firestore';
 import { auth, db, app } from '@/lib/firebase';
 import type { AppUser, Congregation } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader } from 'lucide-react';
 
 // ▼▼▼ IMPORTAÇÕES DO REALTIME DATABASE (COM onValue) ▼▼▼
-import { getDatabase, ref, onDisconnect, set } from 'firebase/database';
+import { getDatabase, ref, onDisconnect, set, onValue } from 'firebase/database';
 
 const rtdb = getDatabase(app); // Inicializa o RTDB
 
@@ -65,6 +65,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Gerenciador de estado online/offline
+    const handleOnline = () => {
+      enableNetwork(db);
+    };
+    const handleOffline = () => {
+      // O SDK do Firestore lida com o cache, não precisamos fazer nada aqui.
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       // Limpa listeners antigos antes de configurar novos.
       unsubscribeAllFirestoreListeners();
@@ -122,6 +133,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return () => {
         unsubscribeAuth();
         unsubscribeAllFirestoreListeners();
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
