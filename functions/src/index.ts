@@ -10,22 +10,7 @@ import {format} from "date-fns";
 import * as cors from "cors";
 import * as crypto from "crypto";
 
-const allowedOrigins = [
-    "https://de-casa-em-casa.vercel.app",
-    "http://localhost:3000",
-    "https://de-casa-em-casa.web.app",
-    "https://6000-firebase-studio-1750624095908.cluster-m7tpz3bmgjgoqrktlvd4ykrc2m.cloudworkstations.dev"
-];
-
-const corsHandler = cors({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error("Not allowed by CORS"));
-        }
-    },
-});
+const corsHandler = cors({origin: true});
 
 
 if (!admin.apps.length) {
@@ -139,7 +124,10 @@ export const createCongregationAndAdmin = https.onCall(async ({data}) => {
 });
 
 
-export const getManagersForNotification = https.onCall(async ({data}) => {
+export const getManagersForNotification = https.onCall(async ({data, auth}) => {
+    if (!auth) {
+        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
+    }
     const {congregationId} = data;
     if (!congregationId) {
       throw new https.HttpsError(
@@ -222,6 +210,7 @@ export const notifyOnNewUser = https.onCall(async ({data}) => {
 });
 
 export const requestPasswordReset = https.onRequest(
+  {cors: true},
   async (req, res) => {
     corsHandler(req, res, async () => {
       if (req.method !== "POST") {
