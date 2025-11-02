@@ -30,7 +30,7 @@
     --destructive-foreground: 0 0% 100%;
 
     --border: 240 6% 90%;
-    --input: 240 5% 65%; /* Borda mais escura para o tema claro */
+    --input: 240 6% 85%;
     --ring: 262 82% 56%;
 
     --radius: 0.5rem;
@@ -62,7 +62,7 @@
     --destructive-foreground: 0 0% 98%;
 
     --border: 240 4% 18%;
-    --input: 240 4% 50%; /* Borda mais clara para o tema escuro */
+    --input: 240 4% 18%;
     --ring: 262 82% 56%;
   }
 }
