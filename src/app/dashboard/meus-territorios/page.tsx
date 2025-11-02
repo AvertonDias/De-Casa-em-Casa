@@ -12,6 +12,7 @@ import { ptBR } from 'date-fns/locale';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import withAuth from '@/components/withAuth';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 function MyTerritoriesPage() {
   const { user } = useUser();
@@ -22,6 +23,7 @@ function MyTerritoriesPage() {
   const [territoryToReturn, setTerritoryToReturn] = useState<Territory | null>(null);
 
   const [sortBy, setSortBy] = useState<'dueDate' | 'number'>('dueDate');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     if (!user?.congregationId || !user?.uid) {
@@ -41,15 +43,17 @@ function MyTerritoriesPage() {
 
   const sortedTerritories = useMemo(() => {
     return [...assignedTerritories].sort((a, b) => {
+      let comparison = 0;
       if (sortBy === 'number') {
-        return a.number.localeCompare(b.number, undefined, { numeric: true });
+        comparison = a.number.localeCompare(b.number, undefined, { numeric: true });
+      } else { // Default to 'dueDate'
+        const dateA = a.assignment?.dueDate?.toMillis() || 0;
+        const dateB = b.assignment?.dueDate?.toMillis() || 0;
+        comparison = dateA - dateB;
       }
-      // Default to 'dueDate'
-      const dateA = a.assignment?.dueDate?.toMillis() || 0;
-      const dateB = b.assignment?.dueDate?.toMillis() || 0;
-      return dateA - dateB;
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [assignedTerritories, sortBy]);
+  }, [assignedTerritories, sortBy, sortDirection]);
 
   const handleOpenReturnModal = (territory: Territory) => {
     setTerritoryToReturn(territory);
@@ -95,7 +99,6 @@ function MyTerritoriesPage() {
             <p className="text-muted-foreground">Aqui estão os territórios que estão sob sua responsabilidade.</p>
           </div>
           <div className="flex items-center gap-2">
-            <ArrowDownUp size={16} className="text-muted-foreground" />
             <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'dueDate' | 'number')}
@@ -104,6 +107,14 @@ function MyTerritoriesPage() {
                 <option value="dueDate">Data de Devolução</option>
                 <option value="number">Número</option>
             </select>
+             <Button 
+              variant="outline" 
+              size="icon"
+              onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+              title={`Ordenar ${sortDirection === 'asc' ? 'descendente' : 'ascendente'}`}
+            >
+                <ArrowDownUp size={16} className="text-muted-foreground" />
+            </Button>
           </div>
         </div>
 
