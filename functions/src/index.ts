@@ -32,7 +32,7 @@ setGlobalOptions({region: "southamerica-east1"});
 //   FUNÇÕES HTTPS (onCall e onRequest)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onCall(async ({data}) => {
+export const createCongregationAndAdmin = https.onCall(async (request) => {
   const {
     adminName,
     adminEmail,
@@ -40,7 +40,7 @@ export const createCongregationAndAdmin = https.onCall(async ({data}) => {
     congregationName,
     congregationNumber,
     whatsapp,
-  } = data;
+  } = request.data;
 
   if (
     !adminName ||
@@ -132,48 +132,62 @@ export const createCongregationAndAdmin = https.onCall(async ({data}) => {
 });
 
 
-export const getManagersForNotification = https.onCall(async ({data, auth}) => {
-  if (!auth) {
-    throw new https.HttpsError("unauthenticated", "Usuário não autenticado.");
-  }
-  const {congregationId} = data;
-  if (!congregationId) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "O ID da congregação é obrigatório.",
-    );
-  }
+export const getManagersForNotification = https.onRequest(
+  {cors: true},
+  (req, res) => {
+    corsHandler(req, res, async () => {
+      if (req.method !== "POST") {
+        return res.status(405).json({error: "Método não permitido."});
+      }
 
-  try {
-    const rolesToFetch = ["Administrador", "Dirigente"];
-    const queryPromises = rolesToFetch.map((role) =>
-      db
-        .collection("users")
-        .where("congregationId", "==", congregationId)
-        .where("role", "==", role)
-        .get(),
-    );
-    const results = await Promise.all(queryPromises);
-    const managers = results.flatMap((snapshot) =>
-      snapshot.docs.map((doc) => {
-        const {name, whatsapp} = doc.data();
-        return {uid: doc.id, name, whatsapp};
-      }),
-    );
-    return {success: true, managers};
-  } catch (error: any) {
-    logger.error("Erro ao buscar gerentes:", error);
-    throw new https.HttpsError(
-      "internal",
-      "Falha ao buscar contatos dos responsáveis.",
-    );
-  }
-});
+      const idToken = req.headers.authorization?.split("Bearer ")[1];
+      if (!idToken) {
+        return res.status(401).json({error: "Usuário não autenticado."});
+      }
+
+      try {
+        await admin.auth().verifyIdToken(idToken);
+      } catch (error) {
+        return res.status(401).json({error: "Token inválido ou expirado."});
+      }
+
+      const {congregationId} = req.body;
+      if (!congregationId) {
+        return res
+          .status(400)
+          .json({error: "O ID da congregação é obrigatório."});
+      }
+
+      try {
+        const rolesToFetch = ["Administrador", "Dirigente"];
+        const queryPromises = rolesToFetch.map((role) =>
+          db
+            .collection("users")
+            .where("congregationId", "==", congregationId)
+            .where("role", "==", role)
+            .get(),
+        );
+        const results = await Promise.all(queryPromises);
+        const managers = results.flatMap((snapshot) =>
+          snapshot.docs.map((doc) => {
+            const {name, whatsapp} = doc.data();
+            return {uid: doc.id, name, whatsapp};
+          }),
+        );
+        return res.status(200).json({success: true, managers});
+      } catch (error: any) {
+        logger.error("Erro ao buscar gerentes:", error);
+        return res
+          .status(500)
+          .json({error: "Falha ao buscar contatos dos responsáveis."});
+      }
+    });
+  },
+);
 
 
-
-export const notifyOnNewUser = https.onCall(async ({data}) => {
-    const {newUserName, congregationId} = data;
+export const notifyOnNewUser = https.onCall(async (request) => {
+    const {newUserName, congregationId} = request.data;
     if (!newUserName || !congregationId) {
       throw new https.HttpsError(
         "invalid-argument",
@@ -218,6 +232,7 @@ export const notifyOnNewUser = https.onCall(async ({data}) => {
 });
 
 export const requestPasswordReset = https.onRequest(
+  {cors: true},
   (req, res) => {
     corsHandler(req, res, async () => {
       if (req.method !== "POST") {
@@ -257,8 +272,8 @@ export const requestPasswordReset = https.onRequest(
   },
 );
 
-export const resetPasswordWithToken = https.onCall(async ({data}) => {
-  const {token, newPassword} = data;
+export const resetPasswordWithToken = https.onCall(async (request) => {
+  const {token, newPassword} = request.data;
   if (!token || !newPassword) {
     throw new https.HttpsError(
       "invalid-argument",
@@ -294,13 +309,13 @@ export const resetPasswordWithToken = https.onCall(async ({data}) => {
   }
 });
 
-export const deleteUserAccount = https.onCall(async ({data, auth}) => {
-  const callingUserUid = auth?.uid;
+export const deleteUserAccount = https.onCall(async (request) => {
+  const callingUserUid = request.auth?.uid;
   if (!callingUserUid) {
     throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
   }
 
-  const {userIdToDelete} = data;
+  const {userIdToDelete} = request.data;
   if (!userIdToDelete || typeof userIdToDelete !== "string") {
     throw new https.HttpsError("invalid-argument", "ID inválido.");
   }
@@ -343,13 +358,13 @@ export const deleteUserAccount = https.onCall(async ({data, auth}) => {
   }
 });
 
-export const resetTerritoryProgress = https.onCall(async ({data, auth}) => {
-  const uid = auth?.uid;
+export const resetTerritoryProgress = https.onCall(async (request) => {
+  const uid = request.auth?.uid;
   if (!uid) {
     throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
   }
 
-  const {congregationId, territoryId} = data;
+  const {congregationId, territoryId} = request.data;
   if (!congregationId || !territoryId) {
     throw new https.HttpsError("invalid-argument", "IDs faltando.");
   }
@@ -628,11 +643,11 @@ export const onDeleteQuadra = onDocumentDeleted(
   },
 );
 
-export const notifyOnTerritoryAssigned = https.onCall(async ({data, auth}) => {
-    if (!auth) {
+export const notifyOnTerritoryAssigned = https.onCall(async (request) => {
+    if (!request.auth) {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
-    const { territoryId, territoryName, assignedUid } = data;
+    const { territoryId, territoryName, assignedUid } = request.data;
 
     if (!territoryId || !territoryName || !assignedUid) {
       throw new https.HttpsError("invalid-argument", "Dados insuficientes para enviar notificação.");
