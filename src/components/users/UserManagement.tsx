@@ -106,22 +106,13 @@ export default function UserManagement() {
         return;
     }
     
-    // Optimistic UI Update
-    setUsers(prevUsers => prevUsers.map(u => u.uid === userId ? { ...u, ...dataToUpdate } : u));
-    
     const userRef = doc(db, 'users', userId);
     try {
         await updateDoc(userRef, dataToUpdate as any);
+        toast({ title: "Sucesso", description: `Dados de ${dataToUpdate.name || 'usuário'} atualizados.`});
     } catch (error: any) {
         console.error("Erro ao atualizar usuário:", error);
-        toast({ title: "Erro de Sincronização", description: "A atualização falhou. Revertendo.", variant: "destructive"});
-        // Revert on error
-        const userDoc = await onSnapshot(doc(db, 'users', userId), (doc) => {
-            if (doc.exists()) {
-                 setUsers(prevUsers => prevUsers.map(u => u.uid === userId ? ({ uid: doc.id, ...doc.data() } as AppUser) : u));
-            }
-        });
-        (userDoc as any)(); // Detach listener
+        toast({ title: "Erro de Atualização", description: "A atualização falhou. Tente novamente.", variant: "destructive"});
     }
   };
 
