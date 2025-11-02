@@ -76,9 +76,9 @@ service cloud.firestore {
                       request.auth.uid != userId && 
                       isUserInCongregation(getUserData(userId).congregationId);
       
-      // Managers (Admin/Dirigente/Servo) podem LISTAR usuários da sua congregação.
-      // O usuário pendente NÃO PODE listar ninguém.
-      allow list: if isManager() && isUserInCongregation(resource.data.congregationId);
+      // Qualquer usuário autenticado pode listar os usuários da sua própria congregação.
+      // Isso é necessário para que um usuário pendente possa ver os contatos dos administradores.
+      allow list: if isAuth() && isUserInCongregation(resource.data.congregationId);
 
 
       match /notifications/{notificationId} {
