@@ -23,8 +23,6 @@ const nextConfig = {
   },
   experimental: {
     forceSwcTransforms: true,
-    // ADICIONADO PARA PERMITIR CORS EM DESENVOLVIMENTO
-    allowedDevOrigins: ["https://6000-firebase-studio-1750624095908.cluster-m7tpz3bmgjgoqrktlvd4ykrc2m.cloudworkstations.dev"],
   },
 };
 
