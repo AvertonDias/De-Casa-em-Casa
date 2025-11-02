@@ -29,9 +29,7 @@ export const UserListItem = ({
   
   const canShowMenu = currentUser.uid !== user.uid && (isAdmin || (isDirigente && user.status === 'pendente'));
 
-  // Funções de manipulador de eventos estáveis
   const handleApprove = () => onUpdate(user.uid, { status: 'ativo' });
-  const handleReject = () => onUpdate(user.uid, { status: 'rejeitado' });
   const handleDelete = () => onDelete(user.uid, user.name);
   const handleEdit = () => onEdit(user);
 
@@ -112,8 +110,8 @@ export const UserListItem = ({
                                 </Menu.Item>
                                 <Menu.Item>
                                   {({ active }) => (
-                                    <button onClick={handleReject} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                      <XCircle className="mr-2 h-4 w-4"/>Rejeitar
+                                    <button onClick={handleDelete} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                      <XCircle className="mr-2 h-4 w-4"/>Rejeitar (Excluir)
                                     </button>
                                   )}
                                 </Menu.Item>
