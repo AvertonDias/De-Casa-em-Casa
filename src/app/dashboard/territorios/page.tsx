@@ -76,7 +76,7 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
                 <div><p className="text-sm text-muted-foreground">Pendentes</p><p className="font-bold text-2xl text-yellow-400">{totalCasas - casasFeitas}</p></div>
                 <div><p className="text-sm text-muted-foreground">Progresso</p><p className="font-bold text-2xl text-blue-400">{progresso}%</p></div>
             </div>
-            <div className="w-full bg-gray-700 rounded-full h-2.5 mt-4"><div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progresso}%` }}></div></div>
+            <div className="w-full bg-muted rounded-full h-2.5 mt-4"><div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progresso}%` }}></div></div>
           </div>
         )}
       </Link>
@@ -360,3 +360,5 @@ function TerritoriosPage() {
 }
 
 export default withAuth(TerritoriosPage);
+
+    
