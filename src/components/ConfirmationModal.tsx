@@ -1,8 +1,8 @@
 
 "use client";
 
-import { Fragment, type ReactNode } from 'react';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { type ReactNode } from 'react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { buttonVariants } from './ui/button';
 import { cn } from '@/lib/utils';
 import { Loader } from 'lucide-react';
@@ -13,8 +13,8 @@ interface ConfirmationModalProps {
   onClose: () => void;
   onConfirm: () => void;
   title: string;
-  message?: ReactNode; // Tornando a mensagem opcional
-  children?: ReactNode; // Adicionando children
+  message?: ReactNode; 
+  children?: ReactNode; 
   confirmText?: string;
   cancelText?: string;
   isLoading?: boolean;
@@ -29,7 +29,7 @@ export function ConfirmationModal({
   onConfirm,
   title,
   message,
-  children, // Nova prop
+  children,
   confirmText = "Sim, Confirmar",
   cancelText = "Cancelar",
   isLoading = false,
