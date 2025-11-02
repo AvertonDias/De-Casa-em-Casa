@@ -1,10 +1,23 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
 import { Plus, X } from 'lucide-react';
 import { addDoc, collection, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 interface AddCasaModalProps {
   territoryId: string;
@@ -84,81 +97,68 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
   }
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
-      <Dialog.Trigger asChild>
-        <button className="flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors text-sm">
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button className="flex items-center justify-center font-bold text-sm">
           <Plus className="h-5 w-5 mr-2" />
           Adicionar Número
-        </button>
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Overlay className="bg-black/60 fixed inset-0 z-50" />
-        <Dialog.Content 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        >
-            <div className="relative w-full max-w-md rounded-lg bg-card p-6 shadow-lg max-h-[90vh] overflow-y-auto">
-                <Dialog.Title className="text-lg font-medium text-card-foreground">
-                    Adicionar Item
-                </Dialog.Title>
-                <Dialog.Description className="text-sm text-muted-foreground mt-2">
-                  Preencha os detalhes do novo número a ser adicionado nesta quadra.
-                </Dialog.Description>
+        </Button>
+      </DialogTrigger>
+        <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
+            <DialogHeader>
+              <DialogTitle>Adicionar Item</DialogTitle>
+              <DialogDescription>
+                Preencha os detalhes do novo número a ser adicionado nesta quadra.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+                <div>
+                  <label htmlFor="house-number" className="text-sm font-medium text-muted-foreground">Número (Necessário)</label>
+                  <Input 
+                      id="house-number" 
+                      ref={numberInputRef}
+                      value={number} 
+                      onChange={(e) => setNumber(e.target.value)} 
+                      required 
+                      placeholder="Ex: 2414 ou 100A"
+                      className="mt-1 uppercase"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="observacoes" className="text-sm font-medium text-muted-foreground">Observações</label>
+                  <Textarea 
+                      id="observacoes" 
+                      value={observations} 
+                      onChange={(e) => setObservations(e.target.value)} 
+                      rows={3} 
+                      className="w-full mt-1" 
+                      placeholder="Ex: Casa de esquina na Rua dos Pioneiros"
+                  />
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <label htmlFor="feito" className="font-medium text-foreground">Feito</label>
+                  <button 
+                      type="button" 
+                      onClick={() => setStatus(!status)} 
+                      className={`${status ? 'bg-primary' : 'bg-muted'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
+                  >
+                      <span className={`${status ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`} />
+                  </button>
+                </div>
                 
-                <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-                    <div>
-                    <label htmlFor="house-number" className="text-sm font-medium text-muted-foreground">Número (Necessário)</label>
-                    <input 
-                        id="house-number" 
-                        ref={numberInputRef}
-                        value={number} 
-                        onChange={(e) => setNumber(e.target.value)} 
-                        required 
-                        placeholder="Ex: 2414 ou 100A"
-                        className="w-full mt-1 bg-input text-foreground rounded px-3 py-2 border border-border uppercase focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                    </div>
-                    <div>
-                    <label htmlFor="observacoes" className="text-sm font-medium text-muted-foreground">Observações</label>
-                    <textarea 
-                        id="observacoes" 
-                        value={observations} 
-                        onChange={(e) => setObservations(e.target.value)} 
-                        rows={3} 
-                        className="w-full mt-1 bg-input text-foreground rounded px-3 py-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary" 
-                        placeholder="Ex: Casa de esquina na Rua dos Pioneiros"
-                    ></textarea>
-                    </div>
-                    <div className="flex items-center justify-between pt-2">
-                    <label htmlFor="feito" className="font-medium text-foreground">Feito</label>
-                    <button 
-                        type="button" 
-                        onClick={() => setStatus(!status)} 
-                        className={`${status ? 'bg-primary' : 'bg-muted'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
-                    >
-                        <span className={`${status ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`} />
-                    </button>
-                    </div>
-                    
-                    {error && <p className="text-destructive text-sm">{error}</p>}
-                    
-                    <div className="flex justify-end gap-4 mt-6">
-                    <Dialog.Close asChild>
-                        <button type="button" className="px-4 py-2 bg-secondary text-secondary-foreground rounded hover:bg-secondary/80">Cancelar</button>
-                    </Dialog.Close>
-                    <button type="submit" disabled={isLoading} className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50">
-                        {isLoading ? 'Salvando...' : 'Salvar'}
-                    </button>
-                    </div>
-                </form>
+                {error && <p className="text-destructive text-sm">{error}</p>}
                 
-                <Dialog.Close asChild>
-                    <button className="absolute top-3 right-3 text-muted-foreground hover:text-foreground">
-                        <X />
-                    </button>
-                </Dialog.Close>
-            </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <DialogClose asChild>
+                      <Button type="button" variant="secondary">Cancelar</Button>
+                  </DialogClose>
+                  <Button type="submit" disabled={isLoading}>
+                      {isLoading ? 'Salvando...' : 'Salvar'}
+                  </Button>
+                </DialogFooter>
+            </form>
+        </DialogContent>
+    </Dialog>
   );
 }

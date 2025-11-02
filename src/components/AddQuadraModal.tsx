@@ -1,7 +1,11 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X } from 'lucide-react';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface AddQuadraModalProps {
   isOpen: boolean;
@@ -14,7 +18,7 @@ export default function AddQuadraModal({ isOpen, onSave, onClose, existingQuadra
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const descriptionInputRef = useRef<HTMLTextAreaElement>(null); // Ref para a textarea
+  const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -22,7 +26,6 @@ export default function AddQuadraModal({ isOpen, onSave, onClose, existingQuadra
       setName(`Quadra ${nextQuadraNumber}`);
       setDescription('');
       
-      // Foca na textarea de descrição quando o modal abre
       setTimeout(() => {
         descriptionInputRef.current?.focus();
         descriptionInputRef.current?.select();
@@ -42,48 +45,35 @@ export default function AddQuadraModal({ isOpen, onSave, onClose, existingQuadra
       setIsProcessing(false);
     }
   };
-  
-  const handleClose = () => {
-    onClose();
-  };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="relative bg-card text-card-foreground p-6 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <button onClick={handleClose} disabled={isProcessing} className="absolute top-4 right-4 text-muted-foreground"><X /></button>
-        <h2 className="text-xl font-bold">Adicionar Nova Quadra</h2>
-        <p className="text-sm text-muted-foreground mb-4">Digite o nome ou identificador da quadra e adicione observações se necessário.</p>
-        <div className="space-y-4">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle>Adicionar Nova Quadra</DialogTitle>
+          <DialogDescription>Digite o nome ou identificador da quadra e adicione observações se necessário.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
           <div>
             <label htmlFor="quadra-name" className="block text-sm font-medium mb-1">Nome da Quadra</label>
-            <input 
-              id="quadra-name" 
-              value={name} 
-              onChange={(e) => setName(e.target.value)} 
-              className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary" 
-            />
+            <Input id="quadra-name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div>
             <label htmlFor="quadra-desc" className="block text-sm font-medium mb-1">Observações (Opcional)</label>
-            <textarea 
-              id="quadra-desc" 
-              ref={descriptionInputRef}
-              value={description} 
-              onChange={(e) => setDescription(e.target.value)} 
-              rows={3} 
-              className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
-            ></textarea>
-          </div>
-          <div className="flex justify-end space-x-3 pt-4">
-            <button onClick={handleClose} disabled={isProcessing} className="px-4 py-2 rounded-md bg-muted hover:bg-muted/80">Cancelar</button>
-            <button onClick={handleSave} disabled={isProcessing} className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/80">
-              {isProcessing ? "Salvando..." : "Salvar Quadra"}
-            </button>
+            <Textarea ref={descriptionInputRef} id="quadra-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
           </div>
         </div>
-      </div>
-    </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="secondary" disabled={isProcessing}>Cancelar</Button>
+          </DialogClose>
+          <Button onClick={handleSave} disabled={isProcessing}>
+            {isProcessing ? "Salvando..." : "Salvar Quadra"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

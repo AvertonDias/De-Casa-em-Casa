@@ -1,10 +1,15 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { X, Plus, Trash2, Link as LinkIcon } from 'lucide-react';
+import { Plus, Trash2, Link as LinkIcon } from 'lucide-react';
 import { RuralLink } from '@/types/types';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 interface AddRuralTerritoryModalProps {
   isOpen: boolean;
@@ -103,76 +108,52 @@ export function AddRuralTerritoryModal({ isOpen, onClose, onTerritoryAdded, cong
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="relative bg-card text-card-foreground p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <button onClick={handleClose} className="absolute top-4 right-4"><X /></button>
-        <h2 className="text-xl font-bold">Adicionar Território Rural</h2>
-        <p className="text-sm text-muted-foreground mb-4">Preencha os detalhes do novo território rural, incluindo links úteis.</p>
-        
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input 
-                ref={numberInputRef}
-                type="text" value={number} onChange={(e) => setNumber(e.target.value)} 
-                placeholder="Número (Ex: R01)" required
-                className="w-full px-4 py-2 bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <input 
-                type="text" value={name} onChange={(e) => setName(e.target.value)} 
-                placeholder="Nome (Ex: Pedra Grande)" required
-                className="w-full px-4 py-2 bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-          </div>
-          <textarea 
-            value={description} onChange={(e) => setObservations(e.target.value)} 
-            placeholder="Observações (Ex: Pegar estrada de terra após a ponte...)" rows={3}
-            className="w-full px-4 py-2 bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-          ></textarea>
-          <input 
-            type="url" value={mapLink} onChange={(e) => setMapLink(e.target.value)} 
-            placeholder="Link principal do Google Maps (Opcional)"
-            className="w-full px-4 py-2 bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          
-           <div className="border-t border-border pt-4 space-y-3">
-            <h3 className="font-semibold flex items-center"><LinkIcon size={16} className="mr-2"/> Links Específicos</h3>
-            
-            <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
-              {links.map((link) => (
-                <div key={link.id} className="flex items-center justify-between bg-input/50 p-2 rounded-md">
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{link.description}</p>
-                    <p className="text-xs text-muted-foreground truncate">{link.url}</p>
-                  </div>
-                  <button onClick={() => handleRemoveLinkFromList(link.id)} type="button" className="p-1 text-red-500 hover:bg-red-500/10 rounded-full">
-                    <Trash2 size={16} />
-                  </button>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Adicionar Território Rural</DialogTitle>
+              <DialogDescription>Preencha os detalhes do novo território rural, incluindo links úteis.</DialogDescription>
+            </DialogHeader>
+            <form id="add-rural-form" onSubmit={handleSubmit} className="space-y-4 py-4 px-1 max-h-[60vh] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input ref={numberInputRef} value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Número (Ex: R01)" required />
+                  <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome (Ex: Pedra Grande)" required />
+              </div>
+              <Textarea value={description} onChange={(e) => setObservations(e.target.value)} placeholder="Observações (Ex: Pegar estrada de terra após a ponte...)" rows={3} />
+              <Input type="url" value={mapLink} onChange={(e) => setMapLink(e.target.value)} placeholder="Link principal do Google Maps (Opcional)" />
+              
+              <div className="border-t border-border pt-4 space-y-3">
+                <h3 className="font-semibold flex items-center text-sm"><LinkIcon size={16} className="mr-2"/> Links Específicos</h3>
+                <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+                  {links.map((link) => (
+                    <div key={link.id} className="flex items-center justify-between bg-input/50 p-2 rounded-md">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{link.description}</p>
+                        <p className="text-xs text-muted-foreground truncate">{link.url}</p>
+                      </div>
+                      <button onClick={() => handleRemoveLinkFromList(link.id)} type="button" className="p-1 text-red-500 hover:bg-red-500/10 rounded-full">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  {links.length === 0 && <p className="text-xs text-center text-muted-foreground py-2">Nenhum link adicionado.</p>}
                 </div>
-              ))}
-              {links.length === 0 && <p className="text-xs text-center text-muted-foreground py-2">Nenhum link adicionado.</p>}
-            </div>
-
-            <div className="flex items-end gap-2 border-t border-border pt-3">
-              <div className="flex-grow">
-                <label className="text-xs">Descrição do Link</label>
-                <input value={linkDesc} onChange={(e) => setLinkDesc(e.target.value)} placeholder="Ex: Mapa da Estrada" className="w-full bg-input p-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"/>
+                <div className="flex items-end gap-2 border-t border-border pt-3">
+                  <div className="flex-grow"><label className="text-xs">Descrição do Link</label><Input value={linkDesc} onChange={(e) => setLinkDesc(e.target.value)} placeholder="Ex: Mapa da Estrada" className="h-9 text-sm"/></div>
+                  <div className="flex-grow"><label className="text-xs">URL</label><Input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://" className="h-9 text-sm"/></div>
+                  <Button onClick={handleAddLinkToList} type="button" size="icon" variant="outline" className="h-9 w-9 flex-shrink-0"><Plus size={16}/></Button>
+                </div>
               </div>
-              <div className="flex-grow">
-                <label className="text-xs">URL</label>
-                <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://" className="w-full bg-input p-2 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"/>
-              </div>
-              <button onClick={handleAddLinkToList} type="button" className="p-2 bg-primary/20 text-primary rounded-md h-10"><Plus size={20}/></button>
-            </div>
-          </div>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <div className="flex justify-end pt-4">
-            <button type="submit" disabled={isLoading} className="px-6 py-2 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-50">
-              {isLoading ? "Salvando..." : "Salvar Território"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+              {error && <p className="text-red-500 text-sm">{error}</p>}
+            </form>
+            <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
+                <Button type="submit" form="add-rural-form" disabled={isLoading}>
+                    {isLoading ? "Salvando..." : "Salvar Território"}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
   );
 }
