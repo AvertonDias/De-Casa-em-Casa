@@ -107,11 +107,11 @@ export default function NovaCongregacaoPage() {
                     <h3 className="text-lg font-semibold border-t border-border pt-4">Seus Dados</h3>
                     <div>
                         <Label htmlFor="adminName">Seu nome completo</Label>
-                        <Input type="text" id="adminName" value={adminName} onChange={(e) => setAdminName(e.target.value)} required className="mt-1" />
+                        <Input type="text" id="adminName" value={adminName} onChange={(e) => setAdminName(e.target.value)} required className="mt-1" autoComplete="name" />
                     </div>
                     <div>
                         <Label htmlFor="adminEmail">Seu e-mail</Label>
-                        <Input type="email" id="adminEmail" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required className="mt-1" />
+                        <Input type="email" id="adminEmail" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required className="mt-1" autoComplete="email" />
                     </div>
                     <div>
                         <Label htmlFor="whatsapp">Seu WhatsApp</Label>
@@ -123,6 +123,7 @@ export default function NovaCongregacaoPage() {
                             required 
                             className="mt-1"
                             placeholder="(XX) XXXXX-XXXX"
+                            autoComplete="tel"
                         />
                     </div>
                      <div>
@@ -135,18 +136,19 @@ export default function NovaCongregacaoPage() {
                             required 
                             className="mt-1"
                             placeholder="(XX) XXXXX-XXXX"
+                            autoComplete="tel"
                         />
                     </div>
                     <div className="relative">
                         <Label htmlFor="adminPassword">Senha (mínimo 6 caracteres)</Label>
-                        <Input type={showPassword ? 'text' : 'password'} id="adminPassword" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" />
+                        <Input type={showPassword ? 'text' : 'password'} id="adminPassword" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" autoComplete="new-password" />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
                             {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
                         </button>
                     </div>
                      <div className="relative">
                         <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                        <Input type={showConfirmPassword ? 'text' : 'password'} id="confirmPassword" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" />
+                        <Input type={showConfirmPassword ? 'text' : 'password'} id="confirmPassword" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} className="mt-1 pr-10" autoComplete="new-password" />
                         <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
                             {showConfirmPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
                         </button>
