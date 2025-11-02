@@ -30,6 +30,7 @@ import withAuth from "@/components/withAuth";
 import { usePresence } from "@/hooks/usePresence";
 import { EditProfileModal } from "@/components/EditProfileModal"; // Importar o modal de perfil
 import { FeedbackAnnouncementModal } from "@/components/FeedbackAnnouncementModal";
+import { InstallPwaModal } from "@/components/InstallPwaModal"; // IMPORTAR O NOVO MODAL
 import { Territory, Notification } from "@/types/types";
 import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
@@ -428,6 +429,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
       <div className="flex h-screen bg-background">
+          <InstallPwaModal />
           <FeedbackAnnouncementModal onOpenProfileModal={() => setIsProfileModalOpen(true)} />
           
           <Sidebar 
@@ -469,6 +471,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
 
 
 
