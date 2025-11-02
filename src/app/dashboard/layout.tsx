@@ -340,56 +340,53 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid || !user.congregationId) return;
 
     // Listener for unread notifications count
-    const q = query(
+    const qNotifications = query(
       collection(db, 'users', user.uid, 'notifications'),
       where('isRead', '==', false)
     );
-    const unsubCount = onSnapshot(q, (snapshot) => {
+    const unsubCount = onSnapshot(qNotifications, (snapshot) => {
       setUnreadNotificationsCount(snapshot.size);
     });
 
     // Listener for assigned territories to create notifications
-    if (user.congregationId) {
-      const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-      const qTerritories = query(territoriesRef, where("assignment.uid", "==", user.uid));
+    const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
+    const qTerritories = query(territoriesRef, where("assignment.uid", "==", user.uid));
       
-      const unsubTerritories = onSnapshot(qTerritories, async (snapshot) => {
-        const batch = writeBatch(db);
-        for (const docSnap of snapshot.docs) {
-          const territory = { id: docSnap.id, ...docSnap.data() } as Territory;
+    const unsubTerritories = onSnapshot(qTerritories, async (snapshot) => {
+      const batch = writeBatch(db);
+      for (const docSnap of snapshot.docs) {
+        const territory = { id: docSnap.id, ...docSnap.data() } as Territory;
 
-          if (territory.assignment?.assignedAt) {
-            const assignmentTimestamp = territory.assignment.assignedAt.seconds;
-            const notificationId = `assigned_${territory.id}_${assignmentTimestamp}`;
-            const notificationRef = doc(db, 'users', user.uid, 'notifications', notificationId);
+        if (territory.assignment?.assignedAt) {
+          const assignmentTimestamp = territory.assignment.assignedAt.toMillis();
+          const notificationId = `assigned_${territory.id}_${assignmentTimestamp}`;
+          const notificationRef = doc(db, 'users', user.uid, 'notifications', notificationId);
             
-            const notificationDoc = await getDoc(notificationRef);
+          const notificationDoc = await getDoc(notificationRef);
 
-            if (!notificationDoc.exists()) {
-              batch.set(notificationRef, {
-                title: "Você recebeu um novo território!",
-                body: `O território "${territory.name}" foi designado para você.`,
-                link: `/dashboard/territorios/${territory.id}`,
-                type: "territory_assigned",
-                isRead: false,
-                createdAt: Timestamp.now(),
-              });
-            }
+          if (!notificationDoc.exists()) {
+            batch.set(notificationRef, {
+              title: "Você recebeu um novo território!",
+              body: `O território "${territory.name}" foi designado para você.`,
+              link: `/dashboard/territorios/${territory.id}`,
+              type: "territory_assigned",
+              isRead: false,
+              createdAt: Timestamp.now(),
+            });
           }
         }
-        await batch.commit();
-      });
+      }
+      // Commita o batch de uma só vez, mesmo que esteja vazio.
+      await batch.commit();
+    });
 
-      return () => {
-        unsubCount();
-        unsubTerritories();
-      };
-    }
-
-    return () => unsubCount();
+    return () => {
+      unsubCount();
+      unsubTerritories();
+    };
   }, [user]);
   
   if (loading || !user) {
@@ -441,6 +438,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
 
 
 

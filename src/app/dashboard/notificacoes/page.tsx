@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, writeBatch, doc, updateDoc, limit } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, writeBatch, doc, updateDoc, limit, Timestamp } from 'firebase/firestore';
 import withAuth from '@/components/withAuth';
 import { Bell, Inbox, AlertTriangle, CheckCheck, Loader, UserPlus, Milestone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -48,7 +48,7 @@ function NotificacoesPage() {
   const handleMarkOneAsRead = async (notificationId: string) => {
     if (!user) return;
     const notifRef = doc(db, `users/${user.uid}/notifications`, notificationId);
-    await updateDoc(notifRef, { isRead: true });
+    await updateDoc(notifRef, { isRead: true, readAt: Timestamp.now() });
   };
 
   const handleMarkAllAsRead = async () => {
@@ -57,7 +57,7 @@ function NotificacoesPage() {
     notifications.forEach(n => {
         if (!n.isRead) {
             const notifRef = doc(db, `users/${user.uid}/notifications`, n.id);
-            batch.update(notifRef, { isRead: true });
+            batch.update(notifRef, { isRead: true, readAt: Timestamp.now() });
         }
     });
     await batch.commit();

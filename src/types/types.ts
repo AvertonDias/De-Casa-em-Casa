@@ -25,6 +25,7 @@ export interface Notification {
   type: 'territory_assigned' | 'territory_overdue' | 'user_pending' | 'announcement' | 'territory_returned' | 'territory_available';
   isRead: boolean;
   createdAt: Timestamp;
+  readAt?: Timestamp; // <-- NOVO CAMPO
 }
 
 
