@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { MouseEvent } from 'react';
@@ -43,7 +44,7 @@ export default function QuadraCard({ quadra, isManagerView, onEdit }: QuadraCard
             <div><p className="text-xs text-muted-foreground">Pendentes</p><p className="font-bold text-xl text-yellow-400">{casasPendentes}</p></div>
             <div><p className="text-xs text-muted-foreground">Progresso</p><p className="font-bold text-xl text-blue-400">{progresso}%</p></div>
         </div>
-        <div className="w-full bg-gray-700 rounded-full h-2.5">
+        <div className="w-full bg-muted rounded-full h-2.5">
           <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progresso}%` }}></div>
         </div>
       </>
