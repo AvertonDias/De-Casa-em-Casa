@@ -1,31 +1,33 @@
+// src/functions/index.ts
 
-// functions/src/index.ts
-import {https, setGlobalOptions, logger} from "firebase-functions/v2";
+import { https, setGlobalOptions, logger } from "firebase-functions/v2";
 import {
   onDocumentWritten,
   onDocumentDeleted,
 } from "firebase-functions/v2/firestore";
-import {onValueWritten} from "firebase-functions/v2/database";
+import { onValueWritten } from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
-import {format} from "date-fns";
+import { format } from "date-fns";
 import * as crypto from "crypto";
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 const db = admin.firestore();
-setGlobalOptions({region: "southamerica-east1"});
-
+setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   CORS WRAPPER (Solução Recomendada)
+//   CORS WRAPPER (Solução Definitiva)
 // ========================================================================
-function withCors(handler: (req: https.Request, res: https.Response) => Promise<void> | void) {
-  return (req: https.Request, res: https.Response) => {
+import type { Request, Response } from "express";
+
+export function withCors(
+  handler: (req: Request, res: Response) => Promise<void> | void
+) {
+  return (req: Request, res: Response) => {
     res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
     if (req.method === "OPTIONS") {
       res.status(204).send("");
       return;
@@ -35,30 +37,43 @@ function withCors(handler: (req: https.Request, res: https.Response) => Promise<
 }
 
 // ========================================================================
-//   FUNÇÕES HTTPS (Agora usando o withCors)
+//   FUNÇÕES HTTPS (Corrigidas com o wrapper)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onRequest(withCors(async (req, res) => {
-    const {
-      adminName,
-      adminEmail,
-      adminPassword,
-      congregationName,
-      congregationNumber,
-      whatsapp,
-    } = req.body.data;
-
-    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp ) {
-      res.status(400).json({error: "Todos os campos são obrigatórios."});
-      return;
-    }
-
-    let newUser;
+export const createCongregationAndAdmin = https.onRequest(
+  withCors(async (req, res) => {
     try {
-      const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).get();
+      const {
+        adminName,
+        adminEmail,
+        adminPassword,
+        congregationName,
+        congregationNumber,
+        whatsapp,
+      } = req.body.data;
+
+      if (
+        !adminName ||
+        !adminEmail ||
+        !adminPassword ||
+        !congregationName ||
+        !congregationNumber ||
+        !whatsapp
+      ) {
+        res.status(400).json({ error: "Todos os campos são obrigatórios." });
+        return;
+      }
+
+      let newUser;
+      const congQuery = await db
+        .collection("congregations")
+        .where("number", "==", congregationNumber)
+        .get();
       if (!congQuery.empty) {
-          res.status(409).json({error: "Uma congregação com este número já existe."});
-          return;
+        res
+          .status(409)
+          .json({ error: "Uma congregação com este número já existe." });
+        return;
       }
 
       newUser = await admin.auth().createUser({
@@ -92,232 +107,235 @@ export const createCongregationAndAdmin = https.onRequest(withCors(async (req, r
       });
 
       await batch.commit();
-      res.status(200).json({data: {
-        success: true,
-        userId: newUser.uid,
-        message: "Congregação criada com sucesso!",
-      }});
+      res.status(200).json({
+        data: {
+          success: true,
+          userId: newUser.uid,
+          message: "Congregação criada com sucesso!",
+        },
+      });
     } catch (error: any) {
-      if (newUser) {
-        await admin.auth().deleteUser(newUser.uid).catch((deleteError) => {
-            logger.error(`Falha CRÍTICA ao limpar usuário órfão '${newUser?.uid}':`, deleteError);
-        });
-      }
       if (error.code === "auth/email-already-exists") {
-        res.status(409).json({error: "Este e-mail já está em uso."});
+        res.status(409).json({ error: "Este e-mail já está em uso." });
       } else {
         logger.error("Erro ao criar congregação e admin:", error);
-        res.status(500).json({error: error.message || "Erro interno no servidor"});
+        res
+          .status(500)
+          .json({ error: error.message || "Erro interno no servidor" });
       }
     }
-}));
+  })
+);
 
-
-export const getManagersForNotification = https.onRequest(withCors(async (req, res) => {
-    const authData = req.body.data?.auth;
-    if (!authData) {
-      res.status(401).json({error: "Usuário não autenticado."});
-      return;
-    }
-    const {congregationId} = req.body.data;
-    if (!congregationId) {
-      res.status(400).json({error: "O ID da congregação é obrigatório."});
-      return;
-    }
+export const getManagersForNotification = https.onRequest(
+  withCors(async (req, res) => {
     try {
+      if (!req.body.data.auth) {
+        res.status(401).json({ error: "Ação não autorizada." });
+        return;
+      }
+      const { congregationId } = req.body.data;
+      if (!congregationId) {
+        res.status(400).json({ error: "O ID da congregação é obrigatório." });
+        return;
+      }
+
       const rolesToFetch = ["Administrador", "Dirigente"];
       const queryPromises = rolesToFetch.map((role) =>
-        db.collection("users").where("congregationId", "==", congregationId).where("role", "==", role).get(),
+        db
+          .collection("users")
+          .where("congregationId", "==", congregationId)
+          .where("role", "==", role)
+          .get()
       );
+
       const results = await Promise.all(queryPromises);
       const managers = results.flatMap((snapshot) =>
         snapshot.docs.map((doc) => {
-          const {name, whatsapp} = doc.data();
-          return {uid: doc.id, name, whatsapp};
-        }),
+          const { name, whatsapp } = doc.data();
+          return { uid: doc.id, name, whatsapp };
+        })
       );
-      const uniqueManagers = Array.from(
-        new Map(managers.map((item) => [item["uid"], item])).values(),
-      );
-      res.status(200).json({data: {success: true, managers: uniqueManagers}});
-    } catch (error) {
-      logger.error("Erro ao buscar gerentes:", error);
-      res.status(500).json({error: "Falha ao buscar contatos."});
-    }
-}));
 
-export const notifyOnNewUser = https.onRequest(withCors(async (req, res) => {
-    const {newUserName, congregationId} = req.body.data;
-    if (!newUserName || !congregationId) {
-      res.status(400).json({error: "Dados insuficientes."});
-      return;
+      const uniqueManagers = Array.from(
+        new Map(managers.map((item) => [item["uid"], item])).values()
+      );
+
+      res.status(200).json({ data: { success: true, managers: uniqueManagers } });
+    } catch (error: any) {
+      logger.error("Erro ao buscar gerentes:", error);
+      res
+        .status(500)
+        .json({ error: "Falha ao buscar contatos dos responsáveis." });
     }
+  })
+);
+
+export const notifyOnNewUser = https.onRequest(
+  withCors(async (req, res) => {
     try {
+      const { newUserName, congregationId } = req.body.data;
+      if (!newUserName || !congregationId) {
+        res.status(400).json({ error: "Dados insuficientes para notificação." });
+        return;
+      }
+
       const rolesToNotify = ["Administrador", "Dirigente"];
       const notifications: Promise<any>[] = [];
+
       for (const role of rolesToNotify) {
-        const usersToNotifySnapshot = await db.collection("users").where("congregationId", "==", congregationId).where("role", "==", role).get();
+        const usersToNotifySnapshot = await db
+          .collection("users")
+          .where("congregationId", "==", congregationId)
+          .where("role", "==", role)
+          .get();
         usersToNotifySnapshot.forEach((userDoc) => {
           const notification = {
             title: "Novo Usuário Aguardando Aprovação",
-            body: `O usuário "${newUserName}" solicitou acesso.`,
+            body: `O usuário "${newUserName}" solicitou acesso à congregação.`,
             link: "/dashboard/usuarios",
             type: "user_pending",
             isRead: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
           };
           notifications.push(
-            userDoc.ref.collection("notifications").add(notification),
+            userDoc.ref.collection("notifications").add(notification)
           );
         });
       }
-      await Promise.all(notifications);
-      res.status(200).json({data: {success: true}});
-    } catch (error) {
-      logger.error("Erro ao criar notificações para novo usuário:", error);
-      res.status(500).json({error: "Falha ao enviar notificações."});
-    }
-}));
 
-export const requestPasswordReset = https.onRequest(withCors(async (req, res) => {
-    const {email} = req.body.data;
-    if (!email) {
-      res.status(400).json({error: "O e-mail é obrigatório."});
-      return;
-    }
-    try {
-      const user = await admin.auth().getUserByEmail(email);
-      const token = crypto.randomUUID();
-      const expires = Date.now() + 3600 * 1000;
-      await db.collection("resetTokens").doc(token).set({
-          uid: user.uid,
-          expires: admin.firestore.Timestamp.fromMillis(expires),
-      });
-      res.status(200).json({data: {success: true, token}});
+      await Promise.all(notifications);
+      res.status(200).json({ data: { success: true } });
     } catch (error: any) {
-      if (error.code === "auth/user-not-found") {
-        res.status(200).json({data: {
-          success: true,
-          token: null,
-          message: "Se o e-mail existir, um link será enviado.",
-        }});
+      logger.error("Erro ao criar notificações para novo usuário:", error);
+      res.status(500).json({ error: "Falha ao enviar notificações." });
+    }
+  })
+);
+
+export const requestPasswordReset = https.onRequest(
+  withCors(async (req, res) => {
+    try {
+      const { email } = req.body.data;
+      if (!email) {
+        res.status(400).json({ error: "O e-mail é obrigatório." });
         return;
       }
-      logger.error("Erro ao gerar token:", error);
-      res.status(500).json({error: "Erro ao iniciar redefinição."});
-    }
-}));
 
-export const resetPasswordWithToken = https.onRequest(withCors(async (req, res) => {
-    const {token, newPassword} = req.body.data;
-    if (!token || !newPassword) {
-      res.status(400).json({error: "Token e senha são obrigatórios."});
-      return;
-    }
-    const tokenRef = db.collection("resetTokens").doc(token);
-    const tokenDoc = await tokenRef.get();
-    if (!tokenDoc.exists || tokenDoc.data()?.expires.toMillis() < Date.now()) {
-      if(tokenDoc.exists) await tokenRef.delete();
-      res.status(400).json({error: "Token inválido ou expirado."});
-      return;
-    }
-    try {
-      const uid = tokenDoc.data()?.uid;
-      await admin.auth().updateUser(uid, {password: newPassword});
-      await tokenRef.delete();
-      res.status(200).json({data: {success: true, message: "Senha redefinida."}});
+      try {
+        const user = await admin.auth().getUserByEmail(email);
+        const token = crypto.randomUUID();
+        const expires = Date.now() + 3600 * 1000; // 1 hora
+
+        await db
+          .collection("resetTokens")
+          .doc(token)
+          .set({
+            uid: user.uid,
+            expires: admin.firestore.Timestamp.fromMillis(expires),
+          });
+        res.status(200).json({ data: { success: true, token } });
+      } catch (error: any) {
+        if (error.code === "auth/user-not-found") {
+          res.status(200).json({
+            data: {
+              success: true,
+              token: null,
+              message: "Se o e-mail existir, um link será enviado.",
+            },
+          });
+        } else {
+          throw error;
+        }
+      }
     } catch (error: any) {
-      logger.error("Erro ao redefinir senha:", error);
-      res.status(500).json({error: "Falha ao atualizar senha."});
+      logger.error("Erro ao gerar token de redefinição:", error);
+      res
+        .status(500)
+        .json({ error: "Erro ao iniciar o processo de redefinição." });
     }
-}));
+  })
+);
 
-export const deleteUserAccount = https.onRequest(withCors(async (req, res) => {
-    const callingUserUid = req.body.data.auth?.uid;
-    if (!callingUserUid) {
-      res.status(401).json({error: "Ação não autorizada."});
-      return;
+export const resetPasswordWithToken = https.onRequest(
+  withCors(async (req, res) => {
+    try {
+      const { token, newPassword } = req.body.data;
+      if (!token || !newPassword) {
+        res
+          .status(400)
+          .json({ error: "Token e nova senha são obrigatórios." });
+        return;
+      }
+
+      const tokenRef = db.collection("resetTokens").doc(token);
+      const tokenDoc = await tokenRef.get();
+
+      if (!tokenDoc.exists) {
+        res.status(404).json({ error: "Token inválido ou já utilizado." });
+        return;
+      }
+      if (tokenDoc.data()?.expires.toMillis() < Date.now()) {
+        await tokenRef.delete();
+        res.status(410).json({ error: "O token de redefinição expirou." });
+        return;
+      }
+
+      const uid = tokenDoc.data()?.uid;
+      await admin.auth().updateUser(uid, { password: newPassword });
+      await tokenRef.delete();
+      res.status(200).json({ data: { success: true } });
+    } catch (error: any) {
+      logger.error("Erro ao redefinir senha com token:", error);
+      res.status(500).json({ error: "Falha ao atualizar a senha." });
     }
+  })
+);
 
-    const {userIdToDelete} = req.body.data;
-    if (!userIdToDelete) {
-      res.status(400).json({error: "ID inválido."});
-      return;
-    }
+export const deleteUserAccount = https.onRequest(
+  withCors(async (req, res) => {
+    try {
+      if (!req.body.data.auth) {
+        res.status(401).json({ error: "Ação não autorizada." });
+        return;
+      }
 
-    const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-    const isAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
+      const callingUserUid = req.body.data.auth.uid;
+      const { userIdToDelete } = req.body.data;
 
-    if (!isAdmin && callingUserUid !== userIdToDelete) {
+      if (!userIdToDelete) {
+        res.status(400).json({ error: "ID do usuário a ser deletado é obrigatório." });
+        return;
+      }
+      
+      const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
+      const isAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
+
+      if (!isAdmin && callingUserUid !== userIdToDelete) {
         res.status(403).json({ error: "Sem permissão." });
         return;
-    }
-    if (isAdmin && callingUserUid === userIdToDelete) {
+      }
+      if (isAdmin && callingUserUid === userIdToDelete) {
         res.status(403).json({ error: "Admin não pode se autoexcluir." });
         return;
-    }
+      }
 
-    try {
-        await admin.auth().deleteUser(userIdToDelete);
-        const userDocRef = db.collection("users").doc(userIdToDelete);
-        if ((await userDocRef.get()).exists) {
-            await userDocRef.delete();
-        }
-        res.status(200).json({ data: { success: true, message: "Operação de exclusão concluída." } });
+      await admin.auth().deleteUser(userIdToDelete);
+      const userDocRef = db.collection("users").doc(userIdToDelete);
+      if ((await userDocRef.get()).exists) {
+        await userDocRef.delete();
+      }
+      res.status(200).json({data: { success: true }});
     } catch (error: any) {
-        logger.error("Erro CRÍTICO ao excluir usuário:", error);
-        res.status(500).json({ error: `Falha na exclusão: ${error.message}` });
+      logger.error("Erro ao excluir usuário:", error);
+      res.status(500).json({ error: "Falha na exclusão." });
     }
-}));
+  })
+);
 
-export const resetTerritoryProgress = https.onRequest(withCors(async (req, res) => {
-    const uid = req.body.data.auth?.uid;
-    if (!uid) {
-      res.status(401).json({error: "Ação não autorizada."});
-      return;
-    }
-    const { congregationId, territoryId } = req.body.data;
-    if (!congregationId || !territoryId) {
-        res.status(400).json({ error: "IDs faltando." });
-        return;
-    }
 
-    const adminUserSnap = await db.collection("users").doc(uid).get();
-    if (adminUserSnap.data()?.role !== "Administrador") {
-        res.status(403).json({ error: "Ação restrita a administradores." });
-        return;
-    }
-
-    const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
-    const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
-
-    try {
-        await db.recursiveDelete(db.collection(historyPath));
-        let housesUpdatedCount = 0;
-        await db.runTransaction(async (transaction) => {
-            const quadrasSnapshot = await transaction.get(quadrasRef);
-            for (const quadraDoc of quadrasSnapshot.docs) {
-                const casasSnapshot = await transaction.get(quadraDoc.ref.collection("casas"));
-                casasSnapshot.forEach(casaDoc => {
-                    if (casaDoc.data().status === true) {
-                        transaction.update(casaDoc.ref, { status: false });
-                        housesUpdatedCount++;
-                    }
-                });
-            }
-        });
-        if (housesUpdatedCount > 0) {
-          res.status(200).json({ data: { success: true, message: `Sucesso! ${housesUpdatedCount} casas resetadas.` } });
-        } else {
-          res.status(200).json({ data: { success: true, message: "Nenhuma casa precisou ser resetada." } });
-        }
-    } catch (error: any) {
-        logger.error(`[resetTerritory] FALHA CRÍTICA:`, error);
-        res.status(500).json({ error: "Falha ao processar a limpeza do território." });
-    }
-}));
-
-export const notifyOnTerritoryAssigned = https.onRequest(withCors(async (req, res) => {
+export const notifyOnTerritoryAssigned = https.onRequest(
+  withCors(async (req, res) => {
     try {
       const { data } = req.body;
       if (!data || !data.auth) {
@@ -340,7 +358,7 @@ export const notifyOnTerritoryAssigned = https.onRequest(withCors(async (req, re
       const notification = {
         title: "Você recebeu um novo território!",
         body: `O território "${territoryName}" foi designado para você.`,
-        link: `/dashboard/meus-territorios`,
+        link: "/dashboard/meus-territorios",
         type: "territory_assigned",
         isRead: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -352,17 +370,21 @@ export const notifyOnTerritoryAssigned = https.onRequest(withCors(async (req, re
         .collection("notifications")
         .add(notification);
 
+      logger.info(
+        `[notifyOnTerritoryAssigned] Notificação criada com sucesso para ${assignedUid}`
+      );
       res.status(200).json({ data: { success: true } });
-    } catch (error) {
+    } catch (error: any) {
       logger.error("[notifyOnTerritoryAssigned] Erro:", error);
-      res.status(500).json({ error: "Falha ao criar notificação." });
+      res.status(500).json({
+        error: error.message || "Falha ao criar notificação.",
+      });
     }
-}));
-
-
+  })
+);
 
 // ========================================================================
-//   GATILHOS FIRESTORE (Mantidos como estão)
+//   GATILHOS FIRESTORE (Não precisam de CORS)
 // ========================================================================
 
 export const onHouseChange = onDocumentWritten(
@@ -370,8 +392,10 @@ export const onHouseChange = onDocumentWritten(
   async (event) => {
     const beforeData = event.data?.before.data();
     const afterData = event.data?.after.data();
+
     if (!event.data?.after.exists) return null;
-    const {congregationId, territoryId, quadraId} = event.params;
+
+    const { congregationId, territoryId, quadraId } = event.params;
     const quadraRef = db
       .collection("congregations")
       .doc(congregationId)
@@ -382,21 +406,28 @@ export const onHouseChange = onDocumentWritten(
     try {
       await db.runTransaction(async (transaction) => {
         const casasSnapshot = await transaction.get(
-          quadraRef.collection("casas"),
+          quadraRef.collection("casas")
         );
         const totalHouses = casasSnapshot.size;
         const housesDone = casasSnapshot.docs.filter(
-          (doc) => doc.data().status === true,
+          (doc) => doc.data().status === true
         ).length;
-        transaction.update(quadraRef, {totalHouses, housesDone});
+        transaction.update(quadraRef, { totalHouses, housesDone });
       });
     } catch (e) {
-      logger.error("onHouseChange Error:", e);
+      logger.error(
+        "onHouseChange: Erro na transação de atualização de estatísticas da quadra:",
+        e
+      );
     }
+
     if (beforeData?.status === false && afterData?.status === true) {
-      const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
+      const territoryRef = db.doc(
+        `congregations/${congregationId}/territories/${territoryId}`
+      );
       const today = format(new Date(), "yyyy-MM-dd");
       const activityHistoryRef = territoryRef.collection("activityHistory");
+
       try {
         const todayActivitiesSnap = await activityHistoryRef
           .where("activityDateStr", "==", today)
@@ -404,61 +435,69 @@ export const onHouseChange = onDocumentWritten(
           .limit(1)
           .get();
         if (todayActivitiesSnap.empty) {
+          const finalDescriptionForAutoLog =
+            "Primeiro trabalho do dia registrado. (Registro Automático)";
           await activityHistoryRef.add({
             type: "work",
             activityDate: admin.firestore.FieldValue.serverTimestamp(),
             activityDateStr: today,
-            description: "Primeiro trabalho do dia registrado. (Automático)",
+            description: finalDescriptionForAutoLog,
             userId: "automatic_system_log",
             userName: "Sistema",
           });
         }
       } catch (error) {
-        logger.error("onHouseChange activity log error:", error);
+        logger.error(
+          "onHouseChange: Erro ao processar ou adicionar log de atividade:",
+          error
+        );
       }
       await territoryRef.update({
         lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
       });
     }
     return null;
-  },
+  }
 );
 
 export const onQuadraChange = onDocumentWritten(
   "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
   async (event) => {
-    const {congregationId, territoryId} = event.params;
+    const { congregationId, territoryId } = event.params;
     const territoryRef = db.doc(
-      `congregations/${congregationId}/territories/${territoryId}`,
+      `congregations/${congregationId}/territories/${territoryId}`
     );
     const quadrasSnapshot = await territoryRef.collection("quadras").get();
+
     let totalHouses = 0;
     let housesDone = 0;
     quadrasSnapshot.forEach((doc) => {
       totalHouses += doc.data().totalHouses || 0;
       housesDone += doc.data().housesDone || 0;
     });
+
     const progress = totalHouses > 0 ? housesDone / totalHouses : 0;
     return territoryRef.update({
-      stats: {totalHouses, housesDone},
+      stats: { totalHouses, housesDone },
       progress,
       quadraCount: quadrasSnapshot.size,
     });
-  },
+  }
 );
 
 export const onTerritoryChange = onDocumentWritten(
   "congregations/{congregationId}/territories/{territoryId}",
   async (event) => {
-    const {congregationId} = event.params;
+    const { congregationId } = event.params;
     const congregationRef = db.doc(`congregations/${congregationId}`);
     const territoriesRef = congregationRef.collection("territories");
     const territoriesSnapshot = await territoriesRef.get();
-    let urbanCount = 0;
-    let ruralCount = 0;
-    let totalHouses = 0;
-    let totalHousesDone = 0;
-    let totalQuadras = 0;
+
+    let urbanCount = 0,
+      ruralCount = 0,
+      totalHouses = 0,
+      totalHousesDone = 0,
+      totalQuadras = 0;
     territoriesSnapshot.forEach((doc) => {
       const data = doc.data();
       if (data.type === "rural") {
@@ -478,38 +517,71 @@ export const onTerritoryChange = onDocumentWritten(
       totalHousesDone,
       lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
     });
-  },
+  }
 );
 
 export const onDeleteTerritory = onDocumentDeleted(
   "congregations/{congregationId}/territories/{territoryId}",
   async (event) => {
-    if (!event.data) return null;
+    if (!event.data) {
+      logger.warn(
+        `[onDeleteTerritory] Evento de deleção para ${event.params.territoryId} sem dados. Ignorando.`
+      );
+      return null;
+    }
     const ref = event.data.ref;
     try {
       await admin.firestore().recursiveDelete(ref);
-      return {success: true};
+      logger.log(
+        `[onDeleteTerritory] Território ${event.params.territoryId} e subcoleções deletadas.`
+      );
+      return { success: true };
     } catch (error) {
-      logger.error(`Error deleting territory ${event.params.territoryId}:`, error);
-      throw new https.HttpsError("internal", "Failed to delete territory.");
+      logger.error(
+        `[onDeleteTerritory] Erro ao deletar ${event.params.territoryId}:`,
+        error
+      );
+      throw new https.HttpsError(
+        "internal",
+        "Falha ao deletar território recursivamente."
+      );
     }
-  },
+  }
 );
 
 export const onDeleteQuadra = onDocumentDeleted(
   "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
   async (event) => {
-    if (!event.data) return null;
+    if (!event.data) {
+      logger.warn(
+        `[onDeleteQuadra] Evento de deleção para ${event.params.quadraId} sem dados. Ignorando.`
+      );
+      return null;
+    }
     const ref = event.data.ref;
     try {
       await admin.firestore().recursiveDelete(ref);
-      return {success: true};
+      logger.log(
+        `[onDeleteQuadra] Quadra ${event.params.quadraId} e subcoleções deletadas.`
+      );
+      return { success: true };
     } catch (error) {
-      logger.error(`Error deleting quadra ${event.params.quadraId}:`, error);
-      throw new https.HttpsError("internal", "Failed to delete quadra.");
+      logger.error(
+        `[onDeleteQuadra] Erro ao deletar ${event.params.quadraId}:`,
+        error
+      );
+      throw new https.HttpsError(
+        "internal",
+        "Falha ao deletar quadra recursivamente."
+      );
     }
-  },
+  }
 );
+
+
+// ============================================================================
+//   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
+// ============================================================================
 
 export const mirrorUserStatus = onValueWritten(
   {
@@ -520,6 +592,7 @@ export const mirrorUserStatus = onValueWritten(
     const eventStatus = event.data.after.val();
     const uid = event.params.uid;
     const userDocRef = db.doc(`users/${uid}`);
+
     try {
       if (!eventStatus || eventStatus.state === "offline") {
         await userDocRef.update({
@@ -534,9 +607,9 @@ export const mirrorUserStatus = onValueWritten(
       }
     } catch (err: any) {
       if (err.code !== "not-found") {
-        logger.error(`[Presence Mirror] Failed for ${uid}:`, err);
+        logger.error(`[Presence Mirror] Falha para ${uid}:`, err);
       }
     }
     return null;
-  },
+  }
 );

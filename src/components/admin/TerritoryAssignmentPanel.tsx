@@ -138,6 +138,7 @@ export default function TerritoryAssignmentPanel() {
         
         if (!assignedUser.uid.startsWith('custom_') && assignedUser.uid !== currentTerritory.assignment?.uid) {
             try {
+                // A chamada agora passa a autenticação e os dados dentro de `data`
                 await callNotifyOnTerritoryAssigned({
                   auth: { uid: currentUser.uid },
                   territoryId: territoryId,
