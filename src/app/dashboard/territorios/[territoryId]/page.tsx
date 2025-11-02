@@ -207,13 +207,13 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
       await updateDoc(territoryDocRef, { ...updatedData, lastUpdate: serverTimestamp() });
   };
 
-  const handleAddQuadra = async (data: { name: string; description: string }) => {
+  const handleAddQuadra = async (data: { name: string, description: string }) => {
     if(!user?.congregationId || !territoryId) return;
     const quadrasRef = collection(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras');
     await addDoc(quadrasRef, { ...data, totalHouses: 0, housesDone: 0, createdAt: serverTimestamp() });
   };
   
-  const handleEditQuadra = async (quadraId: string, data: { name: string; description: string }) => {
+  const handleEditQuadra = async (quadraId: string, data: { name: string, description: string }) => {
     if(!user?.congregationId || !territoryId) return;
     const quadraRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId);
     await updateDoc(quadraRef, data);
