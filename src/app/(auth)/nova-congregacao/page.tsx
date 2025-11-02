@@ -9,8 +9,13 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Loader, Eye, EyeOff } from "lucide-react"; 
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, app } from '@/lib/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { maskPhone } from '@/lib/utils'; 
+
+const functions = getFunctions(app, 'southamerica-east1');
+const createCongregationAndAdminFn = httpsCallable(functions, 'createCongregationAndAdmin');
+
 
 export default function NovaCongregacaoPage() {
   const [adminName, setAdminName] = useState('');
@@ -56,22 +61,14 @@ export default function NovaCongregacaoPage() {
             congregationNumber: congregationNumber.trim()
         };
 
-        const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdmin', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(dataToSend),
-        });
+        const result: any = await createCongregationAndAdminFn(dataToSend);
 
-        const result = await response.json();
-
-        if (response.ok && result.success) {
+        if (result.data.success) {
             toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
             await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
             // O UserContext irá lidar com o redirecionamento para /dashboard
         } else {
-            throw new Error(result.error || "Ocorreu um erro desconhecido.");
+            throw new Error(result.data.error || "Ocorreu um erro desconhecido.");
         }
 
     } catch (error: any) {
