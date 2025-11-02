@@ -111,6 +111,9 @@ export const createCongregationAndAdmin = https.onCall(async (request) => {
         "Este e-mail já está em uso.",
       );
     }
+    if (error instanceof https.HttpsError) {
+        throw error;
+    }
     logger.error("Erro ao criar congregação e admin:", error);
     throw new https.HttpsError(
       "internal",
@@ -120,7 +123,6 @@ export const createCongregationAndAdmin = https.onCall(async (request) => {
 });
 
 export const getManagersForNotification = https.onCall(async (request) => {
-  // 1. Autenticação: Garante que o usuário está logado (onCall faz isso automaticamente)
   if (!request.auth) {
       throw new https.HttpsError(
           "unauthenticated",
@@ -155,7 +157,6 @@ export const getManagersForNotification = https.onCall(async (request) => {
           }),
       );
       
-      // Remove duplicatas caso um usuário seja ambos (improvável, mas seguro)
       const uniqueManagers = Array.from(new Map(managers.map(item => [item['uid'], item])).values());
 
       return { success: true, managers: uniqueManagers };
