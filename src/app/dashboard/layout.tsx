@@ -182,20 +182,25 @@ function Sidebar({
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}>
         
-        <div className="flex items-center justify-between mb-8">
-            <Link href="/dashboard" className="flex items-center gap-2 font-bold text-xl">
+        <div className="flex flex-col items-center mb-8 gap-4">
+            <div className="w-full flex justify-between items-start">
+                <div className="w-8" /> {/* Espaçador */}
                 <Image
                     src="/icon-192x192.jpg"
                     alt="Logo"
-                    width={40}
-                    height={40}
+                    width={80}
+                    height={80}
                     className="rounded-lg"
+                    priority
                 />
-                <span>De Casa em Casa</span>
-            </Link>
-            <button onClick={onClose} className="md:hidden p-1 rounded-full text-foreground/80 hover:text-foreground">
-                <AnimatedHamburgerIcon isOpen={isOpen} />
-            </button>
+                <div className="flex flex-col items-end gap-2">
+                    <div className="hidden md:block">
+                        <ThemeSwitcher />
+                    </div>
+                    <button onClick={onClose} className="md:hidden p-1 rounded-full"><AnimatedHamburgerIcon isOpen={isOpen} /></button>
+                </div>
+            </div>
+            <h1 className="text-xl font-bold -mt-4">De Casa em Casa</h1>
         </div>
 
 
@@ -448,4 +453,5 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
 
