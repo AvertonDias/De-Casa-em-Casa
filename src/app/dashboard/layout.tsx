@@ -170,7 +170,7 @@ function Sidebar({
     { name: "Rural", href: "/dashboard/rural", icon: Trees, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
     { name: "Meus Territórios", href: "/dashboard/meus-territorios", icon: UserCheck, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
     { name: "Notificações", href: "/dashboard/notificacoes", icon: Bell, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
-    { name: "Usuários", href: "/dashboard/usuarios", icon: Users, roles: ['Administrador', 'Dirigente', 'Servo de Territórios'] },
+    { name: "Usuários", href: "/dashboard/usuarios", icon: Users, roles: ['Administrador', 'Dirigente'] },
     { name: "Administração", href: "/dashboard/administracao", icon: Shield, roles: ['Administrador', 'Servo de Territórios'] },
   ];
   const filteredNavLinks = navLinks.filter(link => user?.role && link.roles.includes(user.role));
@@ -326,7 +326,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
     
-    if (['Administrador', 'Dirigente', 'Servo de Territórios'].includes(user.role) && user.congregationId) {
+    if (['Administrador', 'Dirigente'].includes(user.role) && user.congregationId) {
       const q = query(
         collection(db, 'users'),
         where('congregationId', '==', user.congregationId),
@@ -352,36 +352,44 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     });
 
     // Listener for assigned territories to create notifications
-    const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-    const qTerritories = query(territoriesRef, where("assignment.uid", "==", user.uid));
-    
-    const unsubTerritories = onSnapshot(qTerritories, async (snapshot) => {
-      const batch = writeBatch(db);
-      for (const docSnap of snapshot.docs) {
-        const territory = { id: docSnap.id, ...docSnap.data() } as Territory;
-        const notificationId = `assigned_${territory.id}`;
-        const notificationRef = doc(db, 'users', user.uid, 'notifications', notificationId);
-        
-        const notificationDoc = await getDoc(notificationRef);
+    if (user.congregationId) {
+      const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
+      const qTerritories = query(territoriesRef, where("assignment.uid", "==", user.uid));
+      
+      const unsubTerritories = onSnapshot(qTerritories, async (snapshot) => {
+        const batch = writeBatch(db);
+        for (const docSnap of snapshot.docs) {
+          const territory = { id: docSnap.id, ...docSnap.data() } as Territory;
 
-        if (!notificationDoc.exists()) {
-          batch.set(notificationRef, {
-            title: "Você recebeu um novo território!",
-            body: `O território "${territory.name}" foi designado para você.`,
-            link: `/dashboard/territorios/${territory.id}`,
-            type: "territory_assigned",
-            isRead: false,
-            createdAt: Timestamp.now(),
-          });
+          if (territory.assignment?.assignedAt) {
+            const assignmentTimestamp = territory.assignment.assignedAt.seconds;
+            const notificationId = `assigned_${territory.id}_${assignmentTimestamp}`;
+            const notificationRef = doc(db, 'users', user.uid, 'notifications', notificationId);
+            
+            const notificationDoc = await getDoc(notificationRef);
+
+            if (!notificationDoc.exists()) {
+              batch.set(notificationRef, {
+                title: "Você recebeu um novo território!",
+                body: `O território "${territory.name}" foi designado para você.`,
+                link: `/dashboard/territorios/${territory.id}`,
+                type: "territory_assigned",
+                isRead: false,
+                createdAt: Timestamp.now(),
+              });
+            }
+          }
         }
-      }
-      await batch.commit();
-    });
+        await batch.commit();
+      });
 
-    return () => {
-      unsubCount();
-      unsubTerritories();
-    };
+      return () => {
+        unsubCount();
+        unsubTerritories();
+      };
+    }
+
+    return () => unsubCount();
   }, [user]);
   
   if (loading || !user) {
@@ -433,6 +441,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
 
 
 
