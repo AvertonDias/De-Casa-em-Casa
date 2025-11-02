@@ -366,21 +366,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
         
         if (isAssigned && territory.assignment) {
           const isOverdue = territory.assignment.dueDate.toDate() < new Date();
-
-          // Notificação de Designação
-          const assignedNotifRef = doc(notificationsRef, `assigned_${territory.id}`);
-          const assignedDoc = await getDoc(assignedNotifRef);
-          if (!assignedDoc.exists()) {
-            const assignedNotif: Omit<Notification, 'id'> = {
-              title: "Território Designado",
-              body: `O território "${territory.name}" foi designado para você.`,
-              link: `/dashboard/territorios/${territory.id}`,
-              type: 'territory_assigned',
-              isRead: false,
-              createdAt: territory.assignment?.assignedAt || Timestamp.now(),
-            };
-            await setDoc(assignedNotifRef, assignedNotif);
-          }
   
           // Notificação de Atraso
           if (isOverdue) {
@@ -454,6 +439,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
 
 
 
