@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, RefObject } from "react";
@@ -26,7 +27,9 @@ export function useScrollRestoration(ref?: RefObject<HTMLElement | null>) {
     };
 
     // Aplica a posição salva (se existir)
-    if (saved) applyScroll(Number(saved));
+    if (saved) {
+      setTimeout(() => applyScroll(Number(saved)), 0);
+    }
 
     // Salva a posição sempre que rolar
     const handleScroll = () => {
