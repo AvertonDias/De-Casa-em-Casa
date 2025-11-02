@@ -1,4 +1,3 @@
-
 // src/functions/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
@@ -596,11 +595,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
-
-// DEPRECATED FUNCTIONS - To be removed
-export const onHouseChange = https.onRequest((req, res) => res.status(200).send("DEPRECATED"));
-export const onQuadraChange = https.onRequest((req, res) => res.status(200).send("DEPRECATED"));
-export const onTerritoryChange = https.onRequest((req, res) => res.status(200).send("DEPRECATED"));
-export const sendFeedbackEmail = https.onRequest((req, res) => res.status(200).send("DEPRECATED"));
-export const generateUploadUrl = https.onRequest((req, res) => res.status(200).send("DEPRECATED"));
-export const resetTerritoryProgress = https.onRequest((req, res) => res.status(200).send("DEPRECATED"));
