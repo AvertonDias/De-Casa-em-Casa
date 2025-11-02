@@ -86,18 +86,18 @@ const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React
           isOpen && "opacity-0"
         )}
       />
-      <path
+       <path
         d="M5 6h14"
         className={cn(
           "transition-all duration-500 origin-center",
-          isOpen && "rotate-45 translate-y-[6px]"
+          isOpen && "translate-y-[6px] rotate-45"
         )}
       />
       <path
         d="M5 18h14"
         className={cn(
           "transition-all duration-500 origin-center",
-          isOpen && "-rotate-45 -translate-y-[6px]"
+          isOpen && "-translate-y-[6px] -rotate-45"
         )}
       />
     </svg>
@@ -454,6 +454,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
 
 
 
