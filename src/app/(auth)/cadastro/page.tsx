@@ -73,7 +73,6 @@ export default function SignUpPage() {
         status: "pendente"
       });
       
-      // Aciona a notificação via função onCall
       await notifyOnNewUser({ newUserName: name.trim(), congregationId });
 
       toast({
@@ -106,8 +105,8 @@ export default function SignUpPage() {
       <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
         <h1 className="text-3xl font-bold text-center">Solicitar Acesso</h1>
          <form onSubmit={handleSignUp} className="space-y-4">
-            <input type="text" value={name} onChange={handleInputChange(setName)} placeholder="Nome Completo" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" />
-            <input type="email" value={email} onChange={handleInputChange(setEmail)} placeholder="E-mail" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" />
+            <input type="text" value={name} onChange={handleInputChange(setName)} placeholder="Nome Completo" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" autoComplete="name" />
+            <input type="email" value={email} onChange={handleInputChange(setEmail)} placeholder="E-mail" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" autoComplete="email" />
             
             <input 
               type="tel" 
@@ -115,6 +114,7 @@ export default function SignUpPage() {
               onChange={handleWhatsappChange(setWhatsapp)} 
               placeholder="Seu WhatsApp (Obrigatório)" required 
               className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" 
+              autoComplete="tel"
             />
             
             <input 
@@ -123,17 +123,18 @@ export default function SignUpPage() {
               onChange={handleWhatsappChange(setConfirmWhatsapp)} 
               placeholder="Confirme seu WhatsApp" required 
               className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" 
+              autoComplete="tel"
             />
 
             <div className="relative">
-              <input type={showPassword ? "text" : "password"} value={password} onChange={handleInputChange(setPassword)} placeholder="Senha (mín. 6 caracteres)" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring pr-10" />
+              <input type={showPassword ? "text" : "password"} value={password} onChange={handleInputChange(setPassword)} placeholder="Senha (mín. 6 caracteres)" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring pr-10" autoComplete="new-password" />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground">
                 {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
               </button>
             </div>
             
             <div className="relative">
-              <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={handleInputChange(setConfirmPassword)} placeholder="Confirme sua Senha" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring pr-10" />
+              <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={handleInputChange(setConfirmPassword)} placeholder="Confirme sua Senha" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring pr-10" autoComplete="new-password" />
               <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground">
                 {showConfirmPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
               </button>
