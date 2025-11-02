@@ -13,12 +13,14 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
 
+const functions = getFunctions(app, 'southamerica-east1');
+const getManagersForNotificationFn = httpsCallable(functions, 'getManagersForNotification');
 
 function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();
@@ -30,25 +32,18 @@ function AguardandoAprovacaoPage() {
         if (!user?.congregationId) return;
         setIsLoadingContacts(true);
         try {
-            const usersRef = collection(db, 'users');
-            const q = query(
-                usersRef,
-                where("congregationId", "==", user.congregationId),
-                where("role", "in", ["Administrador", "Dirigente"])
-            );
-            const querySnapshot = await getDocs(q);
-            const managers = querySnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser));
-            
-            if (managers.length > 0) {
-                 setAdminsAndLeaders(managers);
+            const result: any = await getManagersForNotificationFn({ congregationId: user.congregationId });
+
+            if (result.data.success) {
+                setAdminsAndLeaders(result.data.managers);
             } else {
-                 throw new Error("Nenhum contato de administrador ou dirigente encontrado.");
+                throw new Error(result.data.error || "Falha ao buscar contatos.");
             }
         } catch (error: any) {
             console.error("Erro ao buscar administradores e dirigentes:", error);
             toast({
                 title: "Erro ao buscar contatos",
-                description: "Não foi possível carregar a lista de dirigentes. Verifique sua conexão ou tente mais tarde.",
+                description: error.message || "Não foi possível carregar a lista de dirigentes. Verifique sua conexão ou tente mais tarde.",
                 variant: "destructive"
             })
         } finally {
@@ -98,43 +93,39 @@ function AguardandoAprovacaoPage() {
                     Para agilizar, você pode notificar um dos dirigentes ou administradores abaixo.
                 </p>
 
-                <Accordion type="single" collapsible className="w-full text-left">
-                  <AccordionItem value="item-1">
-                    <AccordionTrigger className="font-semibold hover:no-underline">Notificar um responsável</AccordionTrigger>
-                    <AccordionContent>
-                      {isLoadingContacts ? (
-                        <div className="flex justify-center p-4">
-                            <Loader className="animate-spin text-primary" />
-                        </div>
-                      ) : (
-                        <div className="space-y-3 pt-2">
-                          {adminsAndLeaders.length > 0 ? adminsAndLeaders.map((contact) => (
-                            <div key={contact.uid} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9">
-                                  <AvatarFallback>{getInitials(contact.name)}</AvatarFallback>
-                                </Avatar>
-                                <p className="font-semibold">{contact.name}</p>
-                              </div>
-                              <Button 
-                                size="sm" 
-                                onClick={() => handleNotify(contact)}
-                                disabled={!contact.whatsapp}
-                                title={!contact.whatsapp ? "Este usuário não tem WhatsApp cadastrado" : `Enviar mensagem para ${contact.name}`}
-                              >
-                                <MessageCircle size={16} className="mr-2"/> Notificar
-                              </Button>
+                <div className="w-full text-left pt-4">
+                    <h3 className="font-semibold text-center mb-4">Notificar um responsável</h3>
+                    {isLoadingContacts ? (
+                    <div className="flex justify-center p-4">
+                        <Loader className="animate-spin text-primary" />
+                    </div>
+                    ) : (
+                    <div className="space-y-3 pt-2">
+                        {adminsAndLeaders.length > 0 ? adminsAndLeaders.map((contact) => (
+                        <div key={contact.uid} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                            <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9">
+                                <AvatarFallback>{getInitials(contact.name)}</AvatarFallback>
+                            </Avatar>
+                            <p className="font-semibold">{contact.name}</p>
                             </div>
-                          )) : (
-                            <p className="text-sm text-center text-muted-foreground py-4">
-                              Nenhum dirigente ou administrador com WhatsApp cadastrado foi encontrado.
-                            </p>
-                          )}
+                            <Button 
+                            size="sm" 
+                            onClick={() => handleNotify(contact)}
+                            disabled={!contact.whatsapp}
+                            title={!contact.whatsapp ? "Este usuário não tem WhatsApp cadastrado" : `Enviar mensagem para ${contact.name}`}
+                            >
+                            <MessageCircle size={16} className="mr-2"/> Notificar
+                            </Button>
                         </div>
-                      )}
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+                        )) : (
+                        <p className="text-sm text-center text-muted-foreground py-4">
+                            Nenhum dirigente ou administrador com WhatsApp cadastrado foi encontrado.
+                        </p>
+                        )}
+                    </div>
+                    )}
+                </div>
 
 
                 <div className="pt-4">
