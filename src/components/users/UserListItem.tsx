@@ -4,7 +4,7 @@
 import { Fragment } from 'react';
 import type { AppUser } from '@/types/types';
 import { Menu, Transition } from '@headlessui/react';
-import { Shield, User, MoreVertical, Check, Trash2, ShieldAlert, XCircle, Users, Edit } from 'lucide-react';
+import { MoreVertical, Check, Trash2, XCircle, Edit } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -25,19 +25,13 @@ export const UserListItem = ({
 }) => {
   const isOnline = user.isOnline === true;
   const isAdmin = currentUser.role === 'Administrador';
-  const isDirigente = currentUser.role === 'Dirigente';
-  const isServoTerritorios = currentUser.role === 'Servo de Territórios';
+  const isDirigente = currentUser.role === 'Dirigente' || currentUser.role === 'Servo de Territórios';
   
-  const canShowMenu = currentUser.uid !== user.uid && 
-                      (isAdmin || ((isDirigente || isServoTerritorios) && (user.status === 'pendente' || user.status === 'rejeitado')));
+  const canShowMenu = currentUser.uid !== user.uid && (isAdmin || isDirigente);
 
   // Funções de manipulador de eventos estáveis
   const handleApprove = () => onUpdate(user.uid, { status: 'ativo' });
   const handleReject = () => onUpdate(user.uid, { status: 'rejeitado' });
-  const handleMakeAdmin = () => onUpdate(user.uid, { role: 'Administrador' });
-  const handleMakeDirigente = () => onUpdate(user.uid, { role: 'Dirigente' });
-  const handleMakeServo = () => onUpdate(user.uid, { role: 'Servo de Territórios' });
-  const handleMakePublicador = () => onUpdate(user.uid, { role: 'Publicador' });
   const handleDelete = () => onDelete(user.uid, user.name);
   const handleEdit = () => onEdit(user);
 
@@ -125,99 +119,15 @@ export const UserListItem = ({
                                 </Menu.Item>
                               </>
                             ) : (
-                              <>
-                                {isAdmin && (
+                               isAdmin && (
                                   <Menu.Item>
                                       {({ active }) => (
                                         <button onClick={handleEdit} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                          <Edit className="mr-2 h-4 w-4"/>Editar Usuário
+                                          <Edit className="mr-2 h-4 w-4"/>Editar Perfil Completo
                                         </button>
                                       )}
                                   </Menu.Item>
-                                )}
-                                {user.status === 'rejeitado' && (
-                                    <Menu.Item>
-                                      {({ active }) => (
-                                        <button onClick={handleApprove} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                          <Check className="mr-2 h-4 w-4"/>Aprovar Mesmo Assim
-                                        </button>
-                                      )}
-                                    </Menu.Item>
-                                )}
-                                
-                                {isAdmin && user.role !== 'Administrador' && (
-                                  <Menu.Item>
-                                    {({ active }) => (
-                                      <button onClick={handleMakeAdmin} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                        <ShieldAlert className="mr-2 h-4 w-4"/>Tornar Administrador
-                                      </button>
-                                    )}
-                                  </Menu.Item>
-                                )}
-                                {isAdmin && user.role === 'Publicador' && (
-                                  <>
-                                    <Menu.Item>
-                                      {({ active }) => (
-                                        <button onClick={handleMakeDirigente} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                          <Shield className="mr-2 h-4 w-4"/>Tornar Dirigente
-                                        </button>
-                                      )}
-                                    </Menu.Item>
-                                    <Menu.Item>
-                                      {({ active }) => (
-                                        <button onClick={handleMakeServo} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                          <Users className="mr-2 h-4 w-4"/>Tornar S. de Territórios
-                                        </button>
-                                      )}
-                                    </Menu.Item>
-                                  </>
-                                )}
-                                {isAdmin && user.role === 'Dirigente' && (
-                                    <>
-                                      <Menu.Item>
-                                        {({ active }) => (
-                                          <button onClick={handleMakeServo} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                            <Users className="mr-2 h-4 w-4"/>Tornar S. de Territórios
-                                          </button>
-                                        )}
-                                      </Menu.Item>
-                                      <Menu.Item>
-                                        {({ active }) => (
-                                          <button onClick={handleMakePublicador} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                            <User className="mr-2 h-4 w-4"/>Tornar Publicador
-                                          </button>
-                                        )}
-                                      </Menu.Item>
-                                    </>
-                                )}
-                                {isAdmin && user.role === 'Servo de Territórios' && (
-                                    <>
-                                      <Menu.Item>
-                                        {({ active }) => (
-                                          <button onClick={handleMakeDirigente} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                            <Shield className="mr-2 h-4 w-4"/>Tornar Dirigente
-                                          </button>
-                                        )}
-                                      </Menu.Item>
-                                      <Menu.Item>
-                                        {({ active }) => (
-                                          <button onClick={handleMakePublicador} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                            <User className="mr-2 h-4 w-4"/>Tornar Publicador
-                                          </button>
-                                        )}
-                                      </Menu.Item>
-                                    </>
-                                )}
-                                {isAdmin && user.role === 'Administrador' && (
-                                  <Menu.Item>
-                                    {({ active }) => (
-                                      <button onClick={handleMakeDirigente} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                        <Shield className="mr-2 h-4 w-4"/>Rebaixar para Dirigente
-                                      </button>
-                                    )}
-                                  </Menu.Item>
-                                )}
-                              </>
+                                )
                             )}
                          </div>
                          {isAdmin && user.status !== 'pendente' && user.uid !== currentUser.uid && (
