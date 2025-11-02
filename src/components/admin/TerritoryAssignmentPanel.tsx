@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -19,10 +20,6 @@ import type { Territory, AppUser, AssignmentHistoryLog } from '@/types/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
-
-const functions = getFunctions(app, 'southamerica-east1');
-const callNotifyOnTerritoryAssigned = httpsCallable(functions, 'notifyOnTerritoryAssigned');
-
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   label: string;
@@ -118,12 +115,7 @@ export default function TerritoryAssignmentPanel() {
     }
     
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
-    const currentTerritory = territories.find(t => t.id === territoryId);
-    if (!currentTerritory) {
-        toast({ title: "Erro", description: "Território não encontrado para salvar.", variant: "destructive" });
-        return;
-    }
-
+    
     const assignmentData = {
         uid: assignedUser.uid,
         name: assignedUser.name,
@@ -136,24 +128,11 @@ export default function TerritoryAssignmentPanel() {
     try {
         await updateDoc(territoryRef, { status: 'designado', assignment: assignmentData });
         
-        if (!assignedUser.uid.startsWith('custom_') && assignedUser.uid !== currentTerritory.assignment?.uid) {
-            try {
-                await callNotifyOnTerritoryAssigned({
-                    auth: { uid: currentUser.uid },
-                    territoryId: territoryId,
-                    territoryName: currentTerritory.name || 'Território Desconhecido',
-                    assignedUid: assignedUser.uid,
-                });
-            } catch (callError: any) {
-                console.error("Erro ao chamar a função de notificação:", callError);
-                toast({ title: "Aviso", description: "O território foi salvo, mas a notificação interna falhou.", variant: "default" });
-            }
-        }
-
         const userForWhatsapp = users.find(u => u.uid === assignedUser.uid);
         if (userForWhatsapp?.whatsapp && !assignedUser.uid.startsWith('custom_')) {
+            const currentTerritory = territories.find(t => t.id === territoryId);
             const formattedDueDate = format(assignmentData.dueDate.toDate(), 'dd/MM/yyyy');
-            const message = `Olá, o território *${currentTerritory.number} - ${currentTerritory.name}* foi designado para você! Devolva até ${formattedDueDate}.`;
+            const message = `Olá, o território *${currentTerritory?.number} - ${currentTerritory?.name}* foi designado para você! Devolva até ${formattedDueDate}.`;
             const whatsappNumber = userForWhatsapp.whatsapp.replace(/\D/g, '');
             const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
             window.open(whatsappUrl, '_blank');

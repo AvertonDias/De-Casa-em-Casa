@@ -341,14 +341,47 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
+
+    // Listener for unread notifications count
     const q = query(
       collection(db, 'users', user.uid, 'notifications'),
       where('isRead', '==', false)
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubCount = onSnapshot(q, (snapshot) => {
       setUnreadNotificationsCount(snapshot.size);
     });
-    return () => unsubscribe();
+
+    // Listener for assigned territories to create notifications
+    const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
+    const qTerritories = query(territoriesRef, where("assignment.uid", "==", user.uid));
+    
+    const unsubTerritories = onSnapshot(qTerritories, async (snapshot) => {
+      const batch = writeBatch(db);
+      for (const docSnap of snapshot.docs) {
+        const territory = { id: docSnap.id, ...docSnap.data() } as Territory;
+        const notificationId = `assigned_${territory.id}`;
+        const notificationRef = doc(db, 'users', user.uid, 'notifications', notificationId);
+        
+        const notificationDoc = await getDoc(notificationRef);
+
+        if (!notificationDoc.exists()) {
+          batch.set(notificationRef, {
+            title: "Você recebeu um novo território!",
+            body: `O território "${territory.name}" foi designado para você.`,
+            link: `/dashboard/territorios/${territory.id}`,
+            type: "territory_assigned",
+            isRead: false,
+            createdAt: Timestamp.now(),
+          });
+        }
+      }
+      await batch.commit();
+    });
+
+    return () => {
+      unsubCount();
+      unsubTerritories();
+    };
   }, [user]);
   
   if (loading || !user) {
@@ -400,6 +433,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
 
 
 

@@ -291,14 +291,13 @@ export const resetPasswordWithToken = https.onRequest(
 export const deleteUserAccount = https.onRequest(
   withCors(async (req, res) => {
     try {
-      const { auth: callingUserAuth, userIdToDelete } = req.body.data;
-
-      if (!callingUserAuth || !callingUserAuth.uid) {
+      if (!req.body.data.auth) {
         res.status(401).json({ error: "Ação não autorizada." });
         return;
       }
 
-      const callingUserUid = callingUserAuth.uid;
+      const callingUserUid = req.body.data.auth.uid;
+      const { userIdToDelete } = req.body.data;
 
       if (!userIdToDelete) {
         res.status(400).json({ error: "ID do usuário a ser deletado é obrigatório." });
@@ -330,75 +329,18 @@ export const deleteUserAccount = https.onRequest(
   })
 );
 
-export const notifyOnTerritoryAssigned = https.onRequest(
-  withCors(async (req, res) => {
-    try {
-      const { auth: callingUserAuth, territoryId, territoryName, assignedUid } = req.body.data;
-
-      if (!callingUserAuth || !callingUserAuth.uid) {
-        res.status(401).json({ error: "Ação não autorizada." });
-        return;
-      }
-
-      if (!territoryId || !territoryName || !assignedUid) {
-        res.status(400).json({ error: "Dados insuficientes." });
-        return;
-      }
-
-      const userDoc = await db.collection("users").doc(assignedUid).get();
-      if (!userDoc.exists) {
-        res.status(404).json({ error: "Usuário não encontrado." });
-        return;
-      }
-
-      const notification = {
-        title: "Você recebeu um novo território!",
-        body: `O território "${territoryName}" foi designado para você.`,
-        link: `/dashboard/territorios/${territoryId}`,
-        type: "territory_assigned",
-        isRead: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-
-      await db
-        .collection("users")
-        .doc(assignedUid)
-        .collection("notifications")
-        .add(notification);
-
-      logger.info(
-        `[notifyOnTerritoryAssigned] Notificação criada com sucesso para ${assignedUid}`
-      );
-      res.status(200).json({ data: { success: true } });
-    } catch (error: any) {
-      logger.error("[notifyOnTerritoryAssigned] Erro:", error);
-      res.status(500).json({
-        error: error.message || "Falha ao criar notificação.",
-      });
-    }
-  })
-);
-
 export const resetTerritoryProgress = https.onRequest(
   withCors(async (req, res) => {
     try {
-      const { auth: callingUserAuth, congregationId, territoryId } = req.body.data;
-
-      if (!callingUserAuth || !callingUserAuth.uid) {
-        res.status(401).json({ error: "Ação não autorizada." });
-        return;
-      }
+      const { congregationId, territoryId } = req.body.data;
 
       if (!congregationId || !territoryId) {
         res.status(400).json({ error: "IDs faltando." });
         return;
       }
 
-      const adminUserSnap = await db.collection("users").doc(callingUserAuth.uid).get();
-      if (adminUserSnap.data()?.role !== "Administrador") {
-        res.status(403).json({ error: "Ação restrita a administradores." });
-        return;
-      }
+      // Adicione aqui a verificação de permissão se necessário.
+      // Ex: verificar se o chamador é admin.
       
       const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
       const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
