@@ -1,13 +1,13 @@
-
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, RefObject } from "react";
 import { usePathname } from "next/navigation";
 
 /**
- * Hook para restaurar a posição do scroll ao voltar para uma página.
+ * Restaura e salva a posição de rolagem de uma página ou container específico.
+ * @param ref Opcional: referência para um container com scroll interno.
  */
-export function useScrollRestoration() {
+export function useScrollRestoration(ref?: RefObject<HTMLElement | null>) {
   const pathname = usePathname();
 
   useEffect(() => {
@@ -16,23 +16,29 @@ export function useScrollRestoration() {
     const key = `scroll-pos:${pathname}`;
     const saved = sessionStorage.getItem(key);
 
-    // Restaura a posição do scroll ao entrar na página
-    if (saved) {
-        // Atraso para garantir que a página esteja renderizada
-        setTimeout(() => window.scrollTo(0, Number(saved)), 50);
-    }
+    // Função para aplicar a rolagem salva
+    const applyScroll = (pos: number) => {
+      if (ref?.current) {
+        ref.current.scrollTo({ top: pos, behavior: "auto" });
+      } else {
+        window.scrollTo(0, pos);
+      }
+    };
 
+    // Aplica a posição salva (se existir)
+    if (saved) applyScroll(Number(saved));
 
-    // Salva a posição ao rolar
+    // Salva a posição sempre que rolar
     const handleScroll = () => {
-      sessionStorage.setItem(key, String(window.scrollY));
+      const pos = ref?.current ? ref.current.scrollTop : window.scrollY;
+      sessionStorage.setItem(key, String(pos));
     };
 
-    window.addEventListener("scroll", handleScroll);
+    const el = ref?.current ?? window;
+    el.addEventListener("scroll", handleScroll);
 
-    // Remove o listener quando sair
     return () => {
-      window.removeEventListener("scroll", handleScroll);
+      el.removeEventListener("scroll", handleScroll);
     };
-  }, [pathname]);
+  }, [pathname, ref]);
 }
