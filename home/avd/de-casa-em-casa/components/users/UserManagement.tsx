@@ -37,7 +37,7 @@ export default function UserManagement() {
     
     setIsConfirmModalOpen(false);
     try {
-        await deleteUserAccountFn({ uid: userToDelete.uid });
+        await deleteUserAccountFn({ userIdToDelete: userToDelete.uid });
     } catch (error: any) {
         console.error("Erro ao chamar a função para excluir usuário:", error);
     } finally {
