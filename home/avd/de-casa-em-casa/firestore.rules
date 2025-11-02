@@ -4,44 +4,40 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper Functions
-    // CHECA SE O DOCUMENTO DO USUÁRIO EXISTE ANTES DE TENTAR LER
-    function isSignedIn() {
+    // --- Funções Auxiliares Seguras ---
+    function isAuth() {
       return request.auth != null;
     }
-    
+
+    function userExists(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId));
+    }
+
     function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
+      return isAuth() && userExists(userId) ? get(/databases/$(database)/documents/users/$(userId)).data : null;
     }
-
+    
     function isUserInCongregation(congId) {
-        return isSignedIn() && getUserData(request.auth.uid).congregationId == congId;
+      let userData = getUserData(request.auth.uid);
+      return userData != null && userData.congregationId == congId;
     }
-
+    
     function isRole(role) {
-        return isSignedIn() && getUserData(request.auth.uid).role == role;
+      let userData = getUserData(request.auth.uid);
+      return userData != null && userData.role == role;
     }
     
     function isManager() {
-        return isSignedIn() && getUserData(request.auth.uid).role in ['Administrador', 'Dirigente', 'Servo de Territórios'];
+      let userData = getUserData(request.auth.uid);
+      return userData != null && userData.role in ['Administrador', 'Dirigente', 'Servo de Territórios'];
     }
 
+    // --- Coleções ---
 
-    // Regras para a coleção de Feedbacks
-    match /feedbacks/{feedbackId} {
-      allow create: if isSignedIn();
-      allow read, update, delete: if false;
-    }
-
-    // Regras para a Coleção de Congregações
     match /congregations/{congId} {
-      // Qualquer um pode ler, autenticado ou não.
       allow read: if true;
-
-      // Apenas administradores podem escrever.
       allow write: if isRole('Administrador');
 
-      // Regras para subcoleções de Territórios
       match /territories/{terrId} {
         allow read, write: if isUserInCongregation(congId);
 
@@ -53,37 +49,52 @@ service cloud.firestore {
           }
         }
 
-        // Histórico de Atividade
         match /activityHistory/{activityId} {
             allow read, write: if isUserInCongregation(congId);
         }
       }
     }
 
-    // Regras para a Coleção de Usuários
     match /users/{userId} {
-      // Um usuário pode ler e atualizar seu próprio perfil.
-      allow read, update: if request.auth.uid == userId;
-
-      // Um usuário pode criar seu próprio documento (durante o cadastro).
+      // Usuário pode criar seu próprio documento (essencial para o cadastro).
       allow create: if request.auth.uid == userId;
 
-      // Admins, Dirigentes e Servos de Territórios podem ler a lista de usuários da sua própria congregação.
-      allow list: if isManager() && isUserInCongregation(resource.data.congregationId);
-                    
-      // Administradores podem atualizar/deletar qualquer usuário.
-      allow write: if isRole('Administrador');
-    }
+      // Usuário pode ler seu próprio perfil. CRÍTICO PARA O FUNCIONAMENTO DO APP.
+      allow get: if request.auth.uid == userId;
 
-    // Regras para a Coleção de Notificações
-    match /users/{userId}/notifications/{notificationId} {
-        // Usuário pode ler, criar, atualizar e apagar suas próprias notificações.
+      // Usuário pode atualizar seu próprio perfil (nome, whatsapp, etc).
+      allow update: if request.auth.uid == userId && 
+                      // Impede o usuário de alterar seu próprio papel, status ou ID de congregação.
+                      !('role' in request.resource.data) &&
+                      !('status' in request.resource.data) &&
+                      !('congregationId' in request.resource.data);
+
+      // Managers (Admin/Dirigente/Servo) podem ATUALIZAR outros usuários (status, papel).
+      allow update: if isManager() && isUserInCongregation(resource.data.congregationId);
+
+      // Admins podem DELETAR outros usuários, mas apenas da sua própria congregação e não a si mesmos.
+      allow delete: if isRole('Administrador') && 
+                      request.auth.uid != userId && 
+                      isUserInCongregation(getUserData(userId).congregationId);
+      
+      // Qualquer usuário autenticado pode listar os usuários da sua própria congregação.
+      // Isso é necessário para que um usuário pendente possa ver os contatos dos administradores.
+      allow list: if isAuth() && isUserInCongregation(query.resource.data.congregationId);
+
+
+      match /notifications/{notificationId} {
+        // Usuário pode ler e escrever suas próprias notificações.
         allow read, write: if request.auth.uid == userId;
+      }
     }
 
-    // Regras para Tokens de Redefinição de Senha (gerenciados pelo backend)
+    match /feedbacks/{feedbackId} {
+      allow create: if isAuth();
+      allow read, update, delete: if false; 
+    }
+
     match /resetTokens/{tokenId} {
-        allow read, write: if false;
+      allow read, write: if false;
     }
   }
 }

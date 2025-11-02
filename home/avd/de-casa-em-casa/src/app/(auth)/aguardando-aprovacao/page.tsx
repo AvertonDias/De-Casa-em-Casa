@@ -13,14 +13,11 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-
-const functions = getFunctions(app, 'southamerica-east1');
-const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
 
 
 function AguardandoAprovacaoPage() {
@@ -33,12 +30,19 @@ function AguardandoAprovacaoPage() {
         if (!user?.congregationId) return;
         setIsLoadingContacts(true);
         try {
-            const result: any = await getManagersForNotification({ congregationId: user.congregationId });
+            const usersRef = collection(db, 'users');
+            const q = query(
+                usersRef,
+                where("congregationId", "==", user.congregationId),
+                where("role", "in", ["Administrador", "Dirigente"])
+            );
+            const querySnapshot = await getDocs(q);
+            const managers = querySnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser));
             
-            if (result.data.success) {
-                setAdminsAndLeaders(result.data.managers);
+            if (managers.length > 0) {
+                 setAdminsAndLeaders(managers);
             } else {
-                throw new Error(result.data.error || "Falha ao buscar contatos.");
+                 throw new Error("Nenhum contato de administrador ou dirigente encontrado.");
             }
         } catch (error: any) {
             console.error("Erro ao buscar administradores e dirigentes:", error);
