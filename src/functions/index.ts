@@ -7,7 +7,11 @@ import {
 } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
-import { QueryDocumentSnapshot } from "firebase-admin/firestore"; // Importação corrigida
+import {
+  QueryDocumentSnapshot,
+  Transaction,
+  DocumentReference,
+} from "firebase-admin/firestore";
 import { format } from "date-fns";
 import * as crypto from "crypto";
 import type { Request, Response } from "express";
@@ -354,9 +358,12 @@ export const resetTerritoryProgress = https.onRequest(
       logger.log(`[resetTerritory] Histórico para ${territoryId} deletado com sucesso.`);
 
       let housesUpdatedCount = 0;
-      await db.runTransaction(async (transaction: admin.firestore.Transaction) => {
+      await db.runTransaction(async (transaction: Transaction) => {
           const quadrasSnapshot = await transaction.get(quadrasRef);
-          const housesToUpdate: { ref: admin.firestore.DocumentReference, data: { status: boolean } }[] = [];
+          const housesToUpdate: {
+            ref: DocumentReference;
+            data: { status: boolean };
+          }[] = [];
           
           for (const quadraDoc of quadrasSnapshot.docs) {
               const casasSnapshot = await transaction.get(quadraDoc.ref.collection("casas"));
