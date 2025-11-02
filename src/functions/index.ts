@@ -1,3 +1,4 @@
+
 // src/functions/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
@@ -7,6 +8,7 @@ import {
 } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
+import { QueryDocumentSnapshot } from "firebase-admin/firestore"; // Importação corrigida
 import { format } from "date-fns";
 import * as crypto from "crypto";
 import type { Request, Response } from "express";
@@ -147,7 +149,7 @@ export const getManagersForNotification = https.onRequest(
 
       const results = await Promise.all(queryPromises);
       const managers = results.flatMap((snapshot) =>
-        snapshot.docs.map((doc: admin.firestore.QueryDocumentSnapshot) => {
+        snapshot.docs.map((doc: QueryDocumentSnapshot) => {
           const { name, whatsapp } = doc.data();
           return { uid: doc.id, name, whatsapp };
         })
@@ -598,3 +600,5 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
+
+    
