@@ -1,7 +1,7 @@
-
 // src/functions/index.ts
 
-import { https, setGlobalOptions, logger, HttpsError } from "firebase-functions/v2";
+import { https, setGlobalOptions, logger } from "firebase-functions/v2";
+import { HttpsError } from "firebase-functions/v2/https";
 import {
   onDocumentWritten,
   onDocumentDeleted,
