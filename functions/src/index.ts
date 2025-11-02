@@ -10,7 +10,15 @@ import {format} from "date-fns";
 import * as cors from "cors";
 import * as crypto from "crypto";
 
-const corsHandler = cors({origin: true});
+const corsHandler = cors({
+    origin: [
+        "https://de-casa-em-casa.vercel.app", 
+        "https://de-casa-em-casa.web.app",
+        "https://de-casa-em-casa-e5bb5.web.app",
+        /https:\/\/de-casa-em-casa--.*-e5bb5\.web\.app$/,
+        /https:\/\/6000-firebase-studio-.*\.cloudworkstations\.dev$/
+    ]
+});
 
 
 if (!admin.apps.length) {
@@ -124,42 +132,56 @@ export const createCongregationAndAdmin = https.onCall(async ({data}) => {
 });
 
 
-export const getManagersForNotification = https.onCall(async ({data, auth}) => {
-    if (!auth) {
-        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
-    }
-    const {congregationId} = data;
-    if (!congregationId) {
-      throw new https.HttpsError(
-        "invalid-argument",
-        "O ID da congregação é obrigatório.",
-      );
-    }
+export const getManagersForNotification = https.onRequest((req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method !== 'POST') {
+            res.status(405).json({ error: 'Método não permitido' });
+            return;
+        }
 
-    try {
-      const rolesToFetch = ["Administrador", "Dirigente"];
-      const queryPromises = rolesToFetch.map((role) =>
-        db
-          .collection("users")
-          .where("congregationId", "==", congregationId)
-          .where("role", "==", role)
-          .get(),
-      );
-      const results = await Promise.all(queryPromises);
-      const managers = results.flatMap((snapshot) =>
-        snapshot.docs.map((doc) => {
-          const {name, whatsapp} = doc.data();
-          return {uid: doc.id, name, whatsapp};
-        }),
-      );
-      return {success: true, managers};
-    } catch (error: any) {
-      logger.error("Erro ao buscar gerentes:", error);
-      throw new https.HttpsError(
-        "internal",
-        "Falha ao buscar contatos dos responsáveis.",
-      );
-    }
+        const idToken = req.headers.authorization?.split('Bearer ')[1];
+        if (!idToken) {
+            res.status(401).json({ error: 'Não autorizado. Token não fornecido.' });
+            return;
+        }
+
+        try {
+            await admin.auth().verifyIdToken(idToken);
+        } catch (error) {
+            res.status(403).json({ error: 'Token inválido ou expirado.' });
+            return;
+        }
+
+        const { congregationId } = req.body;
+        if (!congregationId) {
+            res.status(400).json({ error: "O ID da congregação é obrigatório." });
+            return;
+        }
+
+        try {
+            const rolesToFetch = ["Administrador", "Dirigente"];
+            const queryPromises = rolesToFetch.map((role) =>
+                db.collection("users")
+                  .where("congregationId", "==", congregationId)
+                  .where("role", "==", role)
+                  .get()
+            );
+
+            const results = await Promise.all(queryPromises);
+            const managers = results.flatMap((snapshot) =>
+                snapshot.docs.map((doc) => {
+                    const { name, whatsapp } = doc.data();
+                    return { uid: doc.id, name, whatsapp };
+                })
+            );
+            
+            res.status(200).json({ success: true, managers });
+
+        } catch (error: any) {
+            logger.error("Erro ao buscar gerentes:", error);
+            res.status(500).json({ error: "Falha ao buscar contatos dos responsáveis." });
+        }
+    });
 });
 
 
@@ -210,8 +232,7 @@ export const notifyOnNewUser = https.onCall(async ({data}) => {
 });
 
 export const requestPasswordReset = https.onRequest(
-  {cors: true},
-  async (req, res) => {
+  (req, res) => {
     corsHandler(req, res, async () => {
       if (req.method !== "POST") {
         res.status(405).json({error: "Método não permitido."});
@@ -691,5 +712,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   },
 );
-
-    

@@ -13,11 +13,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
-
-const functions = getFunctions(app, 'southamerica-east1');
-const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
+import { auth } from '@/lib/firebase';
 
 
 function AguardandoAprovacaoPage() {
@@ -27,14 +23,33 @@ function AguardandoAprovacaoPage() {
 
     const fetchAdminsAndLeaders = useCallback(async () => {
         if (!user?.congregationId) return;
+
         setIsLoadingContacts(true);
         try {
-            const result: any = await getManagersForNotification({ congregationId: user.congregationId });
+            const idToken = await auth.currentUser?.getIdToken();
+            if (!idToken) {
+              throw new Error("Usuário não autenticado.");
+            }
             
-            if (result.data.success) {
-                setAdminsAndLeaders(result.data.managers);
+            const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/getManagersForNotification', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                },
+                body: JSON.stringify({ congregationId: user.congregationId }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || "Falha ao buscar contatos.");
+            }
+
+            const result = await response.json();
+            if (result.success) {
+                setAdminsAndLeaders(result.managers);
             } else {
-                throw new Error(result.data.error || "Falha ao buscar contatos.");
+                throw new Error(result.error || "A função retornou um erro.");
             }
         } catch (error: any) {
             console.error("Erro ao buscar administradores e dirigentes:", error);
@@ -133,5 +148,3 @@ function AguardandoAprovacaoPage() {
 }
 
 export default withAuth(AguardandoAprovacaoPage);
-
-    
