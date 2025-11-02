@@ -4,13 +4,25 @@
 import { Fragment } from 'react';
 import type { AppUser } from '@/types/types';
 import { Menu, Transition } from '@headlessui/react';
-import { Shield, User, MoreVertical, Check, Trash2, ShieldAlert, XCircle, Users } from 'lucide-react';
+import { Shield, User, MoreVertical, Check, Trash2, ShieldAlert, XCircle, Users, Edit } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-export const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: AppUser, currentUser: AppUser, onUpdate: (userId: string, data: object) => void, onDelete: (userId: string, userName: string) => void }) => {
+export const UserListItem = ({ 
+    user, 
+    currentUser, 
+    onUpdate, 
+    onDelete,
+    onEdit
+}: { 
+    user: AppUser, 
+    currentUser: AppUser, 
+    onUpdate: (userId: string, data: object) => void, 
+    onDelete: (userId: string, userName: string) => void,
+    onEdit: (user: AppUser) => void
+}) => {
   const isOnline = user.isOnline === true;
   const isAdmin = currentUser.role === 'Administrador';
   const isDirigente = currentUser.role === 'Dirigente';
@@ -27,6 +39,7 @@ export const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: 
   const handleMakeServo = () => onUpdate(user.uid, { role: 'Servo de Territórios' });
   const handleMakePublicador = () => onUpdate(user.uid, { role: 'Publicador' });
   const handleDelete = () => onDelete(user.uid, user.name);
+  const handleEdit = () => onEdit(user);
 
 
   const getStatusClass = (status: AppUser['status']) => {
@@ -113,6 +126,15 @@ export const UserListItem = ({ user, currentUser, onUpdate, onDelete }: { user: 
                               </>
                             ) : (
                               <>
+                                {isAdmin && (
+                                  <Menu.Item>
+                                      {({ active }) => (
+                                        <button onClick={handleEdit} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                          <Edit className="mr-2 h-4 w-4"/>Editar Usuário
+                                        </button>
+                                      )}
+                                  </Menu.Item>
+                                )}
                                 {user.status === 'rejeitado' && (
                                     <Menu.Item>
                                       {({ active }) => (

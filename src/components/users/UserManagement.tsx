@@ -10,6 +10,7 @@ import { Loader, Search, SlidersHorizontal, ChevronUp, X, Users as UsersIcon, Wi
 import { Disclosure, Transition } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { UserListItem } from './UserListItem';
+import { EditUserByAdminModal } from './EditUserByAdminModal'; // Importar o novo modal
 import { subDays, subMonths, subHours } from 'date-fns';
 import type { AppUser, Congregation } from '@/types/types';
 
@@ -31,6 +32,15 @@ export default function UserManagement() {
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<{uid: string, name: string} | null>(null);
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [userToEdit, setUserToEdit] = useState<AppUser | null>(null);
+
+  const handleOpenEditModal = (user: AppUser) => {
+    if (currentUser?.role !== 'Administrador') return;
+    setUserToEdit(user);
+    setIsEditModalOpen(true);
+  };
   
   const confirmDeleteUser = useCallback(async () => {
     if (!userToDelete || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
@@ -298,6 +308,7 @@ export default function UserManagement() {
                     currentUser={currentUser!} 
                     onUpdate={handleUserUpdate}
                     onDelete={openDeleteConfirm}
+                    onEdit={handleOpenEditModal}
                 />
             )}
           </ul>
@@ -319,6 +330,16 @@ export default function UserManagement() {
         confirmText="Sim, excluir"
         cancelText="Cancelar"
       />
+      
+      {userToEdit && (
+        <EditUserByAdminModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          userToEdit={userToEdit}
+          onSave={handleUserUpdate}
+        />
+      )}
     </>
   );
 }
+
