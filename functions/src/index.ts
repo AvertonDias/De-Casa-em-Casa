@@ -1,3 +1,4 @@
+// src/functions/index.ts
 
 import {https, setGlobalOptions, logger} from "firebase-functions/v2";
 import {
@@ -17,10 +18,10 @@ setGlobalOptions({region: "southamerica-east1"});
 
 
 // ========================================================================
-//   FUNÇÕES HTTPS (onCall e onRequest)
+//   FUNÇÕES HTTPS (onCall)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onCall(async (request) => {
+const _createCongregationAndAdmin = https.onCall(async (request) => {
   const {
     adminName,
     adminEmail,
@@ -122,7 +123,7 @@ export const createCongregationAndAdmin = https.onCall(async (request) => {
   }
 });
 
-export const getManagersForNotification = https.onCall(async (request) => {
+const _getManagersForNotification = https.onCall(async (request) => {
     if (!request.auth) {
         throw new https.HttpsError(
             "unauthenticated",
@@ -169,7 +170,7 @@ export const getManagersForNotification = https.onCall(async (request) => {
 });
 
 
-export const notifyOnNewUser = https.onCall(async (request) => {
+const _notifyOnNewUser = https.onCall(async (request) => {
     const {newUserName, congregationId} = request.data;
     if (!newUserName || !congregationId) {
       throw new https.HttpsError(
@@ -214,7 +215,7 @@ export const notifyOnNewUser = https.onCall(async (request) => {
     }
 });
 
-export const requestPasswordReset = https.onCall(async (request) => {
+const _requestPasswordReset = https.onCall(async (request) => {
     const { email } = request.data;
     if (!email) {
         throw new https.HttpsError("invalid-argument", "O e-mail é obrigatório.");
@@ -244,7 +245,7 @@ export const requestPasswordReset = https.onCall(async (request) => {
 });
 
 
-export const resetPasswordWithToken = https.onCall(async (request) => {
+const _resetPasswordWithToken = https.onCall(async (request) => {
   const {token, newPassword} = request.data;
   if (!token || !newPassword) {
     throw new https.HttpsError(
@@ -281,7 +282,7 @@ export const resetPasswordWithToken = https.onCall(async (request) => {
   }
 });
 
-export const deleteUserAccount = https.onCall(async (request) => {
+const _deleteUserAccount = https.onCall(async (request) => {
   const callingUserUid = request.auth?.uid;
   if (!callingUserUid) {
     throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
@@ -330,7 +331,7 @@ export const deleteUserAccount = https.onCall(async (request) => {
   }
 });
 
-export const resetTerritoryProgress = https.onCall(async (request) => {
+const _resetTerritoryProgress = https.onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) {
     throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
@@ -416,11 +417,47 @@ export const resetTerritoryProgress = https.onCall(async (request) => {
   }
 });
 
+const _notifyOnTerritoryAssigned = https.onCall(async (request) => {
+    if (!request.auth) {
+        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
+    }
+    const { territoryId, territoryName, assignedUid } = request.data;
+
+    if (!territoryId || !territoryName || !assignedUid) {
+      throw new https.HttpsError("invalid-argument", "Dados insuficientes para enviar notificação.");
+    }
+
+    try {
+        const userDoc = await db.collection("users").doc(assignedUid).get();
+        if (!userDoc.exists) {
+            throw new https.HttpsError("not-found", "Usuário não encontrado.");
+        }
+
+        const notification: Omit<admin.firestore.DocumentData, 'id'> = {
+            title: "Você recebeu um novo território!",
+            body: `O território "${territoryName}" foi designado para você.`,
+            link: `/dashboard/territorios/${territoryId}`,
+            type: 'territory_assigned',
+            isRead: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        const notificationRef = db.collection('users').doc(assignedUid).collection('notifications');
+        await notificationRef.add(notification);
+
+        return { success: true };
+    } catch (error) {
+        logger.error(`[notifyOnTerritoryAssigned] Erro:`, error);
+        throw new https.HttpsError("internal", "Falha ao criar notificação no servidor.");
+    }
+});
+
+
 // ========================================================================
 //   GATILHOS FIRESTORE
 // ========================================================================
 
-export const onHouseChange = onDocumentWritten(
+const _onHouseChange = onDocumentWritten(
   "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}",
   async (event) => {
     const beforeData = event.data?.before.data();
@@ -493,7 +530,7 @@ export const onHouseChange = onDocumentWritten(
   },
 );
 
-export const onQuadraChange = onDocumentWritten(
+const _onQuadraChange = onDocumentWritten(
   "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
   async (event) => {
     const {congregationId, territoryId} = event.params;
@@ -518,7 +555,7 @@ export const onQuadraChange = onDocumentWritten(
   },
 );
 
-export const onTerritoryChange = onDocumentWritten(
+const _onTerritoryChange = onDocumentWritten(
   "congregations/{congregationId}/territories/{territoryId}",
   async (event) => {
     const {congregationId} = event.params;
@@ -554,7 +591,7 @@ export const onTerritoryChange = onDocumentWritten(
 );
 
 
-export const onDeleteTerritory = onDocumentDeleted(
+const _onDeleteTerritory = onDocumentDeleted(
   "congregations/{congregationId}/territories/{territoryId}",
   async (event) => {
     if (!event.data) {
@@ -583,7 +620,7 @@ export const onDeleteTerritory = onDocumentDeleted(
   },
 );
 
-export const onDeleteQuadra = onDocumentDeleted(
+const _onDeleteQuadra = onDocumentDeleted(
   "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
   async (event) => {
     if (!event.data) {
@@ -612,47 +649,12 @@ export const onDeleteQuadra = onDocumentDeleted(
   },
 );
 
-export const notifyOnTerritoryAssigned = https.onCall(async (request) => {
-    if (!request.auth) {
-        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
-    }
-    const { territoryId, territoryName, assignedUid } = request.data;
-
-    if (!territoryId || !territoryName || !assignedUid) {
-      throw new https.HttpsError("invalid-argument", "Dados insuficientes para enviar notificação.");
-    }
-
-    try {
-        const userDoc = await db.collection("users").doc(assignedUid).get();
-        if (!userDoc.exists) {
-            throw new https.HttpsError("not-found", "Usuário não encontrado.");
-        }
-
-        const notification: Omit<admin.firestore.DocumentData, 'id'> = {
-            title: "Você recebeu um novo território!",
-            body: `O território "${territoryName}" foi designado para você.`,
-            link: `/dashboard/territorios/${territoryId}`,
-            type: 'territory_assigned',
-            isRead: false,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        };
-
-        const notificationRef = db.collection('users').doc(assignedUid).collection('notifications');
-        await notificationRef.add(notification);
-
-        return { success: true };
-    } catch (error) {
-        logger.error(`[notifyOnTerritoryAssigned] Erro:`, error);
-        throw new https.HttpsError("internal", "Falha ao criar notificação no servidor.");
-    }
-});
-
 
 // ============================================================================
 //   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
 // ============================================================================
 
-export const mirrorUserStatus = onValueWritten(
+const _mirrorUserStatus = onValueWritten(
   {
     ref: "/status/{uid}",
     region: "us-central1",
@@ -682,3 +684,21 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   },
 );
+
+// ============================================================================
+//   EXPORTAÇÕES
+// ============================================================================
+export const createCongregationAndAdmin = _createCongregationAndAdmin;
+export const getManagersForNotification = _getManagersForNotification;
+export const notifyOnNewUser = _notifyOnNewUser;
+export const requestPasswordReset = _requestPasswordReset;
+export const resetPasswordWithToken = _resetPasswordWithToken;
+export const deleteUserAccount = _deleteUserAccount;
+export const resetTerritoryProgress = _resetTerritoryProgress;
+export const notifyOnTerritoryAssigned = _notifyOnTerritoryAssigned;
+export const onHouseChange = _onHouseChange;
+export const onQuadraChange = _onQuadraChange;
+export const onTerritoryChange = _onTerritoryChange;
+export const onDeleteTerritory = _onDeleteTerritory;
+export const onDeleteQuadra = _onDeleteQuadra;
+export const mirrorUserStatus = _mirrorUserStatus;
