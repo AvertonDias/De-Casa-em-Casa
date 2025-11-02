@@ -3,7 +3,7 @@
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp, enableNetwork } from 'firebase/firestore';
 import { auth, db, app } from '@/lib/firebase';
 import type { AppUser, Congregation } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
@@ -52,7 +52,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const userStatusRTDBRef = ref(rtdb, `/status/${user.uid}`);
         await set(userStatusRTDBRef, null); // Remove o nó do RTDB
     }
-    // O onAuthStateChanged listener irá tratar da limpeza dos listeners do firestore
     await signOut(auth);
     router.push('/');
   };
@@ -66,6 +65,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Gerenciador de estado online/offline
+    const handleOnline = () => {
+      console.log('App online, reativando rede do Firestore.');
+      enableNetwork(db);
+    };
+    const handleOffline = () => {
+      console.log('App offline, acessando dados do cache.');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       // Limpa listeners antigos antes de configurar novos.
       unsubscribeAllFirestoreListeners();
@@ -74,7 +85,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const userRef = doc(db, 'users', firebaseUser.uid);
         
         const userDocListener = onSnapshot(userRef, (docSnap) => {
-          const userData = docSnap.exists() ? { uid: firebaseUser.uid, ...docSnap.data() } as AppUser : null;
+          const rawData = docSnap.data();
+          const userData = docSnap.exists() 
+            ? { 
+                uid: firebaseUser.uid,
+                ...rawData,
+                name: rawData?.name || firebaseUser.displayName,
+                email: rawData?.email || firebaseUser.email,
+                whatsapp: rawData?.whatsapp || '',
+              } as AppUser
+            : null;
           
           if (userData?.congregationId) {
             const congRef = doc(db, 'congregations', userData.congregationId);
@@ -83,8 +103,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
               setUser({...userData, congregationName: congData?.name});
               setCongregation(congData);
               if(loading) setLoading(false);
+            }, (error) => {
+                console.error("Erro no listener de congregação:", error);
+                // Mesmo com erro na congregação, seta o usuário e para de carregar
+                setUser(userData);
+                setCongregation(null);
+                setLoading(false);
             });
-            firestoreUnsubsRef.current.push(congListener); // Armazena unsub da congregação
+            firestoreUnsubsRef.current.push(congListener);
           } else {
              setUser(userData);
              setCongregation(null);
@@ -96,7 +122,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
             setUser(null);
             unsubscribeAllFirestoreListeners();
         });
-        firestoreUnsubsRef.current.push(userDocListener); // Armazena unsub do usuário
+        firestoreUnsubsRef.current.push(userDocListener);
 
       } else {
         setUser(null);
@@ -108,31 +134,39 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return () => {
         unsubscribeAuth();
         unsubscribeAllFirestoreListeners();
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  
 
   useEffect(() => {
     if (loading || !pathname) return;
+
+    const isAuthActionPage = pathname.startsWith('/auth/action');
     const isProtectedPage = pathname.startsWith('/dashboard') || pathname.startsWith('/aguardando-aprovacao');
     
     if (!user) {
-      if (isProtectedPage) {
+      if (isProtectedPage && !isAuthActionPage) {
         router.replace('/');
       }
       return; 
     }
 
     if (user.status === 'pendente') {
-      if (pathname !== '/aguardando-aprovacao') {
+      if (pathname !== '/aguardando-aprovacao' && !isAuthActionPage) {
         router.replace('/aguardando-aprovacao');
       }
       return;
     }
 
     if (user.status === 'ativo') {
-      if (pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre')) {
-        if (user.role === 'Publicador') {
+      const isInitialRedirect = pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre' && !isAuthActionPage);
+      if (isInitialRedirect) {
+        if (user.role === 'Administrador' || user.role === 'Dirigente' || user.role === 'Servo de Territórios') {
+          router.replace('/dashboard');
+        } else if (user.role === 'Publicador') {
           router.replace('/dashboard/territorios');
         } else {
           router.replace('/dashboard');
