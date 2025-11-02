@@ -36,7 +36,8 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     ".next/types/**/*.ts",
-    "src/types"
+    "src/types",
+    "src/functions/src/index.ts"
   ],
   "exclude": [
     "node_modules"
