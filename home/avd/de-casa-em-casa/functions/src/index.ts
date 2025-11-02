@@ -8,8 +8,18 @@ import {onValueWritten} from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
 import {format} from "date-fns";
 import * as cors from "cors";
+import * as crypto from "crypto";
 
-const corsHandler = cors({origin: true});
+const corsHandler = cors({
+    origin: [
+        "https://de-casa-em-casa.vercel.app", 
+        "https://de-casa-em-casa.web.app",
+        "https://de-casa-em-casa-e5bb5.web.app",
+        /https:\/\/de-casa-em-casa--.*-e5bb5\.web\.app$/,
+        /https:\/\/6000-firebase-studio-.*\.cloudworkstations\.dev$/
+    ]
+});
+
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -22,7 +32,7 @@ setGlobalOptions({region: "southamerica-east1"});
 //   FUNÇÕES HTTPS (onCall e onRequest)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onCall(async ({data}) => {
+export const createCongregationAndAdmin = https.onCall(async (request) => {
   const {
     adminName,
     adminEmail,
@@ -30,7 +40,7 @@ export const createCongregationAndAdmin = https.onCall(async ({data}) => {
     congregationName,
     congregationNumber,
     whatsapp,
-  } = data;
+  } = request.data;
 
   if (
     !adminName ||
@@ -122,51 +132,117 @@ export const createCongregationAndAdmin = https.onCall(async ({data}) => {
 });
 
 
-export const getManagersForNotification = https.onCall(async ({data}) => {
-  const {congregationId} = data;
-  if (!congregationId) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "O ID da congregação é obrigatório.",
-    );
-  }
-
-  try {
-    const rolesToFetch = ["Administrador", "Dirigente"];
-    const queryPromises = rolesToFetch.map((role) =>
-      db
-        .collection("users")
-        .where("congregationId", "==", congregationId)
-        .where("role", "==", role)
-        .get(),
-    );
-    const results = await Promise.all(queryPromises);
-    const managers = results.flatMap((snapshot) =>
-      snapshot.docs.map((doc) => {
-        const {name, whatsapp} = doc.data();
-        return {uid: doc.id, name, whatsapp};
-      }),
-    );
-    return {success: true, managers};
-  } catch (error: any) {
-    logger.error("Erro ao buscar gerentes:", error);
-    throw new https.HttpsError(
-      "internal",
-      "Falha ao buscar contatos dos responsáveis.",
-    );
-  }
-});
-
-export const requestPasswordReset = https.onRequest(
+export const getManagersForNotification = https.onRequest(
   {cors: true},
-  async (req, res) => {
+  (req, res) => {
     corsHandler(req, res, async () => {
       if (req.method !== "POST") {
         return res.status(405).json({error: "Método não permitido."});
       }
+
+      const idToken = req.headers.authorization?.split("Bearer ")[1];
+      if (!idToken) {
+        return res.status(401).json({error: "Usuário não autenticado."});
+      }
+
+      try {
+        await admin.auth().verifyIdToken(idToken);
+      } catch (error) {
+        return res.status(401).json({error: "Token inválido ou expirado."});
+      }
+
+      const {congregationId} = req.body;
+      if (!congregationId) {
+        return res
+          .status(400)
+          .json({error: "O ID da congregação é obrigatório."});
+      }
+
+      try {
+        const rolesToFetch = ["Administrador", "Dirigente"];
+        const queryPromises = rolesToFetch.map((role) =>
+          db
+            .collection("users")
+            .where("congregationId", "==", congregationId)
+            .where("role", "==", role)
+            .get(),
+        );
+        const results = await Promise.all(queryPromises);
+        const managers = results.flatMap((snapshot) =>
+          snapshot.docs.map((doc) => {
+            const {name, whatsapp} = doc.data();
+            return {uid: doc.id, name, whatsapp};
+          }),
+        );
+        return res.status(200).json({success: true, managers});
+      } catch (error: any) {
+        logger.error("Erro ao buscar gerentes:", error);
+        return res
+          .status(500)
+          .json({error: "Falha ao buscar contatos dos responsáveis."});
+      }
+    });
+  },
+);
+
+
+export const notifyOnNewUser = https.onCall(async (request) => {
+    const {newUserName, congregationId} = request.data;
+    if (!newUserName || !congregationId) {
+      throw new https.HttpsError(
+        "invalid-argument",
+        "Dados insuficientes para notificação.",
+      );
+    }
+
+    try {
+      const rolesToNotify = ["Administrador", "Dirigente"];
+      const notifications: Promise<any>[] = [];
+
+      for (const role of rolesToNotify) {
+        const usersToNotifySnapshot = await db
+          .collection("users")
+          .where("congregationId", "==", congregationId)
+          .where("role", "==", role)
+          .get();
+        usersToNotifySnapshot.forEach((userDoc) => {
+          const notification = {
+            title: "Novo Usuário Aguardando Aprovação",
+            body: `O usuário "${newUserName}" solicitou acesso à congregação.`,
+            link: "/dashboard/usuarios",
+            type: "user_pending",
+            isRead: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          };
+          notifications.push(
+            userDoc.ref.collection("notifications").add(notification),
+          );
+        });
+      }
+
+      await Promise.all(notifications);
+      return {success: true};
+    } catch (error) {
+      logger.error("Erro ao criar notificações para novo usuário:", error);
+      throw new https.HttpsError(
+        "internal",
+        "Falha ao enviar notificações.",
+      );
+    }
+});
+
+export const requestPasswordReset = https.onRequest(
+  {cors: true},
+  (req, res) => {
+    corsHandler(req, res, async () => {
+      if (req.method !== "POST") {
+        res.status(405).json({error: "Método não permitido."});
+        return;
+      }
       const {email} = req.body;
       if (!email) {
-        return res.status(400).json({error: "O e-mail é obrigatório."});
+        res.status(400).json({error: "O e-mail é obrigatório."});
+        return;
       }
       try {
         const user = await admin.auth().getUserByEmail(email);
@@ -178,26 +254,26 @@ export const requestPasswordReset = https.onRequest(
           expires: admin.firestore.Timestamp.fromMillis(expires),
         });
 
-        return res.status(200).json({success: true, token});
+        res.status(200).json({success: true, token});
       } catch (error: any) {
         if (error.code === "auth/user-not-found") {
-          return res.status(200).json({
+          res.status(200).json({
             success: true,
             token: null,
             message: "Se o e-mail existir, um link será enviado.",
           });
+          return;
         }
         logger.error("Erro ao gerar token de redefinição:", error);
-        return res
-          .status(500)
+        res.status(500)
           .json({error: "Erro ao iniciar o processo de redefinição."});
       }
     });
   },
 );
 
-export const resetPasswordWithToken = https.onCall(async ({data}) => {
-  const {token, newPassword} = data;
+export const resetPasswordWithToken = https.onCall(async (request) => {
+  const {token, newPassword} = request.data;
   if (!token || !newPassword) {
     throw new https.HttpsError(
       "invalid-argument",
@@ -233,13 +309,13 @@ export const resetPasswordWithToken = https.onCall(async ({data}) => {
   }
 });
 
-export const deleteUserAccount = https.onCall(async ({data, auth}) => {
-  const callingUserUid = auth?.uid;
+export const deleteUserAccount = https.onCall(async (request) => {
+  const callingUserUid = request.auth?.uid;
   if (!callingUserUid) {
     throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
   }
 
-  const {userIdToDelete} = data;
+  const {userIdToDelete} = request.data;
   if (!userIdToDelete || typeof userIdToDelete !== "string") {
     throw new https.HttpsError("invalid-argument", "ID inválido.");
   }
@@ -282,13 +358,13 @@ export const deleteUserAccount = https.onCall(async ({data, auth}) => {
   }
 });
 
-export const resetTerritoryProgress = https.onCall(async ({data, auth}) => {
-  const uid = auth?.uid;
+export const resetTerritoryProgress = https.onCall(async (request) => {
+  const uid = request.auth?.uid;
   if (!uid) {
     throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
   }
 
-  const {congregationId, territoryId} = data;
+  const {congregationId, territoryId} = request.data;
   if (!congregationId || !territoryId) {
     throw new https.HttpsError("invalid-argument", "IDs faltando.");
   }
@@ -567,11 +643,11 @@ export const onDeleteQuadra = onDocumentDeleted(
   },
 );
 
-export const notifyOnTerritoryAssigned = https.onCall(async ({data, auth}) => {
-    if (!auth) {
+export const notifyOnTerritoryAssigned = https.onCall(async (request) => {
+    if (!request.auth) {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
-    const { territoryId, territoryName, assignedUid } = data;
+    const { territoryId, territoryName, assignedUid } = request.data;
 
     if (!territoryId || !territoryName || !assignedUid) {
       throw new https.HttpsError("invalid-argument", "Dados insuficientes para enviar notificação.");
