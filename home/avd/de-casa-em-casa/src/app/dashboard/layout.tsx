@@ -65,6 +65,45 @@ function ThemeSwitcher() {
   )
 }
 
+const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React.SVGProps<SVGSVGElement>) => {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+      shapeRendering="geometricPrecision"
+      {...props}
+    >
+      <path
+        d="M5 12h14"
+        className={cn(
+          "transition-all duration-300",
+          isOpen && "opacity-0 translate-x-2"
+        )}
+      />
+      <path
+        d="M5 6h14"
+        className={cn(
+          "transition-all duration-300 origin-center",
+          isOpen && "rotate-45 translate-y-[6px]"
+        )}
+      />
+      <path
+        d="M5 18h14"
+        className={cn(
+          "transition-all duration-300 origin-center",
+          isOpen && "-rotate-45 -translate-y-[6px]"
+        )}
+      />
+    </svg>
+  );
+};
+
 
 function Sidebar({ 
     isOpen, 
@@ -158,7 +197,7 @@ function Sidebar({
                     <div className="hidden md:block">
                         <ThemeSwitcher />
                     </div>
-                    <button onClick={onClose} className="md:hidden p-1 rounded-full"><X size={24} /></button>
+                    <button onClick={onClose} className="md:hidden p-1 rounded-full"><AnimatedHamburgerIcon isOpen={isOpen} /></button>
                 </div>
             </div>
             <h1 className="text-xl font-bold">De Casa em Casa</h1>
@@ -338,7 +377,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
               isRead: false,
               createdAt: territory.assignment?.assignedAt || Timestamp.now(),
             };
-            await setDoc(assignedNotifRef, assignedNotif, { merge: true });
+            await setDoc(assignedNotifRef, assignedNotif);
           }
   
           // Notificação de Atraso
@@ -354,7 +393,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                 isRead: false,
                 createdAt: territory.assignment?.dueDate || Timestamp.now(),
               };
-              await setDoc(overdueNotifRef, overdueNotif, { merge: true });
+              await setDoc(overdueNotifRef, overdueNotif);
             }
           }
         }
@@ -385,7 +424,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
               <header className="md:hidden bg-background p-4 text-foreground shadow-md flex justify-between items-center border-b border-border">
                   <div className="relative">
                     <button onClick={() => setSidebarOpen(true)} aria-label="Abrir menu">
-                      <Menu size={24} />
+                      <AnimatedHamburgerIcon isOpen={isSidebarOpen} />
                     </button>
                     {hasUnreadItems && (
                       <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-destructive rounded-full animate-indicator-pulse"></span>
@@ -413,3 +452,4 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
