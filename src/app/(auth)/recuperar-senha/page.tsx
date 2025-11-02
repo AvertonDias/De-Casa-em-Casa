@@ -9,6 +9,11 @@ import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { sendEmail } from '@/lib/emailService';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordReset');
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -20,20 +25,13 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    const functionUrl = 'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordReset';
     try {
-      const response = await fetch(functionUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: { email } }), // Adicionado .data para alinhar com onRequest
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Falha ao gerar o token de redefinição.');
-      }
+      const result: any = await requestPasswordResetFn({ email });
+      const { success, token, message } = result.data;
       
-      const { token } = result;
+      if (!success) {
+        throw new Error(message || 'Falha ao gerar o token de redefinição.');
+      }
       
       if (token) {
           const resetLink = `${window.location.origin}/auth/action?token=${token}`;
