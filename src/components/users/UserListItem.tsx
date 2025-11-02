@@ -4,7 +4,7 @@
 import { Fragment } from 'react';
 import type { AppUser } from '@/types/types';
 import { Menu, Transition } from '@headlessui/react';
-import { MoreVertical, Check, Trash2, XCircle, Edit } from 'lucide-react';
+import { MoreVertical, Check, Trash2, XCircle, Edit, User } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -27,7 +27,7 @@ export const UserListItem = ({
   const isAdmin = currentUser.role === 'Administrador';
   const isDirigente = currentUser.role === 'Dirigente' || currentUser.role === 'Servo de Territórios';
   
-  const canShowMenu = currentUser.uid !== user.uid && (isAdmin || isDirigente);
+  const canShowMenu = currentUser.uid !== user.uid && (isAdmin || (isDirigente && user.status === 'pendente'));
 
   // Funções de manipulador de eventos estáveis
   const handleApprove = () => onUpdate(user.uid, { status: 'ativo' });
@@ -123,7 +123,7 @@ export const UserListItem = ({
                                   <Menu.Item>
                                       {({ active }) => (
                                         <button onClick={handleEdit} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                          <Edit className="mr-2 h-4 w-4"/>Editar Perfil Completo
+                                          <Edit className="mr-2 h-4 w-4"/>Editar Usuário
                                         </button>
                                       )}
                                   </Menu.Item>
