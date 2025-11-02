@@ -13,6 +13,7 @@ import * as crypto from "crypto";
 const allowedOrigins = [
     "https://de-casa-em-casa.vercel.app",
     "http://localhost:3000",
+    "https://de-casa-em-casa.web.app",
     "https://6000-firebase-studio-1750624095908.cluster-m7tpz3bmgjgoqrktlvd4ykrc2m.cloudworkstations.dev"
 ];
 
