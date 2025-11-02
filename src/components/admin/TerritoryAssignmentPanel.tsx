@@ -139,6 +139,7 @@ export default function TerritoryAssignmentPanel() {
         if (!assignedUser.uid.startsWith('custom_') && assignedUser.uid !== currentTerritory.assignment?.uid) {
             try {
                 await callNotifyOnTerritoryAssigned({
+                  auth: { uid: currentUser.uid },
                   territoryId: territoryId,
                   territoryName: currentTerritory.name || 'Território Desconhecido',
                   assignedUid: assignedUser.uid,

@@ -18,22 +18,27 @@ setGlobalOptions({region: "southamerica-east1"});
 
 
 // ========================================================================
-//   FUNÇÕES HTTPS (agora como onRequest com CORS manual)
+//   CORS WRAPPER (Solução Recomendada)
 // ========================================================================
-
-const setCorsHeaders = (req: https.Request, res: https.Response) => {
+function withCors(handler: (req: https.Request, res: https.Response) => Promise<void> | void) {
+  return (req: https.Request, res: https.Response) => {
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-};
 
-export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
-    setCorsHeaders(req, res);
     if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
+      res.status(204).send("");
+      return;
     }
-    
+    handler(req, res);
+  };
+}
+
+// ========================================================================
+//   FUNÇÕES HTTPS (Agora usando o withCors)
+// ========================================================================
+
+export const createCongregationAndAdmin = https.onRequest(withCors(async (req, res) => {
     const {
       adminName,
       adminEmail,
@@ -105,16 +110,10 @@ export const createCongregationAndAdmin = https.onRequest(async (req, res) => {
         res.status(500).json({error: error.message || "Erro interno no servidor"});
       }
     }
-});
+}));
 
 
-export const getManagersForNotification = https.onRequest(async (req, res) => {
-    setCorsHeaders(req, res);
-    if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
-    }
-    
+export const getManagersForNotification = https.onRequest(withCors(async (req, res) => {
     const authData = req.body.data?.auth;
     if (!authData) {
       res.status(401).json({error: "Usuário não autenticado."});
@@ -145,15 +144,9 @@ export const getManagersForNotification = https.onRequest(async (req, res) => {
       logger.error("Erro ao buscar gerentes:", error);
       res.status(500).json({error: "Falha ao buscar contatos."});
     }
-});
+}));
 
-export const notifyOnNewUser = https.onRequest(async (req, res) => {
-    setCorsHeaders(req, res);
-    if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
-    }
-
+export const notifyOnNewUser = https.onRequest(withCors(async (req, res) => {
     const {newUserName, congregationId} = req.body.data;
     if (!newUserName || !congregationId) {
       res.status(400).json({error: "Dados insuficientes."});
@@ -184,15 +177,9 @@ export const notifyOnNewUser = https.onRequest(async (req, res) => {
       logger.error("Erro ao criar notificações para novo usuário:", error);
       res.status(500).json({error: "Falha ao enviar notificações."});
     }
-});
+}));
 
-export const requestPasswordReset = https.onRequest(async (req, res) => {
-    setCorsHeaders(req, res);
-    if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
-    }
-
+export const requestPasswordReset = https.onRequest(withCors(async (req, res) => {
     const {email} = req.body.data;
     if (!email) {
       res.status(400).json({error: "O e-mail é obrigatório."});
@@ -219,15 +206,9 @@ export const requestPasswordReset = https.onRequest(async (req, res) => {
       logger.error("Erro ao gerar token:", error);
       res.status(500).json({error: "Erro ao iniciar redefinição."});
     }
-});
+}));
 
-export const resetPasswordWithToken = https.onRequest(async (req, res) => {
-    setCorsHeaders(req, res);
-    if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
-    }
-
+export const resetPasswordWithToken = https.onRequest(withCors(async (req, res) => {
     const {token, newPassword} = req.body.data;
     if (!token || !newPassword) {
       res.status(400).json({error: "Token e senha são obrigatórios."});
@@ -249,15 +230,9 @@ export const resetPasswordWithToken = https.onRequest(async (req, res) => {
       logger.error("Erro ao redefinir senha:", error);
       res.status(500).json({error: "Falha ao atualizar senha."});
     }
-});
+}));
 
-export const deleteUserAccount = https.onRequest(async (req, res) => {
-    setCorsHeaders(req, res);
-    if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
-    }
-    
+export const deleteUserAccount = https.onRequest(withCors(async (req, res) => {
     const callingUserUid = req.body.data.auth?.uid;
     if (!callingUserUid) {
       res.status(401).json({error: "Ação não autorizada."});
@@ -293,15 +268,9 @@ export const deleteUserAccount = https.onRequest(async (req, res) => {
         logger.error("Erro CRÍTICO ao excluir usuário:", error);
         res.status(500).json({ error: `Falha na exclusão: ${error.message}` });
     }
-});
+}));
 
-export const resetTerritoryProgress = https.onRequest(async (req, res) => {
-    setCorsHeaders(req, res);
-    if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
-    }
-
+export const resetTerritoryProgress = https.onRequest(withCors(async (req, res) => {
     const uid = req.body.data.auth?.uid;
     if (!uid) {
       res.status(401).json({error: "Ação não autorizada."});
@@ -346,18 +315,12 @@ export const resetTerritoryProgress = https.onRequest(async (req, res) => {
         logger.error(`[resetTerritory] FALHA CRÍTICA:`, error);
         res.status(500).json({ error: "Falha ao processar a limpeza do território." });
     }
-});
+}));
 
-export const notifyOnTerritoryAssigned = https.onRequest(async (req, res) => {
-    setCorsHeaders(req, res);
-    if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
-    }
-    
+export const notifyOnTerritoryAssigned = https.onRequest(withCors(async (req, res) => {
     try {
       const { data } = req.body;
-      if (!data) { // A verificação de auth é implícita no uso de httpsCallable
+      if (!data || !data.auth) {
         res.status(401).json({ error: "Ação não autorizada." });
         return;
       }
@@ -394,7 +357,7 @@ export const notifyOnTerritoryAssigned = https.onRequest(async (req, res) => {
       logger.error("[notifyOnTerritoryAssigned] Erro:", error);
       res.status(500).json({ error: "Falha ao criar notificação." });
     }
-});
+}));
 
 
 
