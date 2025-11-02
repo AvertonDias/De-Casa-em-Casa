@@ -23,6 +23,7 @@ import ImagePreviewModal from "@/components/ImagePreviewModal";
 import withAuth from "@/components/withAuth";
 import AddEditAssignmentLogModal from "@/components/admin/AddEditAssignmentLogModal";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { GoogleMapEmbed } from "@/components/GoogleMapEmbed";
 
 
 const functions = getFunctions(app, 'southamerica-east1');
@@ -56,16 +57,6 @@ const ProgressSection = ({ territory }: { territory: Territory }) => {
 
 const MapAndCardSection = ({ territory, onImageClick }: { territory: Territory, onImageClick: (url: string) => void }) => {
     const cardUrl = territory.cardUrl;
-    
-    const getMapEmbedUrl = (originalUrl?: string) => {
-        if (!originalUrl) return '';
-        try {
-            const url = new URL(originalUrl);
-            const mid = url.searchParams.get('mid');
-            return mid ? `https://www.google.com/maps/d/embed?mid=${mid}` : '';
-        } catch (e) { return ''; }
-    };
-    const mapEmbedUrl = getMapEmbedUrl(territory.mapLink);
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -84,7 +75,12 @@ const MapAndCardSection = ({ territory, onImageClick }: { territory: Territory, 
             )}
           </div>
         </div>
-        <div className="bg-card p-6 rounded-lg shadow-md flex flex-col"><h2 className="text-xl font-bold mb-4 flex items-center"><Map className="mr-3 text-primary" />Mapa do Território</h2><div className="flex-grow">{mapEmbedUrl ? <iframe src={mapEmbedUrl} width="100%" height="100%" style={{ border: 0, minHeight: '350px' }} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade"></iframe> : <p className="text-muted-foreground">Nenhum mapa.</p>}</div></div>
+        <div className="bg-card p-6 rounded-lg shadow-md flex flex-col">
+          <h2 className="text-xl font-bold mb-4 flex items-center"><Map className="mr-3 text-primary" />Mapa do Território</h2>
+          <div className="flex-grow min-h-[350px]">
+            <GoogleMapEmbed mapLink={territory.mapLink} />
+          </div>
+        </div>
       </div>
     );
 };
@@ -157,8 +153,25 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
     const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
     
     const unsubTerritory = onSnapshot(territoryRef, (docSnap) => { 
-        setTerritory(docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Territory : null);
-        setLoading(false); 
+        if (docSnap.exists()) {
+            const data = docSnap.data() as Territory;
+            setTerritory({ id: docSnap.id, ...data });
+
+            // Pre-fetch data for offline use
+            if ((data.type || 'urban') === 'urban' && data.quadraCount && data.quadraCount > 0) {
+              console.log(`[Offline Cache] Iniciando pré-carregamento de ${data.quadraCount} quadras...`);
+              const quadrasRef = collection(docSnap.ref, 'quadras');
+              getDocs(quadrasRef).then(quadrasSnap => {
+                quadrasSnap.forEach(quadraDoc => {
+                  console.log(`[Offline Cache] Casas da ${quadraDoc.data().name} carregadas.`);
+                  getDocs(collection(quadraDoc.ref, 'casas'));
+                });
+              });
+            }
+        } else {
+            setTerritory(null);
+        }
+        setLoading(false);
     });
 
     const historyQuery = query(collection(territoryRef, 'activityHistory'), orderBy("activityDate", "desc"));
@@ -194,13 +207,13 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
       await updateDoc(territoryDocRef, { ...updatedData, lastUpdate: serverTimestamp() });
   };
 
-  const handleAddQuadra = async (data: { name: string, description: string }) => {
+  const handleAddQuadra = async (data: { name: string; description: string }) => {
     if(!user?.congregationId || !territoryId) return;
     const quadrasRef = collection(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras');
     await addDoc(quadrasRef, { ...data, totalHouses: 0, housesDone: 0, createdAt: serverTimestamp() });
   };
   
-  const handleEditQuadra = async (quadraId: string, data: { name: string, description: string }) => {
+  const handleEditQuadra = async (quadraId: string, data: { name: string; description: string }) => {
     if(!user?.congregationId || !territoryId) return;
     const quadraRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId);
     await updateDoc(quadraRef, data);

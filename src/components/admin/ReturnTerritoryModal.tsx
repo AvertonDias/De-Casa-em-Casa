@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -56,7 +57,7 @@ export default function ReturnTerritoryModal({ isOpen, onClose, onConfirm, terri
               value={returnDate}
               onChange={(e) => setReturnDate(e.target.value)}
               max={today} 
-              className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full bg-input rounded-md p-2 border border-border"
             />
           </div>
           

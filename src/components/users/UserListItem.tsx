@@ -151,5 +151,3 @@ export const UserListItem = ({
     </li>
   );
 };
-
-    
