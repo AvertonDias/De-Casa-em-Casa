@@ -6,7 +6,7 @@ import {
   onDocumentDeleted,
 } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import { format } from "date-fns";
 import * as crypto from "crypto";
 import type { Request, Response } from "express";
@@ -291,12 +291,15 @@ export const resetPasswordWithToken = https.onRequest(
 export const deleteUserAccount = https.onRequest(
   withCors(async (req, res) => {
     try {
-      if (!req.body.data.auth) {
-        res.status(401).json({ error: "Ação não autorizada." });
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        res.status(401).json({ error: "Ação não autorizada. Sem token." });
         return;
       }
-
-      const callingUserUid = req.body.data.auth.uid;
+      const idToken = authHeader.split('Bearer ')[1];
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const callingUserUid = decodedToken.uid;
+      
       const { userIdToDelete } = req.body.data;
 
       if (!userIdToDelete) {
@@ -324,7 +327,11 @@ export const deleteUserAccount = https.onRequest(
       res.status(200).json({data: { success: true }});
     } catch (error: any) {
       logger.error("Erro ao excluir usuário:", error);
-      res.status(500).json({ error: "Falha na exclusão." });
+      if (error.code === 'auth/id-token-expired') {
+        res.status(401).json({ error: "Token expirado. Faça login novamente."});
+      } else {
+        res.status(500).json({ error: error.message || "Falha na exclusão." });
+      }
     }
   })
 );
@@ -338,9 +345,6 @@ export const resetTerritoryProgress = https.onRequest(
         res.status(400).json({ error: "IDs faltando." });
         return;
       }
-
-      // Adicione aqui a verificação de permissão se necessário.
-      // Ex: verificar se o chamador é admin.
       
       const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
       const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
@@ -594,5 +598,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
-
-    
