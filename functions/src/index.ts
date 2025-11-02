@@ -1,10 +1,12 @@
-import {https, logger, setGlobalOptions} from "firebase-functions/v2";
+
+import {https, setGlobalOptions, logger} from "firebase-functions/v2";
 import {
   onDocumentWritten,
   onDocumentDeleted,
 } from "firebase-functions/v2/firestore";
 import {onValueWritten} from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
+import {format} from "date-fns";
 import * as crypto from "crypto";
 
 if (!admin.apps.length) {
@@ -118,95 +120,99 @@ export const createCongregationAndAdmin = https.onCall(async (request) => {
 });
 
 export const getManagersForNotification = https.onCall(async (request) => {
+  // 1. Autenticação: Garante que o usuário está logado (onCall faz isso automaticamente)
   if (!request.auth) {
-    throw new https.HttpsError(
-      "unauthenticated",
-      "O usuário deve estar autenticado para realizar esta ação.",
-    );
+      throw new https.HttpsError(
+          "unauthenticated",
+          "O usuário deve estar autenticado para realizar esta ação.",
+      );
   }
 
-  const {congregationId} = request.data;
+  const { congregationId } = request.data;
   if (!congregationId) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "O ID da congregação é obrigatório.",
-    );
+      throw new https.HttpsError(
+          "invalid-argument",
+          "O ID da congregação é obrigatório.",
+      );
   }
 
   try {
-    const rolesToFetch = ["Administrador", "Dirigente"];
-    const queryPromises = rolesToFetch.map((role) =>
-      db
-        .collection("users")
-        .where("congregationId", "==", congregationId)
-        .where("role", "==", role)
-        .get(),
-    );
+      const rolesToFetch = ["Administrador", "Dirigente"];
+      const queryPromises = rolesToFetch.map((role) =>
+          db
+              .collection("users")
+              .where("congregationId", "==", congregationId)
+              .where("role", "==", role)
+              .get(),
+      );
 
-    const results = await Promise.all(queryPromises);
+      const results = await Promise.all(queryPromises);
+      
+      const managers = results.flatMap((snapshot) =>
+          snapshot.docs.map((doc) => {
+              const { name, whatsapp } = doc.data();
+              return { uid: doc.id, name, whatsapp };
+          }),
+      );
+      
+      // Remove duplicatas caso um usuário seja ambos (improvável, mas seguro)
+      const uniqueManagers = Array.from(new Map(managers.map(item => [item['uid'], item])).values());
 
-    const managers = results.flatMap((snapshot) =>
-      snapshot.docs.map((doc) => {
-        const {name, whatsapp} = doc.data();
-        return {uid: doc.id, name, whatsapp};
-      }),
-    );
+      return { success: true, managers: uniqueManagers };
 
-    const uniqueManagers = Array.from(
-      new Map(managers.map((item) => [item["uid"], item])).values(),
-    );
-
-    return {success: true, managers: uniqueManagers};
   } catch (error) {
-    logger.error("Erro ao buscar gerentes:", error);
-    throw new https.HttpsError(
-      "internal",
-      "Falha ao buscar contatos dos responsáveis.",
-    );
+      logger.error("Erro ao buscar gerentes:", error);
+      throw new https.HttpsError(
+          "internal",
+          "Falha ao buscar contatos dos responsáveis.",
+      );
   }
 });
 
 
 export const notifyOnNewUser = https.onCall(async (request) => {
-  const {newUserName, congregationId} = request.data;
-  if (!newUserName || !congregationId) {
-    throw new https.HttpsError(
-      "invalid-argument",
-      "Dados insuficientes para notificação.",
-    );
-  }
-
-  try {
-    const rolesToNotify = ["Administrador", "Dirigente"];
-    const notifications: Promise<any>[] = [];
-
-    for (const role of rolesToNotify) {
-      const usersToNotifySnapshot = await db
-        .collection("users")
-        .where("congregationId", "==", congregationId)
-        .where("role", "==", role)
-        .get();
-      usersToNotifySnapshot.forEach((userDoc) => {
-        const notification = {
-          title: "Novo Usuário Aguardando Aprovação",
-          body: `O usuário "${newUserName}" solicitou acesso à congregação.`,
-          link: "/dashboard/usuarios",
-          type: "user_pending",
-          isRead: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        };
-        notifications.push(
-          userDoc.ref.collection("notifications").add(notification),
-        );
-      });
+    const {newUserName, congregationId} = request.data;
+    if (!newUserName || !congregationId) {
+      throw new https.HttpsError(
+        "invalid-argument",
+        "Dados insuficientes para notificação.",
+      );
     }
 
-    await Promise.all(notifications);
-    return {success: true};
-  } catch (error) {
-    logger.error("Erro ao criar notificações para novo usuário:", error);
-    throw new https.HttpsError("internal", "Falha ao enviar notificações.");
-  }
+    try {
+      const rolesToNotify = ["Administrador", "Dirigente"];
+      const notifications: Promise<any>[] = [];
+
+      for (const role of rolesToNotify) {
+        const usersToNotifySnapshot = await db
+          .collection("users")
+          .where("congregationId", "==", congregationId)
+          .where("role", "==", role)
+          .get();
+        usersToNotifySnapshot.forEach((userDoc) => {
+          const notification = {
+            title: "Novo Usuário Aguardando Aprovação",
+            body: `O usuário "${newUserName}" solicitou acesso à congregação.`,
+            link: "/dashboard/usuarios",
+            type: "user_pending",
+            isRead: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          };
+          notifications.push(
+            userDoc.ref.collection("notifications").add(notification),
+          );
+        });
+      }
+
+      await Promise.all(notifications);
+      return {success: true};
+    } catch (error) {
+      logger.error("Erro ao criar notificações para novo usuário:", error);
+      throw new https.HttpsError(
+        "internal",
+        "Falha ao enviar notificações.",
+      );
+    }
 });
 
 export const requestPasswordReset = https.onCall(async (request) => {
@@ -325,10 +331,7 @@ export const deleteUserAccount = https.onCall(async (request) => {
         message: "Usuário não encontrado na Auth, mas removido do Firestore.",
       };
     }
-    throw new https.HttpsError(
-      "internal",
-      `Falha na exclusão: ${error.message}`,
-    );
+    throw new https.HttpsError("internal", `Falha na exclusão: ${error.message}`);
   }
 });
 
@@ -377,7 +380,7 @@ export const resetTerritoryProgress = https.onCall(async (request) => {
       const quadrasSnapshot = await transaction.get(quadrasRef);
       const housesToUpdate: {
         ref: admin.firestore.DocumentReference;
-        data: {status: boolean};
+        data: { status: boolean };
       }[] = [];
       for (const quadraDoc of quadrasSnapshot.docs) {
         const casasSnapshot = await transaction.get(
@@ -425,7 +428,10 @@ export const resetTerritoryProgress = https.onCall(async (request) => {
 export const onHouseChange = onDocumentWritten(
   "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}",
   async (event) => {
-    if (!event.data?.after.exists) return null;
+    const beforeData = event.data?.before.data();
+    const afterData = event.data?.after.data();
+
+    if (!event.data?.after.exists) return null; // Documento deletado, tratado por onDelete
 
     const {congregationId, territoryId, quadraId} = event.params;
     const quadraRef = db
@@ -453,6 +459,41 @@ export const onHouseChange = onDocumentWritten(
       );
     }
 
+    if (beforeData?.status === false && afterData?.status === true) {
+      const territoryRef = db.doc(
+        `congregations/${congregationId}/territories/${territoryId}`,
+      );
+      const today = format(new Date(), "yyyy-MM-dd");
+      const activityHistoryRef = territoryRef.collection("activityHistory");
+
+      try {
+        const todayActivitiesSnap = await activityHistoryRef
+          .where("activityDateStr", "==", today)
+          .where("type", "==", "work")
+          .limit(1)
+          .get();
+        if (todayActivitiesSnap.empty) {
+          const finalDescriptionForAutoLog =
+            "Primeiro trabalho do dia registrado. (Registro Automático)";
+          await activityHistoryRef.add({
+            type: "work",
+            activityDate: admin.firestore.FieldValue.serverTimestamp(),
+            activityDateStr: today,
+            description: finalDescriptionForAutoLog,
+            userId: "automatic_system_log",
+            userName: "Sistema",
+          });
+        }
+      } catch (error) {
+        logger.error(
+          "onHouseChange: Erro ao processar ou adicionar log de atividade:",
+          error,
+        );
+      }
+      await territoryRef.update({
+        lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
     return null;
   },
 );
@@ -575,6 +616,46 @@ export const onDeleteQuadra = onDocumentDeleted(
     }
   },
 );
+
+export const notifyOnTerritoryAssigned = https.onCall(async (request) => {
+    if (!request.auth) {
+        throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
+    }
+    const { territoryId, territoryName, assignedUid } = request.data;
+
+    if (!territoryId || !territoryName || !assignedUid) {
+      throw new https.HttpsError("invalid-argument", "Dados insuficientes para enviar notificação.");
+    }
+
+    try {
+        const userDoc = await db.collection("users").doc(assignedUid).get();
+        if (!userDoc.exists) {
+            throw new https.HttpsError("not-found", "Usuário não encontrado.");
+        }
+
+        const notification: Omit<admin.firestore.DocumentData, 'id'> = {
+            title: "Você recebeu um novo território!",
+            body: `O território "${territoryName}" foi designado para você.`,
+            link: `/dashboard/territorios/${territoryId}`,
+            type: 'territory_assigned',
+            isRead: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        const notificationRef = db.collection('users').doc(assignedUid).collection('notifications');
+        await notificationRef.add(notification);
+
+        return { success: true };
+    } catch (error) {
+        logger.error(`[notifyOnTerritoryAssigned] Erro:`, error);
+        throw new https.HttpsError("internal", "Falha ao criar notificação no servidor.");
+    }
+});
+
+
+// ============================================================================
+//   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
+// ============================================================================
 
 export const mirrorUserStatus = onValueWritten(
   {
