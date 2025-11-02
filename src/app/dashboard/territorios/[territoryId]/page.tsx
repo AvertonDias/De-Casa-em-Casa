@@ -28,7 +28,7 @@ import { GoogleMapEmbed } from "@/components/GoogleMapEmbed";
 
 
 const functions = getFunctions(app, 'southamerica-east1');
-const resetTerritoryFunction = httpsCallable(functions, 'resetTerritoryProgress');
+const resetTerritoryProgressFn = httpsCallable(functions, 'resetTerritoryProgressFn');
 
 // ========================================================================
 //   Componentes Modulares
@@ -214,7 +214,7 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
         if (!user?.congregationId) return;
         setIsProcessingAction(true);
         try {
-            await resetTerritoryFunction({ congregationId: user.congregationId, territoryId: territoryToResetId });
+            await resetTerritoryProgressFn({ congregationId: user.congregationId, territoryId: territoryToResetId });
         } catch (error) {
             console.error("Erro ao limpar território:", error);
         } finally {

@@ -14,7 +14,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const getManagersForNotificationFn = httpsCallable(functions, 'getManagersForNotification');
+const getManagersForNotificationFn = httpsCallable(functions, 'getManagersForNotificationFn');
 
 function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();

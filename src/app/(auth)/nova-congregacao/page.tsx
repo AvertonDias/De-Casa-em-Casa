@@ -14,7 +14,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { maskPhone } from '@/lib/utils'; 
 
 const functions = getFunctions(app, 'southamerica-east1');
-const createCongregationAndAdminFn = httpsCallable(functions, 'createCongregationAndAdmin');
+const createCongregationAndAdminFn = httpsCallable(functions, 'createCongregationAndAdminFn');
 
 
 export default function NovaCongregacaoPage() {

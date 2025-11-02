@@ -16,7 +16,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccountFn');
-const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordReset');
+const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordResetFn');
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();

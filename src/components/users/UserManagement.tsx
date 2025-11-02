@@ -16,7 +16,7 @@ import type { AppUser, Congregation } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccountFn');
+const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
 
 
 export default function UserManagement() {

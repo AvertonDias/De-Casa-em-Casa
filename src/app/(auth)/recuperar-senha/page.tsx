@@ -13,7 +13,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordReset');
+const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordResetFn');
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');

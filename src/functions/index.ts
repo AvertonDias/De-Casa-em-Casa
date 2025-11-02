@@ -1,3 +1,4 @@
+
 // src/functions/index.ts
 
 import { https, setGlobalOptions, logger, HttpsError } from "firebase-functions/v2";
@@ -25,7 +26,7 @@ setGlobalOptions({ region: "southamerica-east1" });
 //   FUNÇÕES HTTPS (onCall)
 // ========================================================================
 
-export const createCongregationAndAdmin = https.onCall(async (request) => {
+export const createCongregationAndAdminFn = https.onCall(async (request) => {
     const {
       adminName,
       adminEmail,
@@ -87,7 +88,7 @@ export const createCongregationAndAdmin = https.onCall(async (request) => {
     }
 });
 
-export const getManagersForNotification = https.onCall(async (request) => {
+export const getManagersForNotificationFn = https.onCall(async (request) => {
     const { congregationId } = request.data;
     if (!congregationId) {
       throw new HttpsError("invalid-argument", "O ID da congregação é obrigatório.");
@@ -119,7 +120,7 @@ export const getManagersForNotification = https.onCall(async (request) => {
     }
 });
 
-export const notifyOnNewUser = https.onCall(async (request) => {
+export const notifyOnNewUserFn = https.onCall(async (request) => {
     const { newUserName, congregationId } = request.data;
     if (!newUserName || !congregationId) {
       throw new HttpsError("invalid-argument", "Dados insuficientes para notificação.");
@@ -156,7 +157,7 @@ export const notifyOnNewUser = https.onCall(async (request) => {
     }
 });
 
-export const requestPasswordReset = https.onCall(async (request) => {
+export const requestPasswordResetFn = https.onCall(async (request) => {
     const { email } = request.data;
     if (!email) {
       throw new HttpsError("invalid-argument", "O e-mail é obrigatório.");
@@ -181,7 +182,7 @@ export const requestPasswordReset = https.onCall(async (request) => {
     }
 });
 
-export const resetPasswordWithToken = https.onCall(async (request) => {
+export const resetPasswordWithTokenFn = https.onCall(async (request) => {
     const { token, newPassword } = request.data;
     if (!token || !newPassword) {
       throw new HttpsError("invalid-argument", "Token e nova senha são obrigatórios.");
@@ -245,7 +246,7 @@ export const deleteUserAccountFn = https.onCall(async (request) => {
 });
 
 
-export const resetTerritoryProgress = https.onCall(async (request) => {
+export const resetTerritoryProgressFn = https.onCall(async (request) => {
     if (!request.auth) {
         throw new HttpsError("unauthenticated", "Ação não autorizada.");
     }

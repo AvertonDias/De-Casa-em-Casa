@@ -1,3 +1,4 @@
+
 // src/app/auth/action/page.tsx
 "use client";
 
@@ -14,7 +15,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const resetPasswordWithTokenFn = httpsCallable(functions, 'resetPasswordWithToken');
+const resetPasswordWithTokenFn = httpsCallable(functions, 'resetPasswordWithTokenFn');
 
 function PasswordResetAction() {
   const searchParams = useSearchParams();
