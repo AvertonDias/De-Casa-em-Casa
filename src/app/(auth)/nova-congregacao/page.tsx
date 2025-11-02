@@ -60,7 +60,8 @@ export default function NovaCongregacaoPage() {
             congregationName: congregationName.trim(),
             congregationNumber: congregationNumber.trim()
         };
-
+        
+        // Usando httpsCallable
         const result: any = await createCongregationAndAdminFn(dataToSend);
 
         if (result.data.success) {
