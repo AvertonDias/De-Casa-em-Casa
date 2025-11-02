@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useUser } from "@/contexts/UserContext";
-import { Loader, MailCheck, MessageCircle, User } from "lucide-react";
+import { Loader, MailCheck, MessageCircle } from "lucide-react";
 import withAuth from "@/components/withAuth";
 import { AppUser } from '@/types/types';
 import {
@@ -21,6 +21,7 @@ import { getInitials } from '@/lib/utils';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
+
 
 function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();
