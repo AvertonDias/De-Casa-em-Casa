@@ -5,19 +5,7 @@ import {
 } from "firebase-functions/v2/firestore";
 import {onValueWritten} from "firebase-functions/v2/database";
 import * as admin from "firebase-admin";
-import * as cors from "cors";
 import * as crypto from "crypto";
-
-const corsHandler = cors({
-  origin: [
-    "https://de-casa-em-casa.vercel.app",
-    "https://de-casa-em-casa.web.app",
-    "https://de-casa-em-casa-e5bb5.web.app",
-    /https:\/\/de-casa-em-casa--.*-e5bb5\.web\.app$/,
-    /https:\/\/6000-firebase-studio-.*\.cloudworkstations\.dev$/,
-  ],
-});
-
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -221,47 +209,39 @@ export const notifyOnNewUser = https.onCall(async (request) => {
   }
 });
 
-export const requestPasswordReset = https.onRequest(
-  {cors: true},
-  (req, res) => {
-    corsHandler(req, res, async () => {
-      if (req.method !== "POST") {
-        res.status(405).json({error: "Método não permitido."});
-        return;
-      }
-      const {email} = req.body;
-      if (!email) {
-        res.status(400).json({error: "O e-mail é obrigatório."});
-        return;
-      }
-      try {
-        const user = await admin.auth().getUserByEmail(email);
-        const token = crypto.randomUUID();
-        const expires = Date.now() + 3600 * 1000; // 1 hora
+export const requestPasswordReset = https.onCall(async (request) => {
+  const {email} = request.data;
+  if (!email) {
+    throw new https.HttpsError("invalid-argument", "O e-mail é obrigatório.");
+  }
+  try {
+    const user = await admin.auth().getUserByEmail(email);
+    const token = crypto.randomUUID();
+    const expires = Date.now() + 3600 * 1000; // 1 hora
 
-        await db.collection("resetTokens").doc(token).set({
-          uid: user.uid,
-          expires: admin.firestore.Timestamp.fromMillis(expires),
-        });
-
-        res.status(200).json({success: true, token});
-      } catch (error: any) {
-        if (error.code === "auth/user-not-found") {
-          res.status(200).json({
-            success: true,
-            token: null,
-            message: "Se o e-mail existir, um link será enviado.",
-          });
-          return;
-        }
-        logger.error("Erro ao gerar token de redefinição:", error);
-        res
-          .status(500)
-          .json({error: "Erro ao iniciar o processo de redefinição."});
-      }
+    await db.collection("resetTokens").doc(token).set({
+      uid: user.uid,
+      expires: admin.firestore.Timestamp.fromMillis(expires),
     });
-  },
-);
+
+    return {success: true, token};
+  } catch (error: any) {
+    if (error.code === "auth/user-not-found") {
+      // Não jogue um erro, apenas retorne sucesso para não revelar se um e-mail existe.
+      return {
+        success: true,
+        token: null,
+        message: "Se o e-mail existir, um link será enviado.",
+      };
+    }
+    logger.error("Erro ao gerar token de redefinição:", error);
+    throw new https.HttpsError(
+      "internal",
+      "Erro ao iniciar o processo de redefinição.",
+    );
+  }
+});
+
 
 export const resetPasswordWithToken = https.onCall(async (request) => {
   const {token, newPassword} = request.data;

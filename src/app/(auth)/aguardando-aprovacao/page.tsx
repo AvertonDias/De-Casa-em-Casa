@@ -44,7 +44,7 @@ function AguardandoAprovacaoPage() {
             console.error("Erro ao buscar administradores e dirigentes:", error);
             toast({
                 title: "Erro ao buscar contatos",
-                description: "Não foi possível carregar a lista de dirigentes. Verifique sua conexão ou tente mais tarde.",
+                description: error.message || "Não foi possível carregar a lista de dirigentes. Verifique sua conexão ou tente mais tarde.",
                 variant: "destructive"
             })
         } finally {
