@@ -20,7 +20,7 @@ function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();
     const { toast } = useToast();
     const [adminsAndLeaders, setAdminsAndLeaders] = useState<AppUser[]>([]);
-    const [isLoadingContacts, setIsLoadingContacts] = useState(true);
+    const [isLoadingContacts, setIsLoadingContacts] = useState(false);
 
     const fetchAdminsAndLeaders = useCallback(async () => {
         if (!user?.congregationId) return;
@@ -84,43 +84,8 @@ function AguardandoAprovacaoPage() {
                     Sua solicitação de acesso para a congregação <span className="font-semibold text-foreground">{user?.congregationName || '...'}</span> foi enviada.
                 </p>
                 <p className="text-muted-foreground">
-                    Para agilizar, você pode notificar um dos dirigentes ou administradores abaixo.
+                    Um dirigente ou administrador irá aprovar seu acesso em breve.
                 </p>
-
-                <div className="w-full text-left pt-4">
-                    <h3 className="font-semibold text-center mb-4">Notificar um responsável</h3>
-                    {isLoadingContacts ? (
-                    <div className="flex justify-center p-4">
-                        <Loader className="animate-spin text-primary" />
-                    </div>
-                    ) : (
-                    <div className="space-y-3 pt-2">
-                        {adminsAndLeaders.length > 0 ? adminsAndLeaders.map((contact) => (
-                        <div key={contact.uid} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                            <div className="flex items-center gap-3">
-                            <Avatar className="h-9 w-9">
-                                <AvatarFallback>{getInitials(contact.name)}</AvatarFallback>
-                            </Avatar>
-                            <p className="font-semibold">{contact.name}</p>
-                            </div>
-                            <Button 
-                            size="sm" 
-                            onClick={() => handleNotify(contact)}
-                            disabled={!contact.whatsapp}
-                            title={!contact.whatsapp ? "Este usuário não tem WhatsApp cadastrado" : `Enviar mensagem para ${contact.name}`}
-                            >
-                            <MessageCircle size={16} className="mr-2"/> Notificar
-                            </Button>
-                        </div>
-                        )) : (
-                        <p className="text-sm text-center text-muted-foreground py-4">
-                            Nenhum dirigente ou administrador com WhatsApp cadastrado foi encontrado.
-                        </p>
-                        )}
-                    </div>
-                    )}
-                </div>
-
 
                 <div className="pt-4">
                     <Button
