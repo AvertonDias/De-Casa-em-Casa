@@ -111,7 +111,7 @@ export default function UserManagement() {
     
     const userRef = doc(db, 'users', userId);
     try {
-        await updateDoc(userRef, dataToUpdate);
+        await updateDoc(userRef, dataToUpdate as any);
     } catch (error: any) {
         console.error("Erro ao atualizar usuário:", error);
         toast({ title: "Erro de Sincronização", description: "A atualização falhou. Revertendo.", variant: "destructive"});
@@ -121,7 +121,7 @@ export default function UserManagement() {
                  setUsers(prevUsers => prevUsers.map(u => u.uid === userId ? ({ uid: doc.id, ...doc.data() } as AppUser) : u));
             }
         });
-        userDoc();
+        (userDoc as any)(); // Detach listener
     }
   };
 
@@ -337,11 +337,8 @@ export default function UserManagement() {
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
         onConfirm={confirmDeleteUser}
-        isLoading={false}
         title="Excluir Usuário"
         message={`Você tem certeza que deseja excluir permanentemente o usuário ${userToDelete?.name}? Todos os seus dados serão perdidos e esta ação não pode ser desfeita.`}
-        confirmText="Sim, excluir"
-        cancelText="Cancelar"
       />
       
       {userToEdit && (
