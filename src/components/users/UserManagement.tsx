@@ -16,7 +16,7 @@ import type { AppUser, Congregation } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
+const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
 
 
 export default function UserManagement() {
@@ -49,7 +49,7 @@ export default function UserManagement() {
     
     setIsConfirmModalOpen(false);
     try {
-        await deleteUserAccountFn({ userIdToDelete: userToDelete.uid });
+        await deleteUserAccount({ userIdToDelete: userToDelete.uid });
         toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {
         toast({ title: "Erro", description: error.message || "Falha ao excluir usuário.", variant: "destructive"});

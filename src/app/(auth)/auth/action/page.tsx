@@ -15,7 +15,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const resetPasswordWithTokenFn = httpsCallable(functions, 'resetPasswordWithTokenFn');
+const resetPasswordWithToken = httpsCallable(functions, 'resetPasswordWithToken');
 
 function PasswordResetAction() {
   const searchParams = useSearchParams();
@@ -60,7 +60,7 @@ function PasswordResetAction() {
     setStage('verifying');
 
     try {
-      const result: any = await resetPasswordWithTokenFn({ token, newPassword });
+      const result: any = await resetPasswordWithToken({ token, newPassword });
       
       const { success, message: functionMessage, error: functionError } = result.data;
       if (!success) {

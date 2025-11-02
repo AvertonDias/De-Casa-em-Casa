@@ -15,8 +15,8 @@ import { sendEmail } from '@/lib/emailService';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccountFn');
-const requestPasswordResetFn = httpsCallable(functions, 'requestPasswordResetFn');
+const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
+const requestPasswordReset = httpsCallable(functions, 'requestPasswordReset');
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
@@ -133,7 +133,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
 
     try {
-        const result: any = await requestPasswordResetFn({ email: user.email });
+        const result: any = await requestPasswordReset({ email: user.email });
         const { success, token, message } = result.data;
         
         if (!success && message) {
@@ -183,7 +183,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         const credential = EmailAuthProvider.credential(auth.currentUser.email, passwordForDelete);
         await reauthenticateWithCredential(auth.currentUser, credential);
         
-        await deleteUserAccountFn({ userIdToDelete: user.uid });
+        await deleteUserAccount({ userIdToDelete: user.uid });
         
         toast({
           title: "Conta Excluída",

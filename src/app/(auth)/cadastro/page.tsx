@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { maskPhone } from '@/lib/utils';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const notifyOnNewUserFn = httpsCallable(functions, 'notifyOnNewUserFn');
+const notifyOnNewUser = httpsCallable(functions, 'notifyOnNewUser');
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -73,7 +73,7 @@ export default function SignUpPage() {
         status: "pendente"
       });
       
-      await notifyOnNewUserFn({ newUserName: name.trim(), congregationId });
+      await notifyOnNewUser({ newUserName: name.trim(), congregationId });
 
       toast({
         title: 'Solicitação enviada!',

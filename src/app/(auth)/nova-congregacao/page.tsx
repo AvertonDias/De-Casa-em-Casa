@@ -14,7 +14,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { maskPhone } from '@/lib/utils'; 
 
 const functions = getFunctions(app, 'southamerica-east1');
-const createCongregationAndAdminFn = httpsCallable(functions, 'createCongregationAndAdminFn');
+const createCongregationAndAdmin = httpsCallable(functions, 'createCongregationAndAdmin');
 
 
 export default function NovaCongregacaoPage() {
@@ -61,7 +61,7 @@ export default function NovaCongregacaoPage() {
             congregationNumber: congregationNumber.trim()
         };
         
-        const result: any = await createCongregationAndAdminFn(dataToSend);
+        const result: any = await createCongregationAndAdmin(dataToSend);
         
         const resultData = result.data as { success: boolean, userId?: string, message?: string, error?: string };
 

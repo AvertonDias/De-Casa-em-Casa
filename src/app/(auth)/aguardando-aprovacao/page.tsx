@@ -14,7 +14,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const getManagersForNotificationFn = httpsCallable(functions, 'getManagersForNotificationFn');
+const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
 
 function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();
@@ -26,7 +26,7 @@ function AguardandoAprovacaoPage() {
         if (!user?.congregationId) return;
         setIsLoadingContacts(true);
         try {
-            const result: any = await getManagersForNotificationFn({ congregationId: user.congregationId });
+            const result: any = await getManagersForNotification({ congregationId: user.congregationId });
 
             if (result.data.success) {
                 setAdminsAndLeaders(result.data.managers);
