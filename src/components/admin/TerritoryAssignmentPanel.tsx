@@ -137,16 +137,16 @@ export default function TerritoryAssignmentPanel() {
         await updateDoc(territoryRef, { status: 'designado', assignment: assignmentData });
         
         if (!assignedUser.uid.startsWith('custom_') && assignedUser.uid !== currentTerritory.assignment?.uid) {
-          try {
-            await callNotifyOnTerritoryAssigned({
-              territoryId: territoryId,
-              territoryName: currentTerritory.name || 'Território Desconhecido',
-              assignedUid: assignedUser.uid,
-            });
-          } catch (callError: any) {
-            console.error("Erro ao chamar a função de notificação:", callError);
-            toast({ title: "Aviso", description: "O território foi salvo, mas a notificação interna falhou.", variant: "default" });
-          }
+            try {
+                await callNotifyOnTerritoryAssigned({
+                  territoryId: territoryId,
+                  territoryName: currentTerritory.name || 'Território Desconhecido',
+                  assignedUid: assignedUser.uid,
+                });
+            } catch (callError: any) {
+                console.error("Erro ao chamar a função de notificação:", callError);
+                toast({ title: "Aviso", description: "O território foi salvo, mas a notificação interna falhou.", variant: "default" });
+            }
         }
 
         const userForWhatsapp = users.find(u => u.uid === assignedUser.uid);

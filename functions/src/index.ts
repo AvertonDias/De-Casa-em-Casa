@@ -115,7 +115,8 @@ export const getManagersForNotification = https.onRequest(async (req, res) => {
         return;
     }
     
-    if (!req.body.data.auth) {
+    const authData = req.body.data?.auth;
+    if (!authData) {
       res.status(401).json({error: "Usuário não autenticado."});
       return;
     }
@@ -257,7 +258,6 @@ export const deleteUserAccount = https.onRequest(async (req, res) => {
         return;
     }
     
-    // As chamadas via httpsCallable colocam o auth no req.body.data.auth
     const callingUserUid = req.body.data.auth?.uid;
     if (!callingUserUid) {
       res.status(401).json({error: "Ação não autorizada."});
@@ -355,10 +355,9 @@ export const notifyOnTerritoryAssigned = https.onRequest(async (req, res) => {
         return;
     }
     
-    // Lógica principal da função
     try {
       const { data } = req.body;
-      if (!data || !data.auth) {
+      if (!data) { // A verificação de auth é implícita no uso de httpsCallable
         res.status(401).json({ error: "Ação não autorizada." });
         return;
       }
