@@ -1,3 +1,4 @@
+
 // src/functions/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
@@ -17,7 +18,7 @@ const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   CORS WRAPPER (Solução Definitiva)
+//   CORS WRAPPER
 // ========================================================================
 import type { Request, Response } from "express";
 
@@ -387,138 +388,121 @@ export const notifyOnTerritoryAssigned = https.onRequest(
 //   GATILHOS FIRESTORE (Não precisam de CORS)
 // ========================================================================
 
-export const onHouseChange = onDocumentWritten(
-  "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}",
-  async (event) => {
-    const beforeData = event.data?.before.data();
-    const afterData = event.data?.after.data();
+async function updateCongregationStats(congregationId: string) {
+  const congregationRef = db.doc(`congregations/${congregationId}`);
+  const territoriesRef = congregationRef.collection("territories");
 
-    if (!event.data?.after.exists) return null;
+  const territoriesSnapshot = await territoriesRef.get();
 
-    const { congregationId, territoryId, quadraId } = event.params;
-    const quadraRef = db
-      .collection("congregations")
-      .doc(congregationId)
-      .collection("territories")
-      .doc(territoryId)
-      .collection("quadras")
-      .doc(quadraId);
-    try {
-      await db.runTransaction(async (transaction) => {
-        const casasSnapshot = await transaction.get(
-          quadraRef.collection("casas")
-        );
-        const totalHouses = casasSnapshot.size;
-        const housesDone = casasSnapshot.docs.filter(
-          (doc) => doc.data().status === true
-        ).length;
-        transaction.update(quadraRef, { totalHouses, housesDone });
-      });
-    } catch (e) {
-      logger.error(
-        "onHouseChange: Erro na transação de atualização de estatísticas da quadra:",
-        e
-      );
+  let urbanCount = 0,
+    ruralCount = 0,
+    totalHouses = 0,
+    totalHousesDone = 0,
+    totalQuadras = 0;
+
+  territoriesSnapshot.forEach((doc) => {
+    const data = doc.data();
+    if (data.type === "rural") {
+      ruralCount++;
+    } else {
+      urbanCount++;
+      totalHouses += data.stats?.totalHouses || 0;
+      totalHousesDone += data.stats?.housesDone || 0;
+      totalQuadras += data.quadraCount || 0;
     }
+  });
 
-    if (beforeData?.status === false && afterData?.status === true) {
-      const territoryRef = db.doc(
-        `congregations/${congregationId}/territories/${territoryId}`
-      );
-      const today = format(new Date(), "yyyy-MM-dd");
-      const activityHistoryRef = territoryRef.collection("activityHistory");
+  return congregationRef.update({
+    territoryCount: urbanCount,
+    ruralTerritoryCount: ruralCount,
+    totalQuadras,
+    totalHouses,
+    totalHousesDone,
+    lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
 
-      try {
+async function updateTerritoryStats(congregationId: string, territoryId: string) {
+  const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
+  const quadrasSnapshot = await territoryRef.collection("quadras").get();
+
+  let totalHouses = 0;
+  let housesDone = 0;
+  quadrasSnapshot.forEach((doc) => {
+    totalHouses += doc.data().totalHouses || 0;
+    housesDone += doc.data().housesDone || 0;
+  });
+
+  const progress = totalHouses > 0 ? housesDone / totalHouses : 0;
+  await territoryRef.update({
+    stats: { totalHouses, housesDone },
+    progress,
+    quadraCount: quadrasSnapshot.size,
+  });
+
+  // Após atualizar o território, atualiza a congregação
+  await updateCongregationStats(congregationId);
+}
+
+export const onWriteTerritoryData = onDocumentWritten(
+  "congregations/{congId}/territories/{terrId}/{anyCollection}/{anyId}",
+  async (event) => {
+    const { congId, terrId, anyCollection } = event.params;
+
+    // Se a mudança foi em uma casa, atualiza a quadra e o território.
+    if (anyCollection === "quadras" && event.data?.after.ref.parent.parent) {
+      const quadraId = event.data.after.ref.id;
+      const quadraRef = db.doc(`congregations/${congId}/territories/${terrId}/quadras/${quadraId}`);
+      
+      // Atualiza estatísticas da quadra
+      const casasSnapshot = await quadraRef.collection("casas").get();
+      const totalHousesInQuadra = casasSnapshot.size;
+      const housesDoneInQuadra = casasSnapshot.docs.filter(
+        (doc) => doc.data().status === true
+      ).length;
+      await quadraRef.update({ totalHouses: totalHousesInQuadra, housesDone: housesDoneInQuadra });
+
+      // Dispara a atualização do território
+      await updateTerritoryStats(congId, terrId);
+
+      // Lógica de log de atividade que estava na onHouseChange
+      const beforeData = event.data?.before.data();
+      const afterData = event.data?.after.data();
+      if (beforeData?.status === false && afterData?.status === true) {
+        const territoryRef = db.doc(`congregations/${congId}/territories/${terrId}`);
+        const today = format(new Date(), "yyyy-MM-dd");
+        const activityHistoryRef = territoryRef.collection("activityHistory");
+        
         const todayActivitiesSnap = await activityHistoryRef
           .where("activityDateStr", "==", today)
           .where("type", "==", "work")
           .limit(1)
           .get();
+
         if (todayActivitiesSnap.empty) {
-          const finalDescriptionForAutoLog =
-            "Primeiro trabalho do dia registrado. (Registro Automático)";
           await activityHistoryRef.add({
             type: "work",
             activityDate: admin.firestore.FieldValue.serverTimestamp(),
             activityDateStr: today,
-            description: finalDescriptionForAutoLog,
+            description: "Primeiro trabalho do dia registrado. (Registro Automático)",
             userId: "automatic_system_log",
             userName: "Sistema",
           });
         }
-      } catch (error) {
-        logger.error(
-          "onHouseChange: Erro ao processar ou adicionar log de atividade:",
-          error
-        );
+        await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
       }
-      await territoryRef.update({
-        lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-      });
+    } 
+    // Se a mudança foi diretamente em uma quadra (criação/exclusão)
+    else if (anyCollection === "quadras") {
+      await updateTerritoryStats(congId, terrId);
+    } 
+    // Se a mudança foi diretamente no território (ex. tipo mudou)
+    else {
+       await updateCongregationStats(congId);
     }
-    return null;
   }
 );
 
-export const onQuadraChange = onDocumentWritten(
-  "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
-  async (event) => {
-    const { congregationId, territoryId } = event.params;
-    const territoryRef = db.doc(
-      `congregations/${congregationId}/territories/${territoryId}`
-    );
-    const quadrasSnapshot = await territoryRef.collection("quadras").get();
-
-    let totalHouses = 0;
-    let housesDone = 0;
-    quadrasSnapshot.forEach((doc) => {
-      totalHouses += doc.data().totalHouses || 0;
-      housesDone += doc.data().housesDone || 0;
-    });
-
-    const progress = totalHouses > 0 ? housesDone / totalHouses : 0;
-    return territoryRef.update({
-      stats: { totalHouses, housesDone },
-      progress,
-      quadraCount: quadrasSnapshot.size,
-    });
-  }
-);
-
-export const onTerritoryChange = onDocumentWritten(
-  "congregations/{congregationId}/territories/{territoryId}",
-  async (event) => {
-    const { congregationId } = event.params;
-    const congregationRef = db.doc(`congregations/${congregationId}`);
-    const territoriesRef = congregationRef.collection("territories");
-    const territoriesSnapshot = await territoriesRef.get();
-
-    let urbanCount = 0,
-      ruralCount = 0,
-      totalHouses = 0,
-      totalHousesDone = 0,
-      totalQuadras = 0;
-    territoriesSnapshot.forEach((doc) => {
-      const data = doc.data();
-      if (data.type === "rural") {
-        ruralCount++;
-      } else {
-        urbanCount++;
-        totalHouses += data.stats?.totalHouses || 0;
-        totalHousesDone += data.stats?.housesDone || 0;
-        totalQuadras += data.quadraCount || 0;
-      }
-    });
-    return congregationRef.update({
-      territoryCount: urbanCount,
-      ruralTerritoryCount: ruralCount,
-      totalQuadras,
-      totalHouses,
-      totalHousesDone,
-      lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-    });
-  }
-);
 
 export const onDeleteTerritory = onDocumentDeleted(
   "congregations/{congregationId}/territories/{territoryId}",
@@ -535,6 +519,8 @@ export const onDeleteTerritory = onDocumentDeleted(
       logger.log(
         `[onDeleteTerritory] Território ${event.params.territoryId} e subcoleções deletadas.`
       );
+      // Dispara a atualização da congregação após a exclusão
+      await updateCongregationStats(event.params.congregationId);
       return { success: true };
     } catch (error) {
       logger.error(
@@ -564,6 +550,8 @@ export const onDeleteQuadra = onDocumentDeleted(
       logger.log(
         `[onDeleteQuadra] Quadra ${event.params.quadraId} e subcoleções deletadas.`
       );
+       // Dispara a atualização do território após a exclusão da quadra
+      await updateTerritoryStats(event.params.congregationId, event.params.territoryId);
       return { success: true };
     } catch (error) {
       logger.error(
