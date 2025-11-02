@@ -156,18 +156,6 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
         if (docSnap.exists()) {
             const data = docSnap.data() as Territory;
             setTerritory({ id: docSnap.id, ...data });
-
-            // Pre-fetch data for offline use
-            if ((data.type || 'urban') === 'urban' && data.quadraCount && data.quadraCount > 0) {
-              console.log(`[Offline Cache] Iniciando pré-carregamento de ${data.quadraCount} quadras...`);
-              const quadrasRef = collection(docSnap.ref, 'quadras');
-              getDocs(quadrasRef).then(quadrasSnap => {
-                quadrasSnap.forEach(quadraDoc => {
-                  console.log(`[Offline Cache] Casas da ${quadraDoc.data().name} carregadas.`);
-                  getDocs(collection(quadraDoc.ref, 'casas'));
-                });
-              });
-            }
         } else {
             setTerritory(null);
         }
