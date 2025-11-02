@@ -105,6 +105,7 @@ const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React
 };
 
 
+
 function Sidebar({ 
     isOpen, 
     onClose, 
@@ -453,6 +454,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
 
 
 
