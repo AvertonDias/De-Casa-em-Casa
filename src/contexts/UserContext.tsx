@@ -3,7 +3,7 @@
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, serverTimestamp, enableNetwork } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp, enableNetwork, disableNetwork } from 'firebase/firestore';
 import { auth, db, app } from '@/lib/firebase';
 import type { AppUser, Congregation } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
@@ -66,12 +66,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Gerenciador de estado online/offline
-    const handleOnline = () => {
-      enableNetwork(db);
-    };
-    const handleOffline = () => {
-      // O SDK do Firestore lida com o cache, não precisamos fazer nada aqui.
-    };
+    const handleOnline = () => enableNetwork(db);
+    const handleOffline = () => disableNetwork(db);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
