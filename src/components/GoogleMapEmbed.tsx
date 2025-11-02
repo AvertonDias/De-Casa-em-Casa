@@ -1,8 +1,8 @@
 "use client";
 
 import React from 'react';
-import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 
+// Estilo para o container do iframe
 const containerStyle = {
   width: '100%',
   height: '100%',
@@ -10,51 +10,58 @@ const containerStyle = {
   borderRadius: '0.5rem',
 };
 
-const defaultCenter = {
-  lat: -23.5505,
-  lng: -46.6333
-};
-
 interface GoogleMapEmbedProps {
   mapLink?: string;
 }
 
-const getMapMid = (originalUrl?: string) => {
+// Função para extrair o 'mid' (ID do mapa) da URL original do Google My Maps
+const getMapMid = (originalUrl?: string): string | null => {
     if (!originalUrl) return null;
     try {
         const url = new URL(originalUrl);
+        // O ID do mapa está no parâmetro 'mid'
         return url.searchParams.get('mid');
     } catch (e) {
+        console.error("URL do mapa inválida:", e);
         return null;
     }
 };
 
 export function GoogleMapEmbed({ mapLink }: GoogleMapEmbedProps) {
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
-  });
-
+  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
   const mapId = getMapMid(mapLink);
 
-  if (loadError) {
-    return <div className="flex items-center justify-center h-full bg-destructive/10 rounded-lg text-destructive p-4 text-center"><p>Erro ao carregar o script do mapa. Verifique a chave da API e as permissões.</p></div>;
-  }
-
+  // Se não houver link ou ID do mapa, exibe uma mensagem
   if (!mapLink || !mapId) {
-    return <div className="flex items-center justify-center h-full bg-muted rounded-lg"><p className="text-muted-foreground">Nenhum mapa disponível ou o link é inválido.</p></div>;
+    return (
+        <div style={containerStyle} className="flex items-center justify-center bg-muted rounded-lg">
+            <p className="text-muted-foreground">Nenhum mapa disponível ou link inválido.</p>
+        </div>
+    );
   }
   
-  return isLoaded ? (
-      <GoogleMap
-        mapContainerStyle={containerStyle}
-        center={defaultCenter}
-        zoom={8}
-        options={{
-            mapId: mapId,
-            disableDefaultUI: true,
-            zoomControl: true,
-        }}
-      />
-  ) : <div className="flex items-center justify-center h-full bg-muted rounded-lg"><p className="text-muted-foreground">Carregando mapa...</p></div>
+  // Se a chave de API não estiver configurada, também exibe um erro
+  if (!apiKey) {
+     return (
+        <div style={containerStyle} className="flex items-center justify-center bg-destructive/10 rounded-lg text-destructive-foreground p-4">
+            <p>A chave da API do Google Maps não está configurada.</p>
+        </div>
+    );
+  }
+  
+  // Constrói a URL para a API de Incorporação do Google Maps
+  const embedUrl = `https://www.google.com/maps/embed/v1/viewer?mid=${mapId}&key=${apiKey}`;
+
+  return (
+    <iframe
+      style={containerStyle}
+      width="100%"
+      height="100%"
+      loading="lazy"
+      allowFullScreen
+      src={embedUrl}
+      title="Mapa do Território"
+      className="border-0 rounded-lg"
+    ></iframe>
+  );
 }
