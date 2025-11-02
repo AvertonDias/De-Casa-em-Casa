@@ -147,7 +147,7 @@ export const getManagersForNotification = https.onRequest(
 
       const results = await Promise.all(queryPromises);
       const managers = results.flatMap((snapshot) =>
-        snapshot.docs.map((doc) => {
+        snapshot.docs.map((doc: admin.firestore.QueryDocumentSnapshot) => {
           const { name, whatsapp } = doc.data();
           return { uid: doc.id, name, whatsapp };
         })
@@ -202,7 +202,7 @@ export const notifyOnNewUser = https.onRequest(
 
       await Promise.all(notifications);
       res.status(200).json({ data: { success: true } });
-    } catch (error: any) => {
+    } catch (error: any) {
       logger.error("Erro ao criar notificações para novo usuário:", error);
       res.status(500).json({ error: "Falha ao enviar notificações." });
     }
@@ -594,3 +594,5 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
+
+    
