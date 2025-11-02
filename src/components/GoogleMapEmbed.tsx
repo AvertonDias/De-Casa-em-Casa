@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -28,7 +29,6 @@ const getMapMid = (originalUrl?: string): string | null => {
 };
 
 export function GoogleMapEmbed({ mapLink }: GoogleMapEmbedProps) {
-  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
   const mapId = getMapMid(mapLink);
 
   // Se não houver link ou ID do mapa, exibe uma mensagem
@@ -40,17 +40,8 @@ export function GoogleMapEmbed({ mapLink }: GoogleMapEmbedProps) {
     );
   }
   
-  // Se a chave de API não estiver configurada, também exibe um erro
-  if (!apiKey) {
-     return (
-        <div style={containerStyle} className="flex items-center justify-center bg-destructive/10 rounded-lg text-destructive-foreground p-4">
-            <p>A chave da API do Google Maps não está configurada.</p>
-        </div>
-    );
-  }
-  
-  // Constrói a URL para a API de Incorporação do Google Maps
-  const embedUrl = `https://www.google.com/maps/embed/v1/viewer?mid=${mapId}&key=${apiKey}`;
+  // Constrói a URL para a API de Incorporação do Google Maps para My Maps
+  const embedUrl = `https://www.google.com/maps/d/embed?mid=${mapId}`;
 
   return (
     <iframe
