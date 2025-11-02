@@ -184,7 +184,7 @@ export default function UserManagement() {
     return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
   }
   
-  if (!currentUser || !['Administrador', 'Dirigente', 'Servo de Territórios'].includes(currentUser.role)) {
+  if (!currentUser || !['Administrador', 'Dirigente'].includes(currentUser.role)) {
     return (
         <div className="text-center p-8">
             <h1 className="text-2xl font-bold">Acesso Negado</h1>
@@ -355,3 +355,5 @@ export default function UserManagement() {
     </>
   );
 }
+
+    

@@ -25,7 +25,7 @@ export const UserListItem = ({
 }) => {
   const isOnline = user.isOnline === true;
   const isAdmin = currentUser.role === 'Administrador';
-  const isDirigente = currentUser.role === 'Dirigente' || currentUser.role === 'Servo de Territórios';
+  const isDirigente = currentUser.role === 'Dirigente';
   
   const canShowMenu = currentUser.uid !== user.uid && (isAdmin || (isDirigente && user.status === 'pendente'));
 
@@ -151,3 +151,5 @@ export const UserListItem = ({
     </li>
   );
 };
+
+    
