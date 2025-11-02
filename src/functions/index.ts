@@ -209,41 +209,6 @@ export const resetPasswordWithToken = https.onCall(async (request) => {
     }
 });
 
-// export const deleteUserAccount = https.onCall(async (request) => {
-//     if (!request.auth) {
-//         throw new HttpsError("unauthenticated", "Ação não autorizada. Sem token.");
-//     }
-//     const callingUserUid = request.auth.uid;
-//     const { userIdToDelete } = request.data;
-
-//     if (!userIdToDelete) {
-//       throw new HttpsError("invalid-argument", "ID do usuário a ser deletado é obrigatório.");
-//     }
-    
-//     try {
-//       const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-//       const isAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
-
-//       if (!isAdmin && callingUserUid !== userIdToDelete) {
-//         throw new HttpsError("permission-denied", "Sem permissão.");
-//       }
-//       if (isAdmin && callingUserUid === userIdToDelete) {
-//         throw new HttpsError("permission-denied", "Admin não pode se autoexcluir.");
-//       }
-
-//       await admin.auth().deleteUser(userIdToDelete);
-//       const userDocRef = db.collection("users").doc(userIdToDelete);
-//       if ((await userDocRef.get()).exists) {
-//         await userDocRef.delete();
-//       }
-//       return { success: true };
-
-//     } catch (error: any) {
-//       logger.error("Erro ao excluir usuário:", error);
-//       throw new HttpsError("internal", error.message || "Falha na exclusão.");
-//     }
-// });
-
 export const deleteUserAccountFn = https.onCall(async (request) => {
     if (!request.auth) {
         throw new HttpsError("unauthenticated", "Ação não autorizada. Sem token.");
