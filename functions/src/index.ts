@@ -21,7 +21,7 @@ setGlobalOptions({region: "southamerica-east1"});
 //   FUNÇÕES HTTPS (onCall)
 // ========================================================================
 
-const _createCongregationAndAdmin = https.onCall(async (request) => {
+export const createCongregationAndAdmin = https.onCall(async (request) => {
   const {
     adminName,
     adminEmail,
@@ -123,7 +123,7 @@ const _createCongregationAndAdmin = https.onCall(async (request) => {
   }
 });
 
-const _getManagersForNotification = https.onCall(async (request) => {
+export const getManagersForNotification = https.onCall(async (request) => {
     if (!request.auth) {
         throw new https.HttpsError(
             "unauthenticated",
@@ -170,7 +170,7 @@ const _getManagersForNotification = https.onCall(async (request) => {
 });
 
 
-const _notifyOnNewUser = https.onCall(async (request) => {
+export const notifyOnNewUser = https.onCall(async (request) => {
     const {newUserName, congregationId} = request.data;
     if (!newUserName || !congregationId) {
       throw new https.HttpsError(
@@ -215,7 +215,7 @@ const _notifyOnNewUser = https.onCall(async (request) => {
     }
 });
 
-const _requestPasswordReset = https.onCall(async (request) => {
+export const requestPasswordReset = https.onCall(async (request) => {
     const { email } = request.data;
     if (!email) {
         throw new https.HttpsError("invalid-argument", "O e-mail é obrigatório.");
@@ -245,7 +245,7 @@ const _requestPasswordReset = https.onCall(async (request) => {
 });
 
 
-const _resetPasswordWithToken = https.onCall(async (request) => {
+export const resetPasswordWithToken = https.onCall(async (request) => {
   const {token, newPassword} = request.data;
   if (!token || !newPassword) {
     throw new https.HttpsError(
@@ -282,7 +282,7 @@ const _resetPasswordWithToken = https.onCall(async (request) => {
   }
 });
 
-const _deleteUserAccount = https.onCall(async (request) => {
+export const deleteUserAccount = https.onCall(async (request) => {
   const callingUserUid = request.auth?.uid;
   if (!callingUserUid) {
     throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
@@ -331,7 +331,7 @@ const _deleteUserAccount = https.onCall(async (request) => {
   }
 });
 
-const _resetTerritoryProgress = https.onCall(async (request) => {
+export const resetTerritoryProgress = https.onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) {
     throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
@@ -417,7 +417,7 @@ const _resetTerritoryProgress = https.onCall(async (request) => {
   }
 });
 
-const _notifyOnTerritoryAssigned = https.onCall(async (request) => {
+export const notifyOnTerritoryAssigned = https.onCall(async (request) => {
     if (!request.auth) {
         throw new https.HttpsError("unauthenticated", "Ação não autorizada.");
     }
@@ -457,7 +457,7 @@ const _notifyOnTerritoryAssigned = https.onCall(async (request) => {
 //   GATILHOS FIRESTORE
 // ========================================================================
 
-const _onHouseChange = onDocumentWritten(
+export const onHouseChange = onDocumentWritten(
   "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}/casas/{casaId}",
   async (event) => {
     const beforeData = event.data?.before.data();
@@ -530,7 +530,7 @@ const _onHouseChange = onDocumentWritten(
   },
 );
 
-const _onQuadraChange = onDocumentWritten(
+export const onQuadraChange = onDocumentWritten(
   "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
   async (event) => {
     const {congregationId, territoryId} = event.params;
@@ -555,7 +555,7 @@ const _onQuadraChange = onDocumentWritten(
   },
 );
 
-const _onTerritoryChange = onDocumentWritten(
+export const onTerritoryChange = onDocumentWritten(
   "congregations/{congregationId}/territories/{territoryId}",
   async (event) => {
     const {congregationId} = event.params;
@@ -591,7 +591,7 @@ const _onTerritoryChange = onDocumentWritten(
 );
 
 
-const _onDeleteTerritory = onDocumentDeleted(
+export const onDeleteTerritory = onDocumentDeleted(
   "congregations/{congregationId}/territories/{territoryId}",
   async (event) => {
     if (!event.data) {
@@ -620,7 +620,7 @@ const _onDeleteTerritory = onDocumentDeleted(
   },
 );
 
-const _onDeleteQuadra = onDocumentDeleted(
+export const onDeleteQuadra = onDocumentDeleted(
   "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
   async (event) => {
     if (!event.data) {
@@ -654,7 +654,7 @@ const _onDeleteQuadra = onDocumentDeleted(
 //   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
 // ============================================================================
 
-const _mirrorUserStatus = onValueWritten(
+export const mirrorUserStatus = onValueWritten(
   {
     ref: "/status/{uid}",
     region: "us-central1",
@@ -684,21 +684,3 @@ const _mirrorUserStatus = onValueWritten(
     return null;
   },
 );
-
-// ============================================================================
-//   EXPORTAÇÕES
-// ============================================================================
-export const createCongregationAndAdmin = _createCongregationAndAdmin;
-export const getManagersForNotification = _getManagersForNotification;
-export const notifyOnNewUser = _notifyOnNewUser;
-export const requestPasswordReset = _requestPasswordReset;
-export const resetPasswordWithToken = _resetPasswordWithToken;
-export const deleteUserAccount = _deleteUserAccount;
-export const resetTerritoryProgress = _resetTerritoryProgress;
-export const notifyOnTerritoryAssigned = _notifyOnTerritoryAssigned;
-export const onHouseChange = _onHouseChange;
-export const onQuadraChange = _onQuadraChange;
-export const onTerritoryChange = _onTerritoryChange;
-export const onDeleteTerritory = _onDeleteTerritory;
-export const onDeleteQuadra = _onDeleteQuadra;
-export const mirrorUserStatus = _mirrorUserStatus;
