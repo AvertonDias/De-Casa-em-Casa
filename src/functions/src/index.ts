@@ -7,9 +7,14 @@ import {
 } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
+import { HttpsError } from "firebase-functions/v2/https";
+import {
+  QueryDocumentSnapshot,
+  Transaction,
+  DocumentReference,
+} from "firebase-admin/firestore";
 import { format } from "date-fns";
 import * as crypto from "crypto";
-import type { Request, Response } from "express";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -18,65 +23,30 @@ const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   CORS WRAPPER
+//   FUNÇÕES HTTPS (onCall)
 // ========================================================================
-export function withCors(
-  handler: (req: Request, res: Response) => Promise<void> | void
-) {
-  return (req: Request, res: Response) => {
-    res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    if (req.method === "OPTIONS") {
-      res.status(204).send("");
-      return;
+
+export const createCongregationAndAdmin = https.onCall(async (request) => {
+    const {
+      adminName,
+      adminEmail,
+      adminPassword,
+      congregationName,
+      congregationNumber,
+      whatsapp,
+    } = request.data;
+
+    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
+      throw new HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
     }
-    handler(req, res);
-  };
-}
 
-
-// ========================================================================
-//   FUNÇÕES HTTPS (onCall transformadas em onRequest com withCors)
-// ========================================================================
-
-export const createCongregationAndAdmin = https.onRequest(
-  withCors(async (req, res) => {
     try {
-      const {
-        adminName,
-        adminEmail,
-        adminPassword,
-        congregationName,
-        congregationNumber,
-        whatsapp,
-      } = req.body.data;
-
-      if (
-        !adminName ||
-        !adminEmail ||
-        !adminPassword ||
-        !congregationName ||
-        !congregationNumber ||
-        !whatsapp
-      ) {
-        res.status(400).json({ error: "Todos os campos são obrigatórios." });
-        return;
-      }
-
-      let newUser;
-      const congQuery = await db
-        .collection("congregations")
-        .where("number", "==", congregationNumber)
-        .get();
+      const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).get();
       if (!congQuery.empty) {
-        res
-          .status(409)
-          .json({ error: "Uma congregação com este número já existe." });
-        return;
+        throw new HttpsError("already-exists", "Uma congregação com este número já existe.");
       }
 
-      newUser = await admin.auth().createUser({
+      const newUser = await admin.auth().createUser({
         email: adminEmail,
         password: adminPassword,
         displayName: adminName,
@@ -107,39 +77,27 @@ export const createCongregationAndAdmin = https.onRequest(
       });
 
       await batch.commit();
-      res.status(200).json({
-        data: {
-          success: true,
-          userId: newUser.uid,
-          message: "Congregação criada com sucesso!",
-        },
-      });
+      return { success: true, userId: newUser.uid, message: "Congregação criada com sucesso!" };
+
     } catch (error: any) {
       if (error.code === "auth/email-already-exists") {
-        res.status(409).json({ error: "Este e-mail já está em uso." });
-      } else {
-        logger.error("Erro ao criar congregação e admin:", error);
-        res
-          .status(500)
-          .json({ error: error.message || "Erro interno no servidor" });
+        throw new HttpsError("already-exists", "Este e-mail já está em uso.");
       }
+      logger.error("Erro ao criar congregação e admin:", error);
+      throw new HttpsError("internal", error.message || "Erro interno no servidor");
     }
-  })
-);
+});
 
-export const getManagersForNotification = https.onRequest(
-  withCors(async (req, res) => {
+export const getManagersForNotification = https.onCall(async (request) => {
+    const { congregationId } = request.data;
+    if (!congregationId) {
+      throw new HttpsError("invalid-argument", "O ID da congregação é obrigatório.");
+    }
+
     try {
-      const { congregationId } = req.body.data;
-      if (!congregationId) {
-        res.status(400).json({ error: "O ID da congregação é obrigatório." });
-        return;
-      }
-
       const rolesToFetch = ["Administrador", "Dirigente"];
       const queryPromises = rolesToFetch.map((role) =>
-        db
-          .collection("users")
+        db.collection("users")
           .where("congregationId", "==", congregationId)
           .where("role", "==", role)
           .get()
@@ -147,35 +105,28 @@ export const getManagersForNotification = https.onRequest(
 
       const results = await Promise.all(queryPromises);
       const managers = results.flatMap((snapshot) =>
-        snapshot.docs.map((doc: admin.firestore.QueryDocumentSnapshot) => {
+        snapshot.docs.map((doc: QueryDocumentSnapshot) => {
           const { name, whatsapp } = doc.data();
           return { uid: doc.id, name, whatsapp };
         })
       );
+      
+      const uniqueManagers = Array.from(new Map(managers.map((item) => [item["uid"], item])).values());
+      return { success: true, managers: uniqueManagers };
 
-      const uniqueManagers = Array.from(
-        new Map(managers.map((item) => [item["uid"], item])).values()
-      );
-
-      res.status(200).json({ data: { success: true, managers: uniqueManagers } });
     } catch (error: any) {
       logger.error("Erro ao buscar gerentes:", error);
-      res
-        .status(500)
-        .json({ error: "Falha ao buscar contatos dos responsáveis." });
+      throw new HttpsError("internal", "Falha ao buscar contatos dos responsáveis.");
     }
-  })
-);
+});
 
-export const notifyOnNewUser = https.onRequest(
-  withCors(async (req, res) => {
+export const notifyOnNewUser = https.onCall(async (request) => {
+    const { newUserName, congregationId } = request.data;
+    if (!newUserName || !congregationId) {
+      throw new HttpsError("invalid-argument", "Dados insuficientes para notificação.");
+    }
+
     try {
-      const { newUserName, congregationId } = req.body.data;
-      if (!newUserName || !congregationId) {
-        res.status(400).json({ error: "Dados insuficientes para notificação." });
-        return;
-      }
-
       const rolesToNotify = ["Administrador", "Dirigente"];
       const notifications: Promise<any>[] = [];
 
@@ -185,7 +136,7 @@ export const notifyOnNewUser = https.onRequest(
           .where("congregationId", "==", congregationId)
           .where("role", "==", role)
           .get();
-        usersToNotifySnapshot.forEach((userDoc) => {
+        usersToNotifySnapshot.forEach((userDoc: QueryDocumentSnapshot) => {
           const notification = {
             title: "Novo Usuário Aguardando Aprovação",
             body: `O usuário "${newUserName}" solicitou acesso à congregação.`,
@@ -194,129 +145,91 @@ export const notifyOnNewUser = https.onRequest(
             isRead: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
           };
-          notifications.push(
-            userDoc.ref.collection("notifications").add(notification)
-          );
+          notifications.push(userDoc.ref.collection("notifications").add(notification));
         });
       }
 
       await Promise.all(notifications);
-      res.status(200).json({ data: { success: true } });
+      return { success: true };
     } catch (error: any) {
       logger.error("Erro ao criar notificações para novo usuário:", error);
-      res.status(500).json({ error: "Falha ao enviar notificações." });
+      throw new HttpsError("internal", "Falha ao enviar notificações.");
     }
-  })
-);
+});
 
-export const requestPasswordReset = https.onRequest(
-  withCors(async (req, res) => {
+export const requestPasswordReset = https.onCall(async (request) => {
+    const { email } = request.data;
+    if (!email) {
+      throw new HttpsError("invalid-argument", "O e-mail é obrigatório.");
+    }
+
     try {
-      const { email } = req.body.data;
-      if (!email) {
-        res.status(400).json({ error: "O e-mail é obrigatório." });
-        return;
-      }
+      const user = await admin.auth().getUserByEmail(email);
+      const token = crypto.randomUUID();
+      const expires = Date.now() + 3600 * 1000; // 1 hora
 
-      try {
-        const user = await admin.auth().getUserByEmail(email);
-        const token = crypto.randomUUID();
-        const expires = Date.now() + 3600 * 1000; // 1 hora
-
-        await db
-          .collection("resetTokens")
-          .doc(token)
-          .set({
-            uid: user.uid,
-            expires: admin.firestore.Timestamp.fromMillis(expires),
-          });
-        res.status(200).json({ data: { success: true, token } });
-      } catch (error: any) {
-        if (error.code === "auth/user-not-found") {
-          res.status(200).json({
-            data: {
-              success: true,
-              token: null,
-              message: "Se o e-mail existir, um link será enviado.",
-            },
-          });
-        } else {
-          throw error;
-        }
-      }
+      await db.collection("resetTokens").doc(token).set({
+          uid: user.uid,
+          expires: admin.firestore.Timestamp.fromMillis(expires),
+      });
+      return { success: true, token };
     } catch (error: any) {
-      logger.error("Erro ao gerar token de redefinição:", error);
-      res
-        .status(500)
-        .json({ error: "Erro ao iniciar o processo de redefinição." });
-    }
-  })
-);
-
-export const resetPasswordWithToken = https.onRequest(
-  withCors(async (req, res) => {
-    try {
-      const { token, newPassword } = req.body.data;
-      if (!token || !newPassword) {
-        res
-          .status(400)
-          .json({ error: "Token e nova senha são obrigatórios." });
-        return;
+      if (error.code === "auth/user-not-found") {
+        return { success: true, token: null, message: "Se o e-mail existir, um link será enviado." };
       }
+      logger.error("Erro ao gerar token de redefinição:", error);
+      throw new HttpsError("internal", "Erro ao iniciar o processo de redefinição.");
+    }
+});
 
+export const resetPasswordWithToken = https.onCall(async (request) => {
+    const { token, newPassword } = request.data;
+    if (!token || !newPassword) {
+      throw new HttpsError("invalid-argument", "Token e nova senha são obrigatórios.");
+    }
+
+    try {
       const tokenRef = db.collection("resetTokens").doc(token);
       const tokenDoc = await tokenRef.get();
 
       if (!tokenDoc.exists) {
-        res.status(404).json({ error: "Token inválido ou já utilizado." });
-        return;
+        throw new HttpsError("not-found", "Token inválido ou já utilizado.");
       }
       if (tokenDoc.data()?.expires.toMillis() < Date.now()) {
         await tokenRef.delete();
-        res.status(410).json({ error: "O token de redefinição expirou." });
-        return;
+        throw new HttpsError("deadline-exceeded", "O token de redefinição expirou.");
       }
 
       const uid = tokenDoc.data()?.uid;
       await admin.auth().updateUser(uid, { password: newPassword });
       await tokenRef.delete();
-      res.status(200).json({ data: { success: true } });
+      return { success: true };
     } catch (error: any) {
       logger.error("Erro ao redefinir senha com token:", error);
-      res.status(500).json({ error: "Falha ao atualizar a senha." });
+      throw new HttpsError("internal", "Falha ao atualizar a senha.");
     }
-  })
-);
+});
 
-export const deleteUserAccount = https.onRequest(
-  withCors(async (req, res) => {
+export const deleteUserAccount = https.onCall(async (request) => {
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Ação não autorizada. Sem token.");
+    }
+    const callingUserUid = request.auth.uid;
+    const { userIdToDelete } = request.data;
+
+    if (!userIdToDelete) {
+      throw new HttpsError("invalid-argument", "ID do usuário a ser deletado é obrigatório.");
+    }
+    
     try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader) {
-        res.status(401).json({ error: "Ação não autorizada. Sem token." });
-        return;
-      }
-      const idToken = authHeader.split('Bearer ')[1];
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const callingUserUid = decodedToken.uid;
-      
-      const { userIdToDelete } = req.body.data;
-
-      if (!userIdToDelete) {
-        res.status(400).json({ error: "ID do usuário a ser deletado é obrigatório." });
-        return;
-      }
-      
       const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
       const isAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
 
       if (!isAdmin && callingUserUid !== userIdToDelete) {
-        res.status(403).json({ error: "Sem permissão." });
-        return;
+        throw new HttpsError("permission-denied", "Sem permissão.");
       }
       if (isAdmin && callingUserUid === userIdToDelete) {
-        res.status(403).json({ error: "Admin não pode se autoexcluir." });
-        return;
+        throw new HttpsError("permission-denied", "Admin não pode se autoexcluir.");
       }
 
       await admin.auth().deleteUser(userIdToDelete);
@@ -324,28 +237,26 @@ export const deleteUserAccount = https.onRequest(
       if ((await userDocRef.get()).exists) {
         await userDocRef.delete();
       }
-      res.status(200).json({data: { success: true }});
+      return { success: true };
+
     } catch (error: any) {
       logger.error("Erro ao excluir usuário:", error);
-      if (error.code === 'auth/id-token-expired') {
-        res.status(401).json({ error: "Token expirado. Faça login novamente."});
-      } else {
-        res.status(500).json({ error: error.message || "Falha na exclusão." });
-      }
+      throw new HttpsError("internal", error.message || "Falha na exclusão.");
     }
-  })
-);
+});
 
-export const resetTerritoryProgress = https.onRequest(
-  withCors(async (req, res) => {
+
+export const resetTerritoryProgress = https.onCall(async (request) => {
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Ação não autorizada.");
+    }
+    const { congregationId, territoryId } = request.data;
+
+    if (!congregationId || !territoryId) {
+      throw new HttpsError("invalid-argument", "IDs faltando.");
+    }
+    
     try {
-      const { congregationId, territoryId } = req.body.data;
-
-      if (!congregationId || !territoryId) {
-        res.status(400).json({ error: "IDs faltando." });
-        return;
-      }
-      
       const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
       const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
       
@@ -353,9 +264,9 @@ export const resetTerritoryProgress = https.onRequest(
       logger.log(`[resetTerritory] Histórico para ${territoryId} deletado com sucesso.`);
 
       let housesUpdatedCount = 0;
-      await db.runTransaction(async (transaction) => {
+      await db.runTransaction(async (transaction: Transaction) => {
           const quadrasSnapshot = await transaction.get(quadrasRef);
-          const housesToUpdate: { ref: admin.firestore.DocumentReference, data: { status: boolean } }[] = [];
+          const housesToUpdate: { ref: DocumentReference; data: { status: boolean } }[] = [];
           
           for (const quadraDoc of quadrasSnapshot.docs) {
               const casasSnapshot = await transaction.get(quadraDoc.ref.collection("casas"));
@@ -373,16 +284,15 @@ export const resetTerritoryProgress = https.onRequest(
       });
       
       if (housesUpdatedCount > 0) {
-        res.status(200).json({data: { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` }});
+        return { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` };
       } else {
-        res.status(200).json({data: { success: true, message: "Nenhuma alteração necessária, nenhuma casa estava marcada como 'feita'." }});
+        return { success: true, message: "Nenhuma alteração necessária, nenhuma casa estava marcada como 'feita'." };
       }
     } catch (error: any) {
         logger.error(`[resetTerritory] FALHA CRÍTICA ao limpar o território:`, error);
-        res.status(500).json({ error: "Falha ao processar a limpeza do território." });
+        throw new HttpsError("internal", "Falha ao processar a limpeza do território.");
     }
-  })
-);
+});
 
 
 // ========================================================================
@@ -525,7 +435,7 @@ export const onDeleteTerritory = onDocumentDeleted(
         `[onDeleteTerritory] Erro ao deletar ${event.params.territoryId}:`,
         error
       );
-      throw new https.HttpsError(
+      throw new HttpsError(
         "internal",
         "Falha ao deletar território recursivamente."
       );
@@ -556,7 +466,7 @@ export const onDeleteQuadra = onDocumentDeleted(
         `[onDeleteQuadra] Erro ao deletar ${event.params.quadraId}:`,
         error
       );
-      throw new https.HttpsError(
+      throw new HttpsError(
         "internal",
         "Falha ao deletar quadra recursivamente."
       );
