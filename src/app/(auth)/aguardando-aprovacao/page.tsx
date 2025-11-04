@@ -6,10 +6,8 @@ import { useUser } from "@/contexts/UserContext";
 import { Loader, MailCheck, Users, MessageSquare } from "lucide-react";
 import withAuth from "@/components/withAuth";
 import { Button } from '@/components/ui/button';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
-
-const functions = getFunctions(app, 'southamerica-east1');
+import { collection, query, where, getDocs, or } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface Manager {
     uid: string;
@@ -27,14 +25,25 @@ function AguardandoAprovacaoPage() {
             const fetchManagers = async () => {
                 setLoadingManagers(true);
                 try {
-                    const getManagers = httpsCallable(functions, 'getManagersForNotification');
-                    const result: any = await getManagers({ congregationId: user.congregationId });
-                    
-                    if(result.data.success) {
-                        setManagers(result.data.managers);
-                    } else {
-                        throw new Error(result.data.error || 'Falha ao buscar dados.');
-                    }
+                    const usersRef = collection(db, 'users');
+                    const q = query(
+                        usersRef, 
+                        where("congregationId", "==", user.congregationId),
+                        or(
+                            where("role", "==", "Administrador"),
+                            where("role", "==", "Dirigente")
+                        )
+                    );
+                    const querySnapshot = await getDocs(q);
+                    const fetchedManagers = querySnapshot.docs.map(doc => {
+                        const data = doc.data();
+                        return {
+                            uid: doc.id,
+                            name: data.name,
+                            whatsapp: data.whatsapp
+                        };
+                    });
+                    setManagers(fetchedManagers);
                 } catch (error) {
                     console.error("Erro ao buscar administradores e dirigentes:", error);
                 } finally {
@@ -56,7 +65,7 @@ function AguardandoAprovacaoPage() {
         );
     }
 
-    const handleWhatsAppClick = (whatsapp: string) => {
+    const handleWhatsAppClick = (whatsapp: string | undefined) => {
         if (!whatsapp) return;
         const number = whatsapp.replace(/\D/g, '');
         const message = `Olá, sou ${user?.name}. Acabei de solicitar acesso ao aplicativo De Casa em Casa para a congregação ${user?.congregationName}. Você poderia aprovar meu acesso, por favor?`;
@@ -93,7 +102,7 @@ function AguardandoAprovacaoPage() {
                                 <div key={manager.uid} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
                                     <span className="font-medium">{manager.name}</span>
                                     {manager.whatsapp ? (
-                                        <Button size="sm" variant="ghost" onClick={() => handleWhatsAppClick(manager.whatsapp as string)} className="text-green-500 hover:text-green-600 hover:bg-green-500/10">
+                                        <Button size="sm" variant="ghost" onClick={() => handleWhatsAppClick(manager.whatsapp)} className="text-green-500 hover:text-green-600 hover:bg-green-500/10">
                                             <MessageSquare size={16} className="mr-2" /> WhatsApp
                                         </Button>
                                     ) : (
