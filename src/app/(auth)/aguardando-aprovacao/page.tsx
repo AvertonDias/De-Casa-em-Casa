@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -9,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
 
-const functions = getFunctions(app); // Removida a região daqui
+const functions = getFunctions(app); // Região é definida globalmente
 const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
 
 interface Manager {
@@ -28,6 +27,7 @@ function AguardandoAprovacaoPage() {
             setLoadingManagers(true);
             getManagersForNotification({ congregationId: user.congregationId })
                 .then((result: any) => {
+                    // A estrutura de dados de onRequest é { data: { success: ..., managers: ... } }
                     if (result.data.success) {
                         setManagers(result.data.managers);
                     }
