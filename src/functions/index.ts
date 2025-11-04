@@ -24,12 +24,10 @@ setGlobalOptions({ region: "southamerica-east1" });
 // ========================================================================
 //   CORS WRAPPER
 // ========================================================================
-function withCors(handler: (req: any, res: any) => void) {
-    return (req: any, res: any) => {
+function withCors(handler: (req: https.Request, res: any) => void) {
+    return (req: https.Request, res: any) => {
         res.set("Access-Control-Allow-Origin", "*");
-        res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-        // CRITICAL: Allow the specific header sent by the Firebase client SDK
-        res.set("Access-Control-Allow-Headers", "Content-Type, Authorization, Firebase-Instance-ID-Token");
+        res.set("Access-control-allow-headers", "Content-Type, Authorization, Firebase-Instance-ID-Token");
 
         if (req.method === "OPTIONS") {
             res.status(204).send("");
@@ -182,7 +180,7 @@ export const notifyOnNewUser = https.onRequest(withCors(async (req, res) => {
 
         await Promise.all(notifications);
         res.status(200).json({ data: { success: true } });
-    } catch (error: any) {
+    } catch (error: any) => {
         logger.error("Erro ao criar notificações para novo usuário:", error);
         res.status(500).json({ data: { success: false, error: "Falha ao enviar notificações." } });
     }
@@ -566,3 +564,5 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
+
+    
