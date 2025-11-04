@@ -1,3 +1,4 @@
+
 // src/functions/src/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
@@ -25,10 +26,21 @@ setGlobalOptions({ region: "southamerica-east1" });
 //   CORS WRAPPER
 // ========================================================================
 function withCors(handler: (req: https.Request, res: any) => void | Promise<void>) {
-    return https.onRequest({ cors: true }, async (req, res) => {
-        // Assegura que o CORS é tratado pela configuração do Firebase Functions
-        // O `cors: true` já lida com OPTIONS e headers básicos.
-        // Adicionamos manualmente apenas se precisarmos de lógica extra, mas geralmente não é necessário.
+    return https.onRequest({ 
+        cors: [
+            "https://de-casa-em-casa.web.app",
+            "https://de-casa-em-casa.firebaseapp.com",
+            /https:\/\/de-casa-em-casa--pr-.*\.web\.app/,
+            /https:\/\/.*\.cloudworkstations\.dev/
+        ]
+    }, async (req, res) => {
+        // O `cors: [...]` já lida com OPTIONS e headers, mas para garantir
+        // a permissão do token específico, adicionamos manualmente.
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Firebase-Instance-ID-Token');
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
+        }
         await handler(req, res);
     });
 }
@@ -176,7 +188,7 @@ export const notifyOnNewUser = withCors(async (req, res) => {
 
         await Promise.all(notifications);
         res.status(200).json({ data: { success: true } });
-    } catch (error: any) => {
+    } catch (error: any) {
         logger.error("Erro ao criar notificações para novo usuário:", error);
         res.status(500).json({ data: { success: false, error: "Falha ao enviar notificações." } });
     }
@@ -560,3 +572,5 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
+
+    
