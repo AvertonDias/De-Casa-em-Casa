@@ -113,7 +113,7 @@ function AguardandoAprovacaoPage() {
                 <div className="pt-4 border-t border-border">
                     <Button
                         onClick={logout}
-                        variant="outline"
+                        variant="destructive"
                         className="w-full"
                     >
                         Sair
