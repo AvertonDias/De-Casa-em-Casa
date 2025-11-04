@@ -24,8 +24,8 @@ setGlobalOptions({ region: "southamerica-east1" });
 // ========================================================================
 //   CORS WRAPPER
 // ========================================================================
-function withCors(handler: (req: https.Request, res: https.Response) => void) {
-    return (req: https.Request, res: https.Response) => {
+function withCors(handler: (req: any, res: any) => void) {
+    return (req: any, res: any) => {
         res.set("Access-Control-Allow-Origin", "*");
         res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         // CRITICAL: Allow the specific header sent by the Firebase client SDK
@@ -566,5 +566,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
-
-    

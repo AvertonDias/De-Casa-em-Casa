@@ -1,13 +1,13 @@
 // src/functions/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
+import { HttpsError } from "firebase-functions/v2/https";
 import {
   onDocumentWritten,
   onDocumentDeleted,
 } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
-import { HttpsError } from "firebase-functions/v2/https";
 import {
   QueryDocumentSnapshot,
   Transaction,
