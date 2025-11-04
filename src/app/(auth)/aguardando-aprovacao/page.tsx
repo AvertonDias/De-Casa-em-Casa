@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
 
-const functions = getFunctions(app, 'southamerica-east1');
+const functions = getFunctions(app); // Removida a região daqui
 const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
 
 interface Manager {
@@ -74,14 +74,19 @@ function AguardandoAprovacaoPage() {
                     </p>
                 </div>
 
-                {managers.length > 0 && (
+                {loadingManagers && !userLoading ? (
+                     <div className="pt-4 border-t border-border text-center">
+                        <Loader className="animate-spin mx-auto text-primary" />
+                        <p className="text-sm text-muted-foreground mt-2">Buscando contatos dos dirigentes...</p>
+                    </div>
+                ) : managers.length > 0 && (
                     <div className="pt-4 border-t border-border">
                         <h2 className="text-center text-lg font-semibold flex items-center justify-center gap-2">
                             <Users size={20} />
-                            Contatos para Agilizar
+                            Quer Agilizar? Fale com um Responsável
                         </h2>
                         <p className="text-center text-sm text-muted-foreground mt-1 mb-4">
-                            Você pode entrar em contato com um dos responsáveis abaixo para pedir a aprovação.
+                            Você pode entrar em contato com um dos dirigentes ou administradores abaixo para pedir a aprovação.
                         </p>
                         <div className="space-y-2">
                             {managers.map((manager) => (
@@ -99,14 +104,6 @@ function AguardandoAprovacaoPage() {
                         </div>
                     </div>
                 )}
-                
-                {loadingManagers && !userLoading && (
-                    <div className="pt-4 border-t border-border text-center">
-                        <Loader className="animate-spin mx-auto text-primary" />
-                        <p className="text-sm text-muted-foreground mt-2">Buscando contatos...</p>
-                    </div>
-                )}
-
 
                 <div className="pt-4">
                     <Button
