@@ -6,7 +6,7 @@ import { useUser } from "@/contexts/UserContext";
 import { Loader, MailCheck, Users, MessageSquare } from "lucide-react";
 import withAuth from "@/components/withAuth";
 import { Button } from '@/components/ui/button';
-import { collection, query, where, getDocs, or } from 'firebase/firestore';
+import { collection, query, where, getDocs, or, and } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface Manager {
@@ -28,10 +28,12 @@ function AguardandoAprovacaoPage() {
                     const usersRef = collection(db, 'users');
                     const q = query(
                         usersRef, 
-                        where("congregationId", "==", user.congregationId),
-                        or(
-                            where("role", "==", "Administrador"),
-                            where("role", "==", "Dirigente")
+                        and(
+                            where("congregationId", "==", user.congregationId),
+                            or(
+                                where("role", "==", "Administrador"),
+                                where("role", "==", "Dirigente")
+                            )
                         )
                     );
                     const querySnapshot = await getDocs(q);

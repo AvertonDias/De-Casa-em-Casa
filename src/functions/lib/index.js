@@ -61,8 +61,6 @@ function withCors(handler) {
             /https:\/\/.*\.cloudworkstations\.dev/
         ]
     }, async (req, res) => {
-        // O `cors: [...]` já lida com OPTIONS e headers, mas para garantir
-        // a permissão do token específico, adicionamos manualmente.
         res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Firebase-Instance-ID-Token');
         if (req.method === 'OPTIONS') {
             res.status(204).send('');
