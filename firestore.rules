@@ -81,9 +81,9 @@ service cloud.firestore {
                       request.auth.uid != userId && 
                       isUserInCongregation(getUserData(userId).congregationId);
       
-      // Permite a listagem de usuários APENAS se o usuário logado for um gerente (Admin/Dirigente).
+      // Permite a listagem de usuários se o requisitante estiver logado.
       // A consulta no frontend DEVE garantir o filtro por congregationId.
-      allow list: if isAuth() && isManager();
+      allow list: if isAuth();
 
 
       match /notifications/{notificationId} {
