@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -58,7 +59,8 @@ function AguardandoAprovacaoPage() {
         );
     }
 
-    const handleWhatsAppClick = (whatsapp: string) => {
+    const handleWhatsAppClick = (whatsapp?: string) => {
+        if (!whatsapp) return; // Garante que whatsapp é uma string
         const number = whatsapp.replace(/\D/g, '');
         const message = `Olá, sou ${user?.name}. Acabei de solicitar acesso ao aplicativo De Casa em Casa para a congregação ${user?.congregationName}. Você poderia aprovar meu acesso, por favor?`;
         const url = `https://wa.me/55${number}?text=${encodeURIComponent(message)}`;
