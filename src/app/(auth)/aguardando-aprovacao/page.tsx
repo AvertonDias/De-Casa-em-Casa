@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
 
-const functions = getFunctions(app); // Região é definida globalmente
+const functions = getFunctions(app, 'southamerica-east1');
 const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
 
 interface Manager {
@@ -27,7 +27,6 @@ function AguardandoAprovacaoPage() {
             setLoadingManagers(true);
             getManagersForNotification({ congregationId: user.congregationId })
                 .then((result: any) => {
-                    // A estrutura de dados de onRequest é { data: { success: ..., managers: ... } }
                     if (result.data.success) {
                         setManagers(result.data.managers);
                     }
@@ -69,26 +68,21 @@ function AguardandoAprovacaoPage() {
                         Olá, <span className="font-semibold text-foreground">{user?.name}</span>!
                         Sua solicitação de acesso para a congregação <span className="font-semibold text-foreground">{user?.congregationName || '...'}</span> foi enviada.
                     </p>
-                    <p className="text-muted-foreground">
-                        Um dirigente ou administrador irá aprovar seu acesso em breve.
-                    </p>
                 </div>
 
-                {loadingManagers && !userLoading ? (
-                     <div className="pt-4 border-t border-border text-center">
-                        <Loader className="animate-spin mx-auto text-primary" />
-                        <p className="text-sm text-muted-foreground mt-2">Buscando contatos dos dirigentes...</p>
-                    </div>
-                ) : managers.length > 0 && (
-                    <div className="pt-4 border-t border-border">
-                        <h2 className="text-center text-lg font-semibold flex items-center justify-center gap-2">
-                            <Users size={20} />
-                            Quer Agilizar? Fale com um Responsável
-                        </h2>
-                        <p className="text-center text-sm text-muted-foreground mt-1 mb-4">
-                            Você pode entrar em contato com um dos dirigentes ou administradores abaixo para pedir a aprovação.
-                        </p>
-                        <div className="space-y-2">
+                <div className="pt-4 border-t border-border">
+                    <h2 className="text-center text-lg font-semibold flex items-center justify-center gap-2">
+                        <Users size={20} />
+                        Avise um dos Dirigentes abaixo
+                    </h2>
+                    
+                    {loadingManagers && !userLoading ? (
+                         <div className="pt-4 text-center">
+                            <Loader className="animate-spin mx-auto text-primary" />
+                            <p className="text-sm text-muted-foreground mt-2">Buscando contatos...</p>
+                        </div>
+                    ) : managers.length > 0 ? (
+                        <div className="space-y-2 mt-4">
                             {managers.map((manager) => (
                                 <div key={manager.uid} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
                                     <span className="font-medium">{manager.name}</span>
@@ -102,13 +96,17 @@ function AguardandoAprovacaoPage() {
                                 </div>
                             ))}
                         </div>
-                    </div>
-                )}
+                    ) : (
+                        <p className="text-center text-sm text-muted-foreground mt-4">
+                            Nenhum contato de dirigente encontrado para esta congregação. Por favor, aguarde a aprovação.
+                        </p>
+                    )}
+                </div>
 
-                <div className="pt-4">
+                <div className="pt-4 border-t border-border">
                     <Button
                         onClick={logout}
-                        variant="destructive"
+                        variant="outline"
                         className="w-full"
                     >
                         Sair
