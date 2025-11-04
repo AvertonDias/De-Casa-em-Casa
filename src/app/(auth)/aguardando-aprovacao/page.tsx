@@ -1,69 +1,13 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
 import { useUser } from "@/contexts/UserContext";
-import { Loader, MailCheck, MessageCircle } from "lucide-react";
+import { Loader, MailCheck } from "lucide-react";
 import withAuth from "@/components/withAuth";
-import { AppUser } from '@/types/types';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { getInitials } from '@/lib/utils';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
-
-const functions = getFunctions(app, 'southamerica-east1');
-const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
 
 function AguardandoAprovacaoPage() {
     const { user, loading, logout } = useUser();
-    const { toast } = useToast();
-    const [adminsAndLeaders, setAdminsAndLeaders] = useState<AppUser[]>([]);
-    const [isLoadingContacts, setIsLoadingContacts] = useState(false);
-
-    const fetchAdminsAndLeaders = useCallback(async () => {
-        if (!user?.congregationId) return;
-        setIsLoadingContacts(true);
-        try {
-            const result: any = await getManagersForNotification({ congregationId: user.congregationId });
-
-            if (result.data.success) {
-                setAdminsAndLeaders(result.data.managers);
-            } else {
-                throw new Error(result.data.error || "Falha ao buscar contatos.");
-            }
-        } catch (error: any) {
-            console.error("Erro ao buscar administradores e dirigentes:", error);
-            toast({
-                title: "Erro ao buscar contatos",
-                description: error.message || "Não foi possível carregar a lista de dirigentes. Verifique sua conexão ou tente mais tarde.",
-                variant: "destructive"
-            })
-        } finally {
-            setIsLoadingContacts(false);
-        }
-    }, [user?.congregationId, toast]);
-
-
-    useEffect(() => {
-        if (user?.congregationId) {
-            fetchAdminsAndLeaders();
-        }
-    }, [user?.congregationId, fetchAdminsAndLeaders]);
-
-    const handleNotify = (contact: AppUser) => {
-        if (!user || !contact.whatsapp) return;
-        
-        const contactFirstName = contact.name.split(' ')[0];
-        const userFirstName = user.name.split(' ')[0];
-
-        const message = `Olá, ${contactFirstName}. O publicador "${userFirstName}" está aguardando aprovação de acesso no aplicativo De Casa em Casa.`;
-        const whatsappNumber = contact.whatsapp.replace(/\D/g, '');
-        const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
-
-        window.open(whatsappUrl, '_blank');
-    };
 
     if (loading) {
         return (
