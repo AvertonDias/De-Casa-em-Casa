@@ -22,6 +22,7 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
+
 // ========================================================================
 //   FUNÇÕES HTTPS (onCall)
 // ========================================================================
