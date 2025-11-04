@@ -16,6 +16,12 @@ service cloud.firestore {
       let userData = getUserData(request.auth.uid);
       return userData != null && userData.congregationId == congId;
     }
+
+    function isSameCongregationAsRequestingUser(targetUserId) {
+        let currentUserData = getUserData(request.auth.uid);
+        let targetUserData = getUserData(targetUserId);
+        return currentUserData != null && targetUserData != null && currentUserData.congregationId == targetUserData.congregationId;
+    }
     
     function isRole(role) {
       let userData = getUserData(request.auth.uid);
@@ -57,6 +63,9 @@ service cloud.firestore {
       // Usuário pode ler seu próprio perfil. CRÍTICO PARA O FUNCIONAMENTO DO APP.
       allow get: if request.auth.uid == userId;
 
+      // Usuário pode ler o perfil de outros da mesma congregação (necessário para a lista de contatos).
+      allow get: if isAuth() && isSameCongregationAsRequestingUser(userId);
+
       // Usuário pode atualizar seu próprio perfil (nome, whatsapp, etc).
       allow update: if request.auth.uid == userId && 
                       // Impede o usuário de alterar seu próprio papel, status ou ID de congregação.
@@ -72,9 +81,9 @@ service cloud.firestore {
                       request.auth.uid != userId && 
                       isUserInCongregation(getUserData(userId).congregationId);
       
-      // Permite a listagem de usuários APENAS se o usuário logado for um gerente (Admin/Dirigente).
+      // Permite a listagem de usuários APENAS se o usuário logado estiver na mesma congregação.
       // A consulta no frontend DEVE garantir o filtro por congregationId.
-      allow list: if isAuth() && isManager();
+      allow list: if isAuth() && request.query.where.get('congregationId')[2] == getUserData(request.auth.uid).congregationId;
 
 
       match /notifications/{notificationId} {

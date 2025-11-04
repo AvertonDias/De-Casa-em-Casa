@@ -5,11 +5,8 @@ import { useUser } from "@/contexts/UserContext";
 import { Loader, MailCheck, Users, MessageSquare } from "lucide-react";
 import withAuth from "@/components/withAuth";
 import { Button } from '@/components/ui/button';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
-
-const functions = getFunctions(app, 'southamerica-east1');
-const getManagersForNotification = httpsCallable(functions, 'getManagersForNotification');
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 interface Manager {
     uid: string;
@@ -24,19 +21,29 @@ function AguardandoAprovacaoPage() {
 
     useEffect(() => {
         if (user?.congregationId) {
-            setLoadingManagers(true);
-            getManagersForNotification({ congregationId: user.congregationId })
-                .then((result: any) => {
-                    if (result.data.success) {
-                        setManagers(result.data.managers);
-                    }
-                })
-                .catch((error) => {
+            const fetchManagers = async () => {
+                setLoadingManagers(true);
+                try {
+                    const usersRef = collection(db, 'users');
+                    const q = query(
+                        usersRef, 
+                        where("congregationId", "==", user.congregationId),
+                        where("role", "in", ["Administrador", "Dirigente"])
+                    );
+                    const querySnapshot = await getDocs(q);
+                    const fetchedManagers = querySnapshot.docs.map(doc => ({
+                        uid: doc.id,
+                        name: doc.data().name,
+                        whatsapp: doc.data().whatsapp
+                    }));
+                    setManagers(fetchedManagers);
+                } catch (error) {
                     console.error("Erro ao buscar administradores e dirigentes:", error);
-                })
-                .finally(() => {
+                } finally {
                     setLoadingManagers(false);
-                });
+                }
+            };
+            fetchManagers();
         } else if (!userLoading) {
             setLoadingManagers(false);
         }
@@ -76,7 +83,7 @@ function AguardandoAprovacaoPage() {
                         Avise um dos Dirigentes abaixo
                     </h2>
                     
-                    {loadingManagers && !userLoading ? (
+                    {loadingManagers ? (
                          <div className="pt-4 text-center">
                             <Loader className="animate-spin mx-auto text-primary" />
                             <p className="text-sm text-muted-foreground mt-2">Buscando contatos...</p>
