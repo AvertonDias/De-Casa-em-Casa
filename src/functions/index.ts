@@ -368,7 +368,7 @@ async function updateCongregationStats(congregationId: string) {
     totalHousesDone = 0,
     totalQuadras = 0;
 
-  territoriesSnapshot.forEach((doc) => {
+  territoriesSnapshot.forEach((doc: QueryDocumentSnapshot) => {
     const data = doc.data();
     if (data.type === "rural") {
       ruralCount++;
@@ -396,7 +396,7 @@ async function updateTerritoryStats(congregationId: string, territoryId: string)
 
   let totalHouses = 0;
   let housesDone = 0;
-  quadrasSnapshot.forEach((doc) => {
+  quadrasSnapshot.forEach((doc: QueryDocumentSnapshot) => {
     totalHouses += doc.data().totalHouses || 0;
     housesDone += doc.data().housesDone || 0;
   });
