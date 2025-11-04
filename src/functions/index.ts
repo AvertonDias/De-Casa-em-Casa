@@ -425,7 +425,7 @@ export const onWriteTerritoryData = onDocumentWritten(
       const casasSnapshot = await quadraRef.collection("casas").get();
       const totalHousesInQuadra = casasSnapshot.size;
       const housesDoneInQuadra = casasSnapshot.docs.filter(
-        (doc) => doc.data().status === true
+        (doc: QueryDocumentSnapshot) => doc.data().status === true
       ).length;
       
       await quadraRef.update({ totalHouses: totalHousesInQuadra, housesDone: housesDoneInQuadra });
