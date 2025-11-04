@@ -53,10 +53,21 @@ const db = firebase_admin_1.default.firestore();
 //   CORS WRAPPER
 // ========================================================================
 function withCors(handler) {
-    return v2_1.https.onRequest({ cors: true }, async (req, res) => {
-        // Assegura que o CORS é tratado pela configuração do Firebase Functions
-        // O `cors: true` já lida com OPTIONS e headers básicos.
-        // Adicionamos manualmente apenas se precisarmos de lógica extra, mas geralmente não é necessário.
+    return v2_1.https.onRequest({
+        cors: [
+            "https://de-casa-em-casa.web.app",
+            "https://de-casa-em-casa.firebaseapp.com",
+            /https:\/\/de-casa-em-casa--pr-.*\.web\.app/,
+            /https:\/\/.*\.cloudworkstations\.dev/
+        ]
+    }, async (req, res) => {
+        // O `cors: [...]` já lida com OPTIONS e headers, mas para garantir
+        // a permissão do token específico, adicionamos manualmente.
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Firebase-Instance-ID-Token');
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
+        }
         await handler(req, res);
     });
 }
@@ -176,13 +187,11 @@ exports.notifyOnNewUser = withCors(async (req, res) => {
         await Promise.all(notifications);
         res.status(200).json({ data: { success: true } });
     }
-    catch (error) { }
+    catch (error) {
+        v2_1.logger.error("Erro ao criar notificações para novo usuário:", error);
+        res.status(500).json({ data: { success: false, error: "Falha ao enviar notificações." } });
+    }
 });
-{
-    v2_1.logger.error("Erro ao criar notificações para novo usuário:", error);
-    res.status(500).json({ data: { success: false, error: "Falha ao enviar notificações." } });
-}
-;
 exports.requestPasswordReset = withCors(async (req, res) => {
     try {
         const { email } = req.body.data;
