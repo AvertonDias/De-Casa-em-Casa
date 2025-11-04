@@ -1,4 +1,4 @@
-// src/functions/index.ts
+// src/functions/src/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
 import { HttpsError } from "firebase-functions/v2/https";
@@ -312,7 +312,7 @@ async function updateCongregationStats(congregationId: string) {
     totalHousesDone = 0,
     totalQuadras = 0;
 
-  territoriesSnapshot.forEach((doc) => {
+  territoriesSnapshot.forEach((doc: QueryDocumentSnapshot) => {
     const data = doc.data();
     if (data.type === "rural") {
       ruralCount++;
@@ -340,7 +340,7 @@ async function updateTerritoryStats(congregationId: string, territoryId: string)
 
   let totalHouses = 0;
   let housesDone = 0;
-  quadrasSnapshot.forEach((doc) => {
+  quadrasSnapshot.forEach((doc: QueryDocumentSnapshot) => {
     totalHouses += doc.data().totalHouses || 0;
     housesDone += doc.data().housesDone || 0;
   });
@@ -369,7 +369,7 @@ export const onWriteTerritoryData = onDocumentWritten(
       const casasSnapshot = await quadraRef.collection("casas").get();
       const totalHousesInQuadra = casasSnapshot.size;
       const housesDoneInQuadra = casasSnapshot.docs.filter(
-        (doc) => doc.data().status === true
+        (doc: QueryDocumentSnapshot) => doc.data().status === true
       ).length;
       
       await quadraRef.update({ totalHouses: totalHousesInQuadra, housesDone: housesDoneInQuadra });
