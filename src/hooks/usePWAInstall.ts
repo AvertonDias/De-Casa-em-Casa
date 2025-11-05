@@ -22,7 +22,7 @@ const detectUserAgent = () => {
 
 export const usePWAInstall = () => {
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isAppInstalled, setIsAppInstalled] = useState(true); // Começa como true por padrão
+  const [isAppInstalled, setIsAppInstalled] = useState(false); // CORRIGIDO: Inicia como false
   const [deviceInfo, setDeviceInfo] = useState({ isMobile: false, isIOS: false });
 
   useEffect(() => {
@@ -30,6 +30,7 @@ export const usePWAInstall = () => {
 
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault(); 
+      setIsAppInstalled(false); // Garante que sabemos que não está instalado se o prompt aparecer
       setInstallPromptEvent(event as BeforeInstallPromptEvent);
     };
 
@@ -38,19 +39,21 @@ export const usePWAInstall = () => {
         if (window.matchMedia('(display-mode: standalone)').matches) {
           setIsAppInstalled(true);
         } else {
-          setIsAppInstalled(false);
+          // A verificação `beforeinstallprompt` é a principal forma de saber se é instalável.
+          window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         }
     }
     
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', () => {
+    const handleAppInstalled = () => {
       setIsAppInstalled(true);
       setInstallPromptEvent(null);
-    });
+    };
+    
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', () => {});
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
@@ -60,17 +63,16 @@ export const usePWAInstall = () => {
     
     await installPromptEvent.prompt();
     const { outcome } = await installPromptEvent.userChoice;
-    if (outcome === 'accepted') setIsAppInstalled(true);
+    if (outcome === 'accepted') {
+        // Não precisa fazer nada aqui, o listener 'appinstalled' cuidará disso.
+    }
     setInstallPromptEvent(null);
   };
   
   // ▼▼▼ LÓGICA DE RETORNO ATUALIZADA E UNIVERSAL ▼▼▼
   return {
-    // 'showInstallButton' é verdadeiro para qualquer celular que não tenha o app instalado.
     showInstallButton: deviceInfo.isMobile && !isAppInstalled, 
-    // 'canPrompt' nos diz se podemos usar o atalho de instalação nativo (só Chromium).
     canPrompt: installPromptEvent !== null,
-    // 'deviceInfo' nos dá o contexto sobre qual mensagem de instrução mostrar.
     deviceInfo: deviceInfo,
     onInstall: handleInstallClick
   };
