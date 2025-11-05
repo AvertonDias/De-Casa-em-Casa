@@ -319,46 +319,6 @@ export const resetTerritoryProgress = withCors(async (req, res) => {
 //   GATILHOS FIRESTORE (UNIFICADOS)
 // ========================================================================
 
-/**
- * Atualiza as estatísticas de uma congregação com base nos seus territórios.
- */
-async function updateCongregationStats(congregationId: string) {
-  const congregationRef = db.doc(`congregations/${congregationId}`);
-  const territoriesRef = congregationRef.collection("territories");
-
-  const territoriesSnapshot = await territoriesRef.get();
-
-  let urbanCount = 0, ruralCount = 0, totalHouses = 0, totalHousesDone = 0, totalQuadras = 0;
-  
-  territoriesSnapshot.forEach((doc) => {
-    const data = doc.data();
-    if (data.type === "rural") {
-        ruralCount++;
-    } else {
-        urbanCount++;
-        totalHouses += data.stats?.totalHouses || 0;
-        totalHousesDone += data.stats?.housesDone || 0;
-        totalQuadras += data.quadraCount || 0;
-    }
-  });
-
-  return congregationRef.update({
-    territoryCount: urbanCount,
-    ruralTerritoryCount: ruralCount,
-    totalQuadras,
-    totalHouses,
-    totalHousesDone,
-    lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-  });
-}
-
-
-export const onWriteTerritory = onDocumentWritten("congregations/{congId}/territories/{terrId}", async (event) => {
-  const congId = event.params.congId;
-  // Apenas atualiza as estatísticas da congregação
-  await updateCongregationStats(congId);
-});
-
 
 export const onDeleteTerritory = onDocumentDeleted(
   "congregations/{congregationId}/territories/{territoryId}",
@@ -375,8 +335,6 @@ export const onDeleteTerritory = onDocumentDeleted(
       logger.log(
         `[onDeleteTerritory] Território ${event.params.territoryId} e subcoleções deletadas.`
       );
-      // Dispara a atualização da congregação após a exclusão
-      await updateCongregationStats(event.params.congregationId);
       return { success: true };
     } catch (error) {
       logger.error(
@@ -407,8 +365,6 @@ export const onDeleteQuadra = onDocumentDeleted(
       logger.log(
         `[onDeleteQuadra] Quadra ${event.params.quadraId} e subcoleções deletadas.`
       );
-       // Dispara a atualização do território após a exclusão da quadra
-      // await updateTerritoryStats(event.params.congregationId, event.params.territoryId);
       return { success: true };
     } catch (error) {
       logger.error(

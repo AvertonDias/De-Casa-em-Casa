@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Plus, X } from 'lucide-react';
-import { addDoc, collection, serverTimestamp, getDocs } from 'firebase/firestore';
+import { addDoc, collection, doc, runTransaction, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import {
   Dialog,
@@ -61,18 +61,48 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
     }
 
     try {
-      const casasRef = collection(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas');
-      
-      const snapshot = await getDocs(casasRef);
-      const order = snapshot.size;
+        const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
+        const casasRef = collection(quadraRef, 'casas');
+        const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
 
-      await addDoc(casasRef, { 
-        number: number.toUpperCase(),
-        observations, 
-        status, 
-        createdAt: serverTimestamp(),
-        order
-      });
+        await runTransaction(db, async (transaction) => {
+            const quadraDoc = await transaction.get(quadraRef);
+            const territoryDoc = await transaction.get(territoryRef);
+            const casasSnapshot = await getDocs(casasRef);
+
+            if (!quadraDoc.exists() || !territoryDoc.exists()) {
+                throw new Error("Quadra ou Território não encontrado.");
+            }
+            
+            const order = casasSnapshot.size;
+            const newCasaRef = doc(casasRef); // Cria referência para a nova casa
+
+            transaction.set(newCasaRef, {
+                number: number.toUpperCase(),
+                observations, 
+                status, 
+                createdAt: serverTimestamp(),
+                order
+            });
+
+            const newQuadraTotalHouses = (quadraDoc.data().totalHouses || 0) + 1;
+            const newQuadraHousesDone = (quadraDoc.data().housesDone || 0) + (status ? 1 : 0);
+            
+            transaction.update(quadraRef, {
+                totalHouses: newQuadraTotalHouses,
+                housesDone: newQuadraHousesDone
+            });
+
+            const newTerritoryTotalHouses = (territoryDoc.data().stats.totalHouses || 0) + 1;
+            const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + (status ? 1 : 0);
+            const newProgress = newTerritoryTotalHouses > 0 ? newTerritoryHousesDone / newTerritoryTotalHouses : 0;
+            
+            transaction.update(territoryRef, {
+                "stats.totalHouses": newTerritoryTotalHouses,
+                "stats.housesDone": newTerritoryHousesDone,
+                progress: newProgress
+            });
+        });
 
       setIsOpen(false);
       onCasaAdded();

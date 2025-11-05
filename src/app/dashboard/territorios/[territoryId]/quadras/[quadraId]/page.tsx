@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -174,28 +175,26 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             if (!territoryDoc.exists()) throw new Error("Território não encontrado!");
 
             // 2. PREPARE WRITES (calculations)
-            // Casa
             const casaUpdateData: { status: boolean, lastWorkedBy?: { uid: string, name: string } } = { status: newStatus };
             if (newStatus) {
                 casaUpdateData.lastWorkedBy = { uid: user.uid, name: user.name };
             }
 
-            // Quadra
-            let currentHousesDone = quadraDoc.data().housesDone || 0;
-            currentHousesDone += (newStatus ? 1 : -1);
+            const quadraHousesDone = quadraDoc.data().housesDone || 0;
+            const newQuadraHousesDone = quadraHousesDone + (newStatus ? 1 : -1);
 
-            // Território
-            let territoryHousesDone = territoryDoc.data().stats.housesDone || 0;
-            territoryHousesDone += (newStatus ? 1 : -1);
+            const territoryHousesDone = territoryDoc.data().stats.housesDone || 0;
+            const newTerritoryHousesDone = territoryHousesDone + (newStatus ? 1 : -1);
+            
             const territoryTotalHouses = territoryDoc.data().stats.totalHouses || 0;
-            const newProgress = territoryTotalHouses > 0 ? territoryHousesDone / territoryTotalHouses : 0;
-
+            const newTerritoryProgress = territoryTotalHouses > 0 ? newTerritoryHousesDone / territoryTotalHouses : 0;
+            
             // 3. EXECUTE WRITES
             transaction.update(casaRef, casaUpdateData);
-            transaction.update(quadraRef, { housesDone: currentHousesDone });
+            transaction.update(quadraRef, { housesDone: newQuadraHousesDone });
             transaction.update(territoryRef, {
-                "stats.housesDone": territoryHousesDone,
-                progress: newProgress,
+                "stats.housesDone": newTerritoryHousesDone,
+                progress: newTerritoryProgress,
             });
         });
     } catch (error) {
@@ -232,24 +231,28 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                 throw new Error("Documento não encontrado para a transação de exclusão.");
             }
 
-            // Deleta a casa
             transaction.delete(casaRef);
-
-            // Atualiza estatísticas da quadra
+            
             const wasDone = casaDoc.data().status === true;
+            const quadraTotal = quadraDoc.data().totalHouses || 0;
+            const quadraDone = quadraDoc.data().housesDone || 0;
+            const newQuadraTotal = quadraTotal - 1;
+            const newQuadraDone = wasDone ? quadraDone - 1 : quadraDone;
+            
             transaction.update(quadraRef, {
-                totalHouses: (quadraDoc.data().totalHouses || 1) - 1,
-                housesDone: wasDone ? (quadraDoc.data().housesDone || 1) - 1 : quadraDoc.data().housesDone
+                totalHouses: newQuadraTotal,
+                housesDone: newQuadraDone
             });
-
-            // Atualiza estatísticas do território
-            const newTerritoryHousesDone = wasDone ? (territoryDoc.data().stats.housesDone || 1) - 1 : territoryDoc.data().stats.housesDone;
-            const newTerritoryTotalHouses = (territoryDoc.data().stats.totalHouses || 1) - 1;
-            const newProgress = newTerritoryTotalHouses > 0 ? newTerritoryHousesDone / newTerritoryTotalHouses : 0;
+            
+            const territoryTotal = territoryDoc.data().stats.totalHouses || 0;
+            const territoryDone = territoryDoc.data().stats.housesDone || 0;
+            const newTerritoryTotal = territoryTotal - 1;
+            const newTerritoryDone = wasDone ? territoryDone - 1 : territoryDone;
+            const newProgress = newTerritoryTotal > 0 ? newTerritoryDone / newTerritoryTotal : 0;
 
             transaction.update(territoryRef, {
-                "stats.totalHouses": newTerritoryTotalHouses,
-                "stats.housesDone": newTerritoryHousesDone,
+                "stats.totalHouses": newTerritoryTotal,
+                "stats.housesDone": newTerritoryDone,
                 progress: newProgress
             });
         });
@@ -346,14 +349,14 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             </div>
         </div>
         
-        <div className="bg-white dark:bg-[#2f2b3a] p-4 rounded-lg shadow-md mb-6">
+        <div className="bg-card p-4 rounded-lg shadow-md mb-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                <div><p className="text-sm text-gray-500 dark:text-gray-400">Total</p><p className="font-bold text-2xl text-gray-800 dark:text-white">{stats.total}</p></div>
-                <div><p className="text-sm text-gray-500 dark:text-gray-400">Feitos</p><p className="font-bold text-2xl text-green-500">{stats.feitos}</p></div>
-                <div><p className="text-sm text-gray-500 dark:text-gray-400">Pendentes</p><p className="font-bold text-2xl text-yellow-500">{stats.pendentes}</p></div>
-                <div><p className="text-sm text-gray-500 dark:text-gray-400">Progresso</p><p className="font-bold text-2xl text-blue-500">{stats.progresso}%</p></div>
+                <div><p className="text-sm text-muted-foreground">Total</p><p className="font-bold text-2xl">{stats.total}</p></div>
+                <div><p className="text-sm text-muted-foreground">Feitos</p><p className="font-bold text-2xl text-green-400">{stats.feitos}</p></div>
+                <div><p className="text-sm text-muted-foreground">Pendentes</p><p className="font-bold text-2xl text-yellow-400">{stats.pendentes}</p></div>
+                <div><p className="text-sm text-muted-foreground">Progresso</p><p className="font-bold text-2xl text-blue-400">{stats.progresso}%</p></div>
             </div>
-             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-2">
+             <div className="w-full bg-muted rounded-full h-2.5 mt-2">
                 <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${stats.progresso}%` }}></div>
             </div>
         </div>
