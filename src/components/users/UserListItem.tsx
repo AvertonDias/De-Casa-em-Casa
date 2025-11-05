@@ -40,7 +40,7 @@ export const UserListItem = ({
       case 'pendente': return 'bg-yellow-500 text-white';
       case 'rejeitado': return 'bg-red-500 text-white';
       case 'inativo': return 'bg-orange-500 text-white';
-      case 'bloqueado': return 'bg-gray-700 text-white';
+      case 'bloqueado': return 'bg-red-700 text-white';
       default: return 'bg-gray-400 text-white';
     }
   };
