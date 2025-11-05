@@ -353,90 +353,11 @@ async function updateCongregationStats(congregationId: string) {
 }
 
 
-/**
- * Atualiza as estatísticas de um território com base nas suas quadras.
- */
-async function updateTerritoryStats(congregationId: string, territoryId: string) {
-  const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
-  const quadrasSnapshot = await territoryRef.collection("quadras").get();
-
-  let totalHouses = 0;
-  let housesDone = 0;
-  quadrasSnapshot.forEach((doc) => {
-    totalHouses += doc.data().totalHouses || 0;
-    housesDone += doc.data().housesDone || 0;
-  });
-
-  const progress = totalHouses > 0 ? housesDone / totalHouses : 0;
-  
-  await territoryRef.update({
-    stats: { totalHouses, housesDone },
-    progress,
-    quadraCount: quadrasSnapshot.size,
-  });
-
-  // Após atualizar o território, atualiza a congregação
-  await updateCongregationStats(congregationId);
-}
-
-
-export const onWriteTerritoryData = onDocumentWritten(
-    "congregations/{congId}/territories/{terrId}/{anyCollection}/{anyId}",
-    async (event) => {
-        const { congId, terrId, anyCollection } = event.params;
-        
-        // Se a mudança foi em uma casa (que está dentro de uma quadra)
-        if (anyCollection === "quadras" && event.data?.after.ref.parent.parent) {
-            const quadraId = event.data.after.ref.parent.parent.id;
-            const quadraRef = db.doc(`congregations/${congId}/territories/${terrId}/quadras/${quadraId}`);
-            
-            const casasSnapshot = await quadraRef.collection("casas").get();
-            const totalHousesInQuadra = casasSnapshot.size;
-            const housesDoneInQuadra = casasSnapshot.docs.filter((doc) => doc.data().status === true).length;
-            
-            await quadraRef.update({ totalHouses: totalHousesInQuadra, housesDone: housesDoneInQuadra });
-            
-            await updateTerritoryStats(congId, terrId);
-
-            // Adiciona um log de atividade apenas se uma casa foi marcada como feita
-            const beforeData = event.data?.before.data();
-            const afterData = event.data?.after.data();
-
-            if (beforeData?.status === false && afterData?.status === true) {
-                const territoryRef = db.doc(`congregations/${congId}/territories/${terrId}`);
-                const today = format(new Date(), "yyyy-MM-dd");
-                const activityHistoryRef = territoryRef.collection("activityHistory");
-
-                // Verifica se já existe um log de 'work' para hoje
-                const todayActivitiesSnap = await activityHistoryRef
-                    .where("activityDateStr", "==", today)
-                    .where("type", "==", "work")
-                    .limit(1)
-                    .get();
-                
-                if (todayActivitiesSnap.empty) {
-                    await activityHistoryRef.add({
-                        type: "work",
-                        activityDate: admin.firestore.FieldValue.serverTimestamp(),
-                        activityDateStr: today,
-                        description: "Primeiro trabalho do dia registrado. (Registro Automático)",
-                        userId: "automatic_system_log",
-                        userName: "Sistema",
-                    });
-                }
-                await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
-            }
-
-        // Se a mudança foi diretamente em uma quadra (criação/exclusão)
-        } else if (anyCollection === "quadras") {
-            await updateTerritoryStats(congId, terrId);
-
-        // Se a mudança foi diretamente no território (ex. tipo mudou)
-        } else {
-            await updateCongregationStats(congId);
-        }
-    }
-);
+export const onWriteTerritory = onDocumentWritten("congregations/{congId}/territories/{terrId}", async (event) => {
+  const congId = event.params.congId;
+  // Apenas atualiza as estatísticas da congregação
+  await updateCongregationStats(congId);
+});
 
 
 export const onDeleteTerritory = onDocumentDeleted(
@@ -487,7 +408,7 @@ export const onDeleteQuadra = onDocumentDeleted(
         `[onDeleteQuadra] Quadra ${event.params.quadraId} e subcoleções deletadas.`
       );
        // Dispara a atualização do território após a exclusão da quadra
-      await updateTerritoryStats(event.params.congregationId, event.params.territoryId);
+      // await updateTerritoryStats(event.params.congregationId, event.params.territoryId);
       return { success: true };
     } catch (error) {
       logger.error(

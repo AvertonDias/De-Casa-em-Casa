@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil, X } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
@@ -154,25 +154,56 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     setStatusAction({ casaId: casa.id, newStatus: !casa.status });
   };
   
-  const handleConfirmStatusChange = () => {
+  const handleConfirmStatusChange = async () => {
     if (!statusAction || !user?.congregationId || !territoryId || !quadraId) return;
 
     const { casaId, newStatus } = statusAction;
-    const casaRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casaId);
+    const quadraRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId);
+    const casaRef = doc(quadraRef, 'casas', casaId);
     
-    const updateData: { status: boolean, lastWorkedBy?: { uid: string, name: string } } = { status: newStatus };
-    if (newStatus === true) {
-      updateData.lastWorkedBy = {
-        uid: user.uid,
-        name: user.name
-      };
-    }
+    try {
+        await runTransaction(db, async (transaction) => {
+            const casaDoc = await transaction.get(casaRef);
+            if (!casaDoc.exists()) throw new Error("Casa não encontrada!");
+            
+            // 1. Atualiza a casa
+            const updateData: { status: boolean, lastWorkedBy?: { uid: string, name: string } } = { status: newStatus };
+            if (newStatus) {
+                updateData.lastWorkedBy = { uid: user.uid, name: user.name };
+            }
+            transaction.update(casaRef, updateData);
 
-    updateDoc(casaRef, updateData).catch(error => {
-        console.error("Erro ao atualizar o status da casa em segundo plano:", error);
-    });
-    
-    setStatusAction(null);
+            // 2. Atualiza a quadra (sem ler antes, apenas incrementa/decrementa)
+            const quadraDoc = await transaction.get(quadraRef);
+            if (!quadraDoc.exists()) throw new Error("Quadra não encontrada!");
+
+            let currentHousesDone = quadraDoc.data().housesDone || 0;
+            currentHousesDone += (newStatus ? 1 : -1);
+
+            transaction.update(quadraRef, { housesDone: currentHousesDone });
+
+            // 3. Atualiza o território
+            const territoryRef = doc(db, 'congregations', user.congregationId!, 'territories', territoryId);
+            const territoryDoc = await transaction.get(territoryRef);
+            if (!territoryDoc.exists()) throw new Error("Território não encontrado!");
+
+            let territoryHousesDone = territoryDoc.data().stats.housesDone || 0;
+            territoryHousesDone += (newStatus ? 1 : -1);
+            
+            const territoryTotalHouses = territoryDoc.data().stats.totalHouses || 0;
+            const newProgress = territoryTotalHouses > 0 ? territoryHousesDone / territoryTotalHouses : 0;
+
+            transaction.update(territoryRef, { 
+                "stats.housesDone": territoryHousesDone,
+                progress: newProgress
+            });
+
+        });
+    } catch (error) {
+        console.error("Erro ao atualizar o status da casa e estatísticas:", error);
+    } finally {
+        setStatusAction(null);
+    }
   };
 
   const handleEditClick = (casa: Casa) => {
@@ -188,11 +219,47 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const executeDelete = async () => {
     if (!casaToDelete || !user?.congregationId || !territoryId || !quadraId) return;
 
-    const casaRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casaToDelete.id);
-    await deleteDoc(casaRef);
-    
-    setIsConfirmDeleteOpen(false);
-    setCasaToDelete(null);
+    try {
+        const quadraRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId);
+        const casaRef = doc(quadraRef, 'casas', casaToDelete.id);
+        const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
+
+        await runTransaction(db, async (transaction) => {
+            const quadraDoc = await transaction.get(quadraRef);
+            const territoryDoc = await transaction.get(territoryRef);
+            const casaDoc = await transaction.get(casaRef);
+
+            if (!quadraDoc.exists() || !territoryDoc.exists() || !casaDoc.exists()) {
+                throw new Error("Documento não encontrado para a transação de exclusão.");
+            }
+
+            // Deleta a casa
+            transaction.delete(casaRef);
+
+            // Atualiza estatísticas da quadra
+            const wasDone = casaDoc.data().status === true;
+            transaction.update(quadraRef, {
+                totalHouses: (quadraDoc.data().totalHouses || 1) - 1,
+                housesDone: wasDone ? (quadraDoc.data().housesDone || 1) - 1 : quadraDoc.data().housesDone
+            });
+
+            // Atualiza estatísticas do território
+            const newTerritoryHousesDone = wasDone ? (territoryDoc.data().stats.housesDone || 1) - 1 : territoryDoc.data().stats.housesDone;
+            const newTerritoryTotalHouses = (territoryDoc.data().stats.totalHouses || 1) - 1;
+            const newProgress = newTerritoryTotalHouses > 0 ? newTerritoryHousesDone / newTerritoryTotalHouses : 0;
+
+            transaction.update(territoryRef, {
+                "stats.totalHouses": newTerritoryTotalHouses,
+                "stats.housesDone": newTerritoryHousesDone,
+                progress: newProgress
+            });
+        });
+    } catch(error) {
+        console.error("Erro ao excluir casa e atualizar estatísticas:", error);
+    } finally {
+        setIsConfirmDeleteOpen(false);
+        setCasaToDelete(null);
+    }
   };
 
   const handleHouseClick = (houseId: string) => {
@@ -273,171 +340,4 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                 </h1>
                 <Button variant="secondary" size="icon" asChild disabled={!nextQuadra}>
                   <Link href={nextQuadra ? `/dashboard/territorios/${territoryId}/quadras/${nextQuadra.id}` : '#'}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 9a1 1 0 0 0 1-1V5.061a1 1 0 0 1 1.811-.75l6.836 6.836a1.207 1.207 0 0 1 0 1.707l-6.836 6.835a1 1 0 0 1-1.811-.75V16a1 1 0 0 0-1-1H5a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z"/></svg>
-                  </Link>
-                </Button>
-              </div>
-            </div>
-        </div>
-      
-        <div className="bg-white dark:bg-[#2f2b3a] p-4 rounded-lg shadow-md mb-6">
-          <div className="grid grid-cols-4 divide-x divide-gray-200 dark:divide-gray-700 text-center">
-            <div><p className="text-gray-500 dark:text-gray-400 text-sm">Total</p><p className="text-2xl font-bold text-gray-800 dark:text-white">{stats.total}</p></div>
-            <div><p className="text-gray-500 dark:text-gray-400 text-sm">Feitos</p><p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.feitos}</p></div>
-            <div><p className="text-gray-500 dark:text-gray-400 text-sm">Pendentes</p><p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.pendentes}</p></div>
-            <div><p className="text-gray-500 dark:text-gray-400 text-sm">Progresso</p><p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.progresso}%</p></div>
-          </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-4">
-            <div className="bg-blue-600 dark:bg-blue-400 h-2.5 rounded-full" style={{ width: `${stats.progresso}%` }}></div>
-          </div>
-        </div>
-
-        <div className="flex justify-between items-center mb-4">
-          {user.congregationId && <AddCasaModal territoryId={territoryId} quadraId={quadraId} onCasaAdded={() => {}} congregationId={user.congregationId} />}
-          
-          {isReordering ? (
-              <button onClick={finishReordering} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm">
-                  Concluir Reordenação
-              </button>
-          ) : (
-              <button 
-                  onClick={startReordering}
-                  disabled={searchTerm !== '' || casas.length < 2}
-                  className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 text-sm disabled:bg-blue-900/50 disabled:cursor-not-allowed"
-                  title={searchTerm !== '' ? "Limpe a busca para reordenar" : ""}
-              >
-                  Reordenar
-              </button>
-          )}
-        </div>
-        
-        <div className="relative mb-4">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Buscar por número ou observações..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white dark:bg-[#2f2b3a] dark:text-white dark:placeholder-gray-400 border border-gray-300 dark:border-gray-700 rounded-lg pl-12 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-purple-500"
-            disabled={isReordering}
-          />
-           {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')} 
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X size={20} />
-              </button>
-            )}
-        </div>
-
-        <div className="bg-white dark:bg-[#2f2b3a] rounded-lg shadow-md overflow-hidden">
-          <div>
-              {filteredCasas.length > 0 ? filteredCasas.map((casa, index) => {
-                  const isHighlighted = isReordering && casa.id === recentlyMovedId;
-                  const baseBg = 'bg-transparent';
-                  const highlightedBg = 'bg-purple-300 dark:bg-purple-900/60';
-
-                  return (
-                      <div
-                          key={casa.id}
-                          data-id={casa.id}
-                          onClick={() => handleHouseClick(casa.id)}
-                          className={`flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors duration-300 ${isHighlighted ? highlightedBg : baseBg} ${searchTerm ? 'cursor-pointer hover:bg-purple-500/10 dark:hover:bg-purple-900/50' : ''}`}
-                      >
-                          <div className="flex items-center space-x-4 min-w-0">
-                              {!isReordering && (
-                                  <input
-                                      type="checkbox"
-                                      checked={casa.status}
-                                      onChange={() => handleToggleCheckbox(casa)}
-                                      className="flex-shrink-0 h-6 w-6 rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-500 cursor-pointer"
-                                  />
-                              )}
-                              <div className="min-w-0 flex-1">
-                                  <p className="font-bold text-lg text-gray-800 dark:text-white truncate">
-                                      {casa.number}
-                                  </p>
-                                  {casa.observations && (
-                                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                                      {casa.observations}
-                                      </p>
-                                  )}
-                              </div>
-                          </div>
-
-                          <div className="flex-shrink-0 pl-4">
-                              {isReordering ? (
-                              <div className="flex flex-col items-center gap-1">
-                                  <button onClick={() => handleReorder(casa.id, 'up')} disabled={index === 0} className="p-1 disabled:opacity-20 text-blue-500 dark:text-blue-400">
-                                  <ArrowUp size={18} />
-                                  </button>
-                                  <button onClick={() => handleReorder(casa.id, 'down')} disabled={index === filteredCasas.length - 1} className="p-1 disabled:opacity-20 text-blue-500 dark:text-blue-400">
-                                  <ArrowDown size={18} />
-                                  </button>
-                              </div>
-                              ) : (
-                                  <button onClick={() => handleEditClick(casa)} className="p-1 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white" title="Editar Número">
-                                      <Pencil className="h-4 w-4" />
-                                  </button>
-                              )}
-                          </div>
-                      </div>
-                  )
-              }) : (
-                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">Nenhum registro encontrado</p>
-              )}
-          </div>
-        </div>
-      </div>
-      
-      {selectedCasa && user.congregationId && territoryId && quadraId && (
-        <EditCasaModal
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          casa={selectedCasa}
-          territoryId={territoryId}
-          quadraId={quadraId}
-          onCasaUpdated={() => {}}
-          congregationId={user.congregationId}
-          onDeleteRequest={handleDeleteRequestFromModal}
-        />
-      )}
-
-      {statusAction && (
-        <ConfirmationModal
-          isOpen={!!statusAction}
-          onClose={() => setStatusAction(null)}
-          onConfirm={handleConfirmStatusChange}
-          title="Confirmar Alteração de Status"
-          message={
-            statusAction.newStatus
-              ? `Tem certeza de que deseja marcar a casa "${casas.find(c => c.id === statusAction.casaId)?.number}" como trabalhada?`
-              : `Tem certeza de que deseja desmarcar a casa "${casas.find(c => c.id === statusAction.casaId)?.number}" como não trabalhada?`
-          }
-          confirmText="Sim, confirmar"
-          cancelText="Cancelar"
-          variant="default"
-        />
-      )}
-
-      {casaToDelete && (
-        <ConfirmationModal
-          isOpen={isConfirmDeleteOpen}
-          onClose={() => setIsConfirmDeleteOpen(false)}
-          onConfirm={executeDelete}
-          title="Confirmar Exclusão"
-          message={`Tem certeza de que deseja EXCLUIR permanentemente o número "${casaToDelete.number}"? Esta ação não pode ser desfeita.`}
-          confirmText="Sim, Excluir"
-          cancelText="Cancelar"
-          variant="destructive"
-        />
-      )}
-
-    </>
-  );
-}
-
-export default withAuth(QuadraDetailPage);
-
-    
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 9a1 1 0 0 0 1-1V5.061a1 1 0 0 1 1.811-.75l6.836 6.836a1.207 1.207
