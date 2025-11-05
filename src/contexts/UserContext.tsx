@@ -110,7 +110,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 whatsapp: rawData?.whatsapp || '',
               } as AppUser;
 
-          // Se o usuário estiver bloqueado ou inativo, força o logout com uma mensagem.
+          // Se o usuário estiver bloqueado, força o logout com uma mensagem.
           if (userData.status === 'bloqueado') {
               logout(`/?error=${encodeURIComponent("Sua conta está bloqueada. Por favor, entre em contato com um administrador.")}`);
               return;
@@ -179,6 +179,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
         router.replace('/aguardando-aprovacao');
       }
       return;
+    }
+    
+    if (user.status === 'bloqueado') {
+        logout('/');
+        return;
     }
 
     // Para usuários 'ativos' ou 'inativos' (que podem logar)
