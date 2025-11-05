@@ -369,10 +369,11 @@ function DashboardLayout({ children }: { children: ReactNode }) {
           
           const notificationDoc = await getDoc(notificationRef);
           if (!notificationDoc.exists()) {
+            const territoryPath = territory.type === 'rural' ? `/dashboard/rural/${territory.id}` : `/dashboard/territorios/${territory.id}`;
             batch.set(notificationRef, {
               title: "Você recebeu um novo território!",
               body: `O território "${territory.name}" foi designado para você.`,
-              link: `/dashboard/meus-territorios`,
+              link: territoryPath,
               type: "territory_assigned",
               isRead: false,
               createdAt: Timestamp.now(),
@@ -471,6 +472,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
 
 
 
