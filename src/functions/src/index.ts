@@ -119,41 +119,6 @@ export const createCongregationAndAdmin = withCors(async (req, res) => {
     }
 });
 
-
-export const getManagersForNotification = withCors(async (req, res) => {
-    try {
-        const { congregationId } = req.body.data;
-        if (!congregationId) {
-            res.status(400).json({ data: { success: false, error: "O ID da congregação é obrigatório." } });
-            return;
-        }
-
-        const rolesToFetch = ["Administrador", "Dirigente"];
-        const queryPromises = rolesToFetch.map((role) =>
-            db.collection("users")
-                .where("congregationId", "==", congregationId)
-                .where("role", "==", role)
-                .get()
-        );
-
-        const results = await Promise.all(queryPromises);
-        const managers = results.flatMap((snapshot) =>
-            snapshot.docs.map((doc: QueryDocumentSnapshot) => {
-                const { name, whatsapp } = doc.data();
-                return { uid: doc.id, name, whatsapp };
-            })
-        );
-
-        const uniqueManagers = Array.from(new Map(managers.map((item) => [item["uid"], item])).values());
-        res.status(200).json({ data: { success: true, managers: uniqueManagers } });
-
-    } catch (error: any) {
-        logger.error("Erro ao buscar gerentes:", error);
-        res.status(500).json({ data: { success: false, error: "Falha ao buscar contatos dos responsáveis." } });
-    }
-});
-
-
 export const notifyOnNewUser = withCors(async (req, res) => {
     try {
         const { newUserName, congregationId } = req.body.data;
@@ -416,60 +381,63 @@ async function updateTerritoryStats(congregationId: string, territoryId: string)
   await updateCongregationStats(congregationId);
 }
 
+// Gatilho principal para todas as escritas dentro de um território
 export const onWriteTerritoryData = onDocumentWritten(
-  "congregations/{congId}/territories/{terrId}/{anyCollection}/{anyId}",
-  async (event) => {
-    const { congId, terrId, anyCollection } = event.params;
-    
-    // Se a mudança foi em uma casa (que está dentro de uma quadra)
-    if (anyCollection === "quadras" && event.data?.after.ref.parent.parent) {
-      const quadraId = event.data.after.ref.parent.parent.id;
-      const quadraRef = db.doc(`congregations/${congId}/territories/${terrId}/quadras/${quadraId}`);
-      
-      const casasSnapshot = await quadraRef.collection("casas").get();
-      const totalHousesInQuadra = casasSnapshot.size;
-      const housesDoneInQuadra = casasSnapshot.docs.filter(
-        (doc: QueryDocumentSnapshot) => doc.data().status === true
-      ).length;
-      
-      await quadraRef.update({ totalHouses: totalHousesInQuadra, housesDone: housesDoneInQuadra });
-      await updateTerritoryStats(congId, terrId);
-
-      const beforeData = event.data?.before.data();
-      const afterData = event.data?.after.data();
-      if (beforeData?.status === false && afterData?.status === true) {
-        const territoryRef = db.doc(`congregations/${congId}/territories/${terrId}`);
-        const today = format(new Date(), "yyyy-MM-dd");
-        const activityHistoryRef = territoryRef.collection("activityHistory");
+    "congregations/{congId}/territories/{terrId}/{col}/{docId}",
+    async (event) => {
+        const { congId, terrId, col, docId } = event.params;
         
-        const todayActivitiesSnap = await activityHistoryRef
-          .where("activityDateStr", "==", today)
-          .where("type", "==", "work")
-          .limit(1)
-          .get();
+        // 1. Mudança ocorreu em uma casa
+        if (col === "quadras" && event.data?.after.ref.parent.parent) {
+            const quadraId = event.data.after.ref.parent.parent.id;
+            const quadraRef = db.doc(`congregations/${congId}/territories/${terrId}/quadras/${quadraId}`);
+            
+            const casasSnapshot = await quadraRef.collection("casas").get();
+            const totalHousesInQuadra = casasSnapshot.size;
+            const housesDoneInQuadra = casasSnapshot.docs.filter(
+                (doc: QueryDocumentSnapshot) => doc.data().status === true
+            ).length;
 
-        if (todayActivitiesSnap.empty) {
-          await activityHistoryRef.add({
-            type: "work",
-            activityDate: admin.firestore.FieldValue.serverTimestamp(),
-            activityDateStr: today,
-            description: "Primeiro trabalho do dia registrado. (Registro Automático)",
-            userId: "automatic_system_log",
-            userName: "Sistema",
-          });
+            await quadraRef.update({ totalHouses: totalHousesInQuadra, housesDone: housesDoneInQuadra });
+            await updateTerritoryStats(congId, terrId);
+            
+            const beforeData = event.data?.before.data();
+            const afterData = event.data?.after.data();
+
+            if (beforeData?.status === false && afterData?.status === true) {
+                const territoryRef = db.doc(`congregations/${congId}/territories/${terrId}`);
+                const today = format(new Date(), "yyyy-MM-dd");
+                const activityHistoryRef = territoryRef.collection("activityHistory");
+
+                const todayActivitiesSnap = await activityHistoryRef
+                    .where("activityDateStr", "==", today)
+                    .where("type", "==", "work")
+                    .limit(1)
+                    .get();
+
+                if (todayActivitiesSnap.empty) {
+                    await activityHistoryRef.add({
+                        type: "work",
+                        activityDate: admin.firestore.FieldValue.serverTimestamp(),
+                        activityDateStr: today,
+                        description: "Primeiro trabalho do dia registrado. (Registro Automático)",
+                        userId: "automatic_system_log",
+                        userName: "Sistema",
+                    });
+                }
+                await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
+            }
         }
-        await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
-      }
-    } 
-    // Se a mudança foi diretamente em uma quadra (criação/exclusão)
-    else if (anyCollection === "quadras") {
-      await updateTerritoryStats(congId, terrId);
-    } 
-    // Se a mudança foi diretamente no território (ex. tipo mudou)
-    else {
-       await updateCongregationStats(congId);
+        // 2. Mudança ocorreu em uma quadra (criação/exclusão)
+        else if (col === "quadras") {
+            await updateTerritoryStats(congId, terrId);
+        }
+        // 3. Mudança ocorreu em outro lugar (ex: no próprio território)
+        else {
+            // Este caso é menos comum para estatísticas, mas atualiza a congregação por segurança
+            await updateCongregationStats(congId);
+        }
     }
-  }
 );
 
 
@@ -570,5 +538,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
-
-    
