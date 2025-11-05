@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -8,9 +9,6 @@ import { useUser } from "@/contexts/UserContext";
 import { Territory } from "@/types/types";
 import { X, AlertCircle, FileImage, Loader } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-
-const functions = getFunctions(app, 'southamerica-east1');
-const resetTerritoryProgressFn = httpsCallable(functions, 'resetTerritoryProgress');
 
 interface EditTerritoryModalProps {
   territory: Territory;
@@ -109,40 +107,6 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
     setIsProcessing(false);
     onClose();
   };
-  
-  const handleResetRequest = async () => {
-    if (!isAdmin || !user?.congregationId) return;
-
-    setIsProcessing(true);
-    try {
-      const result:any = await resetTerritoryProgressFn({ 
-        congregationId: user.congregationId, 
-        territoryId: territory.id 
-      });
-      
-      const { success, message } = result.data;
-      if (!success) {
-        throw new Error(message || 'Falha ao limpar o território.');
-      }
-      
-      toast({
-        title: "Sucesso!",
-        description: message,
-      });
-
-    } catch (error: any) {
-      console.error("Erro ao limpar território:", error);
-      toast({
-        title: "Erro",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-      onClose(); // Fecha o modal principal após a ação
-    }
-  };
-
 
   const handleClose = () => {
     onClose();

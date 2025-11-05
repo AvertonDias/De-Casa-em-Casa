@@ -2,7 +2,7 @@
 
 "use client";
 
-import { doc, onSnapshot, collection, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs } from "firebase/firestore";
+import { doc, onSnapshot, collection, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { db, app } from "@/lib/firebase";
 import { useEffect, useState } from "react";
@@ -25,10 +25,8 @@ import withAuth from "@/components/withAuth";
 import AddEditAssignmentLogModal from "@/components/admin/AddEditAssignmentLogModal";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { GoogleMapEmbed } from "@/components/GoogleMapEmbed";
+import { useToast } from "@/hooks/use-toast";
 
-
-const functions = getFunctions(app, 'southamerica-east1');
-const resetTerritoryProgress = httpsCallable(functions, 'resetTerritoryProgress');
 
 // ========================================================================
 //   Componentes Modulares
@@ -130,6 +128,7 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
   const [loading, setLoading] = useState(true);
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
+  const { toast } = useToast();
 
   const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
   const [isAddQuadraModalOpen, setIsAddQuadraModalOpen] = useState(false);
@@ -198,8 +197,16 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
 
   const handleAddQuadra = async (data: { name: string, description: string }) => {
     if(!user?.congregationId || !territoryId) return;
-    const quadrasRef = collection(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras');
-    await addDoc(quadrasRef, { ...data, totalHouses: 0, housesDone: 0, createdAt: serverTimestamp() });
+    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
+    const quadrasRef = collection(territoryRef, 'quadras');
+    await runTransaction(db, async (transaction) => {
+        const terrDoc = await transaction.get(territoryRef);
+        if (!terrDoc.exists()) throw new Error("Território não encontrado.");
+        
+        const newQuadraRef = doc(quadrasRef);
+        transaction.set(newQuadraRef, { ...data, totalHouses: 0, housesDone: 0, createdAt: serverTimestamp() });
+        transaction.update(territoryRef, { quadraCount: (terrDoc.data().quadraCount || 0) + 1 });
+    });
   };
   
   const handleEditQuadra = async (quadraId: string, data: { name: string, description: string }) => {
@@ -214,9 +221,45 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
         if (!user?.congregationId) return;
         setIsProcessingAction(true);
         try {
-            await resetTerritoryProgress({ congregationId: user.congregationId, territoryId: territoryToResetId });
+            const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryToResetId);
+            const quadrasSnapshot = await getDocs(collection(territoryRef, 'quadras'));
+            
+            const batch = writeBatch(db);
+
+            // Reset all houses in all quadras
+            for (const quadraDoc of quadrasSnapshot.docs) {
+                const casasSnapshot = await getDocs(collection(quadraDoc.ref, 'casas'));
+                casasSnapshot.forEach(casaDoc => {
+                    batch.update(casaDoc.ref, { status: false });
+                });
+                batch.update(quadraDoc.ref, { housesDone: 0 });
+            }
+
+            // Delete activity history
+            const historySnapshot = await getDocs(collection(territoryRef, 'activityHistory'));
+            historySnapshot.forEach(doc => batch.delete(doc.ref));
+
+            // Reset territory stats
+            batch.update(territoryRef, {
+                'stats.housesDone': 0,
+                'progress': 0,
+                'lastUpdate': serverTimestamp()
+            });
+
+            await batch.commit();
+
+            toast({
+              title: "Sucesso!",
+              description: "Progresso do território foi limpo.",
+            });
+
         } catch (error) {
             console.error("Erro ao limpar território:", error);
+            toast({
+              title: "Erro",
+              description: "Não foi possível limpar o progresso do território.",
+              variant: "destructive",
+            });
         } finally {
             handleCloseAllModals();
         }
@@ -259,8 +302,29 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
         }
         setIsProcessingAction(true);
         try {
-            const quadraDocRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id, 'quadras', quadraId);
-            await deleteDoc(quadraDocRef);
+            await runTransaction(db, async (transaction) => {
+                const territoryRef = doc(db, 'congregations', user.congregationId!, 'territories', territory.id);
+                const quadraRef = doc(territoryRef, 'quadras', quadraId);
+
+                const terrDoc = await transaction.get(territoryRef);
+                const quadraDoc = await transaction.get(quadraRef);
+                if (!terrDoc.exists() || !quadraDoc.exists()) throw new Error("Documento não encontrado.");
+
+                transaction.delete(quadraRef);
+
+                const quadraData = quadraDoc.data();
+                const terrData = terrDoc.data();
+                const newTotalHouses = (terrData.stats.totalHouses || 0) - (quadraData.totalHouses || 0);
+                const newHousesDone = (terrData.stats.housesDone || 0) - (quadraData.housesDone || 0);
+                const newProgress = newTotalHouses > 0 ? newHousesDone / newTotalHouses : 0;
+                
+                transaction.update(territoryRef, {
+                    'stats.totalHouses': newTotalHouses,
+                    'stats.housesDone': newHousesDone,
+                    'progress': newProgress,
+                    'quadraCount': (terrData.quadraCount || 0) - 1,
+                });
+            });
         } catch(error) {
             console.error("Erro ao deletar quadra:", error);
         } finally {

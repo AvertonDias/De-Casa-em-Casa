@@ -266,57 +266,8 @@ export const deleteUserAccount = withCors(async (req, res) => {
     }
 });
 
-
-export const resetTerritoryProgress = withCors(async (req, res) => {
-    try {
-        const { congregationId, territoryId } = req.body.data;
-
-        if (!congregationId || !territoryId) {
-            res.status(400).json({ data: { success: false, error: "IDs faltando." } });
-            return;
-        }
-
-        const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
-        const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
-
-        await db.recursiveDelete(db.collection(historyPath));
-        logger.log(`[resetTerritory] Histórico para ${territoryId} deletado com sucesso.`);
-
-        let housesUpdatedCount = 0;
-        await db.runTransaction(async (transaction) => {
-            const quadrasSnapshot = await transaction.get(quadrasRef);
-            const housesToUpdate: { ref: admin.firestore.DocumentReference; data: { status: boolean } }[] = [];
-
-            for (const quadraDoc of quadrasSnapshot.docs) {
-                const casasSnapshot = await transaction.get(quadraDoc.ref.collection("casas"));
-                casasSnapshot.forEach((casaDoc) => {
-                    if (casaDoc.data().status === true) {
-                        housesToUpdate.push({ ref: casaDoc.ref, data: { status: false } });
-                        housesUpdatedCount++;
-                    }
-                });
-            }
-
-            for (const houseUpdate of housesToUpdate) {
-                transaction.update(houseUpdate.ref, houseUpdate.data);
-            }
-        });
-
-        if (housesUpdatedCount > 0) {
-            res.status(200).json({ data: { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` } });
-        } else {
-            res.status(200).json({ data: { success: true, message: "Nenhuma alteração necessária, nenhuma casa estava marcada como 'feita'." } });
-        }
-    } catch (error: any) {
-        logger.error(`[resetTerritory] FALHA CRÍTICA ao limpar o território:`, error);
-        res.status(500).json({ data: { success: false, error: "Falha ao processar a limpeza do território." } });
-    }
-});
-
-
-
 // ========================================================================
-//   GATILHOS FIRESTORE (UNIFICADOS)
+//   GATILHOS FIRESTORE
 // ========================================================================
 
 
