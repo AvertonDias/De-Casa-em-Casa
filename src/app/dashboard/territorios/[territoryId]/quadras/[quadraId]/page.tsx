@@ -159,37 +159,44 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     if (!statusAction || !user?.congregationId || !territoryId || !quadraId) return;
 
     const { casaId, newStatus } = statusAction;
-    const quadraRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId);
-    const casaRef = doc(quadraRef, 'casas', casaId);
-    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
     
     try {
         await runTransaction(db, async (transaction) => {
-            // 1. READS FIRST
+            // 1. Definições de Referência
+            const quadraRef = doc(db, 'congregations', user.congregationId!, 'territories', territoryId, 'quadras', quadraId);
+            const casaRef = doc(quadraRef, 'casas', casaId);
+            const territoryRef = doc(db, 'congregations', user.congregationId!, 'territories', territoryId);
+            
+            // 2. LEITURAS PRIMEIRO
             const casaDoc = await transaction.get(casaRef);
-            const quadraDoc = await transaction.get(quadraRef);
-            const territoryDoc = await transaction.get(territoryRef);
-
             if (!casaDoc.exists()) throw new Error("Casa não encontrada!");
-            if (!quadraDoc.exists()) throw new Error("Quadra não encontrada!");
-            if (!territoryDoc.exists()) throw new Error("Território não encontrado!");
+            
+            // 3. PREPARAR DADOS PARA ESCRITA
+            const casaData = casaDoc.data();
+            const wasDone = casaData.status === true;
+            const isNowDone = newStatus === true;
 
-            // 2. PREPARE WRITES (calculations)
-            const casaUpdateData: { status: boolean, lastWorkedBy?: { uid: string, name: string } } = { status: newStatus };
-            if (newStatus) {
+            // Se o estado não mudou, não faz nada
+            if(wasDone === isNowDone) return;
+            
+            const casaUpdateData: any = { status: newStatus };
+            if (isNowDone) {
                 casaUpdateData.lastWorkedBy = { uid: user.uid, name: user.name };
             }
 
+            const quadraDoc = await transaction.get(quadraRef);
+            if (!quadraDoc.exists()) throw new Error("Quadra não encontrada!");
             const quadraHousesDone = quadraDoc.data().housesDone || 0;
-            const newQuadraHousesDone = quadraHousesDone + (newStatus ? 1 : -1);
+            const newQuadraHousesDone = quadraHousesDone + (isNowDone ? 1 : -1);
 
+            const territoryDoc = await transaction.get(territoryRef);
+            if (!territoryDoc.exists()) throw new Error("Território não encontrado!");
             const territoryHousesDone = territoryDoc.data().stats.housesDone || 0;
-            const newTerritoryHousesDone = territoryHousesDone + (newStatus ? 1 : -1);
-            
+            const newTerritoryHousesDone = territoryHousesDone + (isNowDone ? 1 : -1);
             const territoryTotalHouses = territoryDoc.data().stats.totalHouses || 0;
             const newTerritoryProgress = territoryTotalHouses > 0 ? newTerritoryHousesDone / territoryTotalHouses : 0;
             
-            // 3. EXECUTE WRITES
+            // 4. EXECUTAR ESCRITAS
             transaction.update(casaRef, casaUpdateData);
             transaction.update(quadraRef, { housesDone: newQuadraHousesDone });
             transaction.update(territoryRef, {
@@ -218,11 +225,11 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     if (!casaToDelete || !user?.congregationId || !territoryId || !quadraId) return;
 
     try {
-        const quadraRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId);
-        const casaRef = doc(quadraRef, 'casas', casaToDelete.id);
-        const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
-
         await runTransaction(db, async (transaction) => {
+            const quadraRef = doc(db, 'congregations', user.congregationId!, 'territories', territoryId, 'quadras', quadraId);
+            const casaRef = doc(quadraRef, 'casas', casaToDelete.id);
+            const territoryRef = doc(db, 'congregations', user.congregationId!, 'territories', territoryId);
+
             const quadraDoc = await transaction.get(quadraRef);
             const territoryDoc = await transaction.get(territoryRef);
             const casaDoc = await transaction.get(casaRef);
@@ -386,7 +393,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                 {isReordering ? (
                   <Button onClick={finishReordering} className="bg-green-600 hover:bg-green-700">Concluir</Button>
                 ) : (
-                  <Button onClick={startReordering} variant="secondary">Reordenar</Button>
+                  <Button onClick={startReordering} variant="info">Reordenar</Button>
                 )}
               </div>
             </div>
