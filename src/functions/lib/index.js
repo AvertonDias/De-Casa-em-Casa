@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.mirrorUserStatus = exports.onDeleteQuadra = exports.onDeleteTerritory = exports.onWriteTerritoryData = exports.resetTerritoryProgress = exports.deleteUserAccount = exports.resetPasswordWithToken = exports.requestPasswordReset = exports.notifyOnNewUser = exports.getManagersForNotification = exports.createCongregationAndAdmin = void 0;
+exports.mirrorUserStatus = exports.onDeleteQuadra = exports.onDeleteTerritory = exports.onWriteTerritoryData = exports.resetTerritoryProgress = exports.deleteUserAccount = exports.resetPasswordWithToken = exports.requestPasswordReset = exports.notifyOnNewUser = exports.createCongregationAndAdmin = void 0;
 const v2_1 = require("firebase-functions/v2");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const database_1 = require("firebase-functions/v2/database");
@@ -128,31 +128,6 @@ exports.createCongregationAndAdmin = withCors(async (req, res) => {
         else {
             res.status(500).json({ data: { success: false, error: error.message || "Erro interno no servidor" } });
         }
-    }
-});
-exports.getManagersForNotification = withCors(async (req, res) => {
-    try {
-        const { congregationId } = req.body.data;
-        if (!congregationId) {
-            res.status(400).json({ data: { success: false, error: "O ID da congregação é obrigatório." } });
-            return;
-        }
-        const rolesToFetch = ["Administrador", "Dirigente"];
-        const queryPromises = rolesToFetch.map((role) => db.collection("users")
-            .where("congregationId", "==", congregationId)
-            .where("role", "==", role)
-            .get());
-        const results = await Promise.all(queryPromises);
-        const managers = results.flatMap((snapshot) => snapshot.docs.map((doc) => {
-            const { name, whatsapp } = doc.data();
-            return { uid: doc.id, name, whatsapp };
-        }));
-        const uniqueManagers = Array.from(new Map(managers.map((item) => [item["uid"], item])).values());
-        res.status(200).json({ data: { success: true, managers: uniqueManagers } });
-    }
-    catch (error) {
-        v2_1.logger.error("Erro ao buscar gerentes:", error);
-        res.status(500).json({ data: { success: false, error: "Falha ao buscar contatos dos responsáveis." } });
     }
 });
 exports.notifyOnNewUser = withCors(async (req, res) => {
