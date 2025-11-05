@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
-import { Eye, EyeOff, Info } from 'lucide-react';
+import { Eye, EyeOff, Info, AlertTriangle } from 'lucide-react';
 import Image from 'next/image';
 
 export default function UniversalLoginPage() {
@@ -16,6 +16,14 @@ export default function UniversalLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam) {
+        setError(decodeURIComponent(errorParam));
+    }
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +62,14 @@ export default function UniversalLoginPage() {
                 De Casa em Casa
             </h1>
         </div>
+        
+        {error && (
+            <div className="p-4 bg-destructive/10 text-destructive-foreground border border-destructive/20 rounded-lg flex items-start gap-3">
+                <AlertTriangle size={20} className="text-destructive mt-0.5" />
+                <p className="text-sm font-medium">{error}</p>
+            </div>
+        )}
+
         <p className="text-center text-muted-foreground">Acesse o painel com suas credenciais.</p>
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
@@ -79,7 +95,6 @@ export default function UniversalLoginPage() {
                 {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
               </button>
           </div>
-          {error && <p className="text-destructive text-sm text-center">{error}</p>}
           <button
             type="submit"
             disabled={loading}

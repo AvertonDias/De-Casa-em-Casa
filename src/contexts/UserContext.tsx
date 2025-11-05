@@ -18,7 +18,7 @@ interface UserContextType {
   user: AppUser | null;
   congregation: Congregation | null;
   loading: boolean;
-  logout: () => Promise<void>;
+  logout: (redirectPath?: string) => Promise<void>;
   updateUser: (data: Partial<AppUser>) => Promise<void>;
 }
 
@@ -47,7 +47,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     firestoreUnsubsRef.current = []; // Limpa o array.
   };
 
-  const logout = async () => {
+  const logout = async (redirectPath: string = '/') => {
     if (user) {
         // Marca como offline no Firestore antes de desconectar
         const userDocRef = doc(db, 'users', user.uid);
@@ -64,7 +64,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         await set(userStatusRTDBRef, null);
     }
     await signOut(auth);
-    router.push('/');
+    router.push(redirectPath);
   };
   
   const updateUser = async (data: Partial<AppUser>) => {
@@ -92,15 +92,29 @@ export function UserProvider({ children }: { children: ReactNode }) {
         
         const userDocListener = onSnapshot(userRef, (docSnap) => {
           const rawData = docSnap.data();
-          const userData = docSnap.exists() 
-            ? { 
+          
+          if (!docSnap.exists()) {
+             // Caso raro onde o usuário do auth existe mas o doc do firestore foi deletado.
+             logout('/');
+             return;
+          }
+
+          const userData = { 
                 uid: firebaseUser.uid,
                 ...rawData,
                 name: rawData?.name || firebaseUser.displayName,
                 email: rawData?.email || firebaseUser.email,
                 whatsapp: rawData?.whatsapp || '',
-              } as AppUser
-            : null;
+              } as AppUser;
+
+          // Se o usuário estiver inativo ou rejeitado, força o logout com uma mensagem.
+          if (userData.status === 'inativo' || userData.status === 'rejeitado') {
+            const message = userData.status === 'inativo'
+                ? "Sua conta está inativa. Por favor, entre em contato com um administrador."
+                : "Sua solicitação de acesso foi rejeitada.";
+            logout(`/?error=${encodeURIComponent(message)}`);
+            return;
+          }
           
           if (userData?.congregationId) {
             const congRef = doc(db, 'congregations', userData.congregationId);
@@ -173,7 +187,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         if (user.role === 'Administrador' || user.role === 'Dirigente' || user.role === 'Servo de Territórios') {
           router.replace('/dashboard');
         } else if (user.role === 'Publicador') {
-          router.replace('/dashboard/territorios');
+          router.replace('/dashboard/meus-territorios');
         } else {
           router.replace('/dashboard');
         }

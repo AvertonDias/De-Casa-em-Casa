@@ -173,7 +173,7 @@ function Sidebar({
     { name: "Meus Territórios", href: "/dashboard/meus-territorios", icon: UserCheck, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
     { name: "Notificações", href: "/dashboard/notificacoes", icon: Bell, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
     { name: "Usuários", href: "/dashboard/usuarios", icon: Users, roles: ['Administrador', 'Dirigente'] },
-    { name: "Administração", href: "/dashboard/administracao", icon: Shield, roles: ['Administrador', 'Servo de Territórios'] },
+    { name: "Administração", href: "/dashboard/administracao", icon: Shield, roles: ['Administrador', 'Dirigente', 'Servo de Territórios'] },
   ];
   const filteredNavLinks = navLinks.filter(link => user?.role && link.roles.includes(user.role));
   
@@ -372,7 +372,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
             batch.set(notificationRef, {
               title: "Você recebeu um novo território!",
               body: `O território "${territory.name}" foi designado para você.`,
-              link: `/dashboard/territorios/${territory.id}`,
+              link: `/dashboard/meus-territorios`,
               type: "territory_assigned",
               isRead: false,
               createdAt: Timestamp.now(),
@@ -403,7 +403,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
           batch.set(notificationRef, {
             title: "Território Atrasado",
             body: `O território "${territory.name}" está com a devolução atrasada.`,
-            link: `/dashboard/territorios/${territory.id}`,
+            link: `/dashboard/meus-territorios`,
             type: "territory_overdue",
             isRead: false,
             createdAt: Timestamp.now(),
@@ -471,6 +471,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
 
 
 
