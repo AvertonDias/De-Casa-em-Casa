@@ -407,7 +407,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                       className="w-6 h-6 rounded-md border-2 border-primary text-primary focus:ring-primary"
                     />
                     <div className="ml-4 flex-grow">
-                      <p className={`font-bold text-lg ${casa.status ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{casa.number}</p>
+                      <p className={`font-bold text-lg ${casa.status ? 'text-muted-foreground' : 'text-foreground'}`}>{casa.number}</p>
                       {casa.observations && <p className="text-sm text-muted-foreground">{casa.observations}</p>}
                     </div>
                     
