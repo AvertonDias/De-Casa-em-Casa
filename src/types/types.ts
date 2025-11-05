@@ -10,7 +10,7 @@ export interface AppUser {
   email: string;
   whatsapp?: string; // Campo para o WhatsApp
   role: 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Publicador';
-  status: 'ativo' | 'inativo' | 'pendente' | 'rejeitado';
+  status: 'ativo' | 'inativo' | 'pendente' | 'rejeitado' | 'bloqueado';
   congregationId?: string;
   congregationName?: string | null;
   isOnline?: boolean;

@@ -8,6 +8,7 @@ import { auth, db, app } from '@/lib/firebase';
 import type { AppUser, Congregation } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader } from 'lucide-react';
+import { subMonths } from 'date-fns';
 
 // ▼▼▼ IMPORTAÇÕES DO REALTIME DATABASE (COM onValue) ▼▼▼
 import { getDatabase, ref, onDisconnect, set, onValue } from 'firebase/database';
@@ -99,18 +100,27 @@ export function UserProvider({ children }: { children: ReactNode }) {
              return;
           }
 
+          let appStatus = rawData?.status;
+          
+          // Lógica para o status 'inativo' automático
+          const oneMonthAgo = subMonths(new Date(), 1);
+          if (appStatus === 'ativo' && rawData?.lastSeen && rawData.lastSeen.toDate() < oneMonthAgo) {
+            appStatus = 'inativo';
+          }
+          
           const userData = { 
                 uid: firebaseUser.uid,
                 ...rawData,
+                status: appStatus, // Usa o status calculado
                 name: rawData?.name || firebaseUser.displayName,
                 email: rawData?.email || firebaseUser.email,
                 whatsapp: rawData?.whatsapp || '',
               } as AppUser;
 
-          // Se o usuário estiver inativo ou rejeitado, força o logout com uma mensagem.
-          if (userData.status === 'inativo' || userData.status === 'rejeitado') {
-            const message = userData.status === 'inativo'
-                ? "Sua conta está inativa. Por favor, entre em contato com um administrador."
+          // Se o usuário estiver bloqueado ou rejeitado, força o logout com uma mensagem.
+          if (userData.status === 'bloqueado' || userData.status === 'rejeitado') {
+            const message = userData.status === 'bloqueado'
+                ? "Sua conta está bloqueada. Por favor, entre em contato com um administrador."
                 : "Sua solicitação de acesso foi rejeitada.";
             logout(`/?error=${encodeURIComponent(message)}`);
             return;
@@ -181,7 +191,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (user.status === 'ativo') {
+    // Para usuários 'ativos' ou 'inativos' (que podem logar)
+    if (user.status === 'ativo' || user.status === 'inativo') {
       const isInitialRedirect = pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre' && !isAuthActionPage);
       if (isInitialRedirect) {
         if (user.role === 'Administrador' || user.role === 'Dirigente' || user.role === 'Servo de Territórios') {

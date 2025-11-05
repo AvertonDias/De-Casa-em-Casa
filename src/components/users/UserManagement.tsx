@@ -71,7 +71,17 @@ export default function UserManagement() {
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where("congregationId", "==", currentUser.congregationId));
       const unsubUsers = onSnapshot(q, (snapshot) => {
-        setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as AppUser[]);
+        const oneMonthAgo = subMonths(new Date(), 1);
+        const usersData = snapshot.docs.map(docSnap => {
+            const data = docSnap.data();
+            let status = data.status;
+            // Lógica para status 'inativo' automático
+            if (status === 'ativo' && data.lastSeen && data.lastSeen.toDate() < oneMonthAgo) {
+                status = 'inativo';
+            }
+            return { uid: docSnap.id, ...data, status } as AppUser
+        });
+        setUsers(usersData);
         setLoading(false);
       }, (error) => {
         console.error("Erro ao buscar usuários:", error);
@@ -145,8 +155,8 @@ export default function UserManagement() {
             const oneWeekAgo = subDays(new Date(), 7);
             filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneWeekAgo);
         } else if (activityFilter === 'inactive') {
-            const oneMonthAgo = subMonths(new Date(), 1);
-            filtered = filtered.filter(u => !u.lastSeen || u.lastSeen.toDate() < oneMonthAgo);
+            // Este filtro agora corresponde ao status 'inativo' automático
+            filtered = filtered.filter(u => u.status === 'inativo');
         }
     }
 
@@ -158,7 +168,7 @@ export default function UserManagement() {
       );
     }
     
-    const statusOrder: Record<AppUser['status'], number> = { 'pendente': 1, 'ativo': 2, 'rejeitado': 3, 'inativo': 4 };
+    const statusOrder: Record<AppUser['status'], number> = { 'pendente': 1, 'ativo': 2, 'inativo': 3, 'bloqueado': 4, 'rejeitado': 5 };
     
     return filtered.sort((a, b) => {
       if (a.uid === currentUser?.uid) return -1;
@@ -270,7 +280,7 @@ export default function UserManagement() {
                                     <FilterButton label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} />
                                     <FilterButton label="Ativos na Última Hora" value="active_hourly" currentFilter={activityFilter} setFilter={setActivityFilter} />
                                     <FilterButton label="Ativos na Semana" value="active_weekly" currentFilter={activityFilter} setFilter={setActivityFilter} />
-                                    <FilterButton label="Inativos há um Mês" value="inactive" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                    <FilterButton label="Inativos (1 mês+)" value="inactive" currentFilter={activityFilter} setFilter={setActivityFilter} />
                                 </div>
                             </div>
                         </Disclosure.Panel>
@@ -343,4 +353,3 @@ export default function UserManagement() {
     </>
   );
 }
-

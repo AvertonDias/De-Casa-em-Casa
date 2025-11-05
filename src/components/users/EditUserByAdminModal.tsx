@@ -33,7 +33,7 @@ export function EditUserByAdminModal({ isOpen, onClose, userToEdit, onSave }: Ed
       setName(userToEdit.name || '');
       setWhatsapp(userToEdit.whatsapp || '');
       setRole(userToEdit.role || 'Publicador');
-      setStatus(userToEdit.status || 'inativo');
+      setStatus(userToEdit.status === 'inativo' ? 'ativo' : userToEdit.status); // Trata o status inativo visual
       
       setTimeout(() => {
         nameInputRef.current?.focus();
@@ -50,7 +50,11 @@ export function EditUserByAdminModal({ isOpen, onClose, userToEdit, onSave }: Ed
     if (name.trim() !== userToEdit.name) dataToUpdate.name = name.trim();
     if (whatsapp !== (userToEdit.whatsapp || '')) dataToUpdate.whatsapp = whatsapp;
     if (role !== userToEdit.role) dataToUpdate.role = role;
-    if (status !== userToEdit.status) dataToUpdate.status = status;
+    
+    // Apenas atualiza o status se for diferente e não for o 'inativo' (que é automático)
+    if (status !== userToEdit.status && status !== 'inativo') {
+        dataToUpdate.status = status;
+    }
     
     if (Object.keys(dataToUpdate).length > 0) {
       try {
@@ -78,13 +82,13 @@ export function EditUserByAdminModal({ isOpen, onClose, userToEdit, onSave }: Ed
   };
   
   const allRoles: AppUser['role'][] = ['Administrador', 'Dirigente', 'Servo de Territórios', 'Publicador'];
-  const allStatuses: AppUser['status'][] = ['ativo', 'pendente', 'inativo', 'rejeitado'];
+  const allStatuses: AppUser['status'][] = ['ativo', 'pendente', 'bloqueado', 'rejeitado'];
 
   const hasChanges = userToEdit && (
     name !== userToEdit.name ||
     whatsapp !== (userToEdit.whatsapp || '') ||
     role !== userToEdit.role ||
-    status !== userToEdit.status
+    status !== (userToEdit.status === 'inativo' ? 'ativo' : userToEdit.status)
   );
 
   return (
