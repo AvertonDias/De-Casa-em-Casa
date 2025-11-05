@@ -30,7 +30,9 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Publicador'>('all');
-  const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive'>('all');
+  const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive_month'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'bloqueado'>('all');
+
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<{uid: string, name: string} | null>(null);
@@ -75,7 +77,7 @@ export default function UserManagement() {
         const usersData = snapshot.docs.map(docSnap => {
             const data = docSnap.data();
             let status = data.status;
-            // Lógica para status 'inativo' automático
+            // Lógica para status 'inativo' automático, mas apenas se o status atual for 'ativo'
             if (status === 'ativo' && data.lastSeen && data.lastSeen.toDate() < oneMonthAgo) {
                 status = 'inativo';
             }
@@ -107,8 +109,14 @@ export default function UserManagement() {
   const handleUserUpdate = async (userId: string, dataToUpdate: Partial<AppUser>) => {
     if (!currentUser) return;
     
-    if (currentUser.role !== 'Administrador' && dataToUpdate.role) {
-      toast({ title: "Permissão Negada", description: "Apenas administradores podem alterar perfis.", variant: "destructive" });
+    // Se o status estiver sendo mudado para 'inativo', reverta para 'ativo'
+    // pois 'inativo' é um status visual, não um estado a ser salvo.
+    if(dataToUpdate.status === 'inativo') {
+      dataToUpdate.status = 'ativo';
+    }
+
+    if (currentUser.role !== 'Administrador' && (dataToUpdate.role || dataToUpdate.status)) {
+      toast({ title: "Permissão Negada", description: "Apenas administradores podem alterar perfis e status.", variant: "destructive" });
       return;
     }
     if (currentUser.uid === userId && dataToUpdate.role && dataToUpdate.role !== 'Administrador') {
@@ -146,6 +154,9 @@ export default function UserManagement() {
     if (roleFilter !== 'all') {
       filtered = filtered.filter(user => user.role === roleFilter);
     }
+     if (statusFilter !== 'all') {
+      filtered = filtered.filter(user => user.status === statusFilter);
+    }
     
     if (activityFilter !== 'all') {
         if (activityFilter === 'active_hourly') {
@@ -154,9 +165,9 @@ export default function UserManagement() {
         } else if (activityFilter === 'active_weekly') {
             const oneWeekAgo = subDays(new Date(), 7);
             filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneWeekAgo);
-        } else if (activityFilter === 'inactive') {
-            // Este filtro agora corresponde ao status 'inativo' automático
-            filtered = filtered.filter(u => u.status === 'inativo');
+        } else if (activityFilter === 'inactive_month') {
+            const oneMonthAgo = subMonths(new Date(), 1);
+            filtered = filtered.filter(u => u.status === 'ativo' && (!u.lastSeen || u.lastSeen.toDate() < oneMonthAgo));
         }
     }
 
@@ -170,7 +181,7 @@ export default function UserManagement() {
     
     const getStatusPriority = (status: AppUser['status']) => {
       if (status === 'pendente') return 1;
-      return 2; // Todos os outros status têm a mesma prioridade
+      return 2;
     };
     
     return filtered.sort((a, b) => {
@@ -179,7 +190,7 @@ export default function UserManagement() {
 
       const priorityA = getStatusPriority(a.status);
       const priorityB = getStatusPriority(b.status);
-
+      
       if (priorityA !== priorityB) {
         return priorityA - priorityB;
       }
@@ -187,7 +198,7 @@ export default function UserManagement() {
       return a.name.localeCompare(b.name);
     });
 
-  }, [users, currentUser, searchTerm, presenceFilter, roleFilter, activityFilter]);
+  }, [users, currentUser, searchTerm, presenceFilter, roleFilter, activityFilter, statusFilter]);
   
   if (userLoading || loading) {
     return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
@@ -263,6 +274,17 @@ export default function UserManagement() {
                     <Transition show={open} enter="transition duration-100 ease-out" enterFrom="transform scale-95 opacity-0" enterTo="transform scale-100 opacity-100" leave="transition duration-75 ease-out" leaveFrom="transform scale-100 opacity-100" leaveTo="transform scale-95 opacity-100">
                         <Disclosure.Panel className="px-4 pb-4 pt-4 text-sm text-gray-500 border-t border-border mt-2 space-y-4">
                             <div>
+                                <p className="font-semibold mb-2">Status da Conta</p>
+                                <div className="flex flex-wrap gap-2">
+                                    <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                    <FilterButton label="Ativo" value="ativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                    <FilterButton label="Pendente" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                    <FilterButton label="Inativo (Visual)" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                    <FilterButton label="Bloqueado" value="bloqueado" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                </div>
+                            </div>
+                            
+                            <div>
                                 <p className="font-semibold mb-2">Status de Presença</p>
                                 <div className="flex flex-wrap gap-2">
                                     <FilterButton label="Todos" value="all" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
@@ -270,7 +292,7 @@ export default function UserManagement() {
                                     <FilterButton label="Offline" value="offline" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
                                 </div>
                             </div>
-                            
+
                             <div>
                                 <p className="font-semibold mb-2">Perfil de Usuário</p>
                                 <div className="flex flex-wrap gap-2">
@@ -288,7 +310,7 @@ export default function UserManagement() {
                                     <FilterButton label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} />
                                     <FilterButton label="Ativos na Última Hora" value="active_hourly" currentFilter={activityFilter} setFilter={setActivityFilter} />
                                     <FilterButton label="Ativos na Semana" value="active_weekly" currentFilter={activityFilter} setFilter={setActivityFilter} />
-                                    <FilterButton label="Inativos (1 mês+)" value="inactive" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                    <FilterButton label="Ausentes há um Mês" value="inactive_month" currentFilter={activityFilter} setFilter={setActivityFilter} />
                                 </div>
                             </div>
                         </Disclosure.Panel>
