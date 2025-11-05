@@ -50,21 +50,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const logout = async (redirectPath: string = '/') => {
     if (user) {
-        // Marca como offline no Firestore antes de desconectar
-        const userDocRef = doc(db, 'users', user.uid);
-        try {
-            await updateDoc(userDocRef, {
-                isOnline: false,
-                lastSeen: serverTimestamp()
-            });
-        } catch (e) {
-            console.error("Falha ao definir status offline no Firestore antes do logout:", e);
-        }
-        // Remove a presença do RTDB
         const userStatusRTDBRef = ref(rtdb, `/status/${user.uid}`);
-        await set(userStatusRTDBRef, null);
+        // Primeiro, remove a presença do RTDB. A Cloud Function cuidará do resto.
+        await set(userStatusRTDBRef, null).catch(e => console.error("Falha ao limpar status no RTDB:", e));
     }
-    await signOut(auth);
+    // Agora, faz o signOut do Firebase Auth.
+    await signOut(auth).catch(e => console.error("Falha no signOut do Auth:", e));
+
+    // Apenas redireciona. O listener de authState vai limpar o estado do contexto.
     router.push(redirectPath);
   };
   
@@ -117,13 +110,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 whatsapp: rawData?.whatsapp || '',
               } as AppUser;
 
-          // Se o usuário estiver bloqueado ou rejeitado, força o logout com uma mensagem.
+          // Se o usuário estiver bloqueado ou inativo, força o logout com uma mensagem.
           if (userData.status === 'bloqueado') {
               logout(`/?error=${encodeURIComponent("Sua conta está bloqueada. Por favor, entre em contato com um administrador.")}`);
-              return;
-          }
-          if(userData.status === 'rejeitado') {
-              logout(`/?error=${encodeURIComponent("Sua solicitação de acesso foi rejeitada.")}`);
               return;
           }
           

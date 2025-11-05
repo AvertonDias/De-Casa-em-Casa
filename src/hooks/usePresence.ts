@@ -19,20 +19,26 @@ export const usePresence = () => {
 
     const listener = onValue(connectedRef, (snap) => {
       if (snap.val() === false) {
+        // O SDK já lida com o estado offline; podemos retornar aqui.
         return;
       }
+      
+      // Quando conectado, define a ação a ser tomada no momento da desconexão.
       onDisconnect(userStatusDatabaseRef).set({
         state: 'offline',
         last_changed: serverTimestamp(),
       }).then(() => {
+        // Uma vez que a ação de desconexão está garantida, define o status atual como online.
         set(userStatusDatabaseRef, {
           state: 'online',
           last_changed: serverTimestamp(),
         });
+      }).catch(err => {
+          console.error("Erro ao configurar presença onDisconnect:", err);
       });
     });
 
-    return () => listener();
+    return () => listener(); // Retorna a função para desinscrever do listener do .info/connected
   }, [user?.uid]);
 
 
