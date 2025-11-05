@@ -42,7 +42,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const [selectedCasa, setSelectedCasa] = useState<Casa | null>(null);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [casaToDelete, setCasaToDelete] = useState<Casa | null>(null);
-  const [statusAction, setStatusAction] = useState<{ casaId: string; newStatus: boolean; } | null>(null);
+  const [statusAction, setStatusAction] = useState<{ casa: Casa; newStatus: boolean; } | null>(null);
   
   const [recentlyMovedId, setRecentlyMovedId] = useState<string | null>(null);
   const [highlightedHouseId, setHighlightedHouseId] = useState<string | null>(null);
@@ -152,62 +152,64 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   };
 
   const handleToggleCheckbox = (casa: Casa) => {
-    setStatusAction({ casaId: casa.id, newStatus: !casa.status });
+    setStatusAction({ casa, newStatus: !casa.status });
   };
   
   const handleConfirmStatusChange = async () => {
     if (!statusAction || !user?.congregationId || !territoryId || !quadraId) return;
-
-    const { casaId, newStatus } = statusAction;
-    
+  
+    const { casa, newStatus } = statusAction;
+  
     try {
-        await runTransaction(db, async (transaction) => {
-            // 1. Definições de Referência
-            const quadraRef = doc(db, 'congregations', user.congregationId!, 'territories', territoryId, 'quadras', quadraId);
-            const casaRef = doc(quadraRef, 'casas', casaId);
-            const territoryRef = doc(db, 'congregations', user.congregationId!, 'territories', territoryId);
-            
-            // 2. LEITURAS PRIMEIRO
-            const casaDoc = await transaction.get(casaRef);
-            if (!casaDoc.exists()) throw new Error("Casa não encontrada!");
-            
-            // 3. PREPARAR DADOS PARA ESCRITA
-            const casaData = casaDoc.data();
-            const wasDone = casaData.status === true;
-            const isNowDone = newStatus === true;
-
-            // Se o estado não mudou, não faz nada
-            if(wasDone === isNowDone) return;
-            
-            const casaUpdateData: any = { status: newStatus };
-            if (isNowDone) {
-                casaUpdateData.lastWorkedBy = { uid: user.uid, name: user.name };
-            }
-
-            const quadraDoc = await transaction.get(quadraRef);
-            if (!quadraDoc.exists()) throw new Error("Quadra não encontrada!");
-            const quadraHousesDone = quadraDoc.data().housesDone || 0;
-            const newQuadraHousesDone = quadraHousesDone + (isNowDone ? 1 : -1);
-
-            const territoryDoc = await transaction.get(territoryRef);
-            if (!territoryDoc.exists()) throw new Error("Território não encontrado!");
-            const territoryHousesDone = territoryDoc.data().stats.housesDone || 0;
-            const newTerritoryHousesDone = territoryHousesDone + (isNowDone ? 1 : -1);
-            const territoryTotalHouses = territoryDoc.data().stats.totalHouses || 0;
-            const newTerritoryProgress = territoryTotalHouses > 0 ? newTerritoryHousesDone / territoryTotalHouses : 0;
-            
-            // 4. EXECUTAR ESCRITAS
-            transaction.update(casaRef, casaUpdateData);
-            transaction.update(quadraRef, { housesDone: newQuadraHousesDone });
-            transaction.update(territoryRef, {
-                "stats.housesDone": newTerritoryHousesDone,
-                progress: newTerritoryProgress,
-            });
+      await runTransaction(db, async (transaction) => {
+        // 1. Definições de Referência
+        const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
+        const quadraRef = doc(territoryRef, 'quadras', quadraId);
+        const casaRef = doc(quadraRef, 'casas', casa.id);
+  
+        // 2. LEITURAS PRIMEIRO
+        const casaDoc = await transaction.get(casaRef);
+        const quadraDoc = await transaction.get(quadraRef);
+        const territoryDoc = await transaction.get(territoryRef);
+  
+        if (!casaDoc.exists() || !quadraDoc.exists() || !territoryDoc.exists()) {
+          throw new Error("Documento não encontrado na transação.");
+        }
+  
+        // 3. PREPARAR DADOS PARA ESCRITA
+        const wasDone = casaDoc.data().status === true;
+        const isNowDone = newStatus === true;
+  
+        if (wasDone === isNowDone) return;
+  
+        // Atualizações da Casa
+        const casaUpdateData: any = { status: newStatus };
+        if (isNowDone) {
+          casaUpdateData.lastWorkedBy = { uid: user.uid, name: user.name };
+        }
+  
+        // Atualizações da Quadra
+        const quadraHousesDone = quadraDoc.data().housesDone || 0;
+        const newQuadraHousesDone = quadraHousesDone + (isNowDone ? 1 : -1);
+  
+        // Atualizações do Território
+        const territoryStats = territoryDoc.data().stats || { housesDone: 0, totalHouses: 0 };
+        const newTerritoryHousesDone = territoryStats.housesDone + (isNowDone ? 1 : -1);
+        const territoryTotalHouses = territoryStats.totalHouses || 0;
+        const newTerritoryProgress = territoryTotalHouses > 0 ? newTerritoryHousesDone / territoryTotalHouses : 0;
+  
+        // 4. EXECUTAR ESCRITAS
+        transaction.update(casaRef, casaUpdateData);
+        transaction.update(quadraRef, { housesDone: newQuadraHousesDone });
+        transaction.update(territoryRef, {
+          "stats.housesDone": newTerritoryHousesDone,
+          progress: newTerritoryProgress,
         });
+      });
     } catch (error) {
-        console.error("Erro ao atualizar o status da casa e estatísticas:", error);
+      console.error("Erro ao atualizar o status da casa e estatísticas:", error);
     } finally {
-        setStatusAction(null);
+      setStatusAction(null);
     }
   };
 
@@ -465,10 +467,14 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             isOpen={true}
             onClose={() => setStatusAction(null)}
             onConfirm={handleConfirmStatusChange}
-            title={statusAction.newStatus ? 'Confirmar Conclusão' : 'Desfazer Conclusão'}
-            message={`Deseja marcar esta casa como ${statusAction.newStatus ? '"feita"?' : '"pendente"?'}`}
-            confirmText="Sim"
-            cancelText="Não"
+            title="Confirmar Alteração de Status"
+            message={
+                statusAction.newStatus 
+                ? `Tem certeza de que deseja marcar a casa "${statusAction.casa.number}" como trabalhada?`
+                : `Deseja marcar esta casa como "pendente"?`
+            }
+            confirmText="Sim, confirmar"
+            cancelText="Cancelar"
             variant="default"
         />
       )}

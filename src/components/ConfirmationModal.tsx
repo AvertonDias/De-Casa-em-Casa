@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { type ReactNode } from 'react';
@@ -19,7 +20,7 @@ interface ConfirmationModalProps {
   cancelText?: string;
   isLoading?: boolean;
   showCancelButton?: boolean;
-  variant?: 'default' | 'destructive';
+  variant?: 'default' | 'destructive' | 'info';
   confirmDisabled?: boolean;
 }
 
