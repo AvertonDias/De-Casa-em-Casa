@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc, runTransaction } from 'firebase/firestore';
+import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc, runTransaction, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil, X } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
@@ -160,44 +160,43 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     const { casaId, newStatus } = statusAction;
     const quadraRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId);
     const casaRef = doc(quadraRef, 'casas', casaId);
+    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
     
     try {
         await runTransaction(db, async (transaction) => {
+            // 1. READS FIRST
             const casaDoc = await transaction.get(casaRef);
-            if (!casaDoc.exists()) throw new Error("Casa não encontrada!");
-            
-            // 1. Atualiza a casa
-            const updateData: { status: boolean, lastWorkedBy?: { uid: string, name: string } } = { status: newStatus };
-            if (newStatus) {
-                updateData.lastWorkedBy = { uid: user.uid, name: user.name };
-            }
-            transaction.update(casaRef, updateData);
-
-            // 2. Atualiza a quadra (sem ler antes, apenas incrementa/decrementa)
             const quadraDoc = await transaction.get(quadraRef);
-            if (!quadraDoc.exists()) throw new Error("Quadra não encontrada!");
+            const territoryDoc = await transaction.get(territoryRef);
 
+            if (!casaDoc.exists()) throw new Error("Casa não encontrada!");
+            if (!quadraDoc.exists()) throw new Error("Quadra não encontrada!");
+            if (!territoryDoc.exists()) throw new Error("Território não encontrado!");
+
+            // 2. PREPARE WRITES (calculations)
+            // Casa
+            const casaUpdateData: { status: boolean, lastWorkedBy?: { uid: string, name: string } } = { status: newStatus };
+            if (newStatus) {
+                casaUpdateData.lastWorkedBy = { uid: user.uid, name: user.name };
+            }
+
+            // Quadra
             let currentHousesDone = quadraDoc.data().housesDone || 0;
             currentHousesDone += (newStatus ? 1 : -1);
 
-            transaction.update(quadraRef, { housesDone: currentHousesDone });
-
-            // 3. Atualiza o território
-            const territoryRef = doc(db, 'congregations', user.congregationId!, 'territories', territoryId);
-            const territoryDoc = await transaction.get(territoryRef);
-            if (!territoryDoc.exists()) throw new Error("Território não encontrado!");
-
+            // Território
             let territoryHousesDone = territoryDoc.data().stats.housesDone || 0;
             territoryHousesDone += (newStatus ? 1 : -1);
-            
             const territoryTotalHouses = territoryDoc.data().stats.totalHouses || 0;
             const newProgress = territoryTotalHouses > 0 ? territoryHousesDone / territoryTotalHouses : 0;
 
-            transaction.update(territoryRef, { 
+            // 3. EXECUTE WRITES
+            transaction.update(casaRef, casaUpdateData);
+            transaction.update(quadraRef, { housesDone: currentHousesDone });
+            transaction.update(territoryRef, {
                 "stats.housesDone": territoryHousesDone,
-                progress: newProgress
+                progress: newProgress,
             });
-
         });
     } catch (error) {
         console.error("Erro ao atualizar o status da casa e estatísticas:", error);
