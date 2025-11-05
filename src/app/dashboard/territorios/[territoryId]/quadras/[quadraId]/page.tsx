@@ -162,43 +162,38 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   
     try {
       await runTransaction(db, async (transaction) => {
-        // 1. Definições de Referência
         const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
         const quadraRef = doc(territoryRef, 'quadras', quadraId);
         const casaRef = doc(quadraRef, 'casas', casa.id);
   
-        // 2. LEITURAS PRIMEIRO
-        const casaDoc = await transaction.get(casaRef);
-        const quadraDoc = await transaction.get(quadraRef);
-        const territoryDoc = await transaction.get(territoryRef);
+        const [casaDoc, quadraDoc, territoryDoc] = await Promise.all([
+          transaction.get(casaRef),
+          transaction.get(quadraRef),
+          transaction.get(territoryRef),
+        ]);
   
         if (!casaDoc.exists() || !quadraDoc.exists() || !territoryDoc.exists()) {
           throw new Error("Documento não encontrado na transação.");
         }
   
-        // 3. PREPARAR DADOS PARA ESCRITA
         const wasDone = casaDoc.data().status === true;
         const isNowDone = newStatus === true;
   
         if (wasDone === isNowDone) return;
   
-        // Atualizações da Casa
         const casaUpdateData: any = { status: newStatus };
         if (isNowDone) {
           casaUpdateData.lastWorkedBy = { uid: user.uid, name: user.name };
         }
   
-        // Atualizações da Quadra
         const quadraHousesDone = quadraDoc.data().housesDone || 0;
         const newQuadraHousesDone = quadraHousesDone + (isNowDone ? 1 : -1);
   
-        // Atualizações do Território
         const territoryStats = territoryDoc.data().stats || { housesDone: 0, totalHouses: 0 };
         const newTerritoryHousesDone = territoryStats.housesDone + (isNowDone ? 1 : -1);
         const territoryTotalHouses = territoryStats.totalHouses || 0;
         const newTerritoryProgress = territoryTotalHouses > 0 ? newTerritoryHousesDone / territoryTotalHouses : 0;
   
-        // 4. EXECUTAR ESCRITAS
         transaction.update(casaRef, casaUpdateData);
         transaction.update(quadraRef, { housesDone: newQuadraHousesDone });
         transaction.update(territoryRef, {
@@ -471,7 +466,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             message={
                 statusAction.newStatus 
                 ? `Tem certeza de que deseja marcar a casa "${statusAction.casa.number}" como trabalhada?`
-                : `Deseja marcar esta casa como "pendente"?`
+                : `Tem certeza que deseja desmarcar a casa "${statusAction.casa.number}" como não trabalhada?`
             }
             confirmText="Sim, confirmar"
             cancelText="Cancelar"
