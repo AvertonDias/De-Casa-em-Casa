@@ -100,6 +100,7 @@ export default function ForgotPasswordPage() {
             <Input
               id="email"
               type="email"
+              autoComplete="email"
               placeholder="Seu e-mail cadastrado"
               value={email}
               onChange={(e) => setEmail(e.target.value)}

@@ -311,6 +311,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                     <Input 
                       id="password-for-delete"
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
                       value={passwordForDelete}
                       onChange={(e) => setPasswordForDelete(e.target.value)}
                       placeholder="Digite sua senha para confirmar"
