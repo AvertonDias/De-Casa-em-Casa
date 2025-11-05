@@ -7,11 +7,7 @@ import {
 } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
-import {
-  QueryDocumentSnapshot,
-  Transaction,
-  DocumentReference,
-} from "firebase-admin/firestore";
+import { format } from "date-fns";
 import * as crypto from "crypto";
 
 if (!admin.apps.length) {
@@ -134,7 +130,7 @@ export const notifyOnNewUser = withCors(async (req, res) => {
                 .where("congregationId", "==", congregationId)
                 .where("role", "==", role)
                 .get();
-            usersToNotifySnapshot.forEach((userDoc: QueryDocumentSnapshot) => {
+            usersToNotifySnapshot.forEach((userDoc) => {
                 const notification = {
                     title: "Novo Usuário Aguardando Aprovação",
                     body: `O usuário "${newUserName}" solicitou acesso à congregação.`,
@@ -287,13 +283,13 @@ export const resetTerritoryProgress = withCors(async (req, res) => {
         logger.log(`[resetTerritory] Histórico para ${territoryId} deletado com sucesso.`);
 
         let housesUpdatedCount = 0;
-        await db.runTransaction(async (transaction: Transaction) => {
+        await db.runTransaction(async (transaction) => {
             const quadrasSnapshot = await transaction.get(quadrasRef);
-            const housesToUpdate: { ref: DocumentReference; data: { status: boolean } }[] = [];
+            const housesToUpdate: { ref: admin.firestore.DocumentReference; data: { status: boolean } }[] = [];
 
             for (const quadraDoc of quadrasSnapshot.docs) {
                 const casasSnapshot = await transaction.get(quadraDoc.ref.collection("casas"));
-                casasSnapshot.forEach((casaDoc: QueryDocumentSnapshot) => {
+                casasSnapshot.forEach((casaDoc) => {
                     if (casaDoc.data().status === true) {
                         housesToUpdate.push({ ref: casaDoc.ref, data: { status: false } });
                         housesUpdatedCount++;
@@ -328,35 +324,34 @@ export const resetTerritoryProgress = withCors(async (req, res) => {
  */
 async function updateCongregationStats(congregationId: string) {
   const congregationRef = db.doc(`congregations/${congregationId}`);
-  const territoriesSnapshot = await congregationRef.collection("territories").get();
+  const territoriesRef = congregationRef.collection("territories");
 
-  let territoryCount = 0;
-  let ruralTerritoryCount = 0;
-  let totalQuadras = 0;
-  let totalHouses = 0;
-  let totalHousesDone = 0;
+  const territoriesSnapshot = await territoriesRef.get();
 
+  let urbanCount = 0, ruralCount = 0, totalHouses = 0, totalHousesDone = 0, totalQuadras = 0;
+  
   territoriesSnapshot.forEach((doc) => {
     const data = doc.data();
     if (data.type === "rural") {
-      ruralTerritoryCount++;
+        ruralCount++;
     } else {
-      territoryCount++;
-      totalQuadras += data.quadraCount || 0;
-      totalHouses += data.stats?.totalHouses || 0;
-      totalHousesDone += data.stats?.housesDone || 0;
+        urbanCount++;
+        totalHouses += data.stats?.totalHouses || 0;
+        totalHousesDone += data.stats?.housesDone || 0;
+        totalQuadras += data.quadraCount || 0;
     }
   });
 
   return congregationRef.update({
-    territoryCount,
-    ruralTerritoryCount,
+    territoryCount: urbanCount,
+    ruralTerritoryCount: ruralCount,
     totalQuadras,
     totalHouses,
     totalHousesDone,
     lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
   });
 }
+
 
 /**
  * Atualiza as estatísticas de um território com base nas suas quadras.
@@ -378,54 +373,69 @@ async function updateTerritoryStats(congregationId: string, territoryId: string)
     stats: { totalHouses, housesDone },
     progress,
     quadraCount: quadrasSnapshot.size,
-    lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  // Gatilho em cascata para atualizar a congregação.
+  // Após atualizar o território, atualiza a congregação
   await updateCongregationStats(congregationId);
 }
 
-/**
- * Disparado quando uma casa é criada, atualizada ou excluída.
- * Recalcula as estatísticas da quadra-pai.
- */
-export const onHouseWrite = onDocumentWritten(
-  "congregations/{congId}/territories/{terrId}/quadras/{quadraId}/casas/{casaId}",
-  async (event) => {
-    const { congId, terrId, quadraId } = event.params;
-    const quadraRef = db.doc(`congregations/${congId}/territories/${terrId}/quadras/${quadraId}`);
-    
-    const casasSnapshot = await quadraRef.collection("casas").get();
-    const totalHouses = casasSnapshot.size;
-    const housesDone = casasSnapshot.docs.filter(doc => doc.data().status === true).length;
 
-    return quadraRef.update({ totalHouses, housesDone });
-  }
-);
+export const onWriteTerritoryData = onDocumentWritten(
+    "congregations/{congId}/territories/{terrId}/{anyCollection}/{anyId}",
+    async (event) => {
+        const { congId, terrId, anyCollection } = event.params;
+        
+        // Se a mudança foi em uma casa (que está dentro de uma quadra)
+        if (anyCollection === "quadras" && event.data?.after.ref.parent.parent) {
+            const quadraId = event.data.after.ref.parent.parent.id;
+            const quadraRef = db.doc(`congregations/${congId}/territories/${terrId}/quadras/${quadraId}`);
+            
+            const casasSnapshot = await quadraRef.collection("casas").get();
+            const totalHousesInQuadra = casasSnapshot.size;
+            const housesDoneInQuadra = casasSnapshot.docs.filter((doc) => doc.data().status === true).length;
+            
+            await quadraRef.update({ totalHouses: totalHousesInQuadra, housesDone: housesDoneInQuadra });
+            
+            await updateTerritoryStats(congId, terrId);
 
-/**
- * Disparado quando uma quadra é criada, atualizada ou excluída.
- * Recalcula as estatísticas do território-pai.
- */
-export const onQuadraWrite = onDocumentWritten(
-  "congregations/{congId}/territories/{terrId}/quadras/{quadraId}",
-  async (event) => {
-    const { congId, terrId } = event.params;
-    return updateTerritoryStats(congId, terrId);
-  }
-);
+            // Adiciona um log de atividade apenas se uma casa foi marcada como feita
+            const beforeData = event.data?.before.data();
+            const afterData = event.data?.after.data();
 
+            if (beforeData?.status === false && afterData?.status === true) {
+                const territoryRef = db.doc(`congregations/${congId}/territories/${terrId}`);
+                const today = format(new Date(), "yyyy-MM-dd");
+                const activityHistoryRef = territoryRef.collection("activityHistory");
 
-/**
- * Disparado quando um território é criado, atualizado ou excluído.
- * Recalcula as estatísticas da congregação.
- */
-export const onTerritoryWrite = onDocumentWritten(
-  "congregations/{congId}/territories/{terrId}",
-  async (event) => {
-    const { congId } = event.params;
-    return updateCongregationStats(congId);
-  }
+                // Verifica se já existe um log de 'work' para hoje
+                const todayActivitiesSnap = await activityHistoryRef
+                    .where("activityDateStr", "==", today)
+                    .where("type", "==", "work")
+                    .limit(1)
+                    .get();
+                
+                if (todayActivitiesSnap.empty) {
+                    await activityHistoryRef.add({
+                        type: "work",
+                        activityDate: admin.firestore.FieldValue.serverTimestamp(),
+                        activityDateStr: today,
+                        description: "Primeiro trabalho do dia registrado. (Registro Automático)",
+                        userId: "automatic_system_log",
+                        userName: "Sistema",
+                    });
+                }
+                await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
+            }
+
+        // Se a mudança foi diretamente em uma quadra (criação/exclusão)
+        } else if (anyCollection === "quadras") {
+            await updateTerritoryStats(congId, terrId);
+
+        // Se a mudança foi diretamente no território (ex. tipo mudou)
+        } else {
+            await updateCongregationStats(congId);
+        }
+    }
 );
 
 
@@ -444,6 +454,8 @@ export const onDeleteTerritory = onDocumentDeleted(
       logger.log(
         `[onDeleteTerritory] Território ${event.params.territoryId} e subcoleções deletadas.`
       );
+      // Dispara a atualização da congregação após a exclusão
+      await updateCongregationStats(event.params.congregationId);
       return { success: true };
     } catch (error) {
       logger.error(
@@ -457,6 +469,7 @@ export const onDeleteTerritory = onDocumentDeleted(
     }
   }
 );
+
 
 export const onDeleteQuadra = onDocumentDeleted(
   "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
@@ -473,6 +486,8 @@ export const onDeleteQuadra = onDocumentDeleted(
       logger.log(
         `[onDeleteQuadra] Quadra ${event.params.quadraId} e subcoleções deletadas.`
       );
+       // Dispara a atualização do território após a exclusão da quadra
+      await updateTerritoryStats(event.params.congregationId, event.params.territoryId);
       return { success: true };
     } catch (error) {
       logger.error(
@@ -486,6 +501,7 @@ export const onDeleteQuadra = onDocumentDeleted(
     }
   }
 );
+
 
 // ============================================================================
 //   SISTEMA DE PRESENÇA (RTDB -> FIRESTORE)
