@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'; 
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'; 
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, db, app } from '@/lib/firebase';
@@ -62,6 +62,9 @@ export default function SignUpPage() {
       
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
+      // **NOVO PASSO CRÍTICO**: Fazer login com o usuário recém-criado ANTES de escrever no Firestore.
+      await signInWithEmailAndPassword(auth, email, password);
+
       await updateProfile(userCredential.user, { displayName: name.trim() });
       
       await setDoc(doc(db, "users", userCredential.user.uid), {
@@ -81,6 +84,9 @@ export default function SignUpPage() {
         variant: 'default',
       });
       
+      // O UserContext irá detectar o usuário logado e redirecioná-lo automaticamente.
+      // Nenhuma chamada a router.push() é necessária aqui.
+
     } catch (err: any) {
       console.error("Erro detalhado no cadastro:", err);
       if (err.message?.includes("Número da congregação")) { setError(err.message); }
