@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -31,7 +32,9 @@ export default function AddEditLinkModal({ isOpen, onClose, onSave, linkToEdit }
       
       setTimeout(() => {
         descriptionInputRef.current?.focus();
-        descriptionInputRef.current?.select();
+        if(!isEditing) {
+          descriptionInputRef.current?.select();
+        }
       }, 100);
     }
   }, [isOpen, linkToEdit, isEditing]);
@@ -51,6 +54,10 @@ export default function AddEditLinkModal({ isOpen, onClose, onSave, linkToEdit }
     onSave({ description, url }, linkToEdit?.id);
     onClose();
   };
+  
+  const hasChanges = isEditing 
+    ? description !== linkToEdit?.description || url !== linkToEdit?.url
+    : description.trim() !== '' || url.trim() !== '';
 
   if (!isOpen) return null;
 
@@ -82,7 +89,7 @@ export default function AddEditLinkModal({ isOpen, onClose, onSave, linkToEdit }
           
           <div className="flex justify-end space-x-3 pt-4">
             <button onClick={onClose} className="px-4 py-2 rounded-md bg-muted hover:bg-muted/80">Cancelar</button>
-            <button onClick={handleSave} className="px-4 py-2 rounded-md bg-primary text-primary-foreground">Salvar</button>
+            <button onClick={handleSave} disabled={!hasChanges} className="px-4 py-2 rounded-md bg-primary text-primary-foreground disabled:opacity-50">Salvar</button>
           </div>
         </div>
       </div>
