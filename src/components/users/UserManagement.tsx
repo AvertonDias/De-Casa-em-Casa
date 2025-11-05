@@ -168,14 +168,22 @@ export default function UserManagement() {
       );
     }
     
-    const statusOrder: Record<AppUser['status'], number> = { 'pendente': 1, 'ativo': 2, 'inativo': 3, 'bloqueado': 4, 'rejeitado': 5 };
+    const getStatusPriority = (status: AppUser['status']) => {
+      if (status === 'pendente') return 1;
+      return 2; // Todos os outros status têm a mesma prioridade
+    };
     
     return filtered.sort((a, b) => {
       if (a.uid === currentUser?.uid) return -1;
       if (b.uid === currentUser?.uid) return 1;
-      const statusA = statusOrder[a.status] || 99;
-      const statusB = statusOrder[b.status] || 99;
-      if (statusA !== statusB) return statusA - statusB;
+
+      const priorityA = getStatusPriority(a.status);
+      const priorityB = getStatusPriority(b.status);
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      
       return a.name.localeCompare(b.name);
     });
 
