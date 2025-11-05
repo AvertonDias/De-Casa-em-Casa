@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'; 
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'; 
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, db, app } from '@/lib/firebase';
@@ -62,11 +62,11 @@ export default function SignUpPage() {
       
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      // **NOVO PASSO CRÍTICO**: Fazer login com o usuário recém-criado ANTES de escrever no Firestore.
-      await signInWithEmailAndPassword(auth, email, password);
-
+      // A chamada createUserWithEmailAndPassword já faz o login do usuário.
+      // O documento do Firestore será criado pelo UserContext ao detectar o novo usuário.
       await updateProfile(userCredential.user, { displayName: name.trim() });
       
+      // Agora criamos o documento do usuário. O usuário já está logado.
       await setDoc(doc(db, "users", userCredential.user.uid), {
         name: name.trim(), 
         email, 
@@ -84,8 +84,8 @@ export default function SignUpPage() {
         variant: 'default',
       });
       
-      // O UserContext irá detectar o usuário logado e redirecioná-lo automaticamente.
-      // Nenhuma chamada a router.push() é necessária aqui.
+      // O UserContext irá detectar o usuário logado e redirecioná-lo automaticamente para a página de aprovação.
+      // Nenhuma chamada a router.push() é necessária aqui se o UserContext estiver configurado corretamente.
 
     } catch (err: any) {
       console.error("Erro detalhado no cadastro:", err);
@@ -100,7 +100,7 @@ export default function SignUpPage() {
             </>
         ); 
       }
-      else { setError("Ocorreu um erro ao criar a conta."); }
+      else { setError("Ocorreu um erro ao criar a conta: " + err.message); }
     } finally {
         setLoading(false);
     }
