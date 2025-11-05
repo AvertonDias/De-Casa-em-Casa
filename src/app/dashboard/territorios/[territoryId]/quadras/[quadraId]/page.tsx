@@ -339,5 +339,132 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                   {quadra.name || 'Detalhes da Quadra'}
                 </h1>
                 <Button variant="secondary" size="icon" asChild disabled={!nextQuadra}>
-                  <Link href={nextQuadra ? `/dashboard/territorios/${territoryId}/quadras/${nextQuadra.id}` : '#'}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 9a1 1 0 0 0 1-1V5.061a1 1 0 0 1 1.811-.75l6.836 6.836a1.207 1.207
+                   <Link href={nextQuadra ? `/dashboard/territorios/${territoryId}/quadras/${nextQuadra.id}` : '#'}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 9a1 1 0 0 0 1-1V5.061a1 1 0 0 1 1.811-.75l6.836 6.836a1.207 1.207 0 0 1 0 1.707L12.812 19.63A1 1 0 0 1 11 18.938V15a1 1 0 0 0-1-1H3a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h7z"/></svg>
+                  </Link>
+                </Button>
+              </div>
+            </div>
+        </div>
+        
+        <div className="bg-white dark:bg-[#2f2b3a] p-4 rounded-lg shadow-md mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div><p className="text-sm text-gray-500 dark:text-gray-400">Total</p><p className="font-bold text-2xl text-gray-800 dark:text-white">{stats.total}</p></div>
+                <div><p className="text-sm text-gray-500 dark:text-gray-400">Feitos</p><p className="font-bold text-2xl text-green-500">{stats.feitos}</p></div>
+                <div><p className="text-sm text-gray-500 dark:text-gray-400">Pendentes</p><p className="font-bold text-2xl text-yellow-500">{stats.pendentes}</p></div>
+                <div><p className="text-sm text-gray-500 dark:text-gray-400">Progresso</p><p className="font-bold text-2xl text-blue-500">{stats.progresso}%</p></div>
+            </div>
+             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-2">
+                <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${stats.progresso}%` }}></div>
+            </div>
+        </div>
+
+        <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-4 justify-between">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+                <input 
+                  type="text" 
+                  placeholder="Buscar número ou observação..." 
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                  className="w-full pl-10 pr-10 py-2 bg-card border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                 {searchTerm && (
+                  <button 
+                    onClick={() => setSearchTerm('')} 
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X size={20} />
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <AddCasaModal territoryId={territoryId} quadraId={quadraId} congregationId={user.congregationId} onCasaAdded={() => {}} />
+                {isReordering ? (
+                  <Button onClick={finishReordering} className="bg-green-600 hover:bg-green-700">Concluir</Button>
+                ) : (
+                  <Button onClick={startReordering} variant="secondary">Reordenar</Button>
+                )}
+              </div>
+            </div>
+          
+            <div className="bg-card rounded-lg shadow-md">
+              <ul className="divide-y divide-border">
+                {filteredCasas.map((casa, index) => (
+                  <li 
+                    key={casa.id} 
+                    onClick={() => handleHouseClick(casa.id)}
+                    data-id={casa.id}
+                    className={`flex items-center p-3 transition-colors duration-500 ${casa.id === recentlyMovedId ? 'bg-primary/20' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={casa.status}
+                      onChange={() => handleToggleCheckbox(casa)}
+                      className="w-6 h-6 rounded-md border-2 border-primary text-primary focus:ring-primary"
+                    />
+                    <div className="ml-4 flex-grow">
+                      <p className={`font-bold text-lg ${casa.status ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{casa.number}</p>
+                      {casa.observations && <p className="text-sm text-muted-foreground">{casa.observations}</p>}
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                        {isReordering ? (
+                          <>
+                            <button onClick={() => handleReorder(casa.id, 'up')} disabled={index === 0} className="p-2 rounded-full disabled:opacity-30"><ArrowUp size={20}/></button>
+                            <button onClick={() => handleReorder(casa.id, 'down')} disabled={index === casas.length-1} className="p-2 rounded-full disabled:opacity-30"><ArrowDown size={20}/></button>
+                          </>
+                        ) : (
+                          <button onClick={() => handleEditClick(casa)} className="p-2 rounded-full text-muted-foreground hover:text-foreground"><Pencil size={18}/></button>
+                        )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+        </div>
+      </div>
+      
+      {selectedCasa && (
+        <EditCasaModal 
+          isOpen={isEditModalOpen} 
+          onClose={() => setIsEditModalOpen(false)} 
+          casa={selectedCasa}
+          territoryId={territoryId}
+          quadraId={quadraId}
+          congregationId={user.congregationId}
+          onCasaUpdated={() => {}}
+          onDeleteRequest={handleDeleteRequestFromModal}
+        />
+      )}
+
+      {casaToDelete && (
+        <ConfirmationModal
+            isOpen={isConfirmDeleteOpen}
+            onClose={() => setIsConfirmDeleteOpen(false)}
+            onConfirm={executeDelete}
+            title="Excluir Casa"
+            message={`Tem certeza que deseja excluir a casa de número "${casaToDelete.number}"?`}
+            confirmText="Sim, Excluir"
+            cancelText="Cancelar"
+        />
+      )}
+
+      {statusAction && (
+        <ConfirmationModal
+            isOpen={true}
+            onClose={() => setStatusAction(null)}
+            onConfirm={handleConfirmStatusChange}
+            title={statusAction.newStatus ? 'Confirmar Conclusão' : 'Desfazer Conclusão'}
+            message={`Deseja marcar esta casa como ${statusAction.newStatus ? '"feita"?' : '"pendente"?'}`}
+            confirmText="Sim"
+            cancelText="Não"
+            variant="default"
+        />
+      )}
+    </>
+  );
+}
+
+export default withAuth(QuadraDetailPage);
