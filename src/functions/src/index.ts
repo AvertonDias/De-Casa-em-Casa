@@ -1,3 +1,4 @@
+
 // src/functions/src/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
@@ -346,22 +347,30 @@ export const mirrorUserStatus = onValueWritten(
     const userDocRef = db.doc(`users/${uid}`);
 
     try {
-      if (!eventStatus || eventStatus.state === "offline") {
-        await userDocRef.update({
-          isOnline: false,
-          lastSeen: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      } else if (eventStatus.state === "online") {
-        await userDocRef.update({
-          isOnline: true,
-          lastSeen: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      }
+        const userDoc = await userDocRef.get();
+        if (!userDoc.exists) return null; // Usuário não existe no Firestore
+
+        if (!eventStatus || eventStatus.state === "offline") {
+            // Apenas atualiza se o status atual for 'online'
+            if (userDoc.data()?.isOnline === true) {
+                await userDocRef.update({
+                    isOnline: false,
+                    lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
+        } else if (eventStatus.state === "online") {
+            // Apenas atualiza se o status atual for 'offline' ou indefinido
+             if (userDoc.data()?.isOnline !== true) {
+                await userDocRef.update({
+                    isOnline: true,
+                    lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
+        }
     } catch (err: any) {
-      // Ignora erro 'not-found' que pode acontecer se o usuário for excluído
-      if (err.code !== "not-found") {
-        logger.error(`[Presence Mirror] Falha para ${uid}:`, err);
-      }
+        if (err.code !== 5) { // 5 = NOT_FOUND, ignora se o doc do usuário foi deletado
+            logger.error(`[Presence Mirror] Falha para ${uid}:`, err);
+        }
     }
     return null;
   }

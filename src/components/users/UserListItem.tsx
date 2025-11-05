@@ -74,7 +74,7 @@ export const UserListItem = ({
                 {user.uid === currentUser.uid && <span className="text-purple-400 font-normal ml-2">(Você)</span>}
               </p>
               <p className={`text-sm ${isOnline ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                {isOnline ? 'Online' : (user.lastSeen ? `Visto ${formatDistanceToNow(user.lastSeen.toDate(), { addSuffix: true, locale: ptBR })}` : 'Offline')}
+                {isOnline ? 'Online' : (user.lastSeen?.toDate ? `Visto ${formatDistanceToNow(user.lastSeen.toDate(), { addSuffix: true, locale: ptBR })}` : 'Offline')}
               </p>
           </div>
       </div>

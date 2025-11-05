@@ -3,7 +3,7 @@
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, serverTimestamp, enableNetwork, disableNetwork } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp, enableNetwork, disableNetwork, Timestamp } from 'firebase/firestore';
 import { auth, db, app } from '@/lib/firebase';
 import type { AppUser, Congregation } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
@@ -49,8 +49,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     if (user) {
+        // Marca como offline no Firestore antes de desconectar
+        const userDocRef = doc(db, 'users', user.uid);
+        try {
+            await updateDoc(userDocRef, {
+                isOnline: false,
+                lastSeen: serverTimestamp()
+            });
+        } catch (e) {
+            console.error("Falha ao definir status offline no Firestore antes do logout:", e);
+        }
+        // Remove a presença do RTDB
         const userStatusRTDBRef = ref(rtdb, `/status/${user.uid}`);
-        await set(userStatusRTDBRef, null); // Remove o nó do RTDB
+        await set(userStatusRTDBRef, null);
     }
     await signOut(auth);
     router.push('/');
