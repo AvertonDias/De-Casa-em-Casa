@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc, runTransaction, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc, runTransaction, getDocs, addDoc, serverTimestamp, Timestamp, where, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil, X } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
@@ -15,6 +15,7 @@ import { type Casa, type Quadra, type Territory } from '@/types/types';
 import withAuth from '@/components/withAuth';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { format as formatDate } from 'date-fns';
 
 
 interface QuadraDetailPageProps {
@@ -165,41 +166,71 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
         const quadraRef = doc(territoryRef, 'quadras', quadraId);
         const casaRef = doc(quadraRef, 'casas', casa.id);
-  
+        const activityHistoryRef = collection(territoryRef, 'activityHistory');
+
         const [casaDoc, quadraDoc, territoryDoc] = await Promise.all([
-          transaction.get(casaRef),
-          transaction.get(quadraRef),
-          transaction.get(territoryRef),
+            transaction.get(casaRef),
+            transaction.get(quadraRef),
+            transaction.get(territoryRef),
         ]);
-  
+
         if (!casaDoc.exists() || !quadraDoc.exists() || !territoryDoc.exists()) {
-          throw new Error("Documento não encontrado na transação.");
+            throw new Error("Documento não encontrado na transação.");
         }
-  
+
         const wasDone = casaDoc.data().status === true;
         const isNowDone = newStatus === true;
-  
-        if (wasDone === isNowDone) return;
-  
+
+        if (wasDone === isNowDone) return; 
+
+        // 1. Atualiza a casa
         const casaUpdateData: any = { status: newStatus };
         if (isNowDone) {
-          casaUpdateData.lastWorkedBy = { uid: user.uid, name: user.name };
+            casaUpdateData.lastWorkedBy = { uid: user.uid, name: user.name };
         }
-  
+        transaction.update(casaRef, casaUpdateData);
+
+        // 2. Atualiza a quadra
         const quadraHousesDone = quadraDoc.data().housesDone || 0;
         const newQuadraHousesDone = quadraHousesDone + (isNowDone ? 1 : -1);
-  
+        transaction.update(quadraRef, { housesDone: newQuadraHousesDone });
+
+        // 3. Atualiza o território
         const territoryStats = territoryDoc.data().stats || { housesDone: 0, totalHouses: 0 };
         const newTerritoryHousesDone = territoryStats.housesDone + (isNowDone ? 1 : -1);
         const territoryTotalHouses = territoryStats.totalHouses || 0;
         const newTerritoryProgress = territoryTotalHouses > 0 ? newTerritoryHousesDone / territoryTotalHouses : 0;
-  
-        transaction.update(casaRef, casaUpdateData);
-        transaction.update(quadraRef, { housesDone: newQuadraHousesDone });
+        
         transaction.update(territoryRef, {
-          "stats.housesDone": newTerritoryHousesDone,
-          progress: newTerritoryProgress,
+            "stats.housesDone": newTerritoryHousesDone,
+            progress: newTerritoryProgress,
+            lastUpdate: serverTimestamp()
         });
+        
+        // 4. Lógica do histórico de atividade (se estiver marcando como 'feito')
+        if (isNowDone) {
+            const todayStr = formatDate(new Date(), 'yyyy-MM-dd');
+            const todayActivitiesQuery = query(
+              activityHistoryRef,
+              where("activityDateStr", "==", todayStr),
+              where("type", "==", "work"),
+              limit(1)
+            );
+
+            const todayActivitiesSnap = await getDocs(todayActivitiesQuery);
+
+            if (todayActivitiesSnap.empty) {
+                const newActivityRef = doc(activityHistoryRef); // Gera ID automaticamente
+                transaction.set(newActivityRef, {
+                    type: "work",
+                    activityDate: Timestamp.now(),
+                    activityDateStr: todayStr,
+                    description: "Primeiro trabalho do dia registrado. (Registro Automático)",
+                    userId: "automatic_system_log",
+                    userName: "Sistema",
+                });
+            }
+        }
       });
     } catch (error) {
       console.error("Erro ao atualizar o status da casa e estatísticas:", error);
@@ -227,9 +258,11 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             const casaRef = doc(quadraRef, 'casas', casaToDelete.id);
             const territoryRef = doc(db, 'congregations', user.congregationId!, 'territories', territoryId);
 
-            const quadraDoc = await transaction.get(quadraRef);
-            const territoryDoc = await transaction.get(territoryRef);
-            const casaDoc = await transaction.get(casaRef);
+            const [quadraDoc, territoryDoc, casaDoc] = await Promise.all([
+                transaction.get(quadraRef),
+                transaction.get(territoryRef),
+                transaction.get(casaRef)
+            ]);
 
             if (!quadraDoc.exists() || !territoryDoc.exists() || !casaDoc.exists()) {
                 throw new Error("Documento não encontrado para a transação de exclusão.");
@@ -346,7 +379,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                 </h1>
                 <Button variant="secondary" size="icon" asChild disabled={!nextQuadra}>
                    <Link href={nextQuadra ? `/dashboard/territorios/${territoryId}/quadras/${nextQuadra.id}` : '#'}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 9a1 1 0 0 0 1-1V5.061a1 1 0 0 1 1.811-.75l6.836 6.836a1.207 1.207 0 0 1 0 1.707L12.812 19.63A1 1 0 0 1 11 18.938V15a1 1 0 0 0-1-1H3a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h7z"/></svg>
+                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 9a1 1 0 0 0 1-1V5.061a1 1 0 0 1 1.811-.75l6.836 6.836a1.207 1.207 0 0 1 0 1.707L12.812 19.63A1 1 0 0 1 11 18.938V15a1 1 0 0 0-1-1H3a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h7z"/></svg>
                   </Link>
                 </Button>
               </div>
@@ -478,3 +511,5 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 }
 
 export default withAuth(QuadraDetailPage);
+
+    
