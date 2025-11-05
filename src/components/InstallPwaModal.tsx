@@ -28,11 +28,9 @@ export function InstallPwaModal() {
   }
   
   return (
-    <Dialog open={showInstallButton}>
+    <Dialog open={showInstallButton} onOpenChange={setIsDismissed}>
       <DialogContent 
         className="sm:max-w-md"
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <div className="flex justify-center">
@@ -59,7 +57,7 @@ export function InstallPwaModal() {
           </div>
         )}
         
-        <DialogFooter className="sm:justify-center">
+        <DialogFooter className="sm:justify-center pt-2">
            <Button variant="ghost" onClick={() => setIsDismissed(true)} className="w-full text-muted-foreground">
             Lembrar mais tarde
           </Button>
