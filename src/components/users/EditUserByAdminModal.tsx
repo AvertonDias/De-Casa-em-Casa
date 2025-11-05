@@ -80,6 +80,13 @@ export function EditUserByAdminModal({ isOpen, onClose, userToEdit, onSave }: Ed
   const allRoles: AppUser['role'][] = ['Administrador', 'Dirigente', 'Servo de Territórios', 'Publicador'];
   const allStatuses: AppUser['status'][] = ['ativo', 'pendente', 'inativo', 'rejeitado'];
 
+  const hasChanges = userToEdit && (
+    name !== userToEdit.name ||
+    whatsapp !== (userToEdit.whatsapp || '') ||
+    role !== userToEdit.role ||
+    status !== userToEdit.status
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
@@ -135,7 +142,7 @@ export function EditUserByAdminModal({ isOpen, onClose, userToEdit, onSave }: Ed
           <DialogClose asChild>
               <Button type="button" variant="secondary" disabled={loading}>Cancelar</Button>
           </DialogClose>
-          <Button type="submit" form="edit-user-by-admin-form" disabled={loading}>
+          <Button type="submit" form="edit-user-by-admin-form" disabled={loading || !hasChanges}>
             {loading ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
         </DialogFooter>

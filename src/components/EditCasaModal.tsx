@@ -77,6 +77,8 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
     onDeleteRequest(casa);
     onClose();
   };
+
+  const hasChanges = casa && (formData.number !== casa.number || formData.observations !== (casa.observations || ''));
   
   if (!isOpen) return null;
 
@@ -130,7 +132,7 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
                     <DialogClose asChild>
                         <Button type="button" variant="secondary">Cancelar</Button>
                     </DialogClose>
-                    <Button type="submit" form="edit-casa-form" disabled={isLoading}>
+                    <Button type="submit" form="edit-casa-form" disabled={isLoading || !hasChanges}>
                       {isLoading ? <><Loader className="mr-2 h-4 w-4 animate-spin"/> Salvando...</> : 'Salvar'}
                     </Button>
                 </div>

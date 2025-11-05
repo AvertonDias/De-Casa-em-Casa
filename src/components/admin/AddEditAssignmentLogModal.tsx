@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -52,6 +53,12 @@ export default function AddEditAssignmentLogModal({ isOpen, onClose, onSave, log
     onClose();
   };
 
+  const hasChanges = logToEdit && (
+    name !== logToEdit.name ||
+    assignedAt !== toInputDateString(logToEdit.assignedAt.toDate()) ||
+    completedAt !== toInputDateString(logToEdit.completedAt.toDate())
+  );
+
   if (!isOpen || !logToEdit) return null;
 
   return (
@@ -79,7 +86,7 @@ export default function AddEditAssignmentLogModal({ isOpen, onClose, onSave, log
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex justify-end space-x-3 pt-4 border-t border-border mt-4">
             <button onClick={onClose} className="px-4 py-2 rounded-md bg-muted">Cancelar</button>
-            <button onClick={handleSave} className="px-4 py-2 rounded-md bg-primary text-primary-foreground">Salvar Alterações</button>
+            <button onClick={handleSave} disabled={!hasChanges} className="px-4 py-2 rounded-md bg-primary text-primary-foreground disabled:opacity-50">Salvar Alterações</button>
           </div>
         </div>
       </div>

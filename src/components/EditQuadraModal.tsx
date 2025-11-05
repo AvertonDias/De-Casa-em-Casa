@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -44,6 +45,8 @@ export const EditQuadraModal = ({ quadra, isOpen, onClose, onSave, onDelete }: E
     onDelete(quadra.id);
   };
 
+  const hasChanges = quadra && (name !== quadra.name || description !== (quadra.description || ''));
+
   if (!isOpen || !quadra) return null;
 
   return (
@@ -81,7 +84,7 @@ export const EditQuadraModal = ({ quadra, isOpen, onClose, onSave, onDelete }: E
             
             <div className="flex space-x-3">
                 <button onClick={onClose} className="px-4 py-2 rounded-md bg-muted hover:bg-muted/80">Cancelar</button>
-                <button onClick={handleSave} className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/80">Salvar Alterações</button>
+                <button onClick={handleSave} disabled={!hasChanges} className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/80 disabled:opacity-50">Salvar Alterações</button>
             </div>
         </div>
       </div>

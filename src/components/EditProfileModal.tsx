@@ -84,25 +84,19 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     }
 
     try {
-      let changesMade = false;
       const dataToUpdate: Partial<{ name: string; whatsapp: string }> = {};
 
       if (name.trim() !== user.name) {
         await updateProfile(auth.currentUser, { displayName: name.trim() });
         dataToUpdate.name = name.trim();
-        changesMade = true;
       }
       
       if (whatsapp !== (user.whatsapp || '')) {
         dataToUpdate.whatsapp = whatsapp;
-        changesMade = true;
       }
 
       if (Object.keys(dataToUpdate).length > 0) {
         await updateUser(dataToUpdate);
-      }
-
-      if (changesMade) {
         toast({
           title: "Sucesso!",
           description: "Seu perfil foi atualizado com sucesso.",
@@ -206,7 +200,8 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   }
 
   const whatsappMismatch = whatsapp !== confirmWhatsapp;
-  const isSaveDisabled = loading || whatsappMismatch || whatsapp.length < 15 || !name.trim();
+  const hasChanges = (user && (name !== user.name || whatsapp !== (user.whatsapp || '')));
+  const isSaveDisabled = loading || whatsappMismatch || whatsapp.length < 15 || !name.trim() || !hasChanges;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>

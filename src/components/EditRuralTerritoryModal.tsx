@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { RuralTerritory, RuralLink } from '@/types/types';
+import isEqual from 'lodash.isequal';
+
 
 interface EditRuralTerritoryModalProps {
   isOpen: boolean;
@@ -118,6 +120,15 @@ export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, o
     }
   };
 
+  const hasChanges = territory && (
+    number !== territory.number ||
+    name !== territory.name ||
+    description !== (territory.description || '') ||
+    mapLink !== (territory.mapLink || '') ||
+    !isEqual(links, territory.links || [])
+  );
+
+
   return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-lg">
@@ -178,7 +189,7 @@ export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, o
               <DialogClose asChild>
                 <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
               </DialogClose>
-              <Button type="submit" form="edit-rural-form" disabled={isLoading}>
+              <Button type="submit" form="edit-rural-form" disabled={isLoading || !hasChanges}>
                 {isLoading ? <><Loader className="animate-spin mr-2" /> Salvando...</> : 'Salvar Alterações'}
               </Button>
             </div>
