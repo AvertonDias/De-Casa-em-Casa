@@ -79,6 +79,7 @@ export default function UniversalLoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Seu e-mail"
               required
+              autoComplete="email"
               className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
@@ -89,6 +90,7 @@ export default function UniversalLoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Sua senha"
               required
+              autoComplete="current-password"
               className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring pr-10"
             />
              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground">
