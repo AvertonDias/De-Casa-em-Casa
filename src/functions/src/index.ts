@@ -1,4 +1,3 @@
-
 // src/functions/src/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
@@ -381,74 +380,57 @@ async function updateTerritoryStats(congregationId: string, territoryId: string)
   await updateCongregationStats(congregationId);
 }
 
-// Gatilho que observa a escrita em uma CASA
-export const onHouseWrite = onDocumentWritten(
-    "congregations/{congId}/territories/{terrId}/quadras/{quadraId}/casas/{casaId}",
-    async (event) => {
-        const { congId, terrId, quadraId } = event.params;
-        
-        // Atualiza as estatísticas da quadra
-        const quadraRef = db.doc(`congregations/${congId}/territories/${terrId}/quadras/${quadraId}`);
-        const casasSnapshot = await quadraRef.collection("casas").get();
-        const totalHousesInQuadra = casasSnapshot.size;
-        const housesDoneInQuadra = casasSnapshot.docs.filter(
-            (doc: QueryDocumentSnapshot) => doc.data().status === true
-        ).length;
-        
-        await quadraRef.update({ totalHouses: totalHousesInQuadra, housesDone: housesDoneInQuadra });
-        
-        // Dispara a atualização do território
-        await updateTerritoryStats(congId, terrId);
+export const onWriteTerritoryData = onDocumentWritten("congregations/{congId}/territories/{terrId}/{anyCollection}/{anyId}", async (event) => {
+  const { congId, terrId, anyCollection } = event.params;
 
-        // Lógica para registrar a atividade diária
-        const beforeData = event.data?.before.data();
-        const afterData = event.data?.after.data();
+  // Se a mudança foi em uma casa (que está dentro de uma quadra)
+  if (anyCollection === "quadras" && event.data?.after.ref.parent.parent) {
+    const quadraId = event.data.after.ref.parent.parent.id;
+    const quadraRef = db.doc(`congregations/${congId}/territories/${terrId}/quadras/${quadraId}`);
+    
+    const casasSnapshot = await quadraRef.collection("casas").get();
+    const totalHousesInQuadra = casasSnapshot.size;
+    const housesDoneInQuadra = casasSnapshot.docs.filter((doc) => doc.data().status === true).length;
+    
+    await quadraRef.update({ totalHouses: totalHousesInQuadra, housesDone: housesDoneInQuadra });
+    await updateTerritoryStats(congId, terrId);
+    
+    const beforeData = event.data?.before.data();
+    const afterData = event.data?.after.data();
 
-        if (beforeData?.status === false && afterData?.status === true) {
-            const territoryRef = db.doc(`congregations/${congId}/territories/${terrId}`);
-            const today = format(new Date(), "yyyy-MM-dd");
-            const activityHistoryRef = territoryRef.collection("activityHistory");
+    if (beforeData?.status === false && afterData?.status === true) {
+        const territoryRef = db.doc(`congregations/${congId}/territories/${terrId}`);
+        const today = format(new Date(), "yyyy-MM-dd");
+        const activityHistoryRef = territoryRef.collection("activityHistory");
 
-            const todayActivitiesSnap = await activityHistoryRef
-                .where("activityDateStr", "==", today)
-                .where("type", "==", "work")
-                .limit(1)
-                .get();
+        const todayActivitiesSnap = await activityHistoryRef
+            .where("activityDateStr", "==", today)
+            .where("type", "==", "work")
+            .limit(1)
+            .get();
 
-            if (todayActivitiesSnap.empty) {
-                await activityHistoryRef.add({
-                    type: "work",
-                    activityDate: admin.firestore.FieldValue.serverTimestamp(),
-                    activityDateStr: today,
-                    description: "Primeiro trabalho do dia registrado. (Registro Automático)",
-                    userId: "automatic_system_log",
-                    userName: "Sistema",
-                });
-            }
-            await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
+        if (todayActivitiesSnap.empty) {
+            await activityHistoryRef.add({
+                type: "work",
+                activityDate: admin.firestore.FieldValue.serverTimestamp(),
+                activityDateStr: today,
+                description: "Primeiro trabalho do dia registrado. (Registro Automático)",
+                userId: "automatic_system_log",
+                userName: "Sistema",
+            });
         }
+        await territoryRef.update({ lastUpdate: admin.firestore.FieldValue.serverTimestamp() });
     }
-);
-
-// Gatilho que observa a escrita/exclusão de uma QUADRA
-export const onQuadraWrite = onDocumentWritten(
-    "congregations/{congId}/territories/{terrId}/quadras/{quadraId}",
-    async (event) => {
-        const { congId, terrId } = event.params;
-        await updateTerritoryStats(congId, terrId);
-    }
-);
-
-
-// Gatilho que observa a escrita/exclusão de um TERRITÓRIO
-export const onTerritoryWrite = onDocumentWritten(
-  "congregations/{congId}/territories/{terrId}",
-  async (event) => {
-      const { congId } = event.params;
-      await updateCongregationStats(congId);
+  } 
+  // Se a mudança foi diretamente em uma quadra (criação/exclusão)
+  else if (anyCollection === "quadras") {
+    await updateTerritoryStats(congId, terrId);
   }
-);
-
+  // Se a mudança foi diretamente no território (ex. tipo mudou)
+  else {
+    await updateCongregationStats(congId);
+  }
+});
 
 export const onDeleteTerritory = onDocumentDeleted(
   "congregations/{congregationId}/territories/{territoryId}",
@@ -465,7 +447,8 @@ export const onDeleteTerritory = onDocumentDeleted(
       logger.log(
         `[onDeleteTerritory] Território ${event.params.territoryId} e subcoleções deletadas.`
       );
-      // A atualização da congregação será feita pelo gatilho onTerritoryWrite
+      // Dispara a atualização da congregação após a exclusão
+      await updateCongregationStats(event.params.congregationId);
       return { success: true };
     } catch (error) {
       logger.error(
@@ -495,7 +478,8 @@ export const onDeleteQuadra = onDocumentDeleted(
       logger.log(
         `[onDeleteQuadra] Quadra ${event.params.quadraId} e subcoleções deletadas.`
       );
-       // A atualização do território será feita pelo gatilho onQuadraWrite
+      // Dispara a atualização do território após a exclusão da quadra
+      await updateTerritoryStats(event.params.congregationId, event.params.territoryId);
       return { success: true };
     } catch (error) {
       logger.error(
