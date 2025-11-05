@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -37,6 +38,8 @@ export default function AddEditWorkLogModal({ isOpen, onClose, onSave, workLogTo
     onClose();
   };
 
+  const hasChanges = isEditing ? notes !== workLogToEdit?.notes : notes.trim() !== '';
+
   if (!isOpen) return null;
 
   return (
@@ -56,7 +59,7 @@ export default function AddEditWorkLogModal({ isOpen, onClose, onSave, workLogTo
           
           <div className="flex justify-end space-x-3 pt-4">
             <button onClick={onClose} className="px-4 py-2 rounded-md bg-muted hover:bg-muted/80">Cancelar</button>
-            <button onClick={handleSave} className="px-4 py-2 rounded-md bg-primary text-primary-foreground">Salvar Alterações</button>
+            <button onClick={handleSave} disabled={!hasChanges} className="px-4 py-2 rounded-md bg-primary text-primary-foreground disabled:opacity-50">Salvar Alterações</button>
           </div>
         </div>
       </div>
