@@ -8,6 +8,7 @@ import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff, Info, AlertTriangle } from 'lucide-react';
 import Image from 'next/image';
+import { useUser } from '@/contexts/UserContext';
 
 export default function UniversalLoginPage() {
   const [email, setEmail] = useState('');
@@ -15,15 +16,14 @@ export default function UniversalLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const { user, loading: userLoading } = useUser();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  useEffect(() => {
-    const errorParam = searchParams.get('error');
-    if (errorParam) {
-        setError(decodeURIComponent(errorParam));
-    }
-  }, [searchParams]);
+  // Se o usuário já está logado e carregado, o UserContext cuidará do redirecionamento.
+  // Evita flash da tela de login para usuários já logados.
+  if (user && !userLoading) {
+      return null;
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,8 +32,7 @@ export default function UniversalLoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // O UserContext irá lidar com o redirecionamento agora.
-      // Nenhuma chamada a router.push() é necessária aqui.
+      // O UserContext irá lidar com o redirecionamento após o login bem-sucedido.
     } catch (err: any) {
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setError("E-mail ou senha inválidos.");

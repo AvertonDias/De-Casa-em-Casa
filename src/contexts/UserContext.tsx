@@ -118,12 +118,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
               } as AppUser;
 
           // Se o usuário estiver bloqueado ou rejeitado, força o logout com uma mensagem.
-          if (userData.status === 'bloqueado' || userData.status === 'rejeitado') {
-            const message = userData.status === 'bloqueado'
-                ? "Sua conta está bloqueada. Por favor, entre em contato com um administrador."
-                : "Sua solicitação de acesso foi rejeitada.";
-            logout(`/?error=${encodeURIComponent(message)}`);
-            return;
+          if (userData.status === 'bloqueado') {
+              logout(`/?error=${encodeURIComponent("Sua conta está bloqueada. Por favor, entre em contato com um administrador.")}`);
+              return;
+          }
+          if(userData.status === 'rejeitado') {
+              logout(`/?error=${encodeURIComponent("Sua solicitação de acesso foi rejeitada.")}`);
+              return;
           }
           
           if (userData?.congregationId) {
