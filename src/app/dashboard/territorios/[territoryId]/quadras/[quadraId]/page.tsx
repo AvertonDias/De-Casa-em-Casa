@@ -55,7 +55,8 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         return;
     }
 
-    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
+    const congregationId = user.congregationId;
+    const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
     const quadrasRef = collection(territoryRef, 'quadras');
 
     getDoc(territoryRef).then(snap => snap.exists() && setTerritory(snap.data() as Territory));
@@ -66,7 +67,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     });
 
 
-    const quadraPath = `congregations/${user.congregationId}/territories/${territoryId}/quadras/${quadraId}`;
+    const quadraPath = `congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`;
     const quadraRef = doc(db, quadraPath);
 
     const unsubQuadra = onSnapshot(quadraRef, (docSnap) => {
@@ -157,13 +158,14 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   };
   
   const handleConfirmStatusChange = async () => {
-    if (!statusAction || !user?.congregationId || !territoryId || !quadraId) return;
+    if (!statusAction || !user?.uid || !user?.congregationId || !territoryId || !quadraId) return;
   
     const { casa, newStatus } = statusAction;
+    const congregationId = user.congregationId;
   
     try {
       await runTransaction(db, async (transaction) => {
-        const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
+        const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
         const quadraRef = doc(territoryRef, 'quadras', quadraId);
         const casaRef = doc(quadraRef, 'casas', casa.id);
         const activityHistoryRef = collection(territoryRef, 'activityHistory');
@@ -251,12 +253,13 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 
   const executeDelete = async () => {
     if (!casaToDelete || !user?.congregationId || !territoryId || !quadraId) return;
+    const congregationId = user.congregationId;
 
     try {
         await runTransaction(db, async (transaction) => {
-            const quadraRef = doc(db, 'congregations', user.congregationId!, 'territories', territoryId, 'quadras', quadraId);
+            const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
             const casaRef = doc(quadraRef, 'casas', casaToDelete.id);
-            const territoryRef = doc(db, 'congregations', user.congregationId!, 'territories', territoryId);
+            const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
 
             const [quadraDoc, territoryDoc, casaDoc] = await Promise.all([
                 transaction.get(quadraRef),
@@ -315,10 +318,11 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const finishReordering = async () => {
     if (!user?.congregationId || !territoryId || !quadraId) return;
     setLoading(true);
+    const congregationId = user.congregationId;
 
     const batch = writeBatch(db);
     casas.forEach((casa, index) => {
-      const casaRef = doc(db, 'congregations', user.congregationId!, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
+      const casaRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
       batch.update(casaRef, { order: index }); 
     });
 
@@ -465,7 +469,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         </div>
       </div>
       
-      {selectedCasa && (
+      {selectedCasa && user.congregationId && (
         <EditCasaModal 
           isOpen={isEditModalOpen} 
           onClose={() => setIsEditModalOpen(false)} 
@@ -511,5 +515,3 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 }
 
 export default withAuth(QuadraDetailPage);
-
-    
