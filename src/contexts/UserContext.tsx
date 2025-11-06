@@ -83,34 +83,32 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       if (firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
-        let userDoc = await getDoc(userRef);
-
-        if (!userDoc.exists()) {
-          const pendingDataStr = sessionStorage.getItem('pendingUserData');
-          if (pendingDataStr) {
-            try {
-              const pendingData = JSON.parse(pendingDataStr);
-              await setDoc(userRef, {
-                email: firebaseUser.email,
-                name: firebaseUser.displayName,
-                ...pendingData
-              });
-              sessionStorage.removeItem('pendingUserData');
-              userDoc = await getDoc(userRef); // Re-fetch o documento após criação
-            } catch (error) {
-              console.error("Falha ao criar documento do usuário pendente:", error);
-              logout('/');
-              return;
-            }
-          }
-        }
         
         const userDocListener = onSnapshot(userRef, (docSnap) => {
           const rawData = docSnap.data();
           
           if (!docSnap.exists()) {
-             logout('/');
-             return;
+            const pendingDataStr = sessionStorage.getItem('pendingUserData');
+            if (pendingDataStr) {
+                try {
+                    const pendingData = JSON.parse(pendingDataStr);
+                    setDoc(userRef, {
+                        email: firebaseUser.email,
+                        name: firebaseUser.displayName,
+                        ...pendingData,
+                        createdAt: serverTimestamp(),
+                        lastSeen: serverTimestamp()
+                    });
+                    sessionStorage.removeItem('pendingUserData');
+                } catch (error) {
+                    console.error("Falha ao criar documento do usuário pendente:", error);
+                    logout('/');
+                }
+            } else {
+                 // Se o documento realmente não existe e não há dados pendentes, deslogue.
+                 logout('/');
+            }
+            return;
           }
 
           let appStatus = rawData?.status;
@@ -128,7 +126,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 whatsapp: rawData?.whatsapp || '',
               } as AppUser;
 
-          if (userData.status === 'bloqueado') {
+          if (userData.status === 'bloqueado' || userData.status === 'rejeitado') {
               logout('/');
               return;
           }
@@ -197,7 +195,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       return;
     }
     
-    if (user.status === 'bloqueado') {
+    if (user.status === 'bloqueado' || user.status === 'rejeitado') {
         logout('/');
         return;
     }
@@ -205,12 +203,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (user.status === 'ativo' || user.status === 'inativo') {
       const isInitialRedirect = pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre' && !isAuthActionPage);
       if (isInitialRedirect) {
-        if (user.role === 'Administrador' || user.role === 'Dirigente' || user.role === 'Servo de Territórios') {
+        if (user.role === 'Administrador') {
           router.replace('/dashboard');
-        } else if (user.role === 'Publicador') {
-          router.replace('/dashboard/meus-territorios');
         } else {
-          router.replace('/dashboard');
+          router.replace('/dashboard/territorios');
         }
       }
     }
