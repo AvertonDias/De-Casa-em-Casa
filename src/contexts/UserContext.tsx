@@ -177,39 +177,46 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (loading || !pathname) return;
-
+  
+    const isAuthPage = pathname === '/' || pathname.startsWith('/cadastro') || pathname.startsWith('/recuperar-senha') || pathname.startsWith('/nova-congregacao');
     const isAuthActionPage = pathname.startsWith('/auth/action');
-    const isProtectedPage = pathname.startsWith('/dashboard') || pathname.startsWith('/aguardando-aprovacao');
-    
+    const isWaitingPage = pathname === '/aguardando-aprovacao';
+  
     if (!user) {
-      if (isProtectedPage && !isAuthActionPage) {
+      // Se não há usuário e a página não é uma de autenticação, redireciona para o login
+      if (!isAuthPage && !isAuthActionPage) {
         router.replace('/');
-      }
-      return; 
-    }
-
-    if (user.status === 'pendente') {
-      if (pathname !== '/aguardando-aprovacao' && !isAuthActionPage) {
-        router.replace('/aguardando-aprovacao');
       }
       return;
     }
-    
-    if (user.status === 'bloqueado' || user.status === 'rejeitado') {
+  
+    // Se o usuário existe, prossiga com a lógica de status
+    switch (user.status) {
+      case 'pendente':
+        if (!isWaitingPage) {
+          router.replace('/aguardando-aprovacao');
+        }
+        break;
+  
+      case 'bloqueado':
+      case 'rejeitado':
         logout('/');
-        return;
+        break;
+  
+      case 'ativo':
+      case 'inativo':
+        if (isAuthPage || isWaitingPage) {
+          const redirectTo = user.role === 'Administrador' ? '/dashboard' : '/dashboard/territorios';
+          router.replace(redirectTo);
+        }
+        break;
+  
+      default:
+        // Caso de status desconhecido, deslogar por segurança
+        logout('/');
+        break;
     }
-
-    if (user.status === 'ativo' || user.status === 'inativo') {
-      const isInitialRedirect = pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre' && !isAuthActionPage);
-      if (isInitialRedirect) {
-          if (user.role === 'Administrador') {
-            router.replace('/dashboard');
-          } else {
-            router.replace('/dashboard/territorios');
-          }
-      }
-    }
+  
   }, [user, loading, pathname, router]);
 
   const value = { user, congregation, loading, logout, updateUser };
