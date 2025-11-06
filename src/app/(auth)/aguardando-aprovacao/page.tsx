@@ -26,26 +26,21 @@ function AguardandoAprovacaoPage() {
                 setLoadingManagers(true);
                 try {
                     const usersRef = collection(db, 'users');
-                    // Consulta corrigida com 'and' para agrupar as condições
-                    const q = query(
-                        usersRef,
-                        and(
-                            where("congregationId", "==", user.congregationId),
-                            or(
-                                where("role", "==", "Administrador"),
-                                where("role", "==", "Dirigente")
-                            )
-                        )
-                    );
+                    // Consulta corrigida para buscar todos os usuários da congregação
+                    const q = query(usersRef, where("congregationId", "==", user.congregationId));
+                    
                     const querySnapshot = await getDocs(q);
-                    const fetchedManagers = querySnapshot.docs.map(doc => {
-                        const data = doc.data();
-                        return {
-                            uid: doc.id,
-                            name: data.name,
-                            whatsapp: data.whatsapp
-                        };
-                    });
+
+                    // Filtra localmente pelos perfis desejados
+                    const fetchedManagers = querySnapshot.docs
+                        .map(doc => ({ uid: doc.id, ...doc.data() }))
+                        .filter(u => u.role === 'Administrador' || u.role === 'Dirigente')
+                        .map(u => ({
+                            uid: u.uid,
+                            name: u.name,
+                            whatsapp: u.whatsapp
+                        }));
+
                     setManagers(fetchedManagers);
                 } catch (error) {
                     console.error("Erro ao buscar administradores e dirigentes:", error);
