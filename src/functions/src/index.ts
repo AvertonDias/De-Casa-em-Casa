@@ -1,3 +1,4 @@
+
 // src/functions/src/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
@@ -6,7 +7,7 @@ import {
 } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
-import { getFirestore } from "firebase-admin/firestore";
+import { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import * as crypto from "crypto";
 
 if (!admin.apps.length) {
@@ -129,7 +130,7 @@ export const notifyOnNewUser = withCors(async (req, res) => {
                 .where("congregationId", "==", congregationId)
                 .where("role", "==", role)
                 .get();
-            usersToNotifySnapshot.forEach((userDoc: ReturnType<typeof getFirestore>['doc']) => {
+            usersToNotifySnapshot.forEach((userDoc: QueryDocumentSnapshot) => {
                 const notification = {
                     title: "Novo Usuário Aguardando Aprovação",
                     body: `O usuário "${newUserName}" solicitou acesso à congregação.`,
