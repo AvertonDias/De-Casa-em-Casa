@@ -85,7 +85,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const userRef = doc(db, 'users', firebaseUser.uid);
         
         const userDocListener = onSnapshot(userRef, (docSnap) => {
-          const rawData = docSnap.data();
           
           if (!docSnap.exists()) {
             const pendingDataStr = sessionStorage.getItem('pendingUserData');
@@ -111,6 +110,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
             return;
           }
 
+          const rawData = docSnap.data();
           let appStatus = rawData?.status;
           const oneMonthAgo = subMonths(new Date(), 1);
           if (appStatus === 'ativo' && rawData?.lastSeen && rawData.lastSeen.toDate() < oneMonthAgo) {
@@ -203,7 +203,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (user.status === 'ativo' || user.status === 'inativo') {
       const isInitialRedirect = pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre' && !isAuthActionPage);
       if (isInitialRedirect) {
-        router.replace('/dashboard');
+          if (user.role === 'Administrador') {
+            router.replace('/dashboard');
+          } else {
+            router.replace('/dashboard/territorios');
+          }
       }
     }
   }, [user, loading, pathname, router]);
