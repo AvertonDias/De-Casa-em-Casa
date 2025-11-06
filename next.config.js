@@ -21,9 +21,6 @@ const nextConfig = {
       { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
     ],
   },
-  experimental: {
-    forceSwcTransforms: false,
-  },
 };
 
 export default withPWA(nextConfig);
