@@ -6,7 +6,7 @@ import { useUser } from "@/contexts/UserContext";
 import { Loader, MailCheck, Users, MessageSquare } from "lucide-react";
 import withAuth from "@/components/withAuth";
 import { Button } from '@/components/ui/button';
-import { collection, query, where, getDocs, or, and } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { AppUser } from '@/types/types';
 
@@ -27,7 +27,7 @@ function AguardandoAprovacaoPage() {
                 setLoadingManagers(true);
                 try {
                     const usersRef = collection(db, 'users');
-                    // Consulta corrigida para buscar todos os usuários da congregação
+                    // Consulta para buscar todos os usuários da congregação
                     const q = query(usersRef, where("congregationId", "==", user.congregationId));
                     
                     const querySnapshot = await getDocs(q);
@@ -119,7 +119,7 @@ function AguardandoAprovacaoPage() {
 
                 <div className="pt-4 border-t border-border">
                     <Button
-                        onClick={logout}
+                        onClick={() => logout()}
                         variant="destructive"
                         className="w-full"
                     >
