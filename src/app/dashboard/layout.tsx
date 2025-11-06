@@ -1,5 +1,4 @@
 
-
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
 import Image from 'next/image';
@@ -167,7 +166,7 @@ function Sidebar({
   };
 
   const navLinks = [
-    { name: "Início", href: "/dashboard", icon: Home, roles: ['Administrador', 'Dirigente', 'Servo de Territórios'] },
+    { name: "Início", href: "/dashboard", icon: Home, roles: ['Administrador', 'Dirigente', 'Servo de Territórios', 'Publicador'] },
     { name: "Territórios", href: "/dashboard/territorios", icon: Map, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
     { name: "Rural", href: "/dashboard/rural", icon: Trees, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
     { name: "Meus Territórios", href: "/dashboard/meus-territorios", icon: UserCheck, roles: ['Administrador', 'Dirigente', 'Publicador', 'Servo de Territórios'] },
@@ -472,6 +471,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
 
 
 

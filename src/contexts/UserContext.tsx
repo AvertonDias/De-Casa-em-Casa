@@ -203,11 +203,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (user.status === 'ativo' || user.status === 'inativo') {
       const isInitialRedirect = pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre' && !isAuthActionPage);
       if (isInitialRedirect) {
-        if (user.role === 'Administrador') {
-          router.replace('/dashboard');
-        } else {
-          router.replace('/dashboard/territorios');
-        }
+        router.replace('/dashboard');
       }
     }
   }, [user, loading, pathname, router]);
