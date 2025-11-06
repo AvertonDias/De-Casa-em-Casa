@@ -16,7 +16,7 @@
   },
   "functions": [
     {
-      "source": "src/functions",
+      "source": "functions",
       "codebase": "default",
       "runtime": "nodejs20",
       "predeploy": [
