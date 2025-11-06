@@ -8,6 +8,7 @@ import withAuth from "@/components/withAuth";
 import { Button } from '@/components/ui/button';
 import { collection, query, where, getDocs, or, and } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import type { AppUser } from '@/types/types';
 
 interface Manager {
     uid: string;
@@ -33,7 +34,7 @@ function AguardandoAprovacaoPage() {
 
                     // Filtra localmente pelos perfis desejados
                     const fetchedManagers = querySnapshot.docs
-                        .map(doc => ({ uid: doc.id, ...doc.data() }))
+                        .map(doc => ({ uid: doc.id, ...doc.data() } as AppUser))
                         .filter(u => u.role === 'Administrador' || u.role === 'Dirigente')
                         .map(u => ({
                             uid: u.uid,
