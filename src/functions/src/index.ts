@@ -128,7 +128,7 @@ export const notifyOnNewUser = withCors(async (req, res) => {
                 .where("congregationId", "==", congregationId)
                 .where("role", "==", role)
                 .get();
-            usersToNotifySnapshot.forEach((userDoc) => {
+            usersToNotifySnapshot.forEach((userDoc: admin.firestore.QueryDocumentSnapshot) => {
                 const notification = {
                     title: "Novo Usuário Aguardando Aprovação",
                     body: `O usuário "${newUserName}" solicitou acesso à congregação.`,
