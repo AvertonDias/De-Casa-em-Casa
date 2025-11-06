@@ -2,12 +2,10 @@
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
 import {
-  onDocumentWritten,
   onDocumentDeleted,
 } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
-import { format } from "date-fns";
 import * as crypto from "crypto";
 
 if (!admin.apps.length) {
@@ -347,7 +345,8 @@ export const mirrorUserStatus = onValueWritten(
 
     try {
         const userDoc = await userDocRef.get();
-        if (!userDoc.exists) return null; // Usuário não existe no Firestore
+        if (!userDoc.exists)
+            return null; // Usuário não existe no Firestore
 
         if (!eventStatus || eventStatus.state === "offline") {
             // Apenas atualiza se o status atual for 'online'

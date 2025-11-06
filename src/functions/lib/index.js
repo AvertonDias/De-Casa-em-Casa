@@ -37,12 +37,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.mirrorUserStatus = exports.onDeleteQuadra = exports.onDeleteTerritory = exports.onWriteTerritoryData = exports.resetTerritoryProgress = exports.deleteUserAccount = exports.resetPasswordWithToken = exports.requestPasswordReset = exports.notifyOnNewUser = exports.createCongregationAndAdmin = void 0;
+exports.mirrorUserStatus = exports.onDeleteQuadra = exports.onDeleteTerritory = exports.deleteUserAccount = exports.resetPasswordWithToken = exports.requestPasswordReset = exports.notifyOnNewUser = exports.createCongregationAndAdmin = void 0;
 const v2_1 = require("firebase-functions/v2");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const database_1 = require("firebase-functions/v2/database");
 const firebase_admin_1 = __importDefault(require("firebase-admin"));
-const date_fns_1 = require("date-fns");
 const crypto = __importStar(require("crypto"));
 if (!firebase_admin_1.default.apps.length) {
     firebase_admin_1.default.initializeApp();
@@ -274,139 +273,9 @@ exports.deleteUserAccount = withCors(async (req, res) => {
         }
     }
 });
-exports.resetTerritoryProgress = withCors(async (req, res) => {
-    try {
-        const { congregationId, territoryId } = req.body.data;
-        if (!congregationId || !territoryId) {
-            res.status(400).json({ data: { success: false, error: "IDs faltando." } });
-            return;
-        }
-        const historyPath = `congregations/${congregationId}/territories/${territoryId}/activityHistory`;
-        const quadrasRef = db.collection(`congregations/${congregationId}/territories/${territoryId}/quadras`);
-        await db.recursiveDelete(db.collection(historyPath));
-        v2_1.logger.log(`[resetTerritory] Histórico para ${territoryId} deletado com sucesso.`);
-        let housesUpdatedCount = 0;
-        await db.runTransaction(async (transaction) => {
-            const quadrasSnapshot = await transaction.get(quadrasRef);
-            const housesToUpdate = [];
-            for (const quadraDoc of quadrasSnapshot.docs) {
-                const casasSnapshot = await transaction.get(quadraDoc.ref.collection("casas"));
-                casasSnapshot.forEach((casaDoc) => {
-                    if (casaDoc.data().status === true) {
-                        housesToUpdate.push({ ref: casaDoc.ref, data: { status: false } });
-                        housesUpdatedCount++;
-                    }
-                });
-            }
-            for (const houseUpdate of housesToUpdate) {
-                transaction.update(houseUpdate.ref, houseUpdate.data);
-            }
-        });
-        if (housesUpdatedCount > 0) {
-            res.status(200).json({ data: { success: true, message: `Sucesso! ${housesUpdatedCount} casas no território foram resetadas.` } });
-        }
-        else {
-            res.status(200).json({ data: { success: true, message: "Nenhuma alteração necessária, nenhuma casa estava marcada como 'feita'." } });
-        }
-    }
-    catch (error) {
-        v2_1.logger.error(`[resetTerritory] FALHA CRÍTICA ao limpar o território:`, error);
-        res.status(500).json({ data: { success: false, error: "Falha ao processar a limpeza do território." } });
-    }
-});
 // ========================================================================
-//   GATILHOS FIRESTORE (UNIFICADOS)
+//   GATILHOS FIRESTORE
 // ========================================================================
-async function updateCongregationStats(congregationId) {
-    const congregationRef = db.doc(`congregations/${congregationId}`);
-    const territoriesRef = congregationRef.collection("territories");
-    const territoriesSnapshot = await territoriesRef.get();
-    let urbanCount = 0, ruralCount = 0, totalHouses = 0, totalHousesDone = 0, totalQuadras = 0;
-    territoriesSnapshot.forEach((doc) => {
-        var _a, _b;
-        const data = doc.data();
-        if (data.type === "rural") {
-            ruralCount++;
-        }
-        else {
-            urbanCount++;
-            totalHouses += ((_a = data.stats) === null || _a === void 0 ? void 0 : _a.totalHouses) || 0;
-            totalHousesDone += ((_b = data.stats) === null || _b === void 0 ? void 0 : _b.housesDone) || 0;
-            totalQuadras += data.quadraCount || 0;
-        }
-    });
-    return congregationRef.update({
-        territoryCount: urbanCount,
-        ruralTerritoryCount: ruralCount,
-        totalQuadras,
-        totalHouses,
-        totalHousesDone,
-        lastUpdate: firebase_admin_1.default.firestore.FieldValue.serverTimestamp(),
-    });
-}
-async function updateTerritoryStats(congregationId, territoryId) {
-    const territoryRef = db.doc(`congregations/${congregationId}/territories/${territoryId}`);
-    const quadrasSnapshot = await territoryRef.collection("quadras").get();
-    let totalHouses = 0;
-    let housesDone = 0;
-    quadrasSnapshot.forEach((doc) => {
-        totalHouses += doc.data().totalHouses || 0;
-        housesDone += doc.data().housesDone || 0;
-    });
-    const progress = totalHouses > 0 ? housesDone / totalHouses : 0;
-    await territoryRef.update({
-        stats: { totalHouses, housesDone },
-        progress,
-        quadraCount: quadrasSnapshot.size,
-    });
-    // Após atualizar o território, atualiza a congregação
-    await updateCongregationStats(congregationId);
-}
-exports.onWriteTerritoryData = (0, firestore_1.onDocumentWritten)("congregations/{congId}/territories/{terrId}/{anyCollection}/{anyId}", async (event) => {
-    var _a, _b, _c;
-    const { congId, terrId, anyCollection } = event.params;
-    // Se a mudança foi em uma casa (que está dentro de uma quadra)
-    if (anyCollection === "quadras" && ((_a = event.data) === null || _a === void 0 ? void 0 : _a.after.ref.parent.parent)) {
-        const quadraId = event.data.after.ref.parent.parent.id;
-        const quadraRef = db.doc(`congregations/${congId}/territories/${terrId}/quadras/${quadraId}`);
-        const casasSnapshot = await quadraRef.collection("casas").get();
-        const totalHousesInQuadra = casasSnapshot.size;
-        const housesDoneInQuadra = casasSnapshot.docs.filter((doc) => doc.data().status === true).length;
-        await quadraRef.update({ totalHouses: totalHousesInQuadra, housesDone: housesDoneInQuadra });
-        await updateTerritoryStats(congId, terrId);
-        const beforeData = (_b = event.data) === null || _b === void 0 ? void 0 : _b.before.data();
-        const afterData = (_c = event.data) === null || _c === void 0 ? void 0 : _c.after.data();
-        if ((beforeData === null || beforeData === void 0 ? void 0 : beforeData.status) === false && (afterData === null || afterData === void 0 ? void 0 : afterData.status) === true) {
-            const territoryRef = db.doc(`congregations/${congId}/territories/${terrId}`);
-            const today = (0, date_fns_1.format)(new Date(), "yyyy-MM-dd");
-            const activityHistoryRef = territoryRef.collection("activityHistory");
-            const todayActivitiesSnap = await activityHistoryRef
-                .where("activityDateStr", "==", today)
-                .where("type", "==", "work")
-                .limit(1)
-                .get();
-            if (todayActivitiesSnap.empty) {
-                await activityHistoryRef.add({
-                    type: "work",
-                    activityDate: firebase_admin_1.default.firestore.FieldValue.serverTimestamp(),
-                    activityDateStr: today,
-                    description: "Primeiro trabalho do dia registrado. (Registro Automático)",
-                    userId: "automatic_system_log",
-                    userName: "Sistema",
-                });
-            }
-            await territoryRef.update({ lastUpdate: firebase_admin_1.default.firestore.FieldValue.serverTimestamp() });
-        }
-    }
-    // Se a mudança foi diretamente em uma quadra (criação/exclusão)
-    else if (anyCollection === "quadras") {
-        await updateTerritoryStats(congId, terrId);
-    }
-    // Se a mudança foi diretamente no território (ex. tipo mudou)
-    else {
-        await updateCongregationStats(congId);
-    }
-});
 exports.onDeleteTerritory = (0, firestore_1.onDocumentDeleted)("congregations/{congregationId}/territories/{territoryId}", async (event) => {
     if (!event.data) {
         v2_1.logger.warn(`[onDeleteTerritory] Evento de deleção para ${event.params.territoryId} sem dados. Ignorando.`);
@@ -416,8 +285,6 @@ exports.onDeleteTerritory = (0, firestore_1.onDocumentDeleted)("congregations/{c
     try {
         await firebase_admin_1.default.firestore().recursiveDelete(ref);
         v2_1.logger.log(`[onDeleteTerritory] Território ${event.params.territoryId} e subcoleções deletadas.`);
-        // Dispara a atualização da congregação após a exclusão
-        await updateCongregationStats(event.params.congregationId);
         return { success: true };
     }
     catch (error) {
@@ -434,8 +301,6 @@ exports.onDeleteQuadra = (0, firestore_1.onDocumentDeleted)("congregations/{cong
     try {
         await firebase_admin_1.default.firestore().recursiveDelete(ref);
         v2_1.logger.log(`[onDeleteQuadra] Quadra ${event.params.quadraId} e subcoleções deletadas.`);
-        // Dispara a atualização do território após a exclusão da quadra
-        await updateTerritoryStats(event.params.congregationId, event.params.territoryId);
         return { success: true };
     }
     catch (error) {
@@ -450,26 +315,35 @@ exports.mirrorUserStatus = (0, database_1.onValueWritten)({
     ref: "/status/{uid}",
     region: "us-central1", // O sistema de presença funciona melhor na região padrão
 }, async (event) => {
+    var _a, _b;
     const eventStatus = event.data.after.val();
     const uid = event.params.uid;
     const userDocRef = db.doc(`users/${uid}`);
     try {
+        const userDoc = await userDocRef.get();
+        if (!userDoc.exists)
+            return null; // Usuário não existe no Firestore
         if (!eventStatus || eventStatus.state === "offline") {
-            await userDocRef.update({
-                isOnline: false,
-                lastSeen: firebase_admin_1.default.firestore.FieldValue.serverTimestamp(),
-            });
+            // Apenas atualiza se o status atual for 'online'
+            if (((_a = userDoc.data()) === null || _a === void 0 ? void 0 : _a.isOnline) === true) {
+                await userDocRef.update({
+                    isOnline: false,
+                    lastSeen: firebase_admin_1.default.firestore.FieldValue.serverTimestamp(),
+                });
+            }
         }
         else if (eventStatus.state === "online") {
-            await userDocRef.update({
-                isOnline: true,
-                lastSeen: firebase_admin_1.default.firestore.FieldValue.serverTimestamp(),
-            });
+            // Apenas atualiza se o status atual for 'offline' ou indefinido
+            if (((_b = userDoc.data()) === null || _b === void 0 ? void 0 : _b.isOnline) !== true) {
+                await userDocRef.update({
+                    isOnline: true,
+                    lastSeen: firebase_admin_1.default.firestore.FieldValue.serverTimestamp(),
+                });
+            }
         }
     }
     catch (err) {
-        // Ignora erro 'not-found' que pode acontecer se o usuário for excluído
-        if (err.code !== "not-found") {
+        if (err.code !== 5) { // 5 = NOT_FOUND, ignora se o doc do usuário foi deletado
             v2_1.logger.error(`[Presence Mirror] Falha para ${uid}:`, err);
         }
     }
