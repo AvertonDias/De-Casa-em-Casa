@@ -3,7 +3,7 @@
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, serverTimestamp, enableNetwork, disableNetwork, Timestamp } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp, enableNetwork, disableNetwork, Timestamp, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, app } from '@/lib/firebase';
 import type { AppUser, Congregation } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
@@ -77,25 +77,43 @@ export function UserProvider({ children }: { children: ReactNode }) {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
       // Limpa listeners antigos antes de configurar novos.
       unsubscribeAllFirestoreListeners();
 
       if (firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
+        let userDoc = await getDoc(userRef);
+
+        if (!userDoc.exists()) {
+          const pendingDataStr = sessionStorage.getItem('pendingUserData');
+          if (pendingDataStr) {
+            try {
+              const pendingData = JSON.parse(pendingDataStr);
+              await setDoc(userRef, {
+                email: firebaseUser.email,
+                name: firebaseUser.displayName,
+                ...pendingData
+              });
+              sessionStorage.removeItem('pendingUserData');
+              userDoc = await getDoc(userRef); // Re-fetch o documento após criação
+            } catch (error) {
+              console.error("Falha ao criar documento do usuário pendente:", error);
+              logout('/');
+              return;
+            }
+          }
+        }
         
         const userDocListener = onSnapshot(userRef, (docSnap) => {
           const rawData = docSnap.data();
           
           if (!docSnap.exists()) {
-             // Caso raro onde o usuário do auth existe mas o doc do firestore foi deletado.
              logout('/');
              return;
           }
 
           let appStatus = rawData?.status;
-          
-          // Lógica para o status 'inativo' automático
           const oneMonthAgo = subMonths(new Date(), 1);
           if (appStatus === 'ativo' && rawData?.lastSeen && rawData.lastSeen.toDate() < oneMonthAgo) {
             appStatus = 'inativo';
@@ -104,15 +122,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
           const userData = { 
                 uid: firebaseUser.uid,
                 ...rawData,
-                status: appStatus, // Usa o status calculado
+                status: appStatus,
                 name: rawData?.name || firebaseUser.displayName,
                 email: rawData?.email || firebaseUser.email,
                 whatsapp: rawData?.whatsapp || '',
               } as AppUser;
 
-          // Se o usuário estiver bloqueado, força o logout com uma mensagem.
           if (userData.status === 'bloqueado') {
-              logout(`/?error=${encodeURIComponent("Sua conta está bloqueada. Por favor, entre em contato com um administrador.")}`);
+              logout('/');
               return;
           }
           
@@ -125,7 +142,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
               if(loading) setLoading(false);
             }, (error) => {
                 console.error("Erro no listener de congregação:", error);
-                // Mesmo com erro na congregação, seta o usuário e para de carregar
                 setUser(userData);
                 setCongregation(null);
                 setLoading(false);
@@ -186,7 +202,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
         return;
     }
 
-    // Para usuários 'ativos' ou 'inativos' (que podem logar)
     if (user.status === 'ativo' || user.status === 'inativo') {
       const isInitialRedirect = pathname === '/aguardando-aprovacao' || (!isProtectedPage && pathname !== '/sobre' && !isAuthActionPage);
       if (isInitialRedirect) {

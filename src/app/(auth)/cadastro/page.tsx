@@ -60,34 +60,30 @@ export default function SignUpPage() {
       }
       const congregationId = querySnapshot.docs[0].id;
       
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
-      // A chamada createUserWithEmailAndPassword já faz o login do usuário.
-      // O documento do Firestore será criado pelo UserContext ao detectar o novo usuário.
-      await updateProfile(userCredential.user, { displayName: name.trim() });
-      
-      // Agora criamos o documento do usuário. O usuário já está logado.
-      await setDoc(doc(db, "users", userCredential.user.uid), {
-        name: name.trim(), 
-        email, 
+      // O UserContext agora é responsável por criar o documento do usuário ao detectar o novo auth state.
+      // O 'UserProvider' tem acesso a esses dados via sessionStorage para completar o perfil.
+      sessionStorage.setItem('pendingUserData', JSON.stringify({
+        name: name.trim(),
         whatsapp,
-        congregationId, 
-        role: "Publicador", 
+        congregationId,
+        role: "Publicador",
         status: "pendente"
-      });
-      
-      await notifyOnNewUser({ newUserName: name.trim(), congregationId });
+      }));
 
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(userCredential.user, { displayName: name.trim() });
+      await notifyOnNewUser({ newUserName: name.trim(), congregationId });
+      
       toast({
         title: 'Solicitação enviada!',
         description: 'Seu acesso agora precisa ser aprovado por um administrador.',
         variant: 'default',
       });
       
-      // O UserContext irá detectar o usuário logado e redirecioná-lo automaticamente para a página de aprovação.
-      // Nenhuma chamada a router.push() é necessária aqui se o UserContext estiver configurado corretamente.
-
+      // O UserContext irá detectar o usuário logado e redirecioná-lo automaticamente.
+      
     } catch (err: any) {
+      sessionStorage.removeItem('pendingUserData'); // Limpa em caso de erro
       console.error("Erro detalhado no cadastro:", err);
       if (err.message?.includes("Número da congregação")) { setError(err.message); }
       else if (err.code === 'auth/email-already-in-use') { 
