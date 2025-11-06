@@ -6,7 +6,7 @@ import { useUser } from "@/contexts/UserContext";
 import { Loader, MailCheck, Users, MessageSquare } from "lucide-react";
 import withAuth from "@/components/withAuth";
 import { Button } from '@/components/ui/button';
-import { collection, query, where, getDocs, or, and } from 'firebase/firestore';
+import { collection, query, where, getDocs, or } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface Manager {
@@ -26,14 +26,13 @@ function AguardandoAprovacaoPage() {
                 setLoadingManagers(true);
                 try {
                     const usersRef = collection(db, 'users');
+                    // A consulta correta usa `or` para pegar usuários que são Administrador OU Dirigente
                     const q = query(
                         usersRef, 
-                        and(
-                            where("congregationId", "==", user.congregationId),
-                            or(
-                                where("role", "==", "Administrador"),
-                                where("role", "==", "Dirigente")
-                            )
+                        where("congregationId", "==", user.congregationId),
+                        or(
+                            where("role", "==", "Administrador"),
+                            where("role", "==", "Dirigente")
                         )
                     );
                     const querySnapshot = await getDocs(q);
