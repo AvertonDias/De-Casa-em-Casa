@@ -22,7 +22,7 @@ const nextConfig = {
     ],
   },
   experimental: {
-    forceSwcTransforms: true,
+    forceSwcTransforms: false,
   },
 };
 
