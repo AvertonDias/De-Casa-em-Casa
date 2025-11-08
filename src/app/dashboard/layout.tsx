@@ -342,7 +342,9 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user?.uid || !user.congregationId) return;
-
+  
+    const listeners: (() => void)[] = [];
+  
     // Listener para contar notificações não lidas
     const qNotifications = query(
       collection(db, 'users', user.uid, 'notifications'),
@@ -351,10 +353,11 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     const unsubCount = onSnapshot(qNotifications, (snapshot) => {
       setUnreadNotificationsCount(snapshot.size);
     });
-
+    listeners.push(unsubCount);
+  
     const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
     const userNotificationsRef = collection(db, 'users', user.uid, 'notifications');
-    
+  
     // Listener para criar notificações de territórios designados
     const qAssigned = query(territoriesRef, where("assignment.uid", "==", user.uid));
     const unsubAssigned = onSnapshot(qAssigned, async (snapshot) => {
@@ -382,7 +385,8 @@ function DashboardLayout({ children }: { children: ReactNode }) {
       }
       await batch.commit();
     });
-
+    listeners.push(unsubAssigned);
+  
     // Listener para criar notificações de territórios atrasados
     const qOverdue = query(territoriesRef, 
       where("assignment.uid", "==", user.uid),
@@ -391,14 +395,14 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     const unsubOverdue = onSnapshot(qOverdue, async (snapshot) => {
       const batch = writeBatch(db);
       const todayStr = format(new Date(), 'yyyy-MM-dd');
-
+  
       for (const docSnap of snapshot.docs) {
         const territory = { id: docSnap.id, ...docSnap.data() } as Territory;
         const notificationId = `overdue_${territory.id}_${todayStr}`;
         const notificationRef = doc(userNotificationsRef, notificationId);
         
         const notificationDoc = await getDoc(notificationRef);
-
+  
         if (!notificationDoc.exists()) {
           batch.set(notificationRef, {
             title: "Território Atrasado",
@@ -412,12 +416,11 @@ function DashboardLayout({ children }: { children: ReactNode }) {
       }
       await batch.commit();
     });
-
-
+    listeners.push(unsubOverdue);
+  
     return () => {
-      unsubCount();
-      unsubAssigned();
-      unsubOverdue();
+      // Desinscreve todos os listeners quando o componente for desmontado ou o usuário mudar
+      listeners.forEach(unsub => unsub());
     };
   }, [user]);
   
@@ -471,6 +474,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 export default withAuth(DashboardLayout);
 
     
+
 
 
 
