@@ -22,7 +22,7 @@ const detectUserAgent = () => {
 
 export const usePWAInstall = () => {
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isAppInstalled, setIsAppInstalled] = useState(false); // CORRIGIDO: Inicia como false
+  const [isAppInstalled, setIsAppInstalled] = useState(true); // INICIA como true para evitar flash do botão
   const [deviceInfo, setDeviceInfo] = useState({ isMobile: false, isIOS: false });
 
   useEffect(() => {
@@ -30,19 +30,12 @@ export const usePWAInstall = () => {
 
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault(); 
-      setIsAppInstalled(false); // Garante que sabemos que não está instalado se o prompt aparecer
+      setIsAppInstalled(false); // O prompt apareceu, então o app NÃO está instalado
       setInstallPromptEvent(event as BeforeInstallPromptEvent);
     };
 
-    // Verifica o modo de display APENAS no lado do cliente
-    if (typeof window !== 'undefined') {
-        if (window.matchMedia('(display-mode: standalone)').matches) {
-          setIsAppInstalled(true);
-        } else {
-          // A verificação `beforeinstallprompt` é a principal forma de saber se é instalável.
-          window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-        }
-    }
+    // A verificação `beforeinstallprompt` é a principal forma de saber se é instalável.
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     
     const handleAppInstalled = () => {
       setIsAppInstalled(true);
