@@ -84,7 +84,7 @@ export default function NovaCongregacaoPage() {
         <div className="flex min-h-screen items-center justify-center bg-background">
             <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
                 <div className="flex flex-col items-center">
-                    <Image src="/icon-192x192.jpg" alt="Logo" width={80} height={80} className="mb-4 rounded-lg" priority />
+                    <Image src="/icon-512x512.jpg" alt="Logo" width={80} height={80} className="mb-4 rounded-lg" priority />
                     <h1 className="text-3xl font-bold text-center">De Casa em Casa</h1>
                     <p className="text-muted-foreground text-sm mt-2">Configure sua congregação e o primeiro administrador</p>
                 </div>

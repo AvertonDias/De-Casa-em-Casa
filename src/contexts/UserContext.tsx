@@ -94,6 +94,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
                     setDoc(userRef, {
                         email: firebaseUser.email,
                         name: firebaseUser.displayName,
+                        photoURL: firebaseUser.photoURL,
                         ...pendingData,
                         createdAt: serverTimestamp(),
                         lastSeen: serverTimestamp()
@@ -124,6 +125,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 name: rawData?.name || firebaseUser.displayName,
                 email: rawData?.email || firebaseUser.email,
                 whatsapp: rawData?.whatsapp || '',
+                photoURL: rawData?.photoURL || firebaseUser.photoURL,
               } as AppUser;
 
           if (userData.status === 'bloqueado' || userData.status === 'rejeitado') {
