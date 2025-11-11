@@ -9,9 +9,15 @@ import { usePWAInstall } from '@/hooks/usePWAInstall';
 
 export function InstallPwaModal() {
   const { showInstallButton, canPrompt, onInstall, deviceInfo } = usePWAInstall();
-  const [isDismissed, setIsDismissed] = useState(false);
+  
+  // O modal é controlado diretamente pelo `showInstallButton`
+  const [isOpen, setIsOpen] = useState(showInstallButton);
 
-  // Mensagens de instrução específicas para quando o botão de instalar não está disponível
+  // Sincroniza o estado do modal com o hook
+  useState(() => {
+    setIsOpen(showInstallButton);
+  });
+
   const instructions = {
     ios: "No Safari, toque no ícone de 'Compartilhar' e depois em 'Adicionar à Tela de Início'.",
     other: "Procure no menu do seu navegador pela opção 'Instalar aplicativo' ou 'Adicionar à tela inicial'."
@@ -22,13 +28,13 @@ export function InstallPwaModal() {
     return instructions.other;
   };
   
-  // Se o app já estiver instalado ou o usuário já dispensou o modal, não exibe nada.
-  if (isDismissed || !showInstallButton) {
+  // Não renderiza nada se o botão de instalar não deve ser mostrado
+  if (!showInstallButton) {
     return null;
   }
   
   return (
-    <Dialog open={showInstallButton} onOpenChange={setIsDismissed}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent 
         className="sm:max-w-md"
       >
@@ -42,7 +48,6 @@ export function InstallPwaModal() {
           </DialogDescription>
         </DialogHeader>
 
-        {/* Lógica Condicional: Mostra o botão se possível, senão mostra as instruções */}
         {canPrompt ? (
            <div className="pt-4">
               <Button onClick={onInstall} className="w-full" size="lg">
@@ -58,7 +63,7 @@ export function InstallPwaModal() {
         )}
         
         <DialogFooter className="sm:justify-center pt-2">
-           <Button variant="ghost" onClick={() => setIsDismissed(true)} className="w-full text-muted-foreground">
+           <Button variant="ghost" onClick={() => setIsOpen(false)} className="w-full text-muted-foreground">
             Lembrar mais tarde
           </Button>
         </DialogFooter>
