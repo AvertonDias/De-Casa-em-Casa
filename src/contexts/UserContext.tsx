@@ -9,11 +9,9 @@ import type { AppUser, Congregation } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader } from 'lucide-react';
 import { subMonths } from 'date-fns';
-
-// ▼▼▼ IMPORTAÇÕES DO REALTIME DATABASE (COM onValue) ▼▼▼
 import { getDatabase, ref, onDisconnect, set, onValue } from 'firebase/database';
 
-const rtdb = getDatabase(app); // Inicializa o RTDB
+const rtdb = getDatabase(app);
 
 interface UserContextType {
   user: AppUser | null;
@@ -33,179 +31,155 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Ref para armazenar funções de unsubscribe de Firestore.
   const firestoreUnsubsRef = useRef<(() => void)[]>([]);
 
-  // Função auxiliar para desinscrever TODOS os listeners Firestore.
   const unsubscribeAllFirestoreListeners = () => {
-    firestoreUnsubsRef.current.forEach(unsub => {
-      try {
-        unsub();
-      } catch (e) {
-        console.warn("Erro ao desinscrever listener Firestore:", e);
-      }
-    });
-    firestoreUnsubsRef.current = []; // Limpa o array.
+    firestoreUnsubsRef.current.forEach(unsub => unsub());
+    firestoreUnsubsRef.current = [];
   };
 
   const logout = async (redirectPath: string = '/') => {
     if (user) {
         const userStatusRTDBRef = ref(rtdb, `/status/${user.uid}`);
-        // Primeiro, remove a presença do RTDB. A Cloud Function cuidará do resto.
         await set(userStatusRTDBRef, null).catch(e => console.error("Falha ao limpar status no RTDB:", e));
     }
-    // Agora, faz o signOut do Firebase Auth.
     await signOut(auth).catch(e => console.error("Falha no signOut do Auth:", e));
-
-    // Apenas redireciona. O listener de authState vai limpar o estado do contexto.
     router.push(redirectPath);
   };
   
   const updateUser = async (data: Partial<AppUser>) => {
-    if (!user) {
-      throw new Error("Não é possível atualizar um usuário que não está logado.");
-    }
+    if (!user) throw new Error("Não é possível atualizar um usuário que não está logado.");
     const userRef = doc(db, 'users', user.uid);
     await updateDoc(userRef, data);
   };
 
   useEffect(() => {
-    // Gerenciador de estado online/offline
     const handleOnline = () => enableNetwork(db);
     const handleOffline = () => disableNetwork(db);
-
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
-      // Limpa listeners antigos antes de configurar novos.
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       unsubscribeAllFirestoreListeners();
+      setLoading(true);
 
-      if (firebaseUser) {
-        const userRef = doc(db, 'users', firebaseUser.uid);
-        
-        const userDocListener = onSnapshot(userRef, (docSnap) => {
-          
-          if (!docSnap.exists()) {
-            const pendingDataStr = sessionStorage.getItem('pendingUserData');
-            if (pendingDataStr) {
-                try {
-                    const pendingData = JSON.parse(pendingDataStr);
-                    setDoc(userRef, {
-                        email: firebaseUser.email,
-                        name: firebaseUser.displayName,
-                        photoURL: firebaseUser.photoURL,
-                        ...pendingData,
-                        createdAt: serverTimestamp(),
-                        lastSeen: serverTimestamp()
-                    });
-                    sessionStorage.removeItem('pendingUserData');
-                } catch (error) {
-                    console.error("Falha ao criar documento do usuário pendente:", error);
-                    logout('/');
-                }
-            } else {
-                 // Se o documento realmente não existe e não há dados pendentes, deslogue.
-                 logout('/');
-            }
-            return;
-          }
-
-          const rawData = docSnap.data();
-          let appStatus = rawData?.status;
-          const oneMonthAgo = subMonths(new Date(), 1);
-          if (appStatus === 'ativo' && rawData?.lastSeen && rawData.lastSeen.toDate() < oneMonthAgo) {
-            appStatus = 'inativo';
-          }
-          
-          const userData = { 
-                uid: firebaseUser.uid,
-                ...rawData,
-                status: appStatus,
-                name: rawData?.name || firebaseUser.displayName,
-                email: rawData?.email || firebaseUser.email,
-                whatsapp: rawData?.whatsapp || '',
-                photoURL: rawData?.photoURL || firebaseUser.photoURL,
-              } as AppUser;
-
-          if (userData.status === 'bloqueado' || userData.status === 'rejeitado') {
-              logout('/');
-              return;
-          }
-          
-          if (userData?.congregationId) {
-            const congRef = doc(db, 'congregations', userData.congregationId);
-            const congListener = onSnapshot(congRef, (congSnap) => {
-              const congData = congSnap.exists() ? { id: congSnap.id, ...congSnap.data() } as Congregation : null;
-              setUser({...userData, congregationName: congData?.name});
-              setCongregation(congData);
-              if(loading) setLoading(false);
-            }, (error) => {
-                console.error("Erro no listener de congregação:", error);
-                setUser(userData);
-                setCongregation(null);
-                setLoading(false);
-            });
-            firestoreUnsubsRef.current.push(congListener);
-          } else {
-             setUser(userData);
-             setCongregation(null);
-             if(loading) setLoading(false);
-          }
-        }, (error) => {
-            console.error("Erro no listener de usuário:", error);
-            setLoading(false);
-            setUser(null);
-            unsubscribeAllFirestoreListeners();
-        });
-        firestoreUnsubsRef.current.push(userDocListener);
-
-      } else {
+      if (!firebaseUser) {
         setUser(null);
         setCongregation(null);
         setLoading(false);
+        return;
       }
+      
+      const userRef = doc(db, 'users', firebaseUser.uid);
+      const userUnsub = onSnapshot(userRef, async (userDoc) => {
+        if (!userDoc.exists()) {
+          const pendingDataStr = sessionStorage.getItem('pendingUserData');
+          if (pendingDataStr) {
+            try {
+              const pendingData = JSON.parse(pendingDataStr);
+              await setDoc(userRef, {
+                email: firebaseUser.email,
+                name: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
+                ...pendingData,
+                createdAt: serverTimestamp(),
+                lastSeen: serverTimestamp()
+              });
+              sessionStorage.removeItem('pendingUserData');
+            } catch (error) {
+              console.error("Falha ao criar documento de usuário pendente:", error);
+              logout('/');
+            }
+          } else {
+            logout('/');
+          }
+          return;
+        }
+
+        const rawData = userDoc.data();
+        let appStatus = rawData?.status;
+        const oneMonthAgo = subMonths(new Date(), 1);
+        if (appStatus === 'ativo' && rawData?.lastSeen && rawData.lastSeen.toDate() < oneMonthAgo) {
+          appStatus = 'inativo';
+        }
+        
+        const appUser = { 
+          uid: firebaseUser.uid,
+          ...rawData,
+          status: appStatus,
+          name: rawData?.name || firebaseUser.displayName,
+          email: rawData?.email || firebaseUser.email,
+        } as AppUser;
+
+        if (appUser.status === 'bloqueado' || appUser.status === 'rejeitado') {
+            logout('/');
+            return;
+        }
+
+        setUser(appUser); // Atualiza o usuário primeiro
+
+        if (appUser.congregationId) {
+          const congRef = doc(db, 'congregations', appUser.congregationId);
+          const congUnsub = onSnapshot(congRef, (congDoc) => {
+            if (congDoc.exists()) {
+              setCongregation({ id: congDoc.id, ...congDoc.data() } as Congregation);
+            } else {
+              setCongregation(null);
+            }
+            setLoading(false);
+          }, (error) => {
+            console.error("Erro no listener de congregação:", error);
+            setCongregation(null);
+            setLoading(false);
+          });
+          firestoreUnsubsRef.current.push(congUnsub);
+        } else {
+          setCongregation(null);
+          setLoading(false);
+        }
+
+      }, (error) => {
+        console.error("Erro no listener de usuário:", error);
+        setUser(null);
+        setCongregation(null);
+        setLoading(false);
+        unsubscribeAllFirestoreListeners();
+      });
+      firestoreUnsubsRef.current.push(userUnsub);
     });
 
     return () => {
-        unsubscribeAuth();
-        unsubscribeAllFirestoreListeners();
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
+      unsubscribeAuth();
+      unsubscribeAllFirestoreListeners();
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-
   useEffect(() => {
-    if (loading || !pathname) return;
+    if (loading) return;
   
-    const isAuthPage = pathname === '/' || pathname.startsWith('/cadastro') || pathname.startsWith('/recuperar-senha') || pathname.startsWith('/nova-congregacao');
-    const isAuthActionPage = pathname.startsWith('/auth/action');
+    const isAuthPage = ['/', '/cadastro', '/recuperar-senha', '/nova-congregacao'].some(p => p === pathname);
+    const isAuthActionPage = pathname?.startsWith('/auth/action');
     const isWaitingPage = pathname === '/aguardando-aprovacao';
     const isAboutPage = pathname === '/sobre';
   
     if (!user) {
-      // Se não há usuário e a página não é uma de autenticação, redireciona para o login
       if (!isAuthPage && !isAuthActionPage && !isAboutPage) {
         router.replace('/');
       }
       return;
     }
   
-    // Se o usuário existe, prossiga com a lógica de status
     switch (user.status) {
       case 'pendente':
-        if (!isWaitingPage) {
-          router.replace('/aguardando-aprovacao');
-        }
+        if (!isWaitingPage) router.replace('/aguardando-aprovacao');
         break;
-  
       case 'bloqueado':
       case 'rejeitado':
         logout('/');
         break;
-  
       case 'ativo':
       case 'inativo':
         if (isAuthPage || isWaitingPage) {
@@ -213,9 +187,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           router.replace(redirectTo);
         }
         break;
-  
       default:
-        // Caso de status desconhecido, deslogar por segurança
         logout('/');
         break;
     }
@@ -223,10 +195,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [user, loading, pathname, router]);
 
   const value = { user, congregation, loading, logout, updateUser };
-  
-  if (loading) {
-    return <div className="flex h-screen w-full items-center justify-center bg-background"><Loader className="animate-spin text-primary" /></div>;
-  }
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }
