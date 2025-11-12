@@ -8,6 +8,7 @@ import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firesto
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, db, app } from '@/lib/firebase';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Eye, EyeOff } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { maskPhone } from '@/lib/utils';
@@ -105,7 +106,19 @@ export default function SignUpPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
       <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
-        <h1 className="text-3xl font-bold text-center">Solicitar Acesso</h1>
+        <div className="flex flex-col items-center justify-center">
+            <Image
+                src="/images/icon-512x512.jpg"
+                alt="Logo De Casa em Casa"
+                width={80}
+                height={80}
+                className="rounded-lg mb-4"
+                priority
+            />
+            <h1 className="text-3xl font-bold text-center">
+                Solicitar Acesso
+            </h1>
+        </div>
          <form onSubmit={handleSignUp} className="space-y-4">
             <input type="text" value={name} onChange={handleInputChange(setName)} placeholder="Nome Completo" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" autoComplete="name" />
             <input type="email" value={email} onChange={handleInputChange(setEmail)} placeholder="E-mail" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring" autoComplete="email" />
