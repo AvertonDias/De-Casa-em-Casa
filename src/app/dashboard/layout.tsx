@@ -188,7 +188,7 @@ function Sidebar({
             <div className="w-full flex justify-between items-start mb-4">
                 <div className="w-8" />
                 <Image
-                    src="/icon-512x512.jpg"
+                    src="/images/icon-512x512.jpg"
                     alt="Logo"
                     width={80}
                     height={80}
