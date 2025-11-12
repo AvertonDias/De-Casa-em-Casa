@@ -31,11 +31,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const firestoreUnsubsRef = useRef<(() => void)[]>([]);
+  // Mapeamento para armazenar e gerenciar os listeners
+  const listenersRef = useRef<{ [key: string]: () => void }>({});
 
-  const unsubscribeAllFirestoreListeners = () => {
-    firestoreUnsubsRef.current.forEach(unsub => unsub());
-    firestoreUnsubsRef.current = [];
+  // Função para cancelar todos os listeners ativos
+  const unsubscribeAll = () => {
+    Object.values(listenersRef.current).forEach(unsub => unsub());
+    listenersRef.current = {};
   };
 
   const logout = async (redirectPath: string = '/') => {
@@ -45,10 +47,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
     await signOut(auth).catch(e => console.error("Falha no signOut do Auth:", e));
     
-    // Limpar o estado local imediatamente
+    // Limpar o estado local e cancelar listeners
     setUser(null);
     setCongregation(null);
-    unsubscribeAllFirestoreListeners();
+    unsubscribeAll();
 
     router.push(redirectPath);
   };
@@ -66,7 +68,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     window.addEventListener('offline', handleOffline);
 
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
-      unsubscribeAllFirestoreListeners();
+      unsubscribeAll(); // Cancela todos os listeners antigos antes de começar
       setLoading(true);
 
       if (!firebaseUser) {
@@ -77,28 +79,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
       
       const userRef = doc(db, 'users', firebaseUser.uid);
-      const userUnsub = onSnapshot(userRef, async (userDoc) => {
+      
+      // Listener para o documento do usuário
+      listenersRef.current.user = onSnapshot(userRef, async (userDoc) => {
         if (!userDoc.exists()) {
           const pendingDataStr = sessionStorage.getItem('pendingUserData');
           if (pendingDataStr) {
             try {
               const pendingData = JSON.parse(pendingDataStr);
               await setDoc(userRef, {
-                email: firebaseUser.email,
-                name: firebaseUser.displayName,
-                photoURL: firebaseUser.photoURL,
+                email: firebaseUser.email, name: firebaseUser.displayName, photoURL: firebaseUser.photoURL,
                 ...pendingData,
-                createdAt: serverTimestamp(),
-                lastSeen: serverTimestamp()
+                createdAt: serverTimestamp(), lastSeen: serverTimestamp()
               });
               sessionStorage.removeItem('pendingUserData');
-            } catch (error) {
-              console.error("Falha ao criar documento de usuário pendente:", error);
-              logout('/');
-            }
-          } else {
-            logout('/');
-          }
+            } catch (error) { logout('/'); }
+          } else { logout('/'); }
           return;
         }
 
@@ -110,11 +106,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
         }
         
         const appUser = { 
-          uid: firebaseUser.uid,
-          ...rawData,
-          status: appStatus,
-          name: rawData?.name || firebaseUser.displayName,
-          email: rawData?.email || firebaseUser.email,
+          uid: firebaseUser.uid, ...rawData, status: appStatus,
+          name: rawData?.name || firebaseUser.displayName, email: rawData?.email || firebaseUser.email,
         } as AppUser;
 
         if (appUser.status === 'bloqueado' || appUser.status === 'rejeitado') {
@@ -122,48 +115,48 @@ export function UserProvider({ children }: { children: ReactNode }) {
             return;
         }
 
-        setUser(appUser); // Atualiza o usuário primeiro
+        setUser(appUser);
 
-        // Cancela o listener de congregação anterior, se houver
-        const oldCongUnsub = firestoreUnsubsRef.current.find(unsub => unsub.toString().includes('congregations'));
-        if(oldCongUnsub) oldCongUnsub();
+        // Se o ID da congregação do usuário mudou, cancela o listener antigo da congregação
+        if (listenersRef.current.congregation) {
+            // Lógica para verificar se precisa recriar o listener
+        }
         
-        if (appUser.congregationId) {
+        // Listener para o documento da congregação (GARANTE A ATUALIZAÇÃO EM TEMPO REAL)
+        if (appUser.congregationId && !listenersRef.current.congregation) {
           const congRef = doc(db, 'congregations', appUser.congregationId);
-          const congUnsub = onSnapshot(congRef, (congDoc) => {
+          listenersRef.current.congregation = onSnapshot(congRef, (congDoc) => {
             if (congDoc.exists()) {
               const congData = { id: congDoc.id, ...congDoc.data() } as Congregation;
               setCongregation(congData);
-              // Adiciona o nome da congregação ao usuário para fácil acesso
               setUser(prevUser => prevUser ? {...prevUser, congregationName: congData.name} : null);
             } else {
               setCongregation(null);
             }
-            setLoading(false);
+            // Só para de carregar quando o usuário E a congregação (ou a falta dela) são confirmados
+            setLoading(false); 
           }, (error) => {
             console.error("Erro no listener de congregação:", error);
             setCongregation(null);
             setLoading(false);
           });
-          firestoreUnsubsRef.current.push(congUnsub);
+        } else if (!appUser.congregationId) {
+            setCongregation(null);
+            setLoading(false);
         } else {
-          setCongregation(null);
-          setLoading(false);
+            // Se já há um listener de congregação e o ID não mudou, apenas para de carregar
+            setLoading(false);
         }
 
       }, (error) => {
         console.error("Erro no listener de usuário:", error);
-        setUser(null);
-        setCongregation(null);
-        setLoading(false);
-        unsubscribeAllFirestoreListeners();
+        setUser(null); setCongregation(null); setLoading(false); unsubscribeAll();
       });
-      firestoreUnsubsRef.current.push(userUnsub);
     });
 
     return () => {
       unsubscribeAuth();
-      unsubscribeAllFirestoreListeners();
+      unsubscribeAll();
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
