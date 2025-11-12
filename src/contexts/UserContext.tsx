@@ -44,6 +44,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
         await set(userStatusRTDBRef, null).catch(e => console.error("Falha ao limpar status no RTDB:", e));
     }
     await signOut(auth).catch(e => console.error("Falha no signOut do Auth:", e));
+    
+    // Limpar o estado local imediatamente
+    setUser(null);
+    setCongregation(null);
+    unsubscribeAllFirestoreListeners();
+
     router.push(redirectPath);
   };
   
@@ -118,11 +124,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
         setUser(appUser); // Atualiza o usuário primeiro
 
+        // Cancela o listener de congregação anterior, se houver
+        const oldCongUnsub = firestoreUnsubsRef.current.find(unsub => unsub.toString().includes('congregations'));
+        if(oldCongUnsub) oldCongUnsub();
+        
         if (appUser.congregationId) {
           const congRef = doc(db, 'congregations', appUser.congregationId);
           const congUnsub = onSnapshot(congRef, (congDoc) => {
             if (congDoc.exists()) {
-              setCongregation({ id: congDoc.id, ...congDoc.data() } as Congregation);
+              const congData = { id: congDoc.id, ...congDoc.data() } as Congregation;
+              setCongregation(congData);
+              // Adiciona o nome da congregação ao usuário para fácil acesso
+              setUser(prevUser => prevUser ? {...prevUser, congregationName: congData.name} : null);
             } else {
               setCongregation(null);
             }
