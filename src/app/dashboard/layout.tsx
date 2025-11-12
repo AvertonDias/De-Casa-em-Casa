@@ -119,8 +119,6 @@ function Sidebar({
 }) {
   const pathname = usePathname();
   const { user, logout } = useUser();
-  const { showInstallButton, canPrompt, deviceInfo, onInstall } = usePWAInstall();
-  const [isInstructionsModalOpen, setIsInstructionsModalOpen] = useState(false);
   const [isShareApiSupported, setIsShareApiSupported] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
@@ -134,22 +132,7 @@ function Sidebar({
   const handleLogout = async () => {
     await logout();
   };
-
-  const getInstructionsMessage = () => {
-    if (deviceInfo.isIOS) {
-        return "Para instalar, toque no ícone de 'Compartilhar' (um quadrado com uma seta para cima) na barra de menu do Safari e, em seguida, procure pela opção 'Adicionar à Tela de Início'.";
-    }
-    return "Para instalar o aplicativo, procure no menu do seu navegador (geralmente três pontinhos ou na barra de endereço) pela opção 'Instalar aplicativo' ou 'Adicionar à tela de início'.";
-  };
   
-  const handleInstallButtonClick = () => {
-    if (canPrompt) {
-        onInstall();
-    } else {
-        setIsInstructionsModalOpen(true);
-    }
-  };
-
   const handleShare = async () => {
     if (navigator.share) {
         try {
@@ -255,16 +238,6 @@ function Sidebar({
             )}
             
             <div className="space-y-1">
-                {showInstallButton && (
-                    <Button
-                        onClick={handleInstallButtonClick}
-                        variant="outline"
-                        className="w-full justify-center text-green-600 border-green-500/50 hover:bg-green-500/10 hover:text-green-600 dark:text-green-400 dark:border-green-400/50 dark:hover:bg-green-400/10 dark:hover:text-green-400"
-                    >
-                        <Download className="mr-2" size={20} /> Instalar Aplicativo
-                    </Button>
-                )}
-                
                 {isShareApiSupported && (
                     <Button
                         onClick={handleShare}
@@ -293,15 +266,6 @@ function Sidebar({
         </div>
       </aside>
        <ConfirmationModal
-          isOpen={isInstructionsModalOpen}
-          onClose={() => setIsInstructionsModalOpen(false)}
-          onConfirm={() => setIsInstructionsModalOpen(false)}
-          title="Como Instalar o Aplicativo"
-          message={getInstructionsMessage()}
-          confirmText="Entendi"
-          showCancelButton={false}
-      />
-      <ConfirmationModal
         isOpen={isLogoutConfirmOpen}
         onClose={() => setIsLogoutConfirmOpen(false)}
         onConfirm={handleLogout}
@@ -471,5 +435,3 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 }
 
 export default withAuth(DashboardLayout);
-
-    
