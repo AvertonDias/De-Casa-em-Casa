@@ -165,19 +165,21 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   
     try {
       await runTransaction(db, async (transaction) => {
-        const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
+        const congRef = doc(db, 'congregations', congregationId);
+        const territoryRef = doc(congRef, 'territories', territoryId);
         const quadraRef = doc(territoryRef, 'quadras', quadraId);
         const casaRef = doc(quadraRef, 'casas', casa.id);
         const activityHistoryRef = collection(territoryRef, 'activityHistory');
 
-        const [casaDoc, quadraDoc, territoryDoc] = await Promise.all([
+        const [casaDoc, quadraDoc, territoryDoc, congDoc] = await Promise.all([
             transaction.get(casaRef),
             transaction.get(quadraRef),
             transaction.get(territoryRef),
+            transaction.get(congRef)
         ]);
 
-        if (!casaDoc.exists() || !quadraDoc.exists() || !territoryDoc.exists()) {
-            throw new Error("Documento não encontrado na transação.");
+        if (!casaDoc.exists() || !quadraDoc.exists() || !territoryDoc.exists() || !congDoc.exists()) {
+            throw new Error("Um documento necessário não foi encontrado na transação.");
         }
 
         const wasDone = casaDoc.data().status === true;
@@ -209,7 +211,14 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             lastUpdate: serverTimestamp()
         });
         
-        // 4. Lógica do histórico de atividade (se estiver marcando como 'feito')
+        // 4. ATUALIZA A CONGREGAÇÃO (A CORREÇÃO)
+        const congTotalHousesDone = congDoc.data().totalHousesDone || 0;
+        const newCongTotalHousesDone = congTotalHousesDone + (isNowDone ? 1 : -1);
+        transaction.update(congRef, {
+            totalHousesDone: newCongTotalHousesDone,
+        });
+
+        // 5. Lógica do histórico de atividade (se estiver marcando como 'feito')
         if (isNowDone) {
             const todayStr = formatDate(new Date(), 'yyyy-MM-dd');
             const todayActivitiesQuery = query(
@@ -257,43 +266,51 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 
     try {
         await runTransaction(db, async (transaction) => {
-            const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
+            const congRef = doc(db, 'congregations', congregationId);
+            const territoryRef = doc(congRef, 'territories', territoryId);
+            const quadraRef = doc(territoryRef, 'quadras', quadraId);
             const casaRef = doc(quadraRef, 'casas', casaToDelete.id);
-            const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
-
-            const [quadraDoc, territoryDoc, casaDoc] = await Promise.all([
+            
+            const [quadraDoc, territoryDoc, casaDoc, congDoc] = await Promise.all([
                 transaction.get(quadraRef),
                 transaction.get(territoryRef),
-                transaction.get(casaRef)
+                transaction.get(casaRef),
+                transaction.get(congRef)
             ]);
 
-            if (!quadraDoc.exists() || !territoryDoc.exists() || !casaDoc.exists()) {
+            if (!quadraDoc.exists() || !territoryDoc.exists() || !casaDoc.exists() || !congDoc.exists()) {
                 throw new Error("Documento não encontrado para a transação de exclusão.");
             }
 
             transaction.delete(casaRef);
             
             const wasDone = casaDoc.data().status === true;
+            // Quadra
             const quadraTotal = quadraDoc.data().totalHouses || 0;
             const quadraDone = quadraDoc.data().housesDone || 0;
-            const newQuadraTotal = quadraTotal - 1;
-            const newQuadraDone = wasDone ? quadraDone - 1 : quadraDone;
-            
             transaction.update(quadraRef, {
-                totalHouses: newQuadraTotal,
-                housesDone: newQuadraDone
+                totalHouses: quadraTotal - 1,
+                housesDone: wasDone ? quadraDone - 1 : quadraDone
             });
             
+            // Território
             const territoryTotal = territoryDoc.data().stats.totalHouses || 0;
             const territoryDone = territoryDoc.data().stats.housesDone || 0;
             const newTerritoryTotal = territoryTotal - 1;
             const newTerritoryDone = wasDone ? territoryDone - 1 : territoryDone;
             const newProgress = newTerritoryTotal > 0 ? newTerritoryDone / newTerritoryTotal : 0;
-
             transaction.update(territoryRef, {
                 "stats.totalHouses": newTerritoryTotal,
                 "stats.housesDone": newTerritoryDone,
                 progress: newProgress
+            });
+
+            // Congregação (A CORREÇÃO)
+            const congTotalHouses = congDoc.data().totalHouses || 0;
+            const congTotalHousesDone = congDoc.data().totalHousesDone || 0;
+            transaction.update(congRef, {
+                totalHouses: congTotalHouses - 1,
+                totalHousesDone: wasDone ? congTotalHousesDone - 1 : congTotalHousesDone
             });
         });
     } catch(error) {

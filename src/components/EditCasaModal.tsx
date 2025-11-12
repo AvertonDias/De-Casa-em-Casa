@@ -1,8 +1,9 @@
 
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Casa } from '@/types/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -74,8 +75,22 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
   
   const handleRequestDelete = () => {
     if (!casa) return;
-    onDeleteRequest(casa);
-    onClose();
+    runTransaction(db, async (transaction) => {
+      const congRef = doc(db, 'congregations', congregationId);
+      const congDoc = await transaction.get(congRef);
+      if (!congDoc.exists()) {
+        throw "Documento da congregação não encontrado!";
+      }
+      const newTotalHouses = (congDoc.data().totalHouses || 0) - 1;
+      const newTotalHousesDone = casa.status ? (congDoc.data().totalHousesDone || 0) - 1 : (congDoc.data().totalHousesDone || 0);
+
+      transaction.update(congRef, { totalHouses: newTotalHouses, totalHousesDone: newTotalHousesDone });
+    }).then(() => {
+        onDeleteRequest(casa);
+        onClose();
+    }).catch((error) => {
+        console.error("Erro na transação de exclusão:", error);
+    });
   };
 
   const hasChanges = casa && (formData.number !== casa.number || formData.observations !== (casa.observations || ''));

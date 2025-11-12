@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
@@ -61,17 +62,21 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
     }
 
     try {
-        const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
+        const congRef = doc(db, 'congregations', congregationId);
+        const territoryRef = doc(congRef, 'territories', territoryId);
+        const quadraRef = doc(territoryRef, 'quadras', quadraId);
         const casasRef = collection(quadraRef, 'casas');
-        const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
 
         await runTransaction(db, async (transaction) => {
-            const quadraDoc = await transaction.get(quadraRef);
-            const territoryDoc = await transaction.get(territoryRef);
-            const casasSnapshot = await getDocs(casasRef);
+            const [quadraDoc, territoryDoc, congDoc, casasSnapshot] = await Promise.all([
+                transaction.get(quadraRef),
+                transaction.get(territoryRef),
+                transaction.get(congRef),
+                getDocs(casasRef),
+            ]);
 
-            if (!quadraDoc.exists() || !territoryDoc.exists()) {
-                throw new Error("Quadra ou Território não encontrado.");
+            if (!quadraDoc.exists() || !territoryDoc.exists() || !congDoc.exists()) {
+                throw new Error("Quadra, Território ou Congregação não encontrado.");
             }
             
             const order = casasSnapshot.size;
@@ -85,22 +90,30 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
                 order
             });
 
+            // Update Quadra
             const newQuadraTotalHouses = (quadraDoc.data().totalHouses || 0) + 1;
             const newQuadraHousesDone = (quadraDoc.data().housesDone || 0) + (status ? 1 : 0);
-            
             transaction.update(quadraRef, {
                 totalHouses: newQuadraTotalHouses,
                 housesDone: newQuadraHousesDone
             });
 
+            // Update Territory
             const newTerritoryTotalHouses = (territoryDoc.data().stats.totalHouses || 0) + 1;
             const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + (status ? 1 : 0);
             const newProgress = newTerritoryTotalHouses > 0 ? newTerritoryHousesDone / newTerritoryTotalHouses : 0;
-            
             transaction.update(territoryRef, {
                 "stats.totalHouses": newTerritoryTotalHouses,
                 "stats.housesDone": newTerritoryHousesDone,
                 progress: newProgress
+            });
+            
+            // Update Congregation (A CORREÇÃO)
+            const newCongTotalHouses = (congDoc.data().totalHouses || 0) + 1;
+            const newCongTotalHousesDone = (congDoc.data().totalHousesDone || 0) + (status ? 1 : 0);
+            transaction.update(congRef, {
+                totalHouses: newCongTotalHouses,
+                totalHousesDone: newCongTotalHousesDone
             });
         });
 
