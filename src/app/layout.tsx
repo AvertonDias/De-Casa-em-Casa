@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: "Painel de Controle de Territórios",
   manifest: "/manifest.json",
   icons: {
-    apple: '/images/icon-512x512.jpg',
+    apple: "/images/icon-512x512.jpg",
   },
   appleWebApp: {
     capable: true,

@@ -56,6 +56,7 @@ export function InstallPwaModal() {
                 alt="Logo De Casa em Casa"
                 width={80}
                 height={80}
+                sizes="80px"
                 className="rounded-2xl"
             />
           </div>

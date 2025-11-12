@@ -174,6 +174,7 @@ function Sidebar({
                     alt="Logo"
                     width={80}
                     height={80}
+                    sizes="80px"
                     className="rounded-lg"
                     priority
                 />
