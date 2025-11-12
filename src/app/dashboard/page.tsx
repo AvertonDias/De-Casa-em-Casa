@@ -12,7 +12,7 @@ import { StatCard } from '@/components/StatCard';
 import withAuth from '@/components/withAuth'; // Importa o segurança
 
 function DashboardPage() {
-  const { user, congregation, loading: userLoading } = useUser();
+  const { user, loading: userLoading } = useUser();
   const [recentTerritories, setRecentTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -60,10 +60,10 @@ function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard icon={Map} title="Territórios Urbanos" value={congregation?.territoryCount ?? 0} loading={loading} />
-        <StatCard icon={Trees} title="Territórios Rurais" value={congregation?.ruralTerritoryCount ?? 0} loading={loading} />
-        <StatCard icon={HousePlus} title="Casas Mapeadas" value={congregation?.totalHouses ?? 0} loading={loading} />
-        <StatCard icon={CheckSquare} title="Casas Visitadas" value={congregation?.totalHousesDone ?? 0} loading={loading} />
+        <StatCard icon={Map} title="Territórios Urbanos" statKey="territoryCount" />
+        <StatCard icon={Trees} title="Territórios Rurais" statKey="ruralTerritoryCount" />
+        <StatCard icon={HousePlus} title="Casas Mapeadas" statKey="totalHouses" />
+        <StatCard icon={CheckSquare} title="Casas Visitadas" statKey="totalHousesDone" />
       </div>
       
       <div>
