@@ -1,21 +1,33 @@
 {
-  "name": "De Casa em Casa",
-  "short_name": "Territórios",
-  "description": "Gerenciador de Territórios para congregações.",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#240610",
   "theme_color": "#673ab7",
+  "background_color": "#121212",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
+  "name": "De Casa em Casa",
+  "short_name": "De Casa",
+  "description": "Gerenciador de Territórios para Congregações.",
   "icons": [
     {
-      "src": "/icon-192x192.jpg",
+      "src": "/images/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/jpeg"
+      "type": "image/png"
     },
     {
-      "src": "/icon-512x512.jpg",
+      "src": "/images/icon-256x256.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icon-512x512.jpg",
       "sizes": "512x512",
-      "type": "image/jpeg"
+      "type": "image/jpeg",
+      "purpose": "any maskable"
     }
   ]
 }
