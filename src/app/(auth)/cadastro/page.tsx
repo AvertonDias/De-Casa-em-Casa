@@ -112,7 +112,6 @@ export default function SignUpPage() {
                 alt="Logo De Casa em Casa"
                 width={80}
                 height={80}
-                sizes="80px"
                 className="rounded-lg mb-4"
                 priority
             />
