@@ -116,14 +116,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
         }
 
         setUser(appUser);
-
-        // Se o ID da congregação do usuário mudou, cancela o listener antigo da congregação
+        
+        // Se já existe um listener de congregação, cancela ele antes de criar um novo.
         if (listenersRef.current.congregation) {
-            // Lógica para verificar se precisa recriar o listener
+            listenersRef.current.congregation();
+            delete listenersRef.current.congregation;
+            setCongregation(null);
         }
         
         // Listener para o documento da congregação (GARANTE A ATUALIZAÇÃO EM TEMPO REAL)
-        if (appUser.congregationId && !listenersRef.current.congregation) {
+        if (appUser.congregationId) {
           const congRef = doc(db, 'congregations', appUser.congregationId);
           listenersRef.current.congregation = onSnapshot(congRef, (congDoc) => {
             if (congDoc.exists()) {
@@ -133,18 +135,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
             } else {
               setCongregation(null);
             }
-            // Só para de carregar quando o usuário E a congregação (ou a falta dela) são confirmados
             setLoading(false); 
           }, (error) => {
             console.error("Erro no listener de congregação:", error);
             setCongregation(null);
             setLoading(false);
           });
-        } else if (!appUser.congregationId) {
-            setCongregation(null);
-            setLoading(false);
         } else {
-            // Se já há um listener de congregação e o ID não mudou, apenas para de carregar
+            setCongregation(null);
             setLoading(false);
         }
 
