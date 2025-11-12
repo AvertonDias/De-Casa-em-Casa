@@ -20,18 +20,17 @@ const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
 
 
 export default function UserManagement() {
-  const { user: currentUser, loading: userLoading } = useUser(); 
+  const { user: currentUser, loading: userLoading, congregation } = useUser(); 
   const { toast } = useToast();
 
   const [users, setUsers] = useState<AppUser[]>([]);
-  const [congregation, setCongregation] = useState<Congregation | null>(null);
   const [loading, setLoading] = useState(true);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Publicador'>('all');
   const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive_month'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'bloqueado'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'bloqueado' | 'rejeitado'>('all');
 
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -90,16 +89,8 @@ export default function UserManagement() {
         setLoading(false);
       });
 
-      const congRef = doc(db, 'congregations', currentUser.congregationId);
-      const unsubCong = onSnapshot(congRef, (docSnap) => {
-        if (docSnap.exists()) {
-          setCongregation({ id: docSnap.id, ...docSnap.data() } as Congregation);
-        }
-      });
-
       return () => { 
         unsubUsers(); 
-        unsubCong(); 
       };
     } else if (!userLoading) {
       setLoading(false);
@@ -281,6 +272,7 @@ export default function UserManagement() {
                                     <FilterButton label="Pendente" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
                                     <FilterButton label="Inativo (Visual)" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
                                     <FilterButton label="Bloqueado" value="bloqueado" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                    <FilterButton label="Rejeitado" value="rejeitado" currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 </div>
                             </div>
                             

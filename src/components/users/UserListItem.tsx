@@ -4,7 +4,7 @@
 import { Fragment } from 'react';
 import type { AppUser } from '@/types/types';
 import { Menu, Transition } from '@headlessui/react';
-import { MoreVertical, Check, Trash2, XCircle, Edit, User } from 'lucide-react';
+import { MoreVertical, Check, Trash2, XCircle, Edit, User, ShieldX } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -30,6 +30,7 @@ export const UserListItem = ({
   const canShowMenu = currentUser.uid !== user.uid && (isAdmin || (isDirigente && user.status === 'pendente'));
 
   const handleApprove = () => onUpdate(user.uid, { status: 'ativo' });
+  const handleBlock = () => onUpdate(user.uid, { status: 'bloqueado' });
   const handleDelete = () => onDelete(user.uid, user.name);
   const handleEdit = () => onEdit(user);
 
@@ -37,10 +38,10 @@ export const UserListItem = ({
   const getStatusClass = (status: AppUser['status']) => {
     switch (status) {
       case 'ativo': return 'bg-green-500 text-white';
-      case 'pendente': return 'bg-yellow-500 text-white';
+      case 'pendente': return 'bg-yellow-500 text-black';
       case 'rejeitado': return 'bg-red-500 text-white';
       case 'inativo': return 'bg-orange-500 text-white';
-      case 'bloqueado': return 'bg-red-700 text-white';
+      case 'bloqueado': return 'bg-gray-700 text-white';
       default: return 'bg-gray-400 text-white';
     }
   };
@@ -82,14 +83,10 @@ export const UserListItem = ({
       
       <div className="flex items-center justify-end gap-3 shrink-0">
           <div className="flex items-center justify-end gap-3 shrink-0">
-            {user.status !== 'pendente' && (
-              <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRoleClass(user.role)}`}>{user.role}</span>
-            )}
-            {user.status !== 'ativo' && (
-                <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusClass(user.status)}`}>
-                    {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-                </span>
-            )}
+            <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusClass(user.status)}`}>
+                {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+            </span>
+            <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRoleClass(user.role)}`}>{user.role}</span>
           </div>
           
           {canShowMenu ? (
@@ -100,41 +97,49 @@ export const UserListItem = ({
                   <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
                       <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right bg-white dark:bg-gray-800 divide-y dark:divide-gray-700 rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5 focus:outline-none">
                          <div className="p-1">
-                            {user.status === 'pendente' ? (
+                            {user.status === 'pendente' && (
                               <>
                                 <Menu.Item>
                                   {({ active }) => (
-                                    <button onClick={handleApprove} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                    <button onClick={handleApprove} className={`${active ? 'bg-green-500 text-white' : 'text-green-600 dark:text-green-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
                                       <Check className="mr-2 h-4 w-4"/>Aprovar
                                     </button>
                                   )}
                                 </Menu.Item>
                                 <Menu.Item>
                                   {({ active }) => (
-                                    <button onClick={handleDelete} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                      <XCircle className="mr-2 h-4 w-4"/>Rejeitar (Excluir)
+                                    <button onClick={() => onUpdate(user.uid, { status: 'rejeitado' })} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                      <XCircle className="mr-2 h-4 w-4"/>Rejeitar
                                     </button>
                                   )}
                                 </Menu.Item>
                               </>
-                            ) : (
-                               isAdmin && (
-                                  <Menu.Item>
-                                      {({ active }) => (
-                                        <button onClick={handleEdit} className={`${active ? 'bg-purple-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                          <Edit className="mr-2 h-4 w-4"/>Editar Usuário
-                                        </button>
-                                      )}
-                                  </Menu.Item>
-                                )
+                            )}
+                            {isAdmin && user.status !== 'pendente' && (
+                                <Menu.Item>
+                                    {({ active }) => (
+                                      <button onClick={handleEdit} className={`${active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                        <Edit className="mr-2 h-4 w-4"/>Editar Usuário
+                                      </button>
+                                    )}
+                                </Menu.Item>
                             )}
                          </div>
-                         {isAdmin && user.status !== 'pendente' && user.uid !== currentUser.uid && (
+                         {isAdmin && user.uid !== currentUser.uid && (
                            <div className="p-1">
+                              {user.status !== 'bloqueado' && (
+                                <Menu.Item>
+                                  {({ active }) => (
+                                    <button onClick={handleBlock} className={`${active ? 'bg-gray-600 text-white' : 'text-gray-700 dark:text-gray-300'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
+                                      <ShieldX className="mr-2 h-4 w-4"/>Bloquear Acesso
+                                    </button>
+                                  )}
+                                </Menu.Item>
+                              )}
                               <Menu.Item>
                                 {({ active }) => (
                                   <button onClick={handleDelete} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                    <Trash2 className="mr-2 h-4 w-4"/>Excluir Usuário
+                                    <Trash2 className="mr-2 h-4 w-4"/>Excluir (Permanente)
                                   </button>
                                 )}
                               </Menu.Item>
