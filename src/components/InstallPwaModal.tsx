@@ -1,23 +1,32 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Download, Share } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import Image from 'next/image';
 
-export function InstallPwaModal() {
-  const { showInstallButton, canPrompt, onInstall, deviceInfo } = usePWAInstall();
-  
-  // O modal é controlado diretamente pelo `showInstallButton`
-  const [isOpen, setIsOpen] = useState(showInstallButton);
+const SESSION_DISMISSED_KEY = 'pwa-install-dismissed-session';
 
-  // Sincroniza o estado do modal com o hook
-  useState(() => {
-    setIsOpen(showInstallButton);
-  });
+export function InstallPwaModal() {
+  const { showInstallPrompt, canPrompt, onInstall, deviceInfo } = usePWAInstall();
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    const sessionDismissed = sessionStorage.getItem(SESSION_DISMISSED_KEY);
+    if (showInstallPrompt && !sessionDismissed) {
+      setIsOpen(true);
+    } else {
+      setIsOpen(false);
+    }
+  }, [showInstallPrompt]);
+
+  const handleDismiss = () => {
+    sessionStorage.setItem(SESSION_DISMISSED_KEY, 'true');
+    setIsOpen(false);
+  };
 
   const instructions = {
     ios: "No Safari, toque no ícone de 'Compartilhar' e depois em 'Adicionar à Tela de Início'.",
@@ -29,8 +38,7 @@ export function InstallPwaModal() {
     return instructions.other;
   };
   
-  // Não renderiza nada se o botão de instalar não deve ser mostrado
-  if (!showInstallButton) {
+  if (!isOpen) {
     return null;
   }
   
@@ -38,6 +46,8 @@ export function InstallPwaModal() {
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent 
         className="sm:max-w-md"
+        // Impede que o diálogo feche ao clicar fora dele
+        onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <div className="flex justify-center">
@@ -70,7 +80,7 @@ export function InstallPwaModal() {
         )}
         
         <DialogFooter className="sm:justify-center pt-2">
-           <Button variant="ghost" onClick={() => setIsOpen(false)} className="w-full text-muted-foreground">
+           <Button variant="ghost" onClick={handleDismiss} className="w-full text-muted-foreground">
             Lembrar mais tarde
           </Button>
         </DialogFooter>

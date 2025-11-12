@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -19,8 +20,9 @@ const detectUserAgent = () => {
 
 
 export const usePWAInstall = () => {
+  const pathname = usePathname(); // Hook para detectar mudanças de rota
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [showInstallButton, setShowInstallButton] = useState(false);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [deviceInfo, setDeviceInfo] = useState({ isMobile: false, isIOS: false });
 
   useEffect(() => {
@@ -28,30 +30,33 @@ export const usePWAInstall = () => {
 
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
-      // Mostra o botão/modal se o app não estiver em modo standalone e o evento for disparado
-      if (window.matchMedia('(display-mode: standalone)').matches === false) {
-        setInstallPromptEvent(event as BeforeInstallPromptEvent);
-        setShowInstallButton(true);
+      setInstallPromptEvent(event as BeforeInstallPromptEvent);
+      
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      if (!isStandalone) {
+        setShowInstallPrompt(true);
       }
     };
 
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     const isMobileDevice = detectUserAgent().isMobile;
     
-    // Só adiciona o listener se for um dispositivo móvel e o app não estiver instalado
-    if (isMobileDevice && !isStandalone) {
+    if (isMobileDevice) {
       window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     }
     
-    // Verifica se já está instalado no carregamento da página
-    if(isStandalone) {
-        setShowInstallButton(false);
+    // Reavalia a exibição do prompt a cada mudança de rota
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    if (isStandalone) {
+        setShowInstallPrompt(false);
+    } else if (installPromptEvent) {
+        // Se o evento já existe, reexiba o prompt na nova página
+        setShowInstallPrompt(true);
     }
     
     return () => {
         window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, []);
+  }, [pathname, installPromptEvent]); // Adiciona pathname e installPromptEvent às dependências
 
   const handleInstallClick = async () => {
     if (!installPromptEvent) return;
@@ -59,13 +64,14 @@ export const usePWAInstall = () => {
     await installPromptEvent.prompt();
     const { outcome } = await installPromptEvent.userChoice;
     if (outcome === 'accepted') {
-      setShowInstallButton(false);
+      setShowInstallPrompt(false);
     }
-    setInstallPromptEvent(null);
+    // Não limpa o evento para que o prompt possa ser reexibido
+    // setInstallPromptEvent(null);
   };
   
   return {
-    showInstallButton,
+    showInstallPrompt,
     canPrompt: installPromptEvent !== null,
     deviceInfo,
     onInstall: handleInstallClick
