@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Download, Share } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import Image from 'next/image';
 
 export function InstallPwaModal() {
   const { showInstallButton, canPrompt, onInstall, deviceInfo } = usePWAInstall();
@@ -40,7 +41,13 @@ export function InstallPwaModal() {
       >
         <DialogHeader>
           <div className="flex justify-center">
-            <Download size={48} className="text-primary" />
+            <Image
+                src="/images/icon-512x512.jpg"
+                alt="Logo De Casa em Casa"
+                width={80}
+                height={80}
+                className="rounded-2xl"
+            />
           </div>
           <DialogTitle className="text-center text-2xl font-bold mt-4">Instale o Aplicativo</DialogTitle>
           <DialogDescription className="text-center text-base pt-2">
