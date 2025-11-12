@@ -183,10 +183,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const isAuthPage = pathname === '/' || pathname.startsWith('/cadastro') || pathname.startsWith('/recuperar-senha') || pathname.startsWith('/nova-congregacao');
     const isAuthActionPage = pathname.startsWith('/auth/action');
     const isWaitingPage = pathname === '/aguardando-aprovacao';
+    const isAboutPage = pathname === '/sobre';
   
     if (!user) {
       // Se não há usuário e a página não é uma de autenticação, redireciona para o login
-      if (!isAuthPage && !isAuthActionPage) {
+      if (!isAuthPage && !isAuthActionPage && !isAboutPage) {
         router.replace('/');
       }
       return;
@@ -208,7 +209,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       case 'ativo':
       case 'inativo':
         if (isAuthPage || isWaitingPage) {
-          const redirectTo = user.role === 'Administrador' ? '/dashboard' : '/dashboard/territorios';
+          const redirectTo = user.role === 'Publicador' ? '/dashboard/territorios' : '/dashboard';
           router.replace(redirectTo);
         }
         break;
