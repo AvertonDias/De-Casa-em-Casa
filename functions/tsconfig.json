@@ -10,7 +10,14 @@
     "target": "es2017",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "rootDir": "src",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "../src/*"
+      ]
+    }
   },
   "compileOnSave": true,
   "include": [
