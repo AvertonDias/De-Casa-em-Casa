@@ -187,8 +187,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       case 'ativo':
       case 'inativo':
         if (isAuthPage || isWaitingPage) {
-          const isAdminOrManager = ['Administrador', 'Dirigente', 'Servo de Territórios'].includes(user.role);
-          const redirectTo = isAdminOrManager ? '/dashboard' : '/dashboard/territorios';
+          const isAdmin = user.role === 'Administrador';
+          const redirectTo = isAdmin ? '/dashboard' : '/dashboard/territorios';
           router.replace(redirectTo);
         }
         break;
