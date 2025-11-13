@@ -15,8 +15,8 @@ import { sendEmail } from '@/lib/emailService';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
-const requestPasswordReset = httpsCallable(functions, 'requestPasswordReset');
+const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
+const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();

@@ -7,7 +7,7 @@ import {
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
 import * as crypto from "crypto";
-import { Congregation, AppUser } from "../../types/types";
+import { AppUser } from "./types/types";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -39,9 +39,9 @@ function withCors(handler: (req: https.Request, res: any) => void | Promise<void
 
 // ========================================================================
 //   FUNÇÕES HTTPS (onCall transformadas em onRequest com withCors)
-// ========================================================================
+// =================================a=======================================
 
-export const createCongregationAndAdmin = withCors(async (req, res) => {
+export const createCongregationAndAdminV2 = withCors(async (req, res) => {
     try {
         const {
           adminName,
@@ -81,7 +81,7 @@ export const createCongregationAndAdmin = withCors(async (req, res) => {
             totalHousesDone: 0,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-        } as Congregation);
+        });
 
         const userDocRef = db.collection("users").doc(newUser.uid);
         batch.set(userDocRef, {
@@ -112,7 +112,7 @@ export const createCongregationAndAdmin = withCors(async (req, res) => {
     }
 });
 
-export const notifyOnNewUser = withCors(async (req, res) => {
+export const notifyOnNewUserV2 = withCors(async (req, res) => {
     try {
         const { newUserName, congregationId } = req.body.data;
         if (!newUserName || !congregationId) {
@@ -131,7 +131,7 @@ export const notifyOnNewUser = withCors(async (req, res) => {
 });
 
 
-export const requestPasswordReset = withCors(async (req, res) => {
+export const requestPasswordResetV2 = withCors(async (req, res) => {
     try {
         const { email } = req.body.data;
         if (!email) {
@@ -169,7 +169,7 @@ export const requestPasswordReset = withCors(async (req, res) => {
 });
 
 
-export const resetPasswordWithToken = withCors(async (req, res) => {
+export const resetPasswordWithTokenV2 = withCors(async (req, res) => {
     try {
         const { token, newPassword } = req.body.data;
         if (!token || !newPassword) {
@@ -201,7 +201,7 @@ export const resetPasswordWithToken = withCors(async (req, res) => {
 });
 
 
-export const deleteUserAccount = withCors(async (req, res) => {
+export const deleteUserAccountV2 = withCors(async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader) {
@@ -212,20 +212,30 @@ export const deleteUserAccount = withCors(async (req, res) => {
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const callingUserUid = decodedToken.uid;
         const { userIdToDelete } = req.body.data;
+
         if (!userIdToDelete) {
             res.status(400).json({ data: { success: false, error: "ID do usuário a ser deletado é obrigatório." } });
             return;
         }
 
         const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-        const isAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
+        const isCallingUserAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
 
-        if (!isAdmin && callingUserUid !== userIdToDelete) {
-            res.status(403).json({ data: { success: false, error: "Sem permissão." } });
-            return;
+        // Regra 1: O usuário que está chamando é o mesmo que será deletado (autoexclusão)
+        const isSelfDelete = callingUserUid === userIdToDelete;
+
+        // Regra 2: O usuário que está chamando é admin E não está tentando se autoexcluir
+        const isAdminDeletingOther = isCallingUserAdmin && !isSelfDelete;
+
+        // Verifica se alguma das regras de permissão é atendida
+        if (!isSelfDelete && !isAdminDeletingOther) {
+             res.status(403).json({ data: { success: false, error: "Sem permissão." } });
+             return;
         }
-        if (isAdmin && callingUserUid === userIdToDelete) {
-            res.status(403).json({ data: { success: false, error: "Admin não pode se autoexcluir." } });
+
+        // Se a autoexclusão for de um admin, impede
+        if (isCallingUserAdmin && isSelfDelete) {
+            res.status(403).json({ data: { success: false, error: "Admin não pode se autoexcluir por esta função." } });
             return;
         }
 
@@ -238,13 +248,14 @@ export const deleteUserAccount = withCors(async (req, res) => {
 
     } catch (error: any) {
         logger.error("Erro ao excluir usuário:", error);
-        if (error.code === 'auth/id-token-expired') {
-            res.status(401).json({ data: { success: false, error: "Token expirado. Faça login novamente." } });
+        if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked') {
+            res.status(401).json({ data: { success: false, error: "Token de autenticação inválido. Faça login novamente." } });
         } else {
             res.status(500).json({ data: { success: false, error: error.message || "Falha na exclusão." } });
         }
     }
 });
+
 
 // ========================================================================
 //   GATILHOS FIRESTORE

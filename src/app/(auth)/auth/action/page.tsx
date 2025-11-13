@@ -15,7 +15,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '@/lib/firebase';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const resetPasswordWithToken = httpsCallable(functions, 'resetPasswordWithToken');
+const resetPasswordWithToken = httpsCallable(functions, 'resetPasswordWithTokenV2');
 
 function PasswordResetAction() {
   const searchParams = useSearchParams();
