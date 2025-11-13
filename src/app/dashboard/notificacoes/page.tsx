@@ -6,10 +6,11 @@ import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, writeBatch, doc, updateDoc, limit, Timestamp, where } from 'firebase/firestore';
 import withAuth from '@/components/withAuth';
-import { Bell, Inbox, AlertTriangle, CheckCheck, Loader, UserPlus, Milestone } from 'lucide-react';
+import { Bell, Inbox, AlertTriangle, CheckCheck, Loader, UserPlus, Milestone, ArrowRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { type Notification } from '@/types/types';
 import { Button } from '@/components/ui/button';
 
@@ -17,6 +18,7 @@ function NotificacoesPage() {
   const { user, loading: userLoading } = useUser();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     if (userLoading) {
@@ -32,7 +34,6 @@ function NotificacoesPage() {
     const q = query(
       notificationsRef, 
       where('type', '!=', 'user_pending'),
-      orderBy('type'), // Firestore requer um orderBy no mesmo campo do filtro de desigualdade
       orderBy('createdAt', 'desc'), 
       limit(50)
     );
@@ -42,8 +43,9 @@ function NotificacoesPage() {
             id: doc.id,
             ...doc.data()
         } as Notification));
-
-        setNotifications(fetchedNotifications);
+        
+        // Filtro adicional no lado do cliente como uma camada extra de segurança
+        setNotifications(fetchedNotifications.filter(n => n.type !== 'user_pending'));
         setLoading(false);
     }, (error) => {
         console.error("Erro ao buscar notificações: ", error);
@@ -53,11 +55,23 @@ function NotificacoesPage() {
     return () => unsubscribe();
   }, [user, userLoading]);
 
+  const handleNavigateAndMarkAsRead = async (notification: Notification) => {
+    if (!user) return;
+    const notifRef = doc(db, `users/${user.uid}/notifications`, notification.id);
+    // Marca como lida, mas não espera a conclusão para navegar, proporcionando uma resposta mais rápida.
+    updateDoc(notifRef, { isRead: true, readAt: Timestamp.now() });
+
+    if (notification.link) {
+      router.push(notification.link);
+    }
+  };
+
   const handleMarkOneAsRead = async (notificationId: string) => {
     if (!user) return;
     const notifRef = doc(db, `users/${user.uid}/notifications`, notificationId);
     await updateDoc(notifRef, { isRead: true, readAt: Timestamp.now() });
   };
+
 
   const handleMarkAllAsRead = async () => {
     if (!user) return;
@@ -77,7 +91,6 @@ function NotificacoesPage() {
       case 'territory_overdue': return <AlertTriangle className="text-red-500" />;
       case 'territory_returned': return <CheckCheck className="text-green-500" />;
       case 'territory_available': return <Bell className="text-green-500" />;
-      // O caso 'user_pending' foi removido da renderização, mas mantido aqui por segurança.
       case 'user_pending': return <UserPlus className="text-yellow-500" />;
       default: return <Bell className="text-gray-500" />;
     }
@@ -107,29 +120,39 @@ function NotificacoesPage() {
             {notifications.length > 0 ? (
                 <div className="divide-y">
                     {notifications.map(notification => (
-                        <div key={notification.id} className={`p-4 flex items-start gap-4 transition-colors ${!notification.isRead ? 'bg-primary/10' : 'bg-transparent'}`}>
+                        <div key={notification.id} className={`p-4 flex flex-col sm:flex-row items-start gap-4 transition-colors ${!notification.isRead ? 'bg-primary/10' : 'bg-transparent'}`}>
                             <div className="mt-1">
                                 {getIconForType(notification.type)}
                             </div>
                             <div className="flex-1">
                                 <p className={`transition-colors ${!notification.isRead ? 'font-bold text-foreground' : 'font-semibold text-muted-foreground'}`}>{notification.title}</p>
                                 <p className={`text-sm transition-colors ${!notification.isRead ? 'text-foreground/90' : 'text-muted-foreground'}`}>{notification.body}</p>
-                                {notification.link && (
-                                    <Link href={notification.link} className="text-sm text-blue-500 hover:underline mt-1 block" onClick={() => handleMarkOneAsRead(notification.id)}>
-                                        Ver detalhes
-                                    </Link>
-                                )}
                                 <p className="text-xs text-muted-foreground/80 mt-1">
                                     {notification.createdAt ? formatDistanceToNow(notification.createdAt.toDate(), { addSuffix: true, locale: ptBR }) : ''}
                                 </p>
                             </div>
-                            {!notification.isRead && (
-                               <div className="flex-shrink-0 self-center">
-                                    <Button size="sm" variant="outline" onClick={() => handleMarkOneAsRead(notification.id)}>
+                            <div className="flex-shrink-0 self-center flex items-center gap-2 w-full sm:w-auto">
+                                {notification.link && (
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      onClick={() => handleNavigateAndMarkAsRead(notification)}
+                                      className="flex-1 sm:flex-initial"
+                                    >
+                                        Ver detalhes <ArrowRight size={14} className="ml-2"/>
+                                    </Button>
+                                )}
+                                {!notification.isRead && (
+                                   <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      onClick={(e) => { e.stopPropagation(); handleMarkOneAsRead(notification.id);}}
+                                      className="flex-1 sm:flex-initial"
+                                    >
                                         <CheckCheck size={16} className="mr-2"/> Marcar como lida
                                     </Button>
-                               </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     ))}
                 </div>
