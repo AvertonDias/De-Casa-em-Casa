@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.mirrorUserStatus = exports.onDeleteQuadra = exports.onDeleteTerritory = exports.deleteUserAccount = exports.resetPasswordWithToken = exports.requestPasswordReset = exports.notifyOnNewUser = exports.createCongregationAndAdmin = void 0;
+exports.mirrorUserStatus = exports.onDeleteQuadra = exports.onDeleteTerritory = exports.deleteUserAccountV2 = exports.resetPasswordWithTokenV2 = exports.requestPasswordResetV2 = exports.notifyOnNewUserV2 = exports.createCongregationAndAdminV2 = void 0;
 const v2_1 = require("firebase-functions/v2");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const database_1 = require("firebase-functions/v2/database");
@@ -71,7 +71,7 @@ function withCors(handler) {
 // ========================================================================
 //   FUNÇÕES HTTPS (onCall transformadas em onRequest com withCors)
 // ========================================================================
-exports.createCongregationAndAdmin = withCors(async (req, res) => {
+exports.createCongregationAndAdminV2 = withCors(async (req, res) => {
     try {
         const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp, } = req.body.data;
         if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
@@ -129,7 +129,7 @@ exports.createCongregationAndAdmin = withCors(async (req, res) => {
         }
     }
 });
-exports.notifyOnNewUser = withCors(async (req, res) => {
+exports.notifyOnNewUserV2 = withCors(async (req, res) => {
     try {
         const { newUserName, congregationId } = req.body.data;
         if (!newUserName || !congregationId) {
@@ -144,7 +144,7 @@ exports.notifyOnNewUser = withCors(async (req, res) => {
         res.status(500).json({ data: { success: false, error: "Falha no processo de notificação." } });
     }
 });
-exports.requestPasswordReset = withCors(async (req, res) => {
+exports.requestPasswordResetV2 = withCors(async (req, res) => {
     try {
         const { email } = req.body.data;
         if (!email) {
@@ -181,7 +181,7 @@ exports.requestPasswordReset = withCors(async (req, res) => {
         res.status(500).json({ data: { success: false, error: "Erro ao iniciar o processo de redefinição." } });
     }
 });
-exports.resetPasswordWithToken = withCors(async (req, res) => {
+exports.resetPasswordWithTokenV2 = withCors(async (req, res) => {
     var _a, _b;
     try {
         const { token, newPassword } = req.body.data;
@@ -210,7 +210,7 @@ exports.resetPasswordWithToken = withCors(async (req, res) => {
         res.status(500).json({ data: { success: false, error: "Falha ao atualizar a senha." } });
     }
 });
-exports.deleteUserAccount = withCors(async (req, res) => {
+exports.deleteUserAccountV2 = withCors(async (req, res) => {
     var _a;
     try {
         const authHeader = req.headers.authorization;
@@ -336,3 +336,5 @@ exports.mirrorUserStatus = (0, database_1.onValueWritten)({
     return null;
 });
 //# sourceMappingURL=index.js.map
+
+    
