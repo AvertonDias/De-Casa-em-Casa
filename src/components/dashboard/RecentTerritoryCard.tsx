@@ -15,8 +15,10 @@ interface RecentTerritoryCardProps {
 export default function RecentTerritoryCard({ territory }: RecentTerritoryCardProps) {
   const progresso = territory.progress ? Math.round(territory.progress * 100) : 0;
   
-  const lastUpdateFormatted = territory.lastUpdate && territory.lastUpdate instanceof Timestamp
-    ? format(territory.lastUpdate.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+  const lastWorkedAt = territory.lastWorkedAt || territory.lastUpdate;
+
+  const lastUpdateFormatted = lastWorkedAt && lastWorkedAt instanceof Timestamp
+    ? format(lastWorkedAt.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
     : 'Nunca trabalhado';
 
   return (

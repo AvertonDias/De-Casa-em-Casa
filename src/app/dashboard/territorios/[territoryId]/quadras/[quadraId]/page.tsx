@@ -202,11 +202,18 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             }
             transaction.update(casaRef, casaUpdateData);
             transaction.update(quadraRef, { housesDone: newQuadraHousesDone });
-            transaction.update(territoryRef, {
+            
+            const territoryUpdateData: any = {
                 "stats.housesDone": newTerritoryHousesDone,
                 progress: newTerritoryProgress,
                 lastUpdate: serverTimestamp()
-            });
+            };
+            if(newStatus){
+                territoryUpdateData.lastWorkedAt = serverTimestamp();
+            }
+
+            transaction.update(territoryRef, territoryUpdateData);
+            
             transaction.update(congRef, { totalHousesDone: newCongTotalHousesDone });
 
             // 4. Lidar com o histórico de atividade
@@ -219,15 +226,8 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                   limit(1)
                 );
                 
-                // Precisamos fazer a leitura fora da transação, se possível, ou aceitar uma possível inconsistência mínima
-                // Para este caso, vamos ler dentro, mas isso pode aumentar a contenção.
-                // A melhor abordagem seria uma Cloud Function, mas vamos manter no cliente.
-                
-                // Nota: getDocs dentro de uma transação não é ideal. Uma solução melhor seria uma função de nuvem, mas vamos manter no cliente por agora.
-                // A alternativa é não criar o log de atividade aqui e deixar para outra lógica.
-                
+                // Nota: getDocs dentro de uma transação não é ideal. Uma solução melhor seria uma função de nuvem.
                 // Simplificação: vamos assumir que podemos criar um log sem verificar se já existe um para o dia.
-                // O histórico mostrará múltiplos registros para o dia, o que é aceitável.
                 const newActivityRef = doc(activityHistoryRef);
                 transaction.set(newActivityRef, {
                     type: "work",

@@ -1,3 +1,4 @@
+
 // src/types/types.ts
 
 import { Timestamp, FieldValue } from "firebase/firestore";
@@ -41,6 +42,7 @@ export interface Territory {
   cardUrl?: string;
   progress?: number;
   lastUpdate?: Timestamp | FieldValue;
+  lastWorkedAt?: Timestamp | FieldValue;
   createdAt?: Timestamp | FieldValue;
   quadraCount?: number;
 

@@ -38,7 +38,7 @@ function DashboardPage() {
     // Listener for recently updated territories
     const qRecent = query(
       territoriesRef, 
-      orderBy("lastUpdate", "desc"), 
+      orderBy("lastWorkedAt", "desc"), 
       limit(8)
     );
     const unsubRecentTerritories = onSnapshot(qRecent, (snapshot) => {
