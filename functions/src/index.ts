@@ -1,9 +1,9 @@
-
 // src/functions/src/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
 import {
   onDocumentDeleted,
+  onDocumentWritten,
 } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
@@ -269,6 +269,66 @@ export const deleteUserAccount = withCors(async (req, res) => {
 // ========================================================================
 //   GATILHOS FIRESTORE
 // ========================================================================
+export const calculateAndSaveCongregationStats = onDocumentWritten(
+    "congregations/{congId}/territories/{terrId}/quadras/{quadraId}/casas/{casaId}",
+    async (event) => {
+        const congId = event.params.congId;
+        if (!congId) {
+            logger.error("ID da congregação não encontrado no evento.");
+            return;
+        }
+
+        try {
+            const territoriesRef = db.collection(`congregations/${congId}/territories`);
+            const territoriesSnapshot = await territoriesRef.get();
+
+            let totalHouses = 0;
+            let totalHousesDone = 0;
+            let territoryCount = 0;
+            let ruralTerritoryCount = 0;
+            let totalQuadras = 0;
+
+            for (const territoryDoc of territoriesSnapshot.docs) {
+                const territoryData = territoryDoc.data();
+
+                if (territoryData.type === 'rural') {
+                    ruralTerritoryCount++;
+                } else {
+                    territoryCount++;
+                    const quadrasRef = territoryDoc.ref.collection('quadras');
+                    const quadrasSnapshot = await quadrasRef.get();
+                    
+                    totalQuadras += quadrasSnapshot.size;
+
+                    for (const quadraDoc of quadrasSnapshot.docs) {
+                        const casasRef = quadraDoc.ref.collection('casas');
+                        const casasSnapshot = await casasRef.get();
+                        
+                        totalHouses += casasSnapshot.size;
+                        
+                        const casasDoneSnapshot = await casasRef.where('status', '==', true).get();
+                        totalHousesDone += casasDoneSnapshot.size;
+                    }
+                }
+            }
+
+            const congRef = db.collection('congregations').doc(congId);
+            await congRef.update({
+                territoryCount,
+                ruralTerritoryCount,
+                totalQuadras,
+                totalHouses,
+                totalHousesDone,
+                lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            logger.log(`Estatísticas da congregação ${congId} atualizadas com sucesso.`);
+
+        } catch (error) {
+            logger.error(`Erro ao calcular estatísticas para a congregação ${congId}:`, error);
+        }
+    }
+);
 
 
 export const onDeleteTerritory = onDocumentDeleted(
