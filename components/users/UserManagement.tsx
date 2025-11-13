@@ -10,40 +10,54 @@ import { Loader, Search, SlidersHorizontal, ChevronUp, X, Users as UsersIcon, Wi
 import { Disclosure, Transition } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { UserListItem } from './UserListItem';
+import { EditUserByAdminModal } from './EditUserByAdminModal'; // Importar o novo modal
 import { subDays, subMonths, subHours } from 'date-fns';
 import type { AppUser, Congregation } from '@/types/types';
+import { useToast } from '@/hooks/use-toast';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const deleteUserAccountFn = httpsCallable(functions, 'deleteUserAccount');
+const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
 
 
 export default function UserManagement() {
-  const { user: currentUser, loading: userLoading } = useUser(); 
+  const { user: currentUser, loading: userLoading, congregation } = useUser(); 
+  const { toast } = useToast();
 
   const [users, setUsers] = useState<AppUser[]>([]);
-  const [congregation, setCongregation] = useState<Congregation | null>(null);
   const [loading, setLoading] = useState(true);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Publicador'>('all');
-  const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive'>('all');
+  const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive_month'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'rejeitado'>('all');
+
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<{uid: string, name: string} | null>(null);
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [userToEdit, setUserToEdit] = useState<AppUser | null>(null);
+
+  const handleOpenEditModal = (user: AppUser) => {
+    if (currentUser?.role !== 'Administrador') return;
+    setUserToEdit(user);
+    setIsEditModalOpen(true);
+  };
   
   const confirmDeleteUser = useCallback(async () => {
     if (!userToDelete || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
     
     setIsConfirmModalOpen(false);
     try {
-        await deleteUserAccountFn({ userIdToDelete: userToDelete.uid });
+        await deleteUserAccount({ userIdToDelete: userToDelete.uid });
+        toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {
-        console.error("Erro ao chamar a função para excluir usuário:", error);
+        toast({ title: "Erro", description: error.message || "Falha ao excluir usuário.", variant: "destructive"});
     } finally {
         setUserToDelete(null);
     }
-  }, [userToDelete, currentUser]);
+  }, [userToDelete, currentUser, toast]);
   
   const openDeleteConfirm = useCallback((userId: string, userName: string) => {
     if (currentUser?.role !== 'Administrador') return;
@@ -58,49 +72,58 @@ export default function UserManagement() {
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where("congregationId", "==", currentUser.congregationId));
       const unsubUsers = onSnapshot(q, (snapshot) => {
-        setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })) as AppUser[]);
+        const oneMonthAgo = subMonths(new Date(), 1);
+        const usersData = snapshot.docs.map(docSnap => {
+            const data = docSnap.data();
+            let status = data.status;
+            // Lógica para status 'inativo' automático, mas apenas se o status atual for 'ativo'
+            if (status === 'ativo' && data.lastSeen && data.lastSeen.toDate() < oneMonthAgo) {
+                status = 'inativo';
+            }
+            return { uid: docSnap.id, ...data, status } as AppUser
+        });
+        setUsers(usersData);
         setLoading(false);
       }, (error) => {
         console.error("Erro ao buscar usuários:", error);
         setLoading(false);
       });
 
-      const congRef = doc(db, 'congregations', currentUser.congregationId);
-      const unsubCong = onSnapshot(congRef, (docSnap) => {
-        if (docSnap.exists()) {
-          setCongregation({ id: docSnap.id, ...docSnap.data() } as Congregation);
-        }
-      });
-
       return () => { 
         unsubUsers(); 
-        unsubCong(); 
       };
     } else if (!userLoading) {
       setLoading(false);
     }
   }, [currentUser, userLoading]);
   
-  const handleUserUpdate = useCallback(async (userId: string, dataToUpdate: object) => {
-    try {
-      if (!currentUser) return;
-      const permissions = dataToUpdate as Partial<AppUser>;
-      if (currentUser.role !== 'Administrador') {
-        if (permissions.role) {
-          console.error("Apenas administradores podem alterar perfis.");
-          return;
-        }
-      }
-      if (currentUser.uid === userId && permissions.role && permissions.role !== 'Administrador') {
-          alert("Você não pode rebaixar a si mesmo.");
-          return;
-      }
-      const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, dataToUpdate);
-    } catch (error) {
-      console.error("Erro ao atualizar usuário:", error);
+  const handleUserUpdate = async (userId: string, dataToUpdate: Partial<AppUser>) => {
+    if (!currentUser) return;
+    
+    // Se o status estiver sendo mudado para 'inativo', reverta para 'ativo'
+    // pois 'inativo' é um status visual, não um estado a ser salvo.
+    if(dataToUpdate.status === 'inativo') {
+      dataToUpdate.status = 'ativo';
     }
-  }, [currentUser]);
+
+    if (currentUser.role !== 'Administrador' && (dataToUpdate.role || dataToUpdate.status)) {
+      toast({ title: "Permissão Negada", description: "Apenas administradores podem alterar perfis e status.", variant: "destructive" });
+      return;
+    }
+    if (currentUser.uid === userId && dataToUpdate.role && dataToUpdate.role !== 'Administrador') {
+        toast({ title: "Ação Inválida", description: "Você não pode rebaixar a si mesmo.", variant: "destructive" });
+        return;
+    }
+    
+    const userRef = doc(db, 'users', userId);
+    try {
+        await updateDoc(userRef, dataToUpdate as any);
+        toast({ title: "Sucesso", description: `Dados de ${dataToUpdate.name || 'usuário'} atualizados.`});
+    } catch (error: any) {
+        console.error("Erro ao atualizar usuário:", error);
+        toast({ title: "Erro de Atualização", description: "A atualização falhou. Tente novamente.", variant: "destructive"});
+    }
+  };
 
   const stats = useMemo(() => {
     const onlineCount = users.filter(u => u.isOnline === true).length;
@@ -122,6 +145,9 @@ export default function UserManagement() {
     if (roleFilter !== 'all') {
       filtered = filtered.filter(user => user.role === roleFilter);
     }
+     if (statusFilter !== 'all') {
+      filtered = filtered.filter(user => user.status === statusFilter);
+    }
     
     if (activityFilter !== 'all') {
         if (activityFilter === 'active_hourly') {
@@ -130,9 +156,9 @@ export default function UserManagement() {
         } else if (activityFilter === 'active_weekly') {
             const oneWeekAgo = subDays(new Date(), 7);
             filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneWeekAgo);
-        } else if (activityFilter === 'inactive') {
+        } else if (activityFilter === 'inactive_month') {
             const oneMonthAgo = subMonths(new Date(), 1);
-            filtered = filtered.filter(u => !u.lastSeen || u.lastSeen.toDate() < oneMonthAgo);
+            filtered = filtered.filter(u => u.status === 'ativo' && (!u.lastSeen || u.lastSeen.toDate() < oneMonthAgo));
         }
     }
 
@@ -144,24 +170,32 @@ export default function UserManagement() {
       );
     }
     
-    const statusOrder: Record<AppUser['status'], number> = { 'pendente': 1, 'ativo': 2, 'rejeitado': 3, 'inativo': 4 };
+    const getStatusPriority = (status: AppUser['status']) => {
+      if (status === 'pendente') return 1;
+      return 2;
+    };
     
     return filtered.sort((a, b) => {
       if (a.uid === currentUser?.uid) return -1;
       if (b.uid === currentUser?.uid) return 1;
-      const statusA = statusOrder[a.status] || 99;
-      const statusB = statusOrder[b.status] || 99;
-      if (statusA !== statusB) return statusA - statusB;
+
+      const priorityA = getStatusPriority(a.status);
+      const priorityB = getStatusPriority(b.status);
+      
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      
       return a.name.localeCompare(b.name);
     });
 
-  }, [users, currentUser, searchTerm, presenceFilter, roleFilter, activityFilter]);
+  }, [users, currentUser, searchTerm, presenceFilter, roleFilter, activityFilter, statusFilter]);
   
   if (userLoading || loading) {
     return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
   }
   
-  if (!currentUser || !['Administrador', 'Dirigente', 'Servo de Territórios'].includes(currentUser.role)) {
+  if (!currentUser || !['Administrador', 'Dirigente'].includes(currentUser.role)) {
     return (
         <div className="text-center p-8">
             <h1 className="text-2xl font-bold">Acesso Negado</h1>
@@ -231,6 +265,17 @@ export default function UserManagement() {
                     <Transition show={open} enter="transition duration-100 ease-out" enterFrom="transform scale-95 opacity-0" enterTo="transform scale-100 opacity-100" leave="transition duration-75 ease-out" leaveFrom="transform scale-100 opacity-100" leaveTo="transform scale-95 opacity-100">
                         <Disclosure.Panel className="px-4 pb-4 pt-4 text-sm text-gray-500 border-t border-border mt-2 space-y-4">
                             <div>
+                                <p className="font-semibold mb-2">Status da Conta</p>
+                                <div className="flex flex-wrap gap-2">
+                                    <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                    <FilterButton label="Ativo" value="ativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                    <FilterButton label="Pendente" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                    <FilterButton label="Inativo (Visual)" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                    <FilterButton label="Rejeitado" value="rejeitado" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                </div>
+                            </div>
+                            
+                            <div>
                                 <p className="font-semibold mb-2">Status de Presença</p>
                                 <div className="flex flex-wrap gap-2">
                                     <FilterButton label="Todos" value="all" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
@@ -238,7 +283,7 @@ export default function UserManagement() {
                                     <FilterButton label="Offline" value="offline" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
                                 </div>
                             </div>
-                            
+
                             <div>
                                 <p className="font-semibold mb-2">Perfil de Usuário</p>
                                 <div className="flex flex-wrap gap-2">
@@ -256,7 +301,7 @@ export default function UserManagement() {
                                     <FilterButton label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} />
                                     <FilterButton label="Ativos na Última Hora" value="active_hourly" currentFilter={activityFilter} setFilter={setActivityFilter} />
                                     <FilterButton label="Ativos na Semana" value="active_weekly" currentFilter={activityFilter} setFilter={setActivityFilter} />
-                                    <FilterButton label="Inativos há um Mês" value="inactive" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                    <FilterButton label="Ausentes há um Mês" value="inactive_month" currentFilter={activityFilter} setFilter={setActivityFilter} />
                                 </div>
                             </div>
                         </Disclosure.Panel>
@@ -298,6 +343,7 @@ export default function UserManagement() {
                     currentUser={currentUser!} 
                     onUpdate={handleUserUpdate}
                     onDelete={openDeleteConfirm}
+                    onEdit={handleOpenEditModal}
                 />
             )}
           </ul>
@@ -313,12 +359,20 @@ export default function UserManagement() {
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
         onConfirm={confirmDeleteUser}
-        isLoading={false}
         title="Excluir Usuário"
         message={`Você tem certeza que deseja excluir permanentemente o usuário ${userToDelete?.name}? Todos os seus dados serão perdidos e esta ação não pode ser desfeita.`}
-        confirmText="Sim, excluir"
-        cancelText="Cancelar"
       />
+      
+      {userToEdit && (
+        <EditUserByAdminModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          userToEdit={userToEdit}
+          onSave={handleUserUpdate}
+        />
+      )}
     </>
   );
 }
+
+    
