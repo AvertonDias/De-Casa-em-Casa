@@ -30,10 +30,9 @@ function NotificacoesPage() {
     }
 
     const notificationsRef = collection(db, `users/${user.uid}/notifications`);
-    // Modificado para filtrar as notificações do tipo 'user_pending'
+    // Consulta simplificada para evitar erro de índice
     const q = query(
       notificationsRef, 
-      where('type', '!=', 'user_pending'),
       orderBy('createdAt', 'desc'), 
       limit(50)
     );
@@ -44,7 +43,7 @@ function NotificacoesPage() {
             ...doc.data()
         } as Notification));
         
-        // Filtro adicional no lado do cliente como uma camada extra de segurança
+        // Filtro no lado do cliente
         setNotifications(fetchedNotifications.filter(n => n.type !== 'user_pending'));
         setLoading(false);
     }, (error) => {
@@ -58,8 +57,10 @@ function NotificacoesPage() {
   const handleNavigateAndMarkAsRead = async (notification: Notification) => {
     if (!user) return;
     const notifRef = doc(db, `users/${user.uid}/notifications`, notification.id);
-    // Marca como lida, mas não espera a conclusão para navegar, proporcionando uma resposta mais rápida.
-    updateDoc(notifRef, { isRead: true, readAt: Timestamp.now() });
+    
+    if (!notification.isRead) {
+        updateDoc(notifRef, { isRead: true, readAt: Timestamp.now() });
+    }
 
     if (notification.link) {
       router.push(notification.link);

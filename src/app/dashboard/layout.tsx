@@ -1,3 +1,4 @@
+
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
 import Image from 'next/image';
@@ -311,8 +312,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
         // Listener para contar notificações não lidas
         const qNotifications = query(
           collection(db, 'users', user.uid, 'notifications'),
-          where('isRead', '==', false),
-          orderBy('createdAt', 'desc')
+          where('isRead', '==', false)
         );
         const unsubCount = onSnapshot(qNotifications, (snapshot) => {
             const unreadNotifications = snapshot.docs
