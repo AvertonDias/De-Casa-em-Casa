@@ -1,4 +1,3 @@
-
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
 import Image from 'next/image';
@@ -7,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { auth, db, app } from "@/lib/firebase"; // Import app
 import { useUser } from '@/contexts/UserContext';
 import { useTheme } from 'next-themes';
-import { doc, updateDoc, collection, query, where, onSnapshot, writeBatch, getDoc, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, onSnapshot, writeBatch, getDoc, setDoc, orderBy } from 'firebase/firestore';
 
 
 import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell } from 'lucide-react';
@@ -175,6 +174,7 @@ function Sidebar({
                     width={80}
                     height={80}
                     className="rounded-lg"
+                    style={{ width: 'auto', height: 'auto' }}
                     priority
                 />
                 <div className="flex flex-col items-end gap-2">
@@ -308,14 +308,17 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     let listeners: (() => void)[] = [];
   
     if (user?.uid && user.congregationId) {
-        // Listener para contar notificações não lidas, excluindo 'user_pending'
+        // Listener para contar notificações não lidas
         const qNotifications = query(
           collection(db, 'users', user.uid, 'notifications'),
           where('isRead', '==', false),
-          where('type', '!=', 'user_pending')
+          orderBy('createdAt', 'desc')
         );
         const unsubCount = onSnapshot(qNotifications, (snapshot) => {
-          setUnreadNotificationsCount(snapshot.size);
+            const unreadNotifications = snapshot.docs
+                .map(doc => doc.data() as Notification)
+                .filter(n => n.type !== 'user_pending');
+            setUnreadNotificationsCount(unreadNotifications.length);
         });
         listeners.push(unsubCount);
       
