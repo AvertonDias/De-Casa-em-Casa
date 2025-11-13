@@ -270,7 +270,7 @@ export const deleteUserAccount = withCors(async (req, res) => {
 //   GATILHOS FIRESTORE
 // ========================================================================
 export const calculateAndSaveCongregationStats = onDocumentWritten(
-    "congregations/{congId}/territories/{terrId}/quadras/{quadraId}/casas/{casaId}",
+    "congregations/{congId}/territories/{terrId}",
     async (event) => {
         const congId = event.params.congId;
         if (!congId) {
@@ -288,29 +288,17 @@ export const calculateAndSaveCongregationStats = onDocumentWritten(
             let ruralTerritoryCount = 0;
             let totalQuadras = 0;
 
-            for (const territoryDoc of territoriesSnapshot.docs) {
+            territoriesSnapshot.forEach(territoryDoc => {
                 const territoryData = territoryDoc.data();
-
                 if (territoryData.type === 'rural') {
                     ruralTerritoryCount++;
                 } else {
                     territoryCount++;
-                    const quadrasRef = territoryDoc.ref.collection('quadras');
-                    const quadrasSnapshot = await quadrasRef.get();
-                    
-                    totalQuadras += quadrasSnapshot.size;
-
-                    for (const quadraDoc of quadrasSnapshot.docs) {
-                        const casasRef = quadraDoc.ref.collection('casas');
-                        const casasSnapshot = await casasRef.get();
-                        
-                        totalHouses += casasSnapshot.size;
-                        
-                        const casasDoneSnapshot = await casasRef.where('status', '==', true).get();
-                        totalHousesDone += casasDoneSnapshot.size;
-                    }
+                    totalQuadras += territoryData.quadraCount || 0;
+                    totalHouses += territoryData.stats?.totalHouses || 0;
+                    totalHousesDone += territoryData.stats?.housesDone || 0;
                 }
-            }
+            });
 
             const congRef = db.collection('congregations').doc(congId);
             await congRef.update({
@@ -435,3 +423,4 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
+
