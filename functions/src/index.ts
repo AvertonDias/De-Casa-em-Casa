@@ -7,7 +7,7 @@ import {
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
 import * as crypto from "crypto";
-import { Congregation, AppUser } from "../../types/types";
+import { Congregation, AppUser } from "./types/types";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -81,7 +81,7 @@ export const createCongregationAndAdmin = withCors(async (req, res) => {
             totalHousesDone: 0,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-        } as Congregation);
+        });
 
         const userDocRef = db.collection("users").doc(newUser.uid);
         batch.set(userDocRef, {
@@ -365,5 +365,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
-
-    
