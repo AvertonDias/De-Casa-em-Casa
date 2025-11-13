@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
-import pwa from '@ducanh2912/next-pwa';
+import withPWAInit from 'next-pwa';
 
-const withPWA = pwa({
+const withPWA = withPWAInit({
   dest: 'public',
   disable: process.env.NODE_ENV === 'development',
   reloadOnOnline: true,
