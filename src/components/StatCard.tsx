@@ -4,18 +4,15 @@
 import React from 'react';
 import { Skeleton } from './ui/skeleton';
 import { useUser } from '@/contexts/UserContext';
-import { Congregation } from '@/types/types';
 
 interface StatCardProps {
   icon: React.ElementType;
   title: string;
-  statKey: keyof Congregation;
+  value: number;
 }
 
-export function StatCard({ icon: Icon, title, statKey }: StatCardProps) {
-  const { congregation, loading } = useUser();
-
-  const value = congregation ? (congregation[statKey] as number || 0) : 0;
+export function StatCard({ icon: Icon, title, value }: StatCardProps) {
+  const { loading } = useUser();
 
   return (
     <div className="bg-card p-6 rounded-lg shadow-md flex items-center">
@@ -24,7 +21,7 @@ export function StatCard({ icon: Icon, title, statKey }: StatCardProps) {
       </div>
       <div>
         <h3 className="text-muted-foreground text-base font-medium">{title}</h3>
-        {loading && !congregation ? (
+        {loading ? (
           <Skeleton className="h-8 w-16 mt-1" />
         ) : (
           <p className="text-3xl font-bold text-foreground">{value}</p>

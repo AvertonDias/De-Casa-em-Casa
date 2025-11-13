@@ -1,19 +1,20 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, limit, onSnapshot, doc } from 'firebase/firestore';
-import type { Territory, Congregation } from '@/types/types';
+import type { Territory } from '@/types/types';
 import { LandPlot, CheckSquare, HousePlus, Map, Loader, Trees } from 'lucide-react';
 import RecentTerritoryCard from '@/components/dashboard/RecentTerritoryCard'; 
 import { StatCard } from '@/components/StatCard';
-import withAuth from '@/components/withAuth'; // Importa o segurança
+import withAuth from '@/components/withAuth';
 
 function DashboardPage() {
   const { user, loading: userLoading } = useUser();
   const [recentTerritories, setRecentTerritories] = useState<Territory[]>([]);
+  const [allTerritories, setAllTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,27 +23,52 @@ function DashboardPage() {
       return;
     }
 
-    // Listener para os territórios recentemente trabalhados
     const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-    const q = query(
+    
+    // Listener for all territories to calculate stats
+    const unsubAllTerritories = onSnapshot(territoriesRef, (snapshot) => {
+      const territoriesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
+      setAllTerritories(territoriesData);
+      if (loading) setLoading(false);
+    }, (error) => {
+        console.error("Erro ao buscar todos os territórios: ", error);
+        if (loading) setLoading(false);
+    });
+
+    // Listener for recently updated territories
+    const qRecent = query(
       territoriesRef, 
       orderBy("lastUpdate", "desc"), 
       limit(8)
     );
-    
-    const unsubTerritories = onSnapshot(q, (snapshot) => {
-      const territoriesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
-      setRecentTerritories(territoriesData);
-      if (loading) setLoading(false);
-    }, (error) => {
-        console.error("Erro ao buscar territórios recentes: ", error);
-        if (loading) setLoading(false);
+    const unsubRecentTerritories = onSnapshot(qRecent, (snapshot) => {
+      const recentData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
+      setRecentTerritories(recentData);
     });
 
     return () => { 
-      unsubTerritories();
+      unsubAllTerritories();
+      unsubRecentTerritories();
     };
   }, [user, userLoading, loading]);
+
+  const stats = useMemo(() => {
+    return allTerritories.reduce((acc, territory) => {
+        if (territory.type === 'rural') {
+            acc.ruralTerritoryCount += 1;
+        } else {
+            acc.territoryCount += 1;
+            acc.totalHouses += territory.stats?.totalHouses || 0;
+            acc.totalHousesDone += territory.stats?.housesDone || 0;
+        }
+        return acc;
+    }, {
+        territoryCount: 0,
+        ruralTerritoryCount: 0,
+        totalHouses: 0,
+        totalHousesDone: 0,
+    });
+  }, [allTerritories]);
 
   if (userLoading || loading) {
     return (
@@ -60,10 +86,10 @@ function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard icon={Map} title="Territórios Urbanos" statKey="territoryCount" />
-        <StatCard icon={Trees} title="Territórios Rurais" statKey="ruralTerritoryCount" />
-        <StatCard icon={HousePlus} title="Casas Mapeadas" statKey="totalHouses" />
-        <StatCard icon={CheckSquare} title="Casas Visitadas" statKey="totalHousesDone" />
+        <StatCard icon={Map} title="Territórios Urbanos" value={stats.territoryCount} />
+        <StatCard icon={Trees} title="Territórios Rurais" value={stats.ruralTerritoryCount} />
+        <StatCard icon={HousePlus} title="Casas Mapeadas" value={stats.totalHouses} />
+        <StatCard icon={CheckSquare} title="Casas Visitadas" value={stats.totalHousesDone} />
       </div>
       
       <div>
@@ -84,4 +110,4 @@ function DashboardPage() {
   );
 }
 
-export default withAuth(DashboardPage); // Envolve a página com o segurança
+export default withAuth(DashboardPage);

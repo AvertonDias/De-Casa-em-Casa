@@ -269,55 +269,6 @@ export const deleteUserAccount = withCors(async (req, res) => {
 // ========================================================================
 //   GATILHOS FIRESTORE
 // ========================================================================
-export const calculateAndSaveCongregationStats = onDocumentWritten(
-    "congregations/{congId}/territories/{terrId}",
-    async (event) => {
-        const congId = event.params.congId;
-        if (!congId) {
-            logger.error("ID da congregação não encontrado no evento.");
-            return;
-        }
-
-        try {
-            const territoriesRef = db.collection(`congregations/${congId}/territories`);
-            const territoriesSnapshot = await territoriesRef.get();
-
-            let totalHouses = 0;
-            let totalHousesDone = 0;
-            let territoryCount = 0;
-            let ruralTerritoryCount = 0;
-            let totalQuadras = 0;
-
-            territoriesSnapshot.forEach(territoryDoc => {
-                const territoryData = territoryDoc.data();
-                if (territoryData.type === 'rural') {
-                    ruralTerritoryCount++;
-                } else {
-                    territoryCount++;
-                    totalQuadras += territoryData.quadraCount || 0;
-                    totalHouses += territoryData.stats?.totalHouses || 0;
-                    totalHousesDone += territoryData.stats?.housesDone || 0;
-                }
-            });
-
-            const congRef = db.collection('congregations').doc(congId);
-            await congRef.update({
-                territoryCount,
-                ruralTerritoryCount,
-                totalQuadras,
-                totalHouses,
-                totalHousesDone,
-                lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-            });
-
-            logger.log(`Estatísticas da congregação ${congId} atualizadas com sucesso.`);
-
-        } catch (error) {
-            logger.error(`Erro ao calcular estatísticas para a congregação ${congId}:`, error);
-        }
-    }
-);
-
 
 export const onDeleteTerritory = onDocumentDeleted(
   "congregations/{congregationId}/territories/{territoryId}",
@@ -423,4 +374,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
-
