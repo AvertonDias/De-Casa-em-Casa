@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { maskPhone } from '@/lib/utils';
 
 const functions = getFunctions(app, 'southamerica-east1');
-const notifyOnNewUser = httpsCallable(functions, 'notifyOnNewUser');
+const notifyOnNewUser = httpsCallable(functions, 'notifyOnNewUserV2');
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -113,6 +113,7 @@ export default function SignUpPage() {
                 width={80}
                 height={80}
                 className="rounded-lg mb-4"
+                style={{ width: 'auto', height: 'auto' }}
                 priority
             />
             <h1 className="text-3xl font-bold text-center">

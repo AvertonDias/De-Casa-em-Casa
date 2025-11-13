@@ -39,7 +39,7 @@ function withCors(handler: (req: https.Request, res: any) => void | Promise<void
 
 // ========================================================================
 //   FUNÇÕES HTTPS (onCall transformadas em onRequest com withCors)
-// =================================a=======================================
+// ========================================================================
 
 export const createCongregationAndAdminV2 = withCors(async (req, res) => {
     try {

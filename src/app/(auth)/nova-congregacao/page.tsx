@@ -14,7 +14,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { maskPhone } from '@/lib/utils'; 
 
 const functions = getFunctions(app, 'southamerica-east1');
-const createCongregationAndAdmin = httpsCallable(functions, 'createCongregationAndAdmin');
+const createCongregationAndAdmin = httpsCallable(functions, 'createCongregationAndAdminV2');
 
 
 export default function NovaCongregacaoPage() {
@@ -84,7 +84,7 @@ export default function NovaCongregacaoPage() {
         <div className="flex min-h-screen items-center justify-center bg-background">
             <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
                 <div className="flex flex-col items-center">
-                    <Image src="/images/icon-512x512.jpg" alt="Logo" width={80} height={80} className="mb-4 rounded-lg" priority />
+                    <Image src="/images/icon-512x512.jpg" alt="Logo" width={80} height={80} className="mb-4 rounded-lg" style={{ width: 'auto', height: 'auto' }} priority />
                     <h1 className="text-3xl font-bold text-center">De Casa em Casa</h1>
                     <p className="text-muted-foreground text-sm mt-2">Configure sua congregação e o primeiro administrador</p>
                 </div>
