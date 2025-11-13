@@ -1,3 +1,4 @@
+
 // src/functions/src/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
@@ -7,7 +8,7 @@ import {
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
 import * as crypto from "crypto";
-import { AppUser } from "./types/types";
+import { AppUser } from "@/types/types";
 
 if (!admin.apps.length) {
   admin.initializeApp();

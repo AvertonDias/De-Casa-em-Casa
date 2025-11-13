@@ -1,6 +1,7 @@
-// src/functions/src/types/types.ts
 
-import { Timestamp, FieldValue } from "firebase-admin/firestore";
+// src/types/types.ts
+
+import { Timestamp, FieldValue } from "firebase/firestore";
 
 // Definição para um usuário do seu aplicativo
 export interface AppUser {
