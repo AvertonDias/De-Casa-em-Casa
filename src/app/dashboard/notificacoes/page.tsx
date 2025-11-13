@@ -34,8 +34,7 @@ function NotificacoesPage() {
         const fetchedNotifications = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
-        } as Notification))
-        .filter(n => n.type !== 'user_pending'); // Filtra para remover notificações de usuário pendente
+        } as Notification));
 
         setNotifications(fetchedNotifications);
         setLoading(false);

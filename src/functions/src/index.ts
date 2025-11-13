@@ -3,12 +3,11 @@
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
 import {
   onDocumentDeleted,
-  onDocumentWritten,
 } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
-import { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import * as crypto from "crypto";
+import { Congregation, AppUser } from "../../types/types";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -82,7 +81,7 @@ export const createCongregationAndAdmin = withCors(async (req, res) => {
             totalHousesDone: 0,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        } as Congregation);
 
         const userDocRef = db.collection("users").doc(newUser.uid);
         batch.set(userDocRef, {
@@ -92,7 +91,7 @@ export const createCongregationAndAdmin = withCors(async (req, res) => {
             congregationId: newCongregationRef.id,
             role: "Administrador",
             status: "ativo",
-        });
+        } as Omit<AppUser, 'uid'>);
 
         await batch.commit();
         res.status(200).json({
@@ -115,41 +114,42 @@ export const createCongregationAndAdmin = withCors(async (req, res) => {
 
 export const notifyOnNewUser = withCors(async (req, res) => {
     try {
-        const { newUserName, congregationId } = req.body.data;
+        const { newUserName, congregationId, tokens } = req.body.data;
         if (!newUserName || !congregationId) {
             res.status(400).json({ data: { success: false, error: "Dados insuficientes para notificação." } });
             return;
         }
+        
+        // Se houver tokens, envia notificação push
+        if (tokens && tokens.length > 0) {
+            const message = {
+                notification: {
+                    title: 'Novo Usuário Aguardando',
+                    body: `${newUserName} solicitou acesso à congregação.`
+                },
+                webpush: {
+                    fcm_options: {
+                        link: '/dashboard/usuarios'
+                    }
+                },
+                tokens: tokens,
+            };
 
-        const rolesToNotify = ["Administrador", "Dirigente"];
-        const notifications: Promise<any>[] = [];
-
-        for (const role of rolesToNotify) {
-            const usersToNotifySnapshot = await db
-                .collection("users")
-                .where("congregationId", "==", congregationId)
-                .where("role", "==", role)
-                .get();
-            usersToNotifySnapshot.forEach((userDoc: QueryDocumentSnapshot) => {
-                const notification = {
-                    title: "Novo Usuário Aguardando Aprovação",
-                    body: `O usuário "${newUserName}" solicitou acesso à congregação.`,
-                    link: "/dashboard/usuarios",
-                    type: "user_pending",
-                    isRead: false,
-                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                };
-                notifications.push(userDoc.ref.collection("notifications").add(notification));
-            });
+            await admin.messaging().sendEachForMulticast(message);
+            logger.log("Notificações push enviadas para os admins/dirigentes.");
+        } else {
+            logger.log("Nenhum token FCM encontrado para enviar notificações push sobre novo usuário.");
         }
+        
+        // Finaliza a função com sucesso, sem criar notificações no Firestore.
+        res.status(200).json({ data: { success: true, message: "Processo de notificação concluído." } });
 
-        await Promise.all(notifications);
-        res.status(200).json({ data: { success: true } });
     } catch (error: any) {
-        logger.error("Erro ao criar notificações para novo usuário:", error);
-        res.status(500).json({ data: { success: false, error: "Falha ao enviar notificações." } });
+        logger.error("Erro no processo de notificação de novo usuário:", error);
+        res.status(500).json({ data: { success: false, error: "Falha no processo de notificação." } });
     }
 });
+
 
 export const requestPasswordReset = withCors(async (req, res) => {
     try {
