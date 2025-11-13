@@ -9,8 +9,8 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Loader, Search, SlidersHorizontal, ChevronUp, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
 import { Disclosure, Transition } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
-import { UserListItem } from './UserListItem';
-import { EditUserByAdminModal } from './EditUserByAdminModal'; // Importar o novo modal
+import { UserListItem } from '@/components/users/UserListItem';
+import { EditUserByAdminModal } from '@/components/users/EditUserByAdminModal'; // Importar o novo modal
 import { subDays, subMonths, subHours } from 'date-fns';
 import type { AppUser, Congregation } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
@@ -374,3 +374,5 @@ export default function UserManagement() {
     </>
   );
 }
+
+    
