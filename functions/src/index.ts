@@ -8,7 +8,7 @@ import {
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
 import * as crypto from "crypto";
-import { AppUser } from "./types/types";
+import { AppUser } from "@/types/types";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -42,7 +42,7 @@ function withCors(handler: (req: https.Request, res: any) => void | Promise<void
 //   FUNÇÕES HTTPS (onCall transformadas em onRequest com withCors)
 // ========================================================================
 
-export const createCongregationAndAdmin = withCors(async (req, res) => {
+export const createCongregationAndAdminV2 = withCors(async (req, res) => {
     try {
         const {
           adminName,
@@ -113,7 +113,7 @@ export const createCongregationAndAdmin = withCors(async (req, res) => {
     }
 });
 
-export const notifyOnNewUser = withCors(async (req, res) => {
+export const notifyOnNewUserV2 = withCors(async (req, res) => {
     try {
         const { newUserName, congregationId } = req.body.data;
         if (!newUserName || !congregationId) {
@@ -132,7 +132,7 @@ export const notifyOnNewUser = withCors(async (req, res) => {
 });
 
 
-export const requestPasswordReset = withCors(async (req, res) => {
+export const requestPasswordResetV2 = withCors(async (req, res) => {
     try {
         const { email } = req.body.data;
         if (!email) {
@@ -170,7 +170,7 @@ export const requestPasswordReset = withCors(async (req, res) => {
 });
 
 
-export const resetPasswordWithToken = withCors(async (req, res) => {
+export const resetPasswordWithTokenV2 = withCors(async (req, res) => {
     try {
         const { token, newPassword } = req.body.data;
         if (!token || !newPassword) {
@@ -202,7 +202,7 @@ export const resetPasswordWithToken = withCors(async (req, res) => {
 });
 
 
-export const deleteUserAccount = withCors(async (req, res) => {
+export const deleteUserAccountV2 = withCors(async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader) {
@@ -366,5 +366,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
-
-    
