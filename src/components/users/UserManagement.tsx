@@ -30,7 +30,7 @@ export default function UserManagement() {
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Publicador'>('all');
   const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive_month'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'bloqueado' | 'rejeitado'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'rejeitado'>('all');
 
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -271,7 +271,6 @@ export default function UserManagement() {
                                     <FilterButton label="Ativo" value="ativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
                                     <FilterButton label="Pendente" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
                                     <FilterButton label="Inativo (Visual)" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                    <FilterButton label="Bloqueado" value="bloqueado" currentFilter={statusFilter} setFilter={setStatusFilter} />
                                     <FilterButton label="Rejeitado" value="rejeitado" currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 </div>
                             </div>
@@ -375,3 +374,5 @@ export default function UserManagement() {
     </>
   );
 }
+
+    

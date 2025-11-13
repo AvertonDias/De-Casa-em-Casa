@@ -4,7 +4,7 @@
 import { Fragment } from 'react';
 import type { AppUser } from '@/types/types';
 import { Menu, Transition } from '@headlessui/react';
-import { MoreVertical, Check, Trash2, XCircle, Edit, User, ShieldX } from 'lucide-react';
+import { MoreVertical, Check, Trash2, XCircle, Edit, User } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -30,7 +30,6 @@ export const UserListItem = ({
   const canShowMenu = currentUser.uid !== user.uid && (isAdmin || (isDirigente && user.status === 'pendente'));
 
   const handleApprove = () => onUpdate(user.uid, { status: 'ativo' });
-  const handleBlock = () => onUpdate(user.uid, { status: 'bloqueado' });
   const handleDelete = () => onDelete(user.uid, user.name);
   const handleEdit = () => onEdit(user);
 
@@ -127,15 +126,6 @@ export const UserListItem = ({
                          </div>
                          {isAdmin && user.uid !== currentUser.uid && (
                            <div className="p-1">
-                              {user.status !== 'bloqueado' && (
-                                <Menu.Item>
-                                  {({ active }) => (
-                                    <button onClick={handleBlock} className={`${active ? 'bg-gray-600 text-white' : 'text-gray-700 dark:text-gray-300'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                      <ShieldX className="mr-2 h-4 w-4"/>Bloquear Acesso
-                                    </button>
-                                  )}
-                                </Menu.Item>
-                              )}
                               <Menu.Item>
                                 {({ active }) => (
                                   <button onClick={handleDelete} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
@@ -155,3 +145,5 @@ export const UserListItem = ({
     </li>
   );
 };
+
+    
