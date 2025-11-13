@@ -1,4 +1,3 @@
-
 // src/types/types.ts
 
 import { Timestamp, FieldValue } from "firebase/firestore";
@@ -49,10 +48,6 @@ export interface Territory {
     totalHouses: number;
     housesDone: number;
   };
-
-  // Mantemos estes para compatibilidade ou uso direto, se necessário
-  totalHouses?: number;
-  housesDone?: number;
   
   // Novos campos de atribuição
   status: 'disponivel' | 'designado'; // Novo status
@@ -73,11 +68,11 @@ export interface Congregation {
     name: string;
     number: string;
     
-    territoryCount?: number;
-    ruralTerritoryCount?: number;
-    totalQuadras?: number;
-    totalHouses?: number;
-    totalHousesDone?: number;
+    territoryCount: number;
+    ruralTerritoryCount: number;
+    totalQuadras: number;
+    totalHouses: number;
+    totalHousesDone: number;
     
     peakOnlineUsers?: {
         count: number;
@@ -96,8 +91,8 @@ export interface Quadra {
   id: string;
   name: string;
   description?: string;
-  totalHouses?: number;
-  housesDone?: number;
+  totalHouses: number;
+  housesDone: number;
 }
 
 // Definição para uma Casa
@@ -192,5 +187,3 @@ export interface Campaign {
     clicks: number;
   };
 }
-
-    
