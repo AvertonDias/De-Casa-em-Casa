@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, writeBatch, doc, updateDoc, limit, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, writeBatch, doc, updateDoc, limit, Timestamp, where } from 'firebase/firestore';
 import withAuth from '@/components/withAuth';
 import { Bell, Inbox, AlertTriangle, CheckCheck, Loader, UserPlus, Milestone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -28,7 +28,14 @@ function NotificacoesPage() {
     }
 
     const notificationsRef = collection(db, `users/${user.uid}/notifications`);
-    const q = query(notificationsRef, orderBy('createdAt', 'desc'), limit(50));
+    // Modificado para filtrar as notificações do tipo 'user_pending'
+    const q = query(
+      notificationsRef, 
+      where('type', '!=', 'user_pending'),
+      orderBy('type'), // Firestore requer um orderBy no mesmo campo do filtro de desigualdade
+      orderBy('createdAt', 'desc'), 
+      limit(50)
+    );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const fetchedNotifications = snapshot.docs.map(doc => ({
@@ -70,6 +77,7 @@ function NotificacoesPage() {
       case 'territory_overdue': return <AlertTriangle className="text-red-500" />;
       case 'territory_returned': return <CheckCheck className="text-green-500" />;
       case 'territory_available': return <Bell className="text-green-500" />;
+      // O caso 'user_pending' foi removido da renderização, mas mantido aqui por segurança.
       case 'user_pending': return <UserPlus className="text-yellow-500" />;
       default: return <Bell className="text-gray-500" />;
     }
