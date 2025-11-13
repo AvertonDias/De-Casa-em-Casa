@@ -10,7 +10,7 @@ import { getDatabase, type Database } from "firebase/database";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  apiKey: "your-api-key-is-not-present-in-the-project-files",
   authDomain: "appterritorios-e5bb5.firebaseapp.com",
   databaseURL: "https://appterritorios-e5bb5-default-rtdb.firebaseio.com",
   projectId: "appterritorios-e5bb5",
