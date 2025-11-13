@@ -114,35 +114,15 @@ export const createCongregationAndAdmin = withCors(async (req, res) => {
 
 export const notifyOnNewUser = withCors(async (req, res) => {
     try {
-        const { newUserName, congregationId, tokens } = req.body.data;
+        const { newUserName, congregationId } = req.body.data;
         if (!newUserName || !congregationId) {
             res.status(400).json({ data: { success: false, error: "Dados insuficientes para notificação." } });
             return;
         }
         
-        // Se houver tokens, envia notificação push
-        if (tokens && tokens.length > 0) {
-            const message = {
-                notification: {
-                    title: 'Novo Usuário Aguardando',
-                    body: `${newUserName} solicitou acesso à congregação.`
-                },
-                webpush: {
-                    fcm_options: {
-                        link: '/dashboard/usuarios'
-                    }
-                },
-                tokens: tokens,
-            };
-
-            await admin.messaging().sendEachForMulticast(message);
-            logger.log("Notificações push enviadas para os admins/dirigentes.");
-        } else {
-            logger.log("Nenhum token FCM encontrado para enviar notificações push sobre novo usuário.");
-        }
+        // A lógica para criar notificações no Firestore foi removida.
         
-        // Finaliza a função com sucesso, sem criar notificações no Firestore.
-        res.status(200).json({ data: { success: true, message: "Processo de notificação concluído." } });
+        res.status(200).json({ data: { success: true, message: "Processo de notificação concluído (sem criar notificação no DB)." } });
 
     } catch (error: any) {
         logger.error("Erro no processo de notificação de novo usuário:", error);
