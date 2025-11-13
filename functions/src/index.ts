@@ -3,12 +3,11 @@
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
 import {
   onDocumentDeleted,
-  onDocumentWritten,
 } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
-import { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import * as crypto from "crypto";
+import { Congregation, AppUser } from "../../types/types";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -82,7 +81,7 @@ export const createCongregationAndAdmin = withCors(async (req, res) => {
             totalHousesDone: 0,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        } as Congregation);
 
         const userDocRef = db.collection("users").doc(newUser.uid);
         batch.set(userDocRef, {
@@ -92,7 +91,7 @@ export const createCongregationAndAdmin = withCors(async (req, res) => {
             congregationId: newCongregationRef.id,
             role: "Administrador",
             status: "ativo",
-        });
+        } as Omit<AppUser, 'uid'>);
 
         await batch.commit();
         res.status(200).json({
@@ -120,36 +119,17 @@ export const notifyOnNewUser = withCors(async (req, res) => {
             res.status(400).json({ data: { success: false, error: "Dados insuficientes para notificação." } });
             return;
         }
+        
+        // A lógica para criar notificações no Firestore foi removida.
+        
+        res.status(200).json({ data: { success: true, message: "Processo de notificação concluído (sem criar notificação no DB)." } });
 
-        const rolesToNotify = ["Administrador", "Dirigente"];
-        const notifications: Promise<any>[] = [];
-
-        for (const role of rolesToNotify) {
-            const usersToNotifySnapshot = await db
-                .collection("users")
-                .where("congregationId", "==", congregationId)
-                .where("role", "==", role)
-                .get();
-            usersToNotifySnapshot.forEach((userDoc: QueryDocumentSnapshot) => {
-                const notification = {
-                    title: "Novo Usuário Aguardando Aprovação",
-                    body: `O usuário "${newUserName}" solicitou acesso à congregação.`,
-                    link: "/dashboard/usuarios",
-                    type: "user_pending",
-                    isRead: false,
-                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                };
-                notifications.push(userDoc.ref.collection("notifications").add(notification));
-            });
-        }
-
-        await Promise.all(notifications);
-        res.status(200).json({ data: { success: true } });
     } catch (error: any) {
-        logger.error("Erro ao criar notificações para novo usuário:", error);
-        res.status(500).json({ data: { success: false, error: "Falha ao enviar notificações." } });
+        logger.error("Erro no processo de notificação de novo usuário:", error);
+        res.status(500).json({ data: { success: false, error: "Falha no processo de notificação." } });
     }
 });
+
 
 export const requestPasswordReset = withCors(async (req, res) => {
     try {
@@ -232,20 +212,30 @@ export const deleteUserAccount = withCors(async (req, res) => {
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const callingUserUid = decodedToken.uid;
         const { userIdToDelete } = req.body.data;
+
         if (!userIdToDelete) {
             res.status(400).json({ data: { success: false, error: "ID do usuário a ser deletado é obrigatório." } });
             return;
         }
 
         const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-        const isAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
+        const isCallingUserAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
 
-        if (!isAdmin && callingUserUid !== userIdToDelete) {
-            res.status(403).json({ data: { success: false, error: "Sem permissão." } });
-            return;
+        // Regra 1: O usuário que está chamando é o mesmo que será deletado (autoexclusão)
+        const isSelfDelete = callingUserUid === userIdToDelete;
+
+        // Regra 2: O usuário que está chamando é admin E não está tentando se autoexcluir
+        const isAdminDeletingOther = isCallingUserAdmin && !isSelfDelete;
+
+        // Verifica se alguma das regras de permissão é atendida
+        if (!isSelfDelete && !isAdminDeletingOther) {
+             res.status(403).json({ data: { success: false, error: "Sem permissão." } });
+             return;
         }
-        if (isAdmin && callingUserUid === userIdToDelete) {
-            res.status(403).json({ data: { success: false, error: "Admin não pode se autoexcluir." } });
+
+        // Se a autoexclusão for de um admin, impede
+        if (isCallingUserAdmin && isSelfDelete) {
+            res.status(403).json({ data: { success: false, error: "Admin não pode se autoexcluir por esta função." } });
             return;
         }
 
@@ -258,78 +248,18 @@ export const deleteUserAccount = withCors(async (req, res) => {
 
     } catch (error: any) {
         logger.error("Erro ao excluir usuário:", error);
-        if (error.code === 'auth/id-token-expired') {
-            res.status(401).json({ data: { success: false, error: "Token expirado. Faça login novamente." } });
+        if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked') {
+            res.status(401).json({ data: { success: false, error: "Token de autenticação inválido. Faça login novamente." } });
         } else {
             res.status(500).json({ data: { success: false, error: error.message || "Falha na exclusão." } });
         }
     }
 });
 
+
 // ========================================================================
 //   GATILHOS FIRESTORE
 // ========================================================================
-export const calculateAndSaveCongregationStats = onDocumentWritten(
-    "congregations/{congId}/territories/{terrId}/quadras/{quadraId}/casas/{casaId}",
-    async (event) => {
-        const congId = event.params.congId;
-        if (!congId) {
-            logger.error("ID da congregação não encontrado no evento.");
-            return;
-        }
-
-        try {
-            const territoriesRef = db.collection(`congregations/${congId}/territories`);
-            const territoriesSnapshot = await territoriesRef.get();
-
-            let totalHouses = 0;
-            let totalHousesDone = 0;
-            let territoryCount = 0;
-            let ruralTerritoryCount = 0;
-            let totalQuadras = 0;
-
-            for (const territoryDoc of territoriesSnapshot.docs) {
-                const territoryData = territoryDoc.data();
-
-                if (territoryData.type === 'rural') {
-                    ruralTerritoryCount++;
-                } else {
-                    territoryCount++;
-                    const quadrasRef = territoryDoc.ref.collection('quadras');
-                    const quadrasSnapshot = await quadrasRef.get();
-                    
-                    totalQuadras += quadrasSnapshot.size;
-
-                    for (const quadraDoc of quadrasSnapshot.docs) {
-                        const casasRef = quadraDoc.ref.collection('casas');
-                        const casasSnapshot = await casasRef.get();
-                        
-                        totalHouses += casasSnapshot.size;
-                        
-                        const casasDoneSnapshot = await casasRef.where('status', '==', true).get();
-                        totalHousesDone += casasDoneSnapshot.size;
-                    }
-                }
-            }
-
-            const congRef = db.collection('congregations').doc(congId);
-            await congRef.update({
-                territoryCount,
-                ruralTerritoryCount,
-                totalQuadras,
-                totalHouses,
-                totalHousesDone,
-                lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-            });
-
-            logger.log(`Estatísticas da congregação ${congId} atualizadas com sucesso.`);
-
-        } catch (error) {
-            logger.error(`Erro ao calcular estatísticas para a congregação ${congId}:`, error);
-        }
-    }
-);
-
 
 export const onDeleteTerritory = onDocumentDeleted(
   "congregations/{congregationId}/territories/{territoryId}",
@@ -435,3 +365,5 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
+
+    

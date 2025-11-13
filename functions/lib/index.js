@@ -16,23 +16,15 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) {
+        for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    }
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -136,32 +128,12 @@ exports.notifyOnNewUser = withCors(async (req, res) => {
             res.status(400).json({ data: { success: false, error: "Dados insuficientes para notificação." } });
             return;
         }
-        const rolesToNotify = ["Administrador", "Dirigente"];
-        const notifications = [];
-        for (const role of rolesToNotify) {
-            const usersToNotifySnapshot = await db
-                .collection("users")
-                .where("congregationId", "==", congregationId)
-                .where("role", "==", role)
-                .get();
-            usersToNotifySnapshot.forEach((userDoc) => {
-                const notification = {
-                    title: "Novo Usuário Aguardando Aprovação",
-                    body: `O usuário "${newUserName}" solicitou acesso à congregação.`,
-                    link: "/dashboard/usuarios",
-                    type: "user_pending",
-                    isRead: false,
-                    createdAt: firebase_admin_1.default.firestore.FieldValue.serverTimestamp(),
-                };
-                notifications.push(userDoc.ref.collection("notifications").add(notification));
-            });
-        }
-        await Promise.all(notifications);
-        res.status(200).json({ data: { success: true } });
+        // A lógica para criar notificações no Firestore foi removida.
+        res.status(200).json({ data: { success: true, message: "Processo de notificação concluído (sem criar notificação no DB)." } });
     }
     catch (error) {
-        v2_1.logger.error("Erro ao criar notificações para novo usuário:", error);
-        res.status(500).json({ data: { success: false, error: "Falha ao enviar notificações." } });
+        v2_1.logger.error("Erro no processo de notificação de novo usuário:", error);
+        res.status(500).json({ data: { success: false, error: "Falha no processo de notificação." } });
     }
 });
 exports.requestPasswordReset = withCors(async (req, res) => {
@@ -247,13 +219,19 @@ exports.deleteUserAccount = withCors(async (req, res) => {
             return;
         }
         const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-        const isAdmin = callingUserSnap.exists && ((_a = callingUserSnap.data()) === null || _a === void 0 ? void 0 : _a.role) === "Administrador";
-        if (!isAdmin && callingUserUid !== userIdToDelete) {
+        const isCallingUserAdmin = callingUserSnap.exists && ((_a = callingUserSnap.data()) === null || _a === void 0 ? void 0 : _a.role) === "Administrador";
+        // Regra 1: O usuário que está chamando é o mesmo que será deletado (autoexclusão)
+        const isSelfDelete = callingUserUid === userIdToDelete;
+        // Regra 2: O usuário que está chamando é admin E não está tentando se autoexcluir
+        const isAdminDeletingOther = isCallingUserAdmin && !isSelfDelete;
+        // Verifica se alguma das regras de permissão é atendida
+        if (!isSelfDelete && !isAdminDeletingOther) {
             res.status(403).json({ data: { success: false, error: "Sem permissão." } });
             return;
         }
-        if (isAdmin && callingUserUid === userIdToDelete) {
-            res.status(403).json({ data: { success: false, error: "Admin não pode se autoexcluir." } });
+        // Se a autoexclusão for de um admin, impede
+        if (isCallingUserAdmin && isSelfDelete) {
+            res.status(403).json({ data: { success: false, error: "Admin não pode se autoexcluir por esta função." } });
             return;
         }
         await firebase_admin_1.default.auth().deleteUser(userIdToDelete);
@@ -265,8 +243,8 @@ exports.deleteUserAccount = withCors(async (req, res) => {
     }
     catch (error) {
         v2_1.logger.error("Erro ao excluir usuário:", error);
-        if (error.code === 'auth/id-token-expired') {
-            res.status(401).json({ data: { success: false, error: "Token expirado. Faça login novamente." } });
+        if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked') {
+            res.status(401).json({ data: { success: false, error: "Token de autenticação inválido. Faça login novamente." } });
         }
         else {
             res.status(500).json({ data: { success: false, error: error.message || "Falha na exclusão." } });
@@ -350,3 +328,4 @@ exports.mirrorUserStatus = (0, database_1.onValueWritten)({
     return null;
 });
 //# sourceMappingURL=index.js.map
+    
