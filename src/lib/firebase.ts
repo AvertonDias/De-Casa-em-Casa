@@ -1,4 +1,3 @@
-
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth, browserLocalPersistence, setPersistence } from "firebase/auth";
@@ -10,13 +9,14 @@ import { getDatabase, type Database } from "firebase/database";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "your-api-key-is-not-present-in-the-project-files",
-  authDomain: "appterritorios-e5bb5.firebaseapp.com",
-  databaseURL: "https://appterritorios-e5bb5-default-rtdb.firebaseio.com",
-  projectId: "appterritorios-e5bb5",
-  storageBucket: "appterritorios-e5bb5.appspot.com",
-  messagingSenderId: "83629039662",
-  appId: "1:83629039662:web:028e1dc87bdd41f73fffbf"
+  "projectId": "appterritorios-e5bb5",
+  "appId": "1:83629039662:web:42d410f411b2e9b33fffbf",
+  "apiKey": "AIzaSyBKW1da2xBNH0TCrW0AoSbbGgX8-HI8WSI",
+  "authDomain": "appterritorios-e5bb5.firebaseapp.com",
+  "measurementId": "",
+  "messagingSenderId": "83629039662",
+  "storageBucket": "appterritorios-e5bb5.appspot.com",
+  "databaseURL": "https://appterritorios-e5bb5-default-rtdb.firebaseio.com",
 };
 
 
