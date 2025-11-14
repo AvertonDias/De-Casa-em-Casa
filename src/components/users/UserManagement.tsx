@@ -9,8 +9,8 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Loader, Search, SlidersHorizontal, ChevronUp, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
 import { Disclosure, Transition } from '@headlessui/react';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
-import { UserListItem } from '@/components/users/UserListItem';
-import { EditUserByAdminModal } from '@/components/users/EditUserByAdminModal'; // Importar o novo modal
+import { UserListItem } from './UserListItem';
+import { EditUserByAdminModal } from './EditUserByAdminModal'; // Importar o novo modal
 import { subDays, subMonths, subHours } from 'date-fns';
 import type { AppUser, Congregation } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
@@ -50,6 +50,7 @@ export default function UserManagement() {
     
     setIsConfirmModalOpen(false);
     try {
+        const idToken = await currentUser.getIdToken();
         await deleteUserAccount({ userIdToDelete: userToDelete.uid });
         toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {
@@ -137,6 +138,8 @@ export default function UserManagement() {
   }, [users]);
 
   const filteredAndSortedUsers = useMemo(() => {
+    if (!currentUser) return []; // Retorna array vazio se currentUser não estiver pronto
+    
     let filtered = [...users];
 
     if (presenceFilter !== 'all') {
@@ -166,7 +169,7 @@ export default function UserManagement() {
       const lowerCaseSearch = searchTerm.toLowerCase();
       filtered = filtered.filter(user =>
         user.name.toLowerCase().includes(lowerCaseSearch) ||
-        user.email?.toLowerCase().includes(lowerCaseSearch)
+        (user.email && user.email.toLowerCase().includes(lowerCaseSearch))
       );
     }
     
@@ -176,8 +179,11 @@ export default function UserManagement() {
     };
     
     return filtered.sort((a, b) => {
-      if (a.uid === currentUser?.uid) return -1;
-      if (b.uid === currentUser?.uid) return 1;
+      // Garante que o currentUser sempre aparece primeiro
+      if (currentUser) {
+        if (a.uid === currentUser.uid) return -1;
+        if (b.uid === currentUser.uid) return 1;
+      }
 
       const priorityA = getStatusPriority(a.status);
       const priorityB = getStatusPriority(b.status);
@@ -374,3 +380,5 @@ export default function UserManagement() {
     </>
   );
 }
+
+    
