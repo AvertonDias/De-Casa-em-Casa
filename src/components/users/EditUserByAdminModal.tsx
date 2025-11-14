@@ -1,156 +1,113 @@
-
-"use client";
-
-import React, { useState, useEffect, useRef } from 'react';
+// /home/user/studio/components/users/EditUserByAdminModal.tsx
+import React, { useState, useEffect, FormEvent } from 'react'; // Adicionado useState, useEffect, FormEvent
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { maskPhone } from '@/lib/utils';
-import type { AppUser } from '@/types/types';
+import { Input } from '@/components/ui/input'; // Adicionado para o formulário
+import { Label } from '@/components/ui/label'; // Adicionado para o formulário
+import { Loader2 } from 'lucide-react'; // Adicionado para o spinner de loading
+
+// IMPORTAÇÃO CRUCIAL PARA O TIPO APPUSER
+import type { AppUser, Congregation } from '@/types/types'; // <<< IMPORTE AppUser AQUI
+// Ajuste o caminho '@/types/types' se necessário para que o EditUserByAdminModal.tsx o encontre.
+// Ex: Se o path mapping não estiver funcionando ou você precisa de um caminho relativo.
 
 interface EditUserByAdminModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  userToEdit: AppUser;
-  onSave: (userId: string, data: Partial<AppUser>) => Promise<void>;
+    isOpen: boolean;
+    onClose: () => void;
+    userToEdit: AppUser | null; // <<< ADICIONADO ESTA PROPRIEDADE
+    onSave: (userId: string, dataToUpdate: Partial<AppUser>) => Promise<void>; // <<< ADICIONADO ESTA PROPRIEDADE
 }
 
 export function EditUserByAdminModal({ isOpen, onClose, userToEdit, onSave }: EditUserByAdminModalProps) {
-  const { toast } = useToast();
-  
-  const [name, setName] = useState('');
-  const [whatsapp, setWhatsapp] = useState('');
-  const [role, setRole] = useState<AppUser['role']>('Publicador');
-  const [status, setStatus] = useState<AppUser['status']>('ativo');
-  const [loading, setLoading] = useState(false);
-  const nameInputRef = useRef<HTMLInputElement>(null);
+    // Estado para o formulário de edição dentro do modal
+    const [editedUser, setEditedUser] = useState<Partial<AppUser>>({});
+    const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    if (userToEdit && isOpen) {
-      setName(userToEdit.name || '');
-      setWhatsapp(userToEdit.whatsapp || '');
-      setRole(userToEdit.role || 'Publicador');
-      setStatus(userToEdit.status === 'inativo' ? 'ativo' : userToEdit.status); // Trata o status inativo visual
-      
-      setTimeout(() => {
-        nameInputRef.current?.focus();
-        nameInputRef.current?.select();
-      }, 100);
-    }
-  }, [userToEdit, isOpen]);
+    // Preenche o formulário com os dados do usuário a ser editado quando o modal é aberto
+    useEffect(() => {
+        if (userToEdit) {
+            setEditedUser({ ...userToEdit });
+        }
+    }, [userToEdit]);
 
-  const handleSaveChanges = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setEditedUser(prev => ({ ...prev, [name]: value }));
+    };
 
-    const dataToUpdate: Partial<AppUser> = {};
-    if (name.trim() !== userToEdit.name) dataToUpdate.name = name.trim();
-    if (whatsapp !== (userToEdit.whatsapp || '')) dataToUpdate.whatsapp = whatsapp;
-    if (role !== userToEdit.role) dataToUpdate.role = role;
-    
-    // Apenas atualiza o status se for diferente e não for o 'inativo' (que é automático)
-    if (status !== userToEdit.status && status !== 'inativo') {
-        dataToUpdate.status = status;
-    }
-    
-    if (Object.keys(dataToUpdate).length > 0) {
-      try {
-        await onSave(userToEdit.uid, dataToUpdate);
-        toast({
-          title: "Sucesso!",
-          description: `Perfil de ${name.trim()} foi atualizado.`,
-        });
-        onClose();
-      } catch (error) {
-        toast({
-          title: "Erro ao Salvar",
-          description: "Não foi possível salvar as alterações.",
-          variant: "destructive",
-        });
-      }
-    } else {
-      toast({
-        title: "Nenhuma alteração",
-        description: "Nenhuma modificação foi feita.",
-      });
-      onClose();
-    }
-    setLoading(false);
-  };
-  
-  const allRoles: AppUser['role'][] = ['Administrador', 'Dirigente', 'Servo de Territórios', 'Publicador'];
-  const allStatuses: AppUser['status'][] = ['ativo', 'pendente', 'bloqueado', 'rejeitado'];
+    const handleSaveSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!userToEdit?.uid) return;
 
-  const hasChanges = userToEdit && (
-    name !== userToEdit.name ||
-    whatsapp !== (userToEdit.whatsapp || '') ||
-    role !== userToEdit.role ||
-    status !== (userToEdit.status === 'inativo' ? 'ativo' : userToEdit.status)
-  );
+        setIsSaving(true);
+        try {
+            await onSave(userToEdit.uid, editedUser);
+            onClose(); // Fecha o modal após salvar com sucesso
+        } catch (error) {
+            console.error("Erro ao salvar edições do usuário:", error);
+            // TODO: Adicionar um toast ou mensagem de erro para o usuário
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent 
-        className="max-w-md p-0"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
-        <DialogHeader className="p-6 pb-4">
-          <DialogTitle>Editar Perfil de Usuário</DialogTitle>
-          <DialogDescription>
-            Alterando perfil de <span className="font-semibold">{userToEdit?.name}</span>.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <form id="edit-user-by-admin-form" onSubmit={handleSaveChanges} className="px-6 space-y-4 max-h-[60vh] overflow-y-auto">
-            <div>
-                <Label htmlFor="edit-name">Nome Completo</Label>
-                <Input ref={nameInputRef} id="edit-name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1"/>
-            </div>
-            <div>
-                <Label htmlFor="edit-whatsapp">WhatsApp</Label>
-                <Input 
-                  id="edit-whatsapp" 
-                  type="tel" 
-                  value={whatsapp} 
-                  onChange={e => setWhatsapp(maskPhone(e.target.value))} 
-                  placeholder="(XX) XXXXX-XXXX" 
-                  className="mt-1"
-                />
-            </div>
-             <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                    <Label htmlFor="edit-role">Perfil</Label>
-                    <Select value={role} onValueChange={(value: AppUser['role']) => setRole(value)}>
-                        <SelectTrigger id="edit-role"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            {allRoles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-1">
-                    <Label htmlFor="edit-status">Status</Label>
-                    <Select value={status} onValueChange={(value: AppUser['status']) => setStatus(value)}>
-                        <SelectTrigger id="edit-status"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            {allStatuses.map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
-        </form>
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Editar Usuário: {userToEdit?.name || userToEdit?.email || 'N/A'}</DialogTitle>
+                    <DialogDescription>
+                        Faça as alterações necessárias no perfil do usuário.
+                    </DialogDescription>
+                </DialogHeader>
+                {userToEdit && (
+                    <form onSubmit={handleSaveSubmit} className="space-y-4 py-4">
+                        <div>
+                            <Label htmlFor="edit-name">Nome</Label>
+                            <Input
+                                id="edit-name"
+                                name="name"
+                                value={editedUser.name || ''}
+                                onChange={handleFormChange}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="edit-email">Email</Label>
+                            <Input
+                                id="edit-email"
+                                name="email"
+                                type="email"
+                                value={editedUser.email || ''}
+                                onChange={handleFormChange}
+                                required
+                            />
+                        </div>
+                        {/* Adicione outros campos que você deseja editar aqui (role, congregationId, etc.) */}
+                        {/* Exemplo para WhatsApp: */}
+                        <div>
+                            <Label htmlFor="edit-whatsapp">WhatsApp</Label>
+                            <Input
+                                id="edit-whatsapp"
+                                name="whatsapp"
+                                value={editedUser.whatsapp || ''}
+                                onChange={handleFormChange}
+                            />
+                        </div>
 
-        <DialogFooter className="p-6 pt-4 border-t">
-          <DialogClose asChild>
-              <Button type="button" variant="secondary" disabled={loading}>Cancelar</Button>
-          </DialogClose>
-          <Button type="submit" form="edit-user-by-admin-form" disabled={loading || !hasChanges}>
-            {loading ? 'Salvando...' : 'Salvar Alterações'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>Cancelar</Button>
+                            </DialogClose>
+                            <Button type="submit" disabled={isSaving}>
+                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Salvar Alterações
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                )}
+            </DialogContent>
+        </Dialog>
+    );
 }
+    
