@@ -113,7 +113,6 @@ export default function SignUpPage() {
                 width={80}
                 height={80}
                 className="rounded-lg mb-4"
-                style={{ width: 'auto', height: 'auto' }}
                 priority
             />
             <h1 className="text-3xl font-bold text-center">

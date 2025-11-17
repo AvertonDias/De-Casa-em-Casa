@@ -175,7 +175,6 @@ function Sidebar({
                     width={80}
                     height={80}
                     className="rounded-lg"
-                    style={{ width: 'auto', height: 'auto' }}
                     priority
                 />
                 <div className="flex flex-col items-end gap-2">
