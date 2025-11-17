@@ -197,19 +197,17 @@ function Sidebar({
               return (
                 <li key={link.name} className="relative">
                   <Link href={link.href} onClick={onClose} className={cn(
-                      'flex items-center justify-between text-md p-3 rounded-lg mb-2 transition-colors', 
+                      'flex items-center text-md p-3 rounded-lg mb-2 transition-colors', 
                       isActive 
                         ? 'bg-primary text-primary-foreground font-semibold shadow' 
                         : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                     )}>
-                    <div className="flex items-center gap-3">
-                      <link.icon className="h-5 w-5" />
+                      <link.icon className="h-5 w-5 mr-3" />
                       <span>{link.name}</span>
-                    </div>
+                      {hasUnread && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-destructive rounded-full animate-indicator-pulse"></span>
+                      )}
                   </Link>
-                  {hasUnread && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-destructive rounded-full animate-indicator-pulse"></span>
-                  )}
                 </li>
               );
             })}
