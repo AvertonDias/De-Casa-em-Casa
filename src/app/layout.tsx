@@ -11,9 +11,9 @@ export const metadata: Metadata = {
   description: "Painel de Controle de Territórios",
   manifest: "/manifest.json",
   icons: {
-    icon: "/images/Logo_v2.jpg",
-    shortcut: "/images/Logo_v2.jpg",
-    apple: "/images/Logo_v2.jpg",
+    icon: "/images/Logo_v3.png",
+    shortcut: "/images/Logo_v3.png",
+    apple: "/images/Logo_v3.png",
   },
   appleWebApp: {
     capable: true,

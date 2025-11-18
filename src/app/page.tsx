@@ -50,7 +50,7 @@ export default function UniversalLoginPage() {
       <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
         <div className="flex flex-col items-center justify-center">
             <Image
-                src="/images/Logo_v2.jpg"
+                src="/images/Logo_v3.png"
                 alt="Logo De Casa em Casa"
                 width={80}
                 height={80}

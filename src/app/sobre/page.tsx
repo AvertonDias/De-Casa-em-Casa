@@ -82,7 +82,7 @@ export default function SobrePage() {
       <div className="bg-background text-foreground">
         <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur-sm">
            <div className="container mx-auto h-16 flex items-center justify-between px-4 md:px-6">
-             <Link href="/" className="flex items-center gap-2"><Image src="/images/Logo_v2.jpg" alt="Logo" width={32} height={32} className="rounded-md" priority /><span className="font-bold text-lg">De Casa em Casa</span></Link>
+             <Link href="/" className="flex items-center gap-2"><Image src="/images/Logo_v3.png" alt="Logo" width={32} height={32} className="rounded-md" priority /><span className="font-bold text-lg">De Casa em Casa</span></Link>
              <Button asChild><Link href="/">Acessar Painel</Link></Button>
            </div>
         </header>
