@@ -1,11 +1,11 @@
 {
   "name": "De Casa em Casa",
-  "short_name": "De Casa",
-  "description": "Gerenciador de Territórios para congregações.",
+  "short_name": "casa em casa",
+  "description": "Gerenciador de Territórios",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1E1B29",
-  "theme_color": "#8E44AD",
+  "background_color": "#0a0a0a",
+  "theme_color": "#673ab7",
   "icons": [
     {
       "src": "/images/Ico.jpg",
