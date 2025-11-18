@@ -38,6 +38,7 @@ function DashboardPage() {
     // Listener for recently updated territories
     const qRecent = query(
       territoriesRef, 
+      where("lastWorkedAt", "!=", null),
       orderBy("lastWorkedAt", "desc"), 
       limit(8)
     );
