@@ -4,8 +4,8 @@
   "start_url": ".",
   "display": "standalone",
   "background_color": "#240 6% 10%",
-  "description": "Gerenciador de Territórios",
-  "theme_color": "#673ab7",
+  "theme_color": "#262 82% 56%",
+  "description": "Gerenciamento de Territórios",
   "icons": [
     {
       "src": "/images/Logo_v3.png",
