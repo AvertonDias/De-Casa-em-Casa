@@ -1,7 +1,7 @@
 
 # De Casa em Casa: A Revolução Digital no Gerenciamento de Territórios
 
-![Logo do App](public/images/icon-512x512.jpg)
+![Logo do App](public/images/Ico.jpg)
 
 **De Casa em Casa** é um sistema web completo e moderno, construído como um Progressive Web App (PWA), para revolucionar a forma como as congregações organizam e trabalham seus territórios. Diga adeus aos mapas de papel, às fichas frágeis e à incerteza. Diga olá à eficiência, colaboração em tempo real e segurança.
 

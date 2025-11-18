@@ -108,7 +108,7 @@ export default function SignUpPage() {
       <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
         <div className="flex flex-col items-center justify-center">
             <Image
-                src="/images/icon-512x512.jpg"
+                src="/images/Ico.jpg"
                 alt="Logo De Casa em Casa"
                 width={80}
                 height={80}
