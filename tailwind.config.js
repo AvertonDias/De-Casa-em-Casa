@@ -63,12 +63,12 @@ const config = {
       },
       keyframes: {
         "accordion-down": {
-          from: { height: 0 },
+          from: { height: "0" },
           to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
           from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: 0 },
+          to: { height: "0" },
         },
         "pending-pulse": {
           "0%, 100%": {
@@ -91,4 +91,4 @@ const config = {
   plugins: [require('tailwindcss-animate')],
 };
 
-module.exports = config;
+export default config;
