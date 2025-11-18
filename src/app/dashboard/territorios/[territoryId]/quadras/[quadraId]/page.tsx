@@ -171,7 +171,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 
     try {
         await runTransaction(db, async (transaction) => {
-            // 1. READ todos os documentos primeiro
             const [congDoc, territoryDoc, quadraDoc, casaDoc] = await Promise.all([
                 transaction.get(congRef),
                 transaction.get(territoryRef),
@@ -184,18 +183,16 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             }
 
             const wasDone = casaDoc.data().status === true;
-            if (wasDone === newStatus) return; // Nenhuma mudança necessária
+            if (wasDone === newStatus) return;
 
             const increment = newStatus ? 1 : -1;
 
-            // 2. CALCULAR novos valores
             const newQuadraHousesDone = (quadraDoc.data().housesDone || 0) + increment;
             const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + increment;
             const territoryTotalHouses = territoryDoc.data().stats.totalHouses || 0;
             const newTerritoryProgress = territoryTotalHouses > 0 ? newTerritoryHousesDone / territoryTotalHouses : 0;
             const newCongTotalHousesDone = (congDoc.data().totalHousesDone || 0) + increment;
 
-            // 3. WRITE todas as atualizações
             const casaUpdateData: any = { status: newStatus };
             if (newStatus) {
                 casaUpdateData.lastWorkedBy = { uid: user.uid, name: user.name };
@@ -211,32 +208,19 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             if(newStatus){
                 territoryUpdateData.lastWorkedAt = serverTimestamp();
             }
-
             transaction.update(territoryRef, territoryUpdateData);
             
             transaction.update(congRef, { totalHousesDone: newCongTotalHousesDone });
-
-            // 4. Lidar com o histórico de atividade
+            
             if (newStatus) {
-                const todayStr = formatDate(new Date(), 'yyyy-MM-dd');
-                const todayActivitiesQuery = query(
-                  activityHistoryRef,
-                  where("activityDateStr", "==", todayStr),
-                  where("type", "==", "work"),
-                  limit(1)
-                );
-                
-                // Nota: getDocs dentro de uma transação não é ideal. Uma solução melhor seria uma função de nuvem.
-                // Simplificação: vamos assumir que podemos criar um log sem verificar se já existe um para o dia.
-                const newActivityRef = doc(activityHistoryRef);
-                transaction.set(newActivityRef, {
-                    type: "work",
-                    activityDate: Timestamp.now(),
-                    activityDateStr: todayStr,
-                    description: `Casa ${casa.number} (${quadraDoc.data().name}) concluída.`,
-                    userId: user.uid,
-                    userName: user.name,
-                });
+              const newActivityRef = doc(activityHistoryRef);
+              transaction.set(newActivityRef, {
+                  type: "work",
+                  activityDate: Timestamp.now(),
+                  description: `Casa ${casa.number} (da ${quadraDoc.data().name}) foi concluída.`,
+                  userId: 'automatic_system_log',
+                  userName: user.name,
+              });
             }
         });
     } catch (error) {
@@ -281,7 +265,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             transaction.delete(casaRef);
             
             const wasDone = casaDoc.data().status === true;
-            // Quadra
             const quadraTotal = quadraDoc.data().totalHouses || 0;
             const quadraDone = quadraDoc.data().housesDone || 0;
             transaction.update(quadraRef, {
@@ -289,7 +272,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                 housesDone: wasDone ? quadraDone - 1 : quadraDone
             });
             
-            // Território
             const territoryTotal = territoryDoc.data().stats.totalHouses || 0;
             const territoryDone = territoryDoc.data().stats.housesDone || 0;
             const newTerritoryTotal = territoryTotal - 1;
@@ -301,7 +283,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                 progress: newProgress
             });
 
-            // Congregação (A CORREÇÃO)
             const congTotalHouses = congDoc.data().totalHouses || 0;
             const congTotalHousesDone = congDoc.data().totalHousesDone || 0;
             transaction.update(congRef, {
@@ -528,4 +509,5 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 }
 
 export default withAuth(QuadraDetailPage);
+
 

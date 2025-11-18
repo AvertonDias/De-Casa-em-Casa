@@ -10,6 +10,8 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AddEditActivityModal from './AddEditActivityModal';
 import { ConfirmationModal } from './ConfirmationModal'; 
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+
 
 interface ActivityHistoryProps {
   territoryId: string;
@@ -18,7 +20,7 @@ interface ActivityHistoryProps {
 
 export default function ActivityHistory({ territoryId, history }: ActivityHistoryProps) {
   const { user } = useUser();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true); // Manter aberto por padrão
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [activityToEdit, setActivityToEdit] = useState<Activity | null>(null);
@@ -41,17 +43,18 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
         const activityDocRef = doc(historyCollectionRef, activityId);
         await updateDoc(activityDocRef, {
           activityDate: Timestamp.fromDate(activityData.activityDate),
-          notes: activityData.notes, // Mantém 'notes' para entradas manuais
-          description: activityData.notes, // Atualiza description para consistência
+          notes: activityData.notes,
+          description: activityData.notes,
         });
       } else {
         await addDoc(historyCollectionRef, {
           activityDate: Timestamp.fromDate(activityData.activityDate),
-          notes: activityData.notes, // Mantém 'notes' para entradas manuais
-          description: activityData.notes, // Adiciona description para entradas manuais também, por consistência
+          notes: activityData.notes,
+          description: activityData.notes,
           userName: user.name,
           userId: user.uid,
           createdAt: now,
+          type: 'manual',
         });
       }
       await updateDoc(territoryDocRef, { lastUpdate: now });
@@ -88,6 +91,22 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
     setActivityToDelete(id);
     setIsConfirmModalOpen(true);
   };
+  
+  // Função para agrupar atividades pelo mesmo dia
+  const groupActivitiesByDay = (activities: Activity[]) => {
+    return activities.reduce((acc, activity) => {
+      const date = format(activity.activityDate.toDate(), 'yyyy-MM-dd');
+      if (!acc[date]) {
+        acc[date] = [];
+      }
+      acc[date].push(activity);
+      return acc;
+    }, {} as Record<string, Activity[]>);
+  };
+
+  const groupedHistory = groupActivitiesByDay(history);
+  const sortedDays = Object.keys(groupedHistory).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
 
   return (
     <>
@@ -102,45 +121,56 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
             {canManage && (
               <div className="mb-4">
                 <button onClick={openAddModal} className="w-full flex items-center justify-center p-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">
-                  <Plus className="mr-2 h-4 w-4" /> Adicionar Registro
+                  <Plus className="mr-2 h-4 w-4" /> Adicionar Registro Manual
                 </button>
               </div>
             )}
             
             {history.length > 0 ? (
-              <ul className="space-y-4">
-                {history.map((activity) => (
-                  <li key={activity.id} className="flex items-start justify-between">
-                    <div>
-                      <p className="font-semibold text-base">
-                        {activity.activityDate ? format(activity.activityDate.toDate(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : 'Data não registrada'}
-                      </p>
-                      {/* MODIFICADO AQUI: Prioriza activity.description e adiciona CSS para quebra de linha */}
-                      {activity.description && (
-                        <p className="text-sm mt-1 text-muted-foreground italic" style={{ whiteSpace: 'pre-line' }}>
-                            {activity.description}
-                        </p>
-                      )}
-                      {/* Se description não existe, fallback para notes (para registros antigos ou específicos) */}
-                      {!activity.description && activity.notes && (
-                          <p className="text-sm mt-1 text-muted-foreground italic">"{activity.notes}"</p>
-                      )}
-                      
-                      {/* MODIFICADO AQUI: Lógica para exibir "Sistema" ou o userName */}
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Registrado por: {' '}
-                        {activity.userId === 'automatic_system_log' ? 'Sistema' : activity.userName || 'Desconhecido'}
-                      </p>
-                    </div>
-                    {canManage && (
-                      <div className="flex space-x-2">
-                        <button onClick={() => openEditModal(activity)} className="p-1 text-muted-foreground hover:text-white"><Edit size={16}/></button>
-                        <button onClick={() => openConfirmModal(activity.id)} className="p-1 text-muted-foreground hover:text-red-500"><Trash2 size={16}/></button>
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              <Accordion type="multiple" className="w-full space-y-2">
+                {sortedDays.map(date => {
+                   const activities = groupedHistory[date];
+                   const firstActivity = activities[0];
+                   const isManual = activities.every(a => a.type === 'manual');
+                   const triggerTitle = isManual
+                     ? (firstActivity.description || firstActivity.notes || "Registro Manual")
+                     : `Trabalho realizado em ${activities.length} casa(s)`;
+
+                  return (
+                    <AccordionItem value={date} key={date} className="bg-muted/30 rounded-lg px-4 border-b-0">
+                      <AccordionTrigger className="hover:no-underline py-3">
+                        <div className="text-left">
+                          <p className="font-semibold text-base">{format(new Date(date + 'T12:00:00'), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
+                          <p className="text-sm text-muted-foreground">{triggerTitle}</p>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-3 pt-2 border-t border-border">
+                           {activities.map(activity => (
+                             <div key={activity.id} className="text-sm">
+                               <div className="flex justify-between items-start">
+                                 <p className="italic text-muted-foreground flex-1" style={{ whiteSpace: 'pre-line' }}>
+                                    "{activity.description || activity.notes}"
+                                 </p>
+                                 {canManage && activity.type === 'manual' && (
+                                   <div className="flex space-x-2 ml-2">
+                                     <button onClick={() => openEditModal(activity)} className="p-1 text-muted-foreground hover:text-white"><Edit size={14}/></button>
+                                     <button onClick={() => openConfirmModal(activity.id)} className="p-1 text-muted-foreground hover:text-red-500"><Trash2 size={14}/></button>
+                                   </div>
+                                 )}
+                               </div>
+                               <p className="text-xs text-muted-foreground/80 mt-1">
+                                 Registrado por: {' '}
+                                 {activity.userId === 'automatic_system_log' ? 'Sistema' : activity.userName || 'Desconhecido'}
+                               </p>
+                             </div>
+                           ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  )
+                })}
+              </Accordion>
             ) : (
               <p className="text-center text-muted-foreground py-4">Nenhum registro encontrado.</p>
             )}
