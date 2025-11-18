@@ -9,7 +9,7 @@
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "clean": "rimraf .next node_modules",
-    "build": "npm run clean && npm install && next build",
+    "build": "npm run clean && npm install && (cd api/functions && npm install) && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
