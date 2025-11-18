@@ -1,4 +1,3 @@
-
 {
   "compilerOptions": {
     "module": "commonjs",
@@ -11,11 +10,14 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "rootDir": "./src"
+    "rootDir": "src"
   },
   "compileOnSave": true,
   "include": [
     "src"
   ],
-  "exclude": [ "node_modules", "lib" ]
+  "exclude": [
+    "node_modules",
+    "lib"
+  ]
 }
