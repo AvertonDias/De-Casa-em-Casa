@@ -50,7 +50,6 @@ export default function UserManagement() {
     
     setIsConfirmModalOpen(false);
     try {
-        const idToken = await currentUser.getIdToken();
         await deleteUserAccount({ userIdToDelete: userToDelete.uid });
         toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {
@@ -138,8 +137,6 @@ export default function UserManagement() {
   }, [users]);
 
   const filteredAndSortedUsers = useMemo(() => {
-    if (!currentUser) return []; // Retorna array vazio se currentUser não estiver pronto
-    
     let filtered = [...users];
 
     if (presenceFilter !== 'all') {
@@ -169,7 +166,7 @@ export default function UserManagement() {
       const lowerCaseSearch = searchTerm.toLowerCase();
       filtered = filtered.filter(user =>
         user.name.toLowerCase().includes(lowerCaseSearch) ||
-        (user.email && user.email.toLowerCase().includes(lowerCaseSearch))
+        user.email?.toLowerCase().includes(lowerCaseSearch)
       );
     }
     
@@ -179,11 +176,8 @@ export default function UserManagement() {
     };
     
     return filtered.sort((a, b) => {
-      // Garante que o currentUser sempre aparece primeiro
-      if (currentUser) {
-        if (a.uid === currentUser.uid) return -1;
-        if (b.uid === currentUser.uid) return 1;
-      }
+      if (a.uid === currentUser?.uid) return -1;
+      if (b.uid === currentUser?.uid) return 1;
 
       const priorityA = getStatusPriority(a.status);
       const priorityB = getStatusPriority(b.status);
