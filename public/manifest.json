@@ -1,22 +1,21 @@
 {
   "name": "De Casa em Casa",
-  "short_name": "Casa em Casa",
-  "description": "Painel de Controle de Territórios",
+  "short_name": "De Casa",
+  "description": "Gerenciador de Territórios para congregações.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1E1B29",
+  "theme_color": "#8E44AD",
   "icons": [
     {
-      "src": "/images/icon-192x192.jpg",
+      "src": "/images/Ico.jpg",
       "sizes": "192x192",
       "type": "image/jpeg"
     },
     {
-      "src": "/images/icon-512x512.jpg",
+      "src": "/images/Ico.jpg",
       "sizes": "512x512",
       "type": "image/jpeg"
     }
-  ],
-  "theme_color": "#673ab7",
-  "background_color": "#ffffff",
-  "display": "standalone",
-  "scope": "/",
-  "start_url": "/"
+  ]
 }
