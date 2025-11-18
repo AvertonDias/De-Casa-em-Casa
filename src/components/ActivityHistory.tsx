@@ -114,7 +114,7 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
         <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="item-1" className="border-b-0">
                 <AccordionTrigger className="font-semibold text-lg hover:no-underline">
-                  <div className="flex items-center"><History className="mr-3 text-primary" />Histórico de Trabalho ({history.length})</div>
+                  <div className="flex items-center"><History className="mr-3 text-primary" />Histórico de Trabalho ({sortedDays.length})</div>
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="mt-4 pt-4 border-t border-border">
