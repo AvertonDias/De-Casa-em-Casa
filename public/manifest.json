@@ -1,19 +1,20 @@
+
 {
   "name": "De Casa em Casa",
   "short_name": "casa em casa",
-  "description": "Gerenciador de Territórios",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#673ab7",
+  "background_color": "#18181b",
+  "theme_color": "#6d28d9",
+  "description": "Gerenciador de territórios moderno para congregações.",
   "icons": [
     {
-      "src": "/images/Ico.jpg",
+      "src": "/images/Ícone_v2.jpg",
       "sizes": "192x192",
       "type": "image/jpeg"
     },
     {
-      "src": "/images/Ico.jpg",
+      "src": "/images/Ícone_v2.jpg",
       "sizes": "512x512",
       "type": "image/jpeg"
     }

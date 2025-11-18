@@ -52,7 +52,7 @@ export function InstallPwaModal() {
         <DialogHeader>
           <div className="flex justify-center">
             <Image
-                src="/images/Ico.jpg"
+                src="/images/Ícone_v2.jpg"
                 alt="Logo De Casa em Casa"
                 width={80}
                 height={80}
