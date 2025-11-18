@@ -1,21 +1,22 @@
+
 {
-  "name": "De Casa em Casa",
-  "short_name": "De Casa em Casa",
-  "description": "Sistema de gerenciamento de territórios.",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#673ab7",
-  "icons": [
-    {
-      "src": "/images/Ícone_v2.jpg",
-      "sizes": "192x192",
-      "type": "image/jpeg"
-    },
-    {
-      "src": "/images/Ícone_v2.jpg",
-      "sizes": "512x512",
-      "type": "image/jpeg"
-    }
-  ]
+    "name": "De Casa em Casa",
+    "short_name": "De Casa em Casa",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#1E1B29",
+    "theme_color": "#8E44AD",
+    "description": "Um aplicativo para gerenciamento de territórios de congregação.",
+    "icons": [
+        {
+            "src": "/images/Logo_v2.jpg",
+            "sizes": "192x192",
+            "type": "image/jpeg"
+        },
+        {
+            "src": "/images/Logo_v2.jpg",
+            "sizes": "512x512",
+            "type": "image/jpeg"
+        }
+    ]
 }
