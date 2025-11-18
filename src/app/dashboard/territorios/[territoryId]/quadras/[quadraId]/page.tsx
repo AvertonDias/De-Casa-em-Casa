@@ -217,7 +217,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
               transaction.set(newActivityRef, {
                   type: "work",
                   activityDate: Timestamp.now(),
-                  description: `Casa ${casa.number} (da ${quadraDoc.data().name}) foi concluída.`,
+                  description: `Casa ${casa.number} (da ${quadraDoc.data().name}) foi feita.`,
                   userId: 'automatic_system_log',
                   userName: user.name,
               });
@@ -511,3 +511,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 export default withAuth(QuadraDetailPage);
 
 
+
+
+    
