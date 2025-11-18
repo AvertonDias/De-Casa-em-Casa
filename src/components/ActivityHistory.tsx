@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -130,11 +131,17 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
               <Accordion type="multiple" className="w-full space-y-2">
                 {sortedDays.map(date => {
                    const activities = groupedHistory[date];
-                   const firstActivity = activities[0];
-                   const isManual = activities.every(a => a.type === 'manual');
-                   const triggerTitle = isManual
-                     ? (firstActivity.description || firstActivity.notes || "Registro Manual")
-                     : `Trabalho realizado em ${activities.length} casa(s)`;
+                   const workLogs = activities.filter(a => a.type === 'work');
+                   const manualLogs = activities.filter(a => a.type === 'manual');
+                   
+                   let triggerTitle = "Nenhuma atividade registrada";
+                    if (workLogs.length > 0 && manualLogs.length > 0) {
+                      triggerTitle = `Trabalho em ${workLogs.length} casa(s) e ${manualLogs.length} registro(s) manual(is)`;
+                    } else if (workLogs.length > 0) {
+                      triggerTitle = `Trabalho realizado em ${workLogs.length} casa(s)`;
+                    } else if (manualLogs.length > 0) {
+                      triggerTitle = `${manualLogs.length} registro(s) manual(is)`;
+                    }
 
                   return (
                     <AccordionItem value={date} key={date} className="bg-muted/30 rounded-lg px-4 border-b-0">
@@ -161,7 +168,7 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
                                </div>
                                <p className="text-xs text-muted-foreground/80 mt-1">
                                  Registrado por: {' '}
-                                 {activity.userId === 'automatic_system_log' ? 'Sistema' : activity.userName || 'Desconhecido'}
+                                 {activity.userName || 'Desconhecido'}
                                </p>
                              </div>
                            ))}
