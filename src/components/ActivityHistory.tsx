@@ -27,6 +27,7 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
   const [activityToDelete, setActivityToDelete] = useState<string | null>(null);
 
   const canManage = user?.role === 'Administrador' || user?.role === 'Dirigente';
+  const isAdmin = user?.role === 'Administrador';
   const historyCollectionRef = user?.congregationId ? collection(db, `congregations/${user.congregationId}/territories/${territoryId}/activityHistory`) : null;
   const territoryDocRef = user?.congregationId ? doc(db, `congregations/${user.congregationId}/territories/${territoryId}`) : null;
 
@@ -159,7 +160,7 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
                                         <p className="italic text-muted-foreground flex-1" style={{ whiteSpace: 'pre-line' }}>
                                             "{activity.description || activity.notes}"
                                         </p>
-                                        {canManage && activity.type === 'manual' && (
+                                        {isAdmin && activity.type === 'manual' && (
                                           <div className="flex space-x-2 ml-2">
                                             <button onClick={() => openEditModal(activity)} className="p-1 text-muted-foreground hover:text-white"><Edit size={14}/></button>
                                             <button onClick={() => openConfirmModal(activity.id)} className="p-1 text-muted-foreground hover:text-red-500"><Trash2 size={14}/></button>
