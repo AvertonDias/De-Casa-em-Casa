@@ -136,9 +136,9 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
                    
                    let triggerTitle = "Nenhuma atividade registrada";
                     if (workLogs.length > 0 && manualLogs.length > 0) {
-                      triggerTitle = `Trabalho em ${workLogs.length} casa(s) e ${manualLogs.length} registro(s) manual(is)`;
+                      triggerTitle = `${workLogs.length} casa(s) feita(s) e ${manualLogs.length} registro(s) manual(is)`;
                     } else if (workLogs.length > 0) {
-                      triggerTitle = `Trabalho realizado em ${workLogs.length} casa(s)`;
+                      triggerTitle = `${workLogs.length} casa(s) feita(s)`;
                     } else if (manualLogs.length > 0) {
                       triggerTitle = `${manualLogs.length} registro(s) manual(is)`;
                     }
