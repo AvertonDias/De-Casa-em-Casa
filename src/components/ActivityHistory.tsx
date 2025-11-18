@@ -168,7 +168,7 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
                                       </div>
                                       <p className="text-xs text-muted-foreground/80 mt-1">
                                         Registrado por: {' '}
-                                        {activity.userId === 'automatic_system_log' ? 'Sistema' : activity.userName || 'Desconhecido'}
+                                        {activity.userName || 'Desconhecido'}
                                       </p>
                                     </div>
                                   ))}
