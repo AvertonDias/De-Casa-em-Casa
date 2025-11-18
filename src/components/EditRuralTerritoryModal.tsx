@@ -12,7 +12,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { RuralTerritory, RuralLink } from '@/types/types';
-import isEqual from 'lodash.isequal';
 
 
 interface EditRuralTerritoryModalProps {
@@ -125,7 +124,7 @@ export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, o
     name !== territory.name ||
     description !== (territory.description || '') ||
     mapLink !== (territory.mapLink || '') ||
-    !isEqual(links, territory.links || [])
+    JSON.stringify(links) !== JSON.stringify(territory.links || [])
   );
 
 
