@@ -10,6 +10,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Loader } from 'lucide-react';
 import { subMonths } from 'date-fns';
 import { getDatabase, ref, onDisconnect, set, onValue } from 'firebase/database';
+import { LoadingScreen } from '@/components/LoadingScreen';
 
 const rtdb = getDatabase(app);
 
@@ -200,6 +201,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [user, loading, pathname, router]);
 
   const value = { user, congregation, loading, logout, updateUser };
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }
