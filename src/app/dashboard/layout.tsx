@@ -287,31 +287,20 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   usePresence();
 
   useEffect(() => {
-    // Esta função será executada apenas no lado do cliente, após a montagem.
-    const checkAndRequestNotificationPermission = async () => {
-      // Garante que o código só roda no navegador e que a API de notificação existe.
-      if (typeof window === 'undefined' || !('Notification' in window)) {
-        console.log("Este navegador não suporta notificações.");
-        return;
-      }
-
-      if (Notification.permission === 'default') {
-        try {
-          const permission = await Notification.requestPermission();
-          if (permission === 'granted') {
-            console.log('Permissão para notificações concedida.');
-          } else {
-            console.log('Permissão para notificações não concedida.');
-          }
-        } catch (error) {
-          console.error('Erro ao solicitar permissão para notificações:', error);
+    if (user) {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission === 'default') {
+          Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+              console.log('Permissão para notificações concedida.');
+            } else {
+              console.log('Permissão para notificações não concedida.');
+            }
+          }).catch(error => {
+            console.error('Erro ao solicitar permissão para notificações:', error);
+          });
         }
       }
-    };
-    
-    // Pede permissão assim que o layout é montado, se o usuário estiver logado
-    if (user) {
-      checkAndRequestNotificationPermission();
     }
   }, [user]);
 
