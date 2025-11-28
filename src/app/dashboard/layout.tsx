@@ -287,19 +287,17 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   usePresence();
 
   useEffect(() => {
-    if (user) {
-      if (typeof window !== 'undefined' && 'Notification' in window) {
-        if (Notification.permission === 'default') {
-          Notification.requestPermission().then(permission => {
-            if (permission === 'granted') {
-              console.log('Permissão para notificações concedida.');
-            } else {
-              console.log('Permissão para notificações não concedida.');
-            }
-          }).catch(error => {
-            console.error('Erro ao solicitar permissão para notificações:', error);
-          });
-        }
+    if (user && typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            console.log('Permissão para notificações concedida.');
+          } else {
+            console.log('Permissão para notificações não concedida.');
+          }
+        }).catch(error => {
+          console.error('Erro ao solicitar permissão para notificações:', error);
+        });
       }
     }
   }, [user]);
