@@ -287,19 +287,17 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   usePresence();
 
   useEffect(() => {
-    if (user && typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission === 'default') {
-        Notification.requestPermission().then(permission => {
+    // A verificação `window.Notification` é mais segura e direta.
+    if (user && typeof window !== 'undefined' && window.Notification) {
+      if (window.Notification.permission === 'default') {
+        window.Notification.requestPermission().then(permission => {
           if (permission === 'granted') {
             console.log('Permissão para notificações concedida.');
-          } else {
-            console.log('Permissão para notificações não concedida.');
           }
-        }).catch(error => {
-          console.error('Erro ao solicitar permissão para notificações:', error);
         });
       }
     }
+    // Adicione `user` ao array de dependências, pois o efeito depende dele.
   }, [user]);
 
   useEffect(() => {
