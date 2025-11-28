@@ -1,3 +1,4 @@
+
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth, browserLocalPersistence, setPersistence } from "firebase/auth";
@@ -21,12 +22,16 @@ const firebaseConfig = {
 
 
 // Inicializa o Firebase
-const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+let app: FirebaseApp;
+if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
+} else {
+    app = getApp();
+}
 
 const auth: Auth = getAuth(app);
 const storage: FirebaseStorage = getStorage(app);
 const functions: Functions = getFunctions(app, 'southamerica-east1');
-const messaging: Messaging | null = (typeof window !== 'undefined') ? getMessaging(app) : null;
 const rtdb: Database = getDatabase(app);
 
 // Garante a persistência de login mais robusta
@@ -36,6 +41,16 @@ setPersistence(auth, browserLocalPersistence);
 const db: Firestore = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
 });
+
+// Inicializa o Messaging apenas no lado do cliente
+let messaging: Messaging | null = null;
+if (typeof window !== 'undefined') {
+    try {
+        messaging = getMessaging(app);
+    } catch (error) {
+        console.error("Firebase Messaging não é suportado neste navegador.", error);
+    }
+}
 
 
 // Exporta tudo para ser usado em outras partes do aplicativo
