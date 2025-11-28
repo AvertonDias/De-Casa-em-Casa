@@ -288,23 +288,26 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const requestNotificationPermission = async () => {
-      if ('Notification' in window) {
-        try {
-          const permission = await Notification.requestPermission();
-          if (permission === 'granted') {
-            console.log('Permissão para notificações concedida.');
-            // Aqui você pode inicializar o FCM para obter o token do dispositivo
-          } else {
-            console.log('Permissão para notificações não concedida.');
-          }
-        } catch (error) {
-          console.error('Erro ao solicitar permissão para notificações:', error);
+      // Garante que o código só rode no client-side
+      if (typeof window === 'undefined' || !('Notification' in window)) {
+        return;
+      }
+      
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          console.log('Permissão para notificações concedida.');
+          // Aqui você pode inicializar o FCM para obter o token do dispositivo
+        } else {
+          console.log('Permissão para notificações não concedida.');
         }
+      } catch (error) {
+        console.error('Erro ao solicitar permissão para notificações:', error);
       }
     };
     
     // Pede permissão assim que o layout é montado, se o usuário estiver logado
-    if (user && Notification.permission === 'default') {
+    if (user && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
       requestNotificationPermission();
     }
   }, [user]);
