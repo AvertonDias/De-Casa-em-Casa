@@ -287,8 +287,9 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   usePresence();
 
   useEffect(() => {
+    // Esta função será executada apenas no lado do cliente, após a montagem.
     const checkAndRequestNotificationPermission = async () => {
-      // Garante que o código só roda no navegador
+      // Garante que o código só roda no navegador e que a API de notificação existe.
       if (typeof window === 'undefined' || !('Notification' in window)) {
         console.log("Este navegador não suporta notificações.");
         return;
@@ -464,5 +465,3 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 }
 
 export default withAuth(DashboardLayout);
-
-    
