@@ -4,4 +4,4 @@ const nextConfig = {
   // O Next.js já lida com o diretório 'api' de forma adequada por padrão.
 };
 
-export default nextConfig;
+module.exports = nextConfig;

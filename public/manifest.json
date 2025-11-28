@@ -1,11 +1,11 @@
 {
   "name": "De Casa em Casa",
-  "short_name": "De Casa em Casa",
-  "start_url": ".",
+  "short_name": "Territórios",
+  "description": "Sistema de gerenciamento de territórios para congregações.",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#240 6% 10%",
-  "theme_color": "#262 82% 56%",
-  "description": "Gerenciamento de Territórios",
+  "background_color": "#1e1b26",
+  "theme_color": "#673ab7",
   "icons": [
     {
       "src": "/images/Logo_v3.png",
