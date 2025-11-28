@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -6,17 +5,24 @@ import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 
 export function LoadingScreen() {
-    const [progress, setProgress] = useState(10);
+    const [progress, setProgress] = useState(13);
 
     useEffect(() => {
-        // Esta é uma animação de progresso simulada.
-        // Ela não representa o progresso real do carregamento.
-        const timer = setTimeout(() => {
-            const newProgress = progress < 90 ? progress + Math.random() * 20 : 90;
-            setProgress(newProgress);
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [progress]);
+        // Simula um progresso de carregamento contínuo.
+        const timer = setInterval(() => {
+            setProgress((prevProgress) => {
+                if (prevProgress >= 90) {
+                    clearInterval(timer);
+                    return 90;
+                }
+                return prevProgress + 5;
+            });
+        }, 200); // A cada 200ms, aumenta o progresso.
+
+        return () => {
+            clearInterval(timer);
+        };
+    }, []);
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
