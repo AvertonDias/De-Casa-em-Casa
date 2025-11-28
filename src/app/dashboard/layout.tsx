@@ -1,3 +1,4 @@
+
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
 import Image from 'next/image';
@@ -286,12 +287,13 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   usePresence();
 
   useEffect(() => {
-    // Esta função será executada apenas no cliente
     const checkAndRequestNotificationPermission = async () => {
-      if (!('Notification' in window)) {
+      // Garante que o código só roda no navegador
+      if (typeof window === 'undefined' || !('Notification' in window)) {
         console.log("Este navegador não suporta notificações.");
         return;
       }
+
       if (Notification.permission === 'default') {
         try {
           const permission = await Notification.requestPermission();
@@ -462,3 +464,5 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 }
 
 export default withAuth(DashboardLayout);
+
+    
