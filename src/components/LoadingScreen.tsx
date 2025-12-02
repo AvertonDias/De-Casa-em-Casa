@@ -1,4 +1,3 @@
-
 "use client";
 
 import Image from 'next/image';
@@ -24,7 +23,7 @@ export function LoadingScreen() {
                         }}
                     />
                 </div>
-                <p className="text-center text-sm text-muted-foreground">Carregando seus dados...</p>
+                <p className="text-center text-sm text-muted-foreground">Carregando...</p>
             </div>
         </div>
     );
