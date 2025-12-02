@@ -1,3 +1,4 @@
+
 // src/functions/src/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
@@ -205,38 +206,40 @@ export const deleteUserAccountV2 = withCors(async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader) {
-            res.status(401).json({ data: { success: false, error: "Ação não autorizada. Sem token." } });
-            return;
+            return res.status(401).json({ data: { success: false, error: "Ação não autorizada. Sem token." } });
         }
         const idToken = authHeader.split('Bearer ')[1];
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const callingUserUid = decodedToken.uid;
+        
         const { userIdToDelete } = req.body.data;
-
         if (!userIdToDelete) {
-            res.status(400).json({ data: { success: false, error: "ID do usuário a ser deletado é obrigatório." } });
-            return;
+            return res.status(400).json({ data: { success: false, error: "ID do usuário a ser deletado é obrigatório." } });
         }
 
         const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-        const isCallingUserAdmin = callingUserSnap.exists && callingUserSnap.data()?.role === "Administrador";
-
-        // Regra 1: O usuário que está chamando é o mesmo que será deletado (autoexclusão)
-        const isSelfDelete = callingUserUid === userIdToDelete;
-
-        // Regra 2: O usuário que está chamando é admin E não está tentando se autoexcluir
-        const isAdminDeletingOther = isCallingUserAdmin && !isSelfDelete;
-
-        // Verifica se alguma das regras de permissão é atendida
-        if (!isSelfDelete && !isAdminDeletingOther) {
-             res.status(403).json({ data: { success: false, error: "Sem permissão." } });
-             return;
+        const callingUserData = callingUserSnap.data();
+        
+        if (!callingUserData) {
+            return res.status(403).json({ data: { success: false, error: "Usuário requisitante não encontrado." } });
         }
 
-        // Se a autoexclusão for de um admin, impede
+        const isCallingUserAdmin = callingUserData.role === "Administrador";
+
+        // Autoexclusão (o usuário se deleta)
+        const isSelfDelete = callingUserUid === userIdToDelete;
+
+        // Admin deletando outro usuário
+        const isAdminDeletingOther = isCallingUserAdmin && !isSelfDelete;
+
+        // Permissão para autoexclusão de um admin é bloqueada
         if (isCallingUserAdmin && isSelfDelete) {
-            res.status(403).json({ data: { success: false, error: "Admin não pode se autoexcluir por esta função." } });
-            return;
+            return res.status(403).json({ data: { success: false, error: "Admin não pode se autoexcluir por esta função." } });
+        }
+        
+        // Verifica se é uma autoexclusão ou se um admin está deletando outro usuário
+        if (!isSelfDelete && !isAdminDeletingOther) {
+             return res.status(403).json({ data: { success: false, error: "Sem permissão para esta ação." } });
         }
 
         await admin.auth().deleteUser(userIdToDelete);
@@ -244,17 +247,18 @@ export const deleteUserAccountV2 = withCors(async (req, res) => {
         if ((await userDocRef.get()).exists) {
             await userDocRef.delete();
         }
-        res.status(200).json({ data: { success: true } });
+        return res.status(200).json({ data: { success: true } });
 
     } catch (error: any) {
         logger.error("Erro ao excluir usuário:", error);
         if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked') {
-            res.status(401).json({ data: { success: false, error: "Token de autenticação inválido. Faça login novamente." } });
+            return res.status(401).json({ data: { success: false, error: "Token de autenticação inválido. Faça login novamente." } });
         } else {
-            res.status(500).json({ data: { success: false, error: error.message || "Falha na exclusão." } });
+            return res.status(500).json({ data: { success: false, error: error.message || "Falha na exclusão." } });
         }
     }
 });
+
 
 
 // ========================================================================
@@ -365,3 +369,5 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
+
+    

@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -32,12 +33,17 @@ service cloud.firestore {
       let userData = getUserData(request.auth.uid);
       return userData != null && userData.role in ['Administrador', 'Dirigente', 'Servo de Territórios'];
     }
+    
+    function isDirigenteOrAdmin() {
+      let userData = getUserData(request.auth.uid);
+      return userData != null && userData.role in ['Administrador', 'Dirigente'];
+    }
 
     // --- Coleções ---
 
     match /congregations/{congId} {
-      allow read: if true;
-      allow write: if isRole('Administrador');
+      allow read: if isUserInCongregation(congId);
+      allow write: if isRole('Administrador') && isUserInCongregation(congId);
 
       match /territories/{terrId} {
         allow read, write: if isUserInCongregation(congId);
@@ -63,7 +69,7 @@ service cloud.firestore {
       // Usuário pode ler seu próprio perfil. CRÍTICO PARA O FUNCIONAMENTO DO APP.
       allow get: if request.auth.uid == userId;
 
-      // Usuário pode ler o perfil de outros da mesma congregação (necessário para a lista de contatos).
+      // Usuário pode ler o perfil de outros da mesma congregação.
       allow get: if isAuth() && isSameCongregationAsRequestingUser(userId);
 
       // Usuário pode atualizar seu próprio perfil (nome, whatsapp, etc).
@@ -73,17 +79,16 @@ service cloud.firestore {
                       !('status' in request.resource.data) &&
                       !('congregationId' in request.resource.data);
 
-      // Managers (Admin/Dirigente/Servo) podem ATUALIZAR outros usuários (status, papel).
-      allow update: if isManager() && isUserInCongregation(resource.data.congregationId);
+      // Dirigentes ou Admins podem ATUALIZAR outros usuários (status, papel).
+      allow update: if isDirigenteOrAdmin() && isUserInCongregation(resource.data.congregationId);
 
       // Admins podem DELETAR outros usuários, mas apenas da sua própria congregação e não a si mesmos.
       allow delete: if isRole('Administrador') && 
                       request.auth.uid != userId && 
                       isUserInCongregation(getUserData(userId).congregationId);
       
-      // Permite a listagem de usuários se o requisitante estiver logado.
-      // A consulta no frontend DEVE garantir o filtro por congregationId.
-      allow list: if isAuth();
+      // Permite a listagem de usuários se o requisitante for Dirigente ou Admin e estiver na mesma congregação.
+      allow list: if isDirigenteOrAdmin() && request.query.where.get('congregationId')[2] == getUserData(request.auth.uid).congregationId;
 
 
       match /notifications/{notificationId} {
@@ -102,3 +107,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

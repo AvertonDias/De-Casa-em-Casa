@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, app } from '@/lib/firebase';
+import { db, app, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Loader, Search, SlidersHorizontal, ChevronUp, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
@@ -14,6 +14,7 @@ import { EditUserByAdminModal } from './EditUserByAdminModal'; // Importar o nov
 import { subDays, subMonths, subHours } from 'date-fns';
 import type { AppUser, Congregation } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
+import { getIdToken } from 'firebase/auth';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
@@ -30,7 +31,7 @@ export default function UserManagement() {
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Publicador'>('all');
   const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive_month'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'rejeitado'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'rejeitado' | 'bloqueado'>('all');
 
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -46,11 +47,12 @@ export default function UserManagement() {
   };
   
   const confirmDeleteUser = useCallback(async () => {
-    if (!userToDelete || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
+    if (!userToDelete || !currentUser || !auth.currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
     
     setIsConfirmModalOpen(false);
     try {
-        await deleteUserAccount({ userIdToDelete: userToDelete.uid });
+        const idToken = await getIdToken(auth.currentUser, true);
+        await deleteUserAccount({ userIdToDelete: userToDelete.uid }, { headers: { authorization: `Bearer ${idToken}` }});
         toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {
         toast({ title: "Erro", description: error.message || "Falha ao excluir usuário.", variant: "destructive"});
@@ -106,12 +108,19 @@ export default function UserManagement() {
       dataToUpdate.status = 'ativo';
     }
 
-    if (currentUser.role !== 'Administrador' && (dataToUpdate.role || dataToUpdate.status)) {
+    if (currentUser.role !== 'Administrador' && (dataToUpdate.role || (dataToUpdate.status && dataToUpdate.status !== 'rejeitado'))) {
       toast({ title: "Permissão Negada", description: "Apenas administradores podem alterar perfis e status.", variant: "destructive" });
       return;
     }
-    if (currentUser.uid === userId && dataToUpdate.role && dataToUpdate.role !== 'Administrador') {
-        toast({ title: "Ação Inválida", description: "Você não pode rebaixar a si mesmo.", variant: "destructive" });
+    if (currentUser.role === 'Dirigente' && dataToUpdate.status === 'rejeitado') {
+        // Dirigentes podem rejeitar, mas não alterar outros status ou perfis
+    } else if (currentUser.role !== 'Administrador') {
+        toast({ title: "Permissão Negada", description: "Você não tem permissão para esta ação.", variant: "destructive" });
+        return;
+    }
+
+    if (currentUser.uid === userId && dataToUpdate.role && dataToUpdate.role !== currentUser.role) {
+        toast({ title: "Ação Inválida", description: "Você não pode alterar seu próprio perfil.", variant: "destructive" });
         return;
     }
     
