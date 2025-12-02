@@ -80,6 +80,10 @@
   .animate-indicator-pulse {
     animation: indicator-pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
   }
+
+  .animate-indeterminate-progress {
+    animation: indeterminate-progress 1.5s infinite ease-in-out;
+  }
 }
 
 @keyframes indicator-pulse {
@@ -92,5 +96,14 @@
     transform: scale(1.2);
     opacity: 0.75;
     box-shadow: 0 0 10px 5px hsla(var(--destructive), 0);
+  }
+}
+
+@keyframes indeterminate-progress {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
   }
 }
