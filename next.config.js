@@ -1,8 +1,10 @@
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // A configuração do webpack foi removida para resolver o erro de inicialização.
-  // O Next.js já lida com o diretório 'api' de forma adequada por padrão.
+  webpack: (config) => {
+    // Adiciona uma regra para garantir que 'react-remove-scroll' seja tratado corretamente.
+    config.externals.push('react-remove-scroll');
+    return config;
+  },
 };
 
 export default nextConfig;
