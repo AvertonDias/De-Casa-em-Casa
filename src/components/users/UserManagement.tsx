@@ -52,7 +52,7 @@ export default function UserManagement() {
     setIsConfirmModalOpen(false);
     try {
         const idToken = await getIdToken(auth.currentUser, true);
-        await deleteUserAccount({ userIdToDelete: userToDelete.uid }, { headers: { authorization: `Bearer ${idToken}` }});
+        await deleteUserAccount({ userIdToDelete: userToDelete.uid });
         toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {
         toast({ title: "Erro", description: error.message || "Falha ao excluir usuário.", variant: "destructive"});
@@ -114,7 +114,7 @@ export default function UserManagement() {
     }
     if (currentUser.role === 'Dirigente' && dataToUpdate.status === 'rejeitado') {
         // Dirigentes podem rejeitar, mas não alterar outros status ou perfis
-    } else if (currentUser.role !== 'Administrador') {
+    } else if (currentUser.role !== 'Administrador' && currentUser.role !== 'Dirigente') { // Dirigente pode aprovar
         toast({ title: "Permissão Negada", description: "Você não tem permissão para esta ação.", variant: "destructive" });
         return;
     }
@@ -383,5 +383,3 @@ export default function UserManagement() {
     </>
   );
 }
-
-    
