@@ -69,12 +69,23 @@ export default function NovaCongregacaoPage() {
             toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
             await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
         } else {
-            throw new Error(resultData.error || "Ocorreu um erro desconhecido.");
+            // Este `else` captura falhas de negócio retornadas pela função
+            throw new Error(resultData.error || "Ocorreu um erro desconhecido no servidor.");
         }
 
     } catch (error: any) {
         console.error("Erro na criação ou login:", error);
-        setErrorMessage(error.message || "Erro inesperado. Tente novamente mais tarde.");
+
+        // Tratamento de erros mais específico
+        let friendlyMessage = "Erro inesperado. Tente novamente mais tarde.";
+        if (error.code === 'functions/already-exists' || (error.details && error.details.code === 409)) {
+            // A mensagem de erro da função agora será exibida
+            friendlyMessage = error.message || "Número da congregação ou e-mail já estão em uso.";
+        } else if (error.message) {
+            friendlyMessage = error.message;
+        }
+        
+        setErrorMessage(friendlyMessage);
     } finally {
         setIsLoading(false);
     }
