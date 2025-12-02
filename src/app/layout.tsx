@@ -1,4 +1,3 @@
-
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { UserProvider } from '@/contexts/UserContext';
 import type { Metadata } from "next";
@@ -10,11 +9,6 @@ export const metadata: Metadata = {
   title: "De Casa em Casa",
   description: "Painel de Controle de Territórios",
   manifest: "/manifest.json",
-  icons: {
-    icon: "/images/Logo_v3.png",
-    shortcut: "/images/Logo_v3.png",
-    apple: "/images/Logo_v3.png",
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
