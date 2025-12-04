@@ -34,9 +34,10 @@ export default function S13ReportPage() {
     return () => unsubscribe();
   }, [user]);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     window.print();
   };
+
 
   const filteredTerritories = allTerritories.filter(t => (t.type || 'urban') === typeFilter);
   
