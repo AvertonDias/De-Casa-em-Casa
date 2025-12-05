@@ -85,7 +85,7 @@ function Sidebar({
 }) {
   const pathname = usePathname();
   const { user, logout } = useUser();
-  const { installPrompt, showInstallPrompt, handleInstallClick } = usePWAInstall();
+  const { canPrompt, showInstallPrompt, onInstall } = usePWAInstall();
   const [isShareApiSupported, setIsShareApiSupported] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
@@ -201,9 +201,9 @@ function Sidebar({
             )}
             
             <div className="space-y-1">
-                {showInstallPrompt && installPrompt && (
+                {showInstallPrompt && canPrompt && (
                     <Button
-                        onClick={handleInstallClick}
+                        onClick={onInstall}
                         variant="outline"
                         className="w-full justify-center text-primary border-primary/50 hover:bg-primary/10 hover:text-primary"
                     >
