@@ -6,25 +6,14 @@ import Link from 'next/link';
 import { usePathname } from "next/navigation";
 import { auth, db, app } from "@/lib/firebase"; // Import app
 import { useUser } from '@/contexts/UserContext';
-import { useTheme } from 'next-themes';
 import { doc, updateDoc, collection, query, where, onSnapshot, writeBatch, getDoc, setDoc, orderBy } from 'firebase/firestore';
 import { useFontSize } from "@/contexts/FontSizeContext"; // Importar o hook de fonte
 
 
-import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell, ZoomIn, ZoomOut, RotateCcw, Settings } from 'lucide-react';
+import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuPortal,
-} from "@/components/ui/dropdown-menu"
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
@@ -96,6 +85,7 @@ function Sidebar({
 }) {
   const pathname = usePathname();
   const { user, logout } = useUser();
+  const { installPrompt, showInstallPrompt, handleInstallClick } = usePWAInstall();
   const [isShareApiSupported, setIsShareApiSupported] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
@@ -211,7 +201,15 @@ function Sidebar({
             )}
             
             <div className="space-y-1">
-
+                {showInstallPrompt && installPrompt && (
+                    <Button
+                        onClick={handleInstallClick}
+                        variant="outline"
+                        className="w-full justify-center text-primary border-primary/50 hover:bg-primary/10 hover:text-primary"
+                    >
+                        <Download className="mr-2" size={20} /> Instalar App
+                    </Button>
+                )}
                 {isShareApiSupported && (
                     <Button
                         onClick={handleShare}
