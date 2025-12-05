@@ -8,9 +8,10 @@ import { auth, db, app } from "@/lib/firebase"; // Import app
 import { useUser } from '@/contexts/UserContext';
 import { useTheme } from 'next-themes';
 import { doc, updateDoc, collection, query, where, onSnapshot, writeBatch, getDoc, setDoc, orderBy } from 'firebase/firestore';
+import { useFontSize } from "@/contexts/FontSizeContext"; // Importar o hook de fonte
 
 
-import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell } from 'lucide-react';
+import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -119,6 +120,7 @@ function Sidebar({
 }) {
   const pathname = usePathname();
   const { user, logout } = useUser();
+  const { increaseFontSize, decreaseFontSize, resetFontSize } = useFontSize(); // Usar o hook
   const [isShareApiSupported, setIsShareApiSupported] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
@@ -236,6 +238,11 @@ function Sidebar({
             )}
             
             <div className="space-y-1">
+                <div className="grid grid-cols-3 gap-1">
+                  <Button onClick={decreaseFontSize} variant="outline" size="icon" aria-label="Diminuir fonte"><ZoomOut/></Button>
+                  <Button onClick={resetFontSize} variant="outline" size="icon" aria-label="Resetar fonte"><RotateCcw/></Button>
+                  <Button onClick={increaseFontSize} variant="outline" size="icon" aria-label="Aumentar fonte"><ZoomIn/></Button>
+                </div>
                 {isShareApiSupported && (
                     <Button
                         onClick={handleShare}
