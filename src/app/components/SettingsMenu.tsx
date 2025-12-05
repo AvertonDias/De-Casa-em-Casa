@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useTheme } from 'next-themes';
@@ -35,7 +36,6 @@ export function SettingsMenu({ asButton = false, onEditProfileClick }: SettingsM
   );
 
   const ThemeIcon = () => {
-    if (theme === 'system') return <Laptop />;
     if (resolvedTheme === 'dark') return <Moon />;
     return <Sun />;
   }
