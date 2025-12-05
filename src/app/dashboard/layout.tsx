@@ -1,4 +1,3 @@
-
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
 import Image from 'next/image';
@@ -11,7 +10,7 @@ import { doc, updateDoc, collection, query, where, onSnapshot, writeBatch, getDo
 import { useFontSize } from "@/contexts/FontSizeContext"; // Importar o hook de fonte
 
 
-import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell, ZoomIn, ZoomOut, RotateCcw, Settings } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +18,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
@@ -120,6 +124,7 @@ function Sidebar({
 }) {
   const pathname = usePathname();
   const { user, logout } = useUser();
+  const { setTheme } = useTheme()
   const { increaseFontSize, decreaseFontSize, resetFontSize } = useFontSize(); // Usar o hook
   const [isShareApiSupported, setIsShareApiSupported] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -238,11 +243,59 @@ function Sidebar({
             )}
             
             <div className="space-y-1">
-                <div className="grid grid-cols-3 gap-1">
-                  <Button onClick={decreaseFontSize} variant="outline" size="icon" aria-label="Diminuir fonte"><ZoomOut/></Button>
-                  <Button onClick={resetFontSize} variant="outline" size="icon" aria-label="Resetar fonte"><RotateCcw/></Button>
-                  <Button onClick={increaseFontSize} variant="outline" size="icon" aria-label="Aumentar fonte"><ZoomIn/></Button>
-                </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full justify-center">
+                    <Settings className="mr-2" size={20} />
+                    Configurações
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                   <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Sun className="mr-2 h-4 w-4" />
+                        <span>Tema</span>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent>
+                          <DropdownMenuItem onClick={() => setTheme("light")}>
+                            <Sun className="mr-2 h-4 w-4" />
+                            <span>Claro</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setTheme("dark")}>
+                            <Moon className="mr-2 h-4 w-4" />
+                            <span>Escuro</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setTheme("system")}>
+                            <Laptop className="mr-2 h-4 w-4" />
+                            <span>Padrão do dispositivo</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                   </DropdownMenuSub>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <ZoomIn className="mr-2 h-4 w-4" />
+                      <span>Tamanho do Texto</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                          <DropdownMenuItem onClick={increaseFontSize}>
+                            <ZoomIn className="mr-2 h-4 w-4" /> Aumentar
+                          </DropdownMenuItem>
+                           <DropdownMenuItem onClick={decreaseFontSize}>
+                            <ZoomOut className="mr-2 h-4 w-4" /> Diminuir
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                           <DropdownMenuItem onClick={resetFontSize}>
+                            <RotateCcw className="mr-2 h-4 w-4" /> Restaurar
+                          </DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
                 {isShareApiSupported && (
                     <Button
                         onClick={handleShare}
