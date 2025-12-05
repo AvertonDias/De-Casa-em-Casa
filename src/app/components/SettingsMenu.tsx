@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { useFontSize } from "@/contexts/FontSizeContext";
 import { Button } from "@/components/ui/button";
@@ -9,26 +10,50 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Settings, Sun, Moon, Laptop, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Settings, Sun, Moon, Laptop, ZoomIn, ZoomOut, RotateCcw, User } from 'lucide-react';
 
 interface SettingsMenuProps {
   asButton?: boolean;
+  onEditProfileClick: () => void;
 }
 
-export function SettingsMenu({ asButton = false }: SettingsMenuProps) {
-  const { setTheme } = useTheme();
+export function SettingsMenu({ asButton = false, onEditProfileClick }: SettingsMenuProps) {
+  const { setTheme, theme, resolvedTheme } = useTheme();
   const { increaseFontSize, decreaseFontSize, resetFontSize } = useFontSize();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const currentTheme = theme === "system" ? resolvedTheme : theme;
+  
+  const getIcon = () => {
+    if (!mounted) {
+      return <Settings className="h-5 w-5" />;
+    }
+    switch(currentTheme) {
+      case 'dark':
+        return <Moon className="h-5 w-5" />;
+      case 'light':
+        return <Sun className="h-5 w-5" />;
+      default:
+        return <Settings className="h-5 w-5" />;
+    }
+  };
+
 
   const TriggerComponent = asButton ? (
     <Button variant="outline" className="w-full justify-center">
-      <Settings className="mr-2" size={20} />
-      Configurações
+      {getIcon()}
+      <span className="ml-2">Configurações</span>
     </Button>
   ) : (
     <Button variant="ghost" size="icon" className="rounded-full">
-      <Settings className="h-5 w-5" />
+      {getIcon()}
       <span className="sr-only">Configurações</span>
     </Button>
   );
@@ -39,6 +64,11 @@ export function SettingsMenu({ asButton = false }: SettingsMenuProps) {
         {TriggerComponent}
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64 p-2" align="end" forceMount>
+          <DropdownMenuItem onClick={onEditProfileClick}>
+            <User className="mr-2 h-4 w-4" />
+            <span>Editar Perfil</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <Accordion type="multiple" className="w-full">
             <AccordionItem value="theme">
               <AccordionTrigger className="text-sm font-semibold px-2 py-1.5 rounded-sm hover:bg-accent hover:no-underline">
@@ -85,4 +115,3 @@ export function SettingsMenu({ asButton = false }: SettingsMenuProps) {
     </DropdownMenu>
   );
 }
-

@@ -1,3 +1,4 @@
+
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
 import Image from 'next/image';
@@ -38,38 +39,6 @@ import { Territory, Notification } from "@/types/types";
 import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
 import { SettingsMenu } from "../components/SettingsMenu";
-
-
-// Componente para trocar o tema (agora mais robusto)
-function ThemeSwitcher() {
-  const { setTheme } = useTheme()
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full">
-          <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Alterar tema</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>
-          <Sun className="mr-2 h-4 w-4" />
-          <span>Claro</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
-          <Moon className="mr-2 h-4 w-4" />
-          <span>Escuro</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
-          <Laptop className="mr-2 h-4 w-4" />
-          <span>Padrão do dispositivo</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
 
 const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React.SVGProps<SVGSVGElement>) => {
   return (
@@ -116,19 +85,18 @@ function Sidebar({
     isOpen, 
     onClose, 
     pendingUsersCount, 
-    unreadNotificationsCount 
+    unreadNotificationsCount,
+    onEditProfileClick,
 }: { 
     isOpen: boolean; 
     onClose: () => void;
     pendingUsersCount: number;
     unreadNotificationsCount: number;
+    onEditProfileClick: () => void;
 }) {
   const pathname = usePathname();
   const { user, logout } = useUser();
-  const { setTheme } = useTheme()
-  const { increaseFontSize, decreaseFontSize, resetFontSize } = useFontSize(); // Usar o hook
   const [isShareApiSupported, setIsShareApiSupported] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   useEffect(() => {
@@ -187,7 +155,7 @@ function Sidebar({
                 />
                 <div className="flex flex-col items-end gap-2">
                     <div className="hidden md:block">
-                        <ThemeSwitcher />
+                        <SettingsMenu onEditProfileClick={onEditProfileClick} />
                     </div>
                     <button onClick={onClose} className="md:hidden p-1 rounded-full"><AnimatedHamburgerIcon isOpen={isOpen} /></button>
                 </div>
@@ -224,9 +192,8 @@ function Sidebar({
         
          <div className="border-t border-border pt-4">
             {user && (
-                <button 
-                  onClick={() => setIsProfileModalOpen(true)}
-                  className="flex items-center space-x-3 text-left p-2 rounded-md w-full mb-2 hover:bg-muted transition-colors"
+                <div 
+                  className="flex items-center space-x-3 text-left p-2 rounded-md w-full mb-2"
                 >
                     <Avatar className="border-2 border-border">
                         <AvatarImage src={user.photoURL ?? ''} alt={user.name} />
@@ -240,7 +207,7 @@ function Sidebar({
                           {user.role}
                         </p>
                     </div>
-                </button>
+                </div>
             )}
             
             <div className="space-y-1">
@@ -281,7 +248,6 @@ function Sidebar({
         confirmText="Sim, Sair"
         variant="destructive"
       />
-      <EditProfileModal isOpen={isProfileModalOpen} onOpenChange={setIsProfileModalOpen} />
     </>
   );
 }
@@ -427,6 +393,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
             onClose={() => setSidebarOpen(false)}
             pendingUsersCount={pendingUsersCount}
             unreadNotificationsCount={unreadNotificationsCount}
+            onEditProfileClick={() => setIsProfileModalOpen(true)}
           />
 
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -440,7 +407,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                     )}
                   </div>
                   <h1 className="text-lg font-bold">De Casa em Casa</h1>
-                  <SettingsMenu /> 
+                  <SettingsMenu onEditProfileClick={() => setIsProfileModalOpen(true)} /> 
               </header>
               <div className="sticky top-0 z-10 bg-background">
                 <div className="p-4 md:p-8 pb-0">
