@@ -1,36 +1,21 @@
 {
-  "theme_color": "#673ab7",
-  "background_color": "#242038",
-  "display": "standalone",
-  "scope": "/",
-  "start_url": "/dashboard",
   "name": "De Casa em Casa",
-  "short_name": "De Casa em Casa",
-  "description": "Uma aplicação para gerenciamento de territórios.",
+  "short_name": "De Casa",
+  "description": "Um sistema moderno para gerenciamento de territórios de congregação.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#18181b",
+  "theme_color": "#6d28d9",
   "icons": [
     {
-      "src": "/images/Ico_192.png",
+      "src": "/images/Logo_v3.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
-      "src": "/images/Ico_256.png",
-      "sizes": "256x256",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/images/Ico_384.png",
-      "sizes": "384x384",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/images/Ico_512.png",
+      "src": "/images/Logo_v3.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }

@@ -20,7 +20,7 @@ const detectUserAgent = () => {
 
 
 export const usePWAInstall = () => {
-  const pathname = usePathname(); // Hook para detectar mudanças de rota
+  const pathname = usePathname();
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [deviceInfo, setDeviceInfo] = useState({ isMobile: false, isIOS: false });
@@ -39,24 +39,26 @@ export const usePWAInstall = () => {
     };
 
     const isMobileDevice = detectUserAgent().isMobile;
-    
-    if (isMobileDevice) {
-      window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    }
-    
-    // Reavalia a exibição do prompt a cada mudança de rota
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    if (isStandalone) {
-        setShowInstallPrompt(false);
-    } else if (installPromptEvent) {
-        // Se o evento já existe, reexiba o prompt na nova página
-        setShowInstallPrompt(true);
+    
+    if (isMobileDevice && !isStandalone) {
+      window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     }
     
     return () => {
         window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, [pathname, installPromptEvent]); // Adiciona pathname e installPromptEvent às dependências
+  }, []);
+
+  useEffect(() => {
+    // Reavalia a exibição do prompt a cada mudança de rota
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    if (isStandalone) {
+        setShowInstallPrompt(false);
+    } else if (installPromptEvent) {
+        setShowInstallPrompt(true);
+    }
+  }, [pathname, installPromptEvent]);
 
   const handleInstallClick = async () => {
     if (!installPromptEvent) return;
@@ -66,8 +68,7 @@ export const usePWAInstall = () => {
     if (outcome === 'accepted') {
       setShowInstallPrompt(false);
     }
-    // Não limpa o evento para que o prompt possa ser reexibido
-    // setInstallPromptEvent(null);
+    setInstallPromptEvent(null);
   };
   
   return {
