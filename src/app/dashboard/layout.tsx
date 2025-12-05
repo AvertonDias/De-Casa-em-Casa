@@ -37,6 +37,7 @@ import { InstallPwaModal } from "@/components/InstallPwaModal"; // IMPORTAR O NO
 import { Territory, Notification } from "@/types/types";
 import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
+import { SettingsMenu } from "../components/SettingsMenu";
 
 
 // Componente para trocar o tema (agora mais robusto)
@@ -243,58 +244,7 @@ function Sidebar({
             )}
             
             <div className="space-y-1">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-center">
-                    <Settings className="mr-2" size={20} />
-                    Configurações
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                   <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        <Sun className="mr-2 h-4 w-4" />
-                        <span>Tema</span>
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuPortal>
-                        <DropdownMenuSubContent>
-                          <DropdownMenuItem onClick={() => setTheme("light")}>
-                            <Sun className="mr-2 h-4 w-4" />
-                            <span>Claro</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setTheme("dark")}>
-                            <Moon className="mr-2 h-4 w-4" />
-                            <span>Escuro</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setTheme("system")}>
-                            <Laptop className="mr-2 h-4 w-4" />
-                            <span>Padrão do dispositivo</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuSubContent>
-                      </DropdownMenuPortal>
-                   </DropdownMenuSub>
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <ZoomIn className="mr-2 h-4 w-4" />
-                      <span>Tamanho do Texto</span>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuPortal>
-                      <DropdownMenuSubContent>
-                          <DropdownMenuItem onClick={increaseFontSize}>
-                            <ZoomIn className="mr-2 h-4 w-4" /> Aumentar
-                          </DropdownMenuItem>
-                           <DropdownMenuItem onClick={decreaseFontSize}>
-                            <ZoomOut className="mr-2 h-4 w-4" /> Diminuir
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                           <DropdownMenuItem onClick={resetFontSize}>
-                            <RotateCcw className="mr-2 h-4 w-4" /> Restaurar
-                          </DropdownMenuItem>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuPortal>
-                  </DropdownMenuSub>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <SettingsMenu asButton />
 
                 {isShareApiSupported && (
                     <Button
@@ -491,7 +441,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                     )}
                   </div>
                   <h1 className="text-lg font-bold">De Casa em Casa</h1>
-                  <ThemeSwitcher /> 
+                  <SettingsMenu /> 
               </header>
               <div className="sticky top-0 z-10 bg-background">
                 <div className="p-4 md:p-8 pb-0">
