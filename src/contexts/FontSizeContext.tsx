@@ -27,20 +27,26 @@ export const useFontSize = () => {
 
 export const FontSizeProvider = ({ children }: { children: ReactNode }) => {
   const [scale, setScale] = useState(1.0);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Efeito para carregar a escala salva do localStorage na inicialização
+  // Efeito para carregar a escala salva do localStorage APENAS no lado do cliente
   useEffect(() => {
     const savedScale = localStorage.getItem(FONT_SIZE_KEY);
     if (savedScale) {
       setScale(parseFloat(savedScale));
     }
+    setIsLoaded(true); // Marca que o carregamento inicial do cliente foi concluído
   }, []);
 
   // Efeito para aplicar a escala ao HTML e salvar no localStorage sempre que ela mudar
   useEffect(() => {
-    document.documentElement.style.fontSize = `${scale * 100}%`;
-    localStorage.setItem(FONT_SIZE_KEY, scale.toString());
-  }, [scale]);
+    // Só executa se já tiver carregado o estado do cliente para evitar sobrescrever
+    // o valor padrão (1.0) antes de ler o valor salvo.
+    if (isLoaded) {
+      document.documentElement.style.fontSize = `${scale * 100}%`;
+      localStorage.setItem(FONT_SIZE_KEY, scale.toString());
+    }
+  }, [scale, isLoaded]);
 
   const increaseFontSize = useCallback(() => {
     setScale(prevScale => Math.min(prevScale + STEP, MAX_SCALE));
