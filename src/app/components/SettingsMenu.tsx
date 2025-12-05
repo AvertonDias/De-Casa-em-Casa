@@ -19,7 +19,7 @@ interface SettingsMenuProps {
 }
 
 export function SettingsMenu({ asButton = false, onEditProfileClick }: SettingsMenuProps) {
-  const { setTheme } = useTheme();
+  const { setTheme, theme, resolvedTheme } = useTheme();
   const { increaseFontSize, decreaseFontSize, resetFontSize } = useFontSize();
 
   const TriggerComponent = asButton ? (
@@ -33,6 +33,12 @@ export function SettingsMenu({ asButton = false, onEditProfileClick }: SettingsM
       <span className="sr-only">Configurações</span>
     </Button>
   );
+
+  const ThemeIcon = () => {
+    if (theme === 'system') return <Laptop />;
+    if (resolvedTheme === 'dark') return <Moon />;
+    return <Sun />;
+  }
 
   return (
     <DropdownMenu>
@@ -48,7 +54,7 @@ export function SettingsMenu({ asButton = false, onEditProfileClick }: SettingsM
           <Accordion type="multiple" className="w-full">
             <AccordionItem value="theme">
               <AccordionTrigger className="text-sm font-semibold px-2 py-1.5 rounded-sm hover:bg-accent hover:no-underline">
-                <div className="flex items-center gap-2"><Sun /><span>Tema</span></div>
+                <div className="flex items-center gap-2"><ThemeIcon /><span>Tema</span></div>
               </AccordionTrigger>
               <AccordionContent className="pt-2">
                 <div className="pl-5">
