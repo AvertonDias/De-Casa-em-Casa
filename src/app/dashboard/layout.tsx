@@ -244,7 +244,6 @@ function Sidebar({
             )}
             
             <div className="space-y-1">
-              <SettingsMenu asButton />
 
                 {isShareApiSupported && (
                     <Button
