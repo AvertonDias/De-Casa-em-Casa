@@ -29,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode; })
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="De Casa" />
+        <meta name="apple-mobile-web-app-title" content="Casa em Casa" />
       </head>
       <body className="font-body antialiased">
         <UserProvider>

@@ -1,21 +1,23 @@
 {
   "name": "De Casa em Casa",
-  "short_name": "De Casa",
-  "description": "Um sistema moderno para gerenciamento de territórios de congregação.",
+  "short_name": "Casa em Casa",
+  "description": "Gerenciador de territórios para congregações.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#18181b",
-  "theme_color": "#6d28d9",
+  "background_color": "#1a1b1e",
+  "theme_color": "#6235b3",
   "icons": [
     {
       "src": "/images/Logo_v3.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/images/Logo_v3.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
