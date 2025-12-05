@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useTheme } from 'next-themes';
@@ -8,12 +9,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Settings, Sun, Moon, Laptop, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 interface SettingsMenuProps {
@@ -41,50 +38,51 @@ export function SettingsMenu({ asButton = false }: SettingsMenuProps) {
       <DropdownMenuTrigger asChild>
         {TriggerComponent}
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <Sun className="mr-2 h-4 w-4" />
-            <span>Tema</span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuPortal>
-            <DropdownMenuSubContent>
-              <DropdownMenuItem onClick={() => setTheme("light")}>
-                <Sun className="mr-2 h-4 w-4" />
-                <span>Claro</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("dark")}>
-                <Moon className="mr-2 h-4 w-4" />
-                <span>Escuro</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("system")}>
-                <Laptop className="mr-2 h-4 w-4" />
-                <span>Padrão do dispositivo</span>
-              </DropdownMenuItem>
-            </DropdownMenuSubContent>
-          </DropdownMenuPortal>
-        </DropdownMenuSub>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <ZoomIn className="mr-2 h-4 w-4" />
-            <span>Tamanho do Texto</span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuPortal>
-            <DropdownMenuSubContent>
-              <DropdownMenuItem onClick={increaseFontSize}>
-                <ZoomIn className="mr-2 h-4 w-4" /> Aumentar
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={decreaseFontSize}>
-                <ZoomOut className="mr-2 h-4 w-4" /> Diminuir
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={resetFontSize}>
-                <RotateCcw className="mr-2 h-4 w-4" /> Restaurar
-              </DropdownMenuItem>
-            </DropdownMenuSubContent>
-          </DropdownMenuPortal>
-        </DropdownMenuSub>
+      <DropdownMenuContent className="w-64 p-2" align="end" forceMount>
+          <Accordion type="multiple" className="w-full">
+            <AccordionItem value="theme">
+              <AccordionTrigger className="text-sm font-semibold px-2 py-1.5 rounded-sm hover:bg-accent hover:no-underline">
+                <div className="flex items-center gap-2"><Sun /><span>Tema</span></div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-2">
+                <div className="pl-5">
+                    <DropdownMenuItem onClick={() => setTheme("light")}>
+                        <Sun className="mr-2 h-4 w-4" />
+                        <span>Claro</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme("dark")}>
+                        <Moon className="mr-2 h-4 w-4" />
+                        <span>Escuro</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme("system")}>
+                        <Laptop className="mr-2 h-4 w-4" />
+                        <span>Padrão do dispositivo</span>
+                    </DropdownMenuItem>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="font-size" className="border-b-0">
+              <AccordionTrigger className="text-sm font-semibold px-2 py-1.5 rounded-sm hover:bg-accent hover:no-underline">
+                 <div className="flex items-center gap-2"><ZoomIn /><span>Tamanho do Texto</span></div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-2">
+                <div className="pl-5">
+                    <DropdownMenuItem onClick={increaseFontSize}>
+                      <ZoomIn className="mr-2 h-4 w-4" /> Aumentar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={decreaseFontSize}>
+                      <ZoomOut className="mr-2 h-4 w-4" /> Diminuir
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={resetFontSize}>
+                      <RotateCcw className="mr-2 h-4 w-4" /> Restaurar
+                    </DropdownMenuItem>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
+
