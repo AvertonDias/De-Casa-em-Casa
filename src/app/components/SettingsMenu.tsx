@@ -1,7 +1,5 @@
-
 "use client";
 
-import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { useFontSize } from "@/contexts/FontSizeContext";
 import { Button } from "@/components/ui/button";
@@ -21,39 +19,17 @@ interface SettingsMenuProps {
 }
 
 export function SettingsMenu({ asButton = false, onEditProfileClick }: SettingsMenuProps) {
-  const { setTheme, theme, resolvedTheme } = useTheme();
+  const { setTheme } = useTheme();
   const { increaseFontSize, decreaseFontSize, resetFontSize } = useFontSize();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const currentTheme = theme === "system" ? resolvedTheme : theme;
-  
-  const getIcon = () => {
-    if (!mounted) {
-      return <Settings className="h-5 w-5" />;
-    }
-    switch(currentTheme) {
-      case 'dark':
-        return <Moon className="h-5 w-5" />;
-      case 'light':
-        return <Sun className="h-5 w-5" />;
-      default:
-        return <Settings className="h-5 w-5" />;
-    }
-  };
-
 
   const TriggerComponent = asButton ? (
     <Button variant="outline" className="w-full justify-center">
-      {getIcon()}
+      <Settings className="h-5 w-5" />
       <span className="ml-2">Configurações</span>
     </Button>
   ) : (
     <Button variant="ghost" size="icon" className="rounded-full">
-      {getIcon()}
+      <Settings className="h-5 w-5" />
       <span className="sr-only">Configurações</span>
     </Button>
   );
