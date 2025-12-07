@@ -48,10 +48,10 @@ export default function S13ReportPage() {
 
     setTimeout(() => {
         const opt = {
-          margin: 0.5,
+          margin: 0.2,
           filename: `Relatorio-S13-${typeFilter}-${serviceYear}.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 1.7, useCORS: true },
+          html2canvas: { scale: 1.8, useCORS: true },
           jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
         };
     
