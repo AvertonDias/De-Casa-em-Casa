@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import html2pdf from 'html2pdf.js';
+
 
 const getDistance = (touches: React.TouchList) => {
   return Math.hypot(
@@ -49,13 +49,16 @@ export default function S13ReportPage() {
     return () => unsubscribe();
   }, [user]);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     setIsPrinting(true);
     const element = document.getElementById('printable-area');
     if (!element) {
         setIsPrinting(false);
         return;
     }
+    
+    // Importação dinâmica
+    const html2pdf = (await import('html2pdf.js')).default;
     
     const originalTransform = element.style.transform;
     const originalMinWidth = element.style.minWidth;
