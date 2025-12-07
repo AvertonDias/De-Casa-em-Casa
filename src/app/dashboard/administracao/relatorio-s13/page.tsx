@@ -164,46 +164,46 @@ export default function S13ReportPage() {
                   ))}
               </tr>
             </thead>
-            <tbody>
-                {loading ? (
-                    <tr><td colSpan={14} className="text-center p-4">Carregando dados...</td></tr>
-                ) : (
-                    filteredTerritories.map(t => {
-                        let allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
-                        if (t.status === 'designado' && t.assignment) {
-                            allAssignments.push({
-                                name: t.assignment.name,
-                                assignedAt: t.assignment.assignedAt,
-                                completedAt: undefined,
-                            });
-                        }
-                        const sortedHistory = allAssignments.sort((a, b) => (a.assignedAt?.toMillis() || 0) - (b.assignedAt?.toMillis() || 0));
-                        
-                        const lastFourAssignments = sortedHistory.slice(-4); 
-                        const displayAssignments = Array(4).fill(null).map((_, i) => lastFourAssignments[i] || null);
+              {loading ? (
+                <tbody>
+                  <tr><td colSpan={10} className="text-center p-4">Carregando dados...</td></tr>
+                </tbody>
+              ) : (
+                filteredTerritories.map(t => {
+                    let allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
+                    if (t.status === 'designado' && t.assignment) {
+                        allAssignments.push({
+                            name: t.assignment.name,
+                            assignedAt: t.assignment.assignedAt,
+                            completedAt: undefined,
+                        });
+                    }
+                    const sortedHistory = allAssignments.sort((a, b) => (a.assignedAt?.toMillis() || 0) - (b.assignedAt?.toMillis() || 0));
+                    
+                    const lastFourAssignments = sortedHistory.slice(-4); 
+                    const displayAssignments = Array(4).fill(null).map((_, i) => lastFourAssignments[i] || null);
 
-                        return (
-                            <React.Fragment key={t.id}>
-                                <tr className="text-center align-top">
-                                    <td className="border border-black font-semibold align-middle" rowSpan={2}>{t.number}</td>
-                                    <td className="border border-black align-middle" rowSpan={2}>{getLastCompletedDate(t)}</td>
-                                    {displayAssignments.map((assignment, i) => (
-                                        <td key={`${t.id}-name-${i}`} className="border border-black p-1 font-semibold" colSpan={2}>{assignment?.name || ''}</td>
-                                    ))}
-                                </tr>
-                                <tr className="text-center text-xs h-8">
-                                    {displayAssignments.map((assignment, i) => (
-                                        <React.Fragment key={`${t.id}-dates-${i}`}>
-                                            <td className="border border-black p-1">{assignment?.assignedAt ? format(assignment.assignedAt.toDate(), "dd/MM/yy") : ''}</td>
-                                            <td className="border border-black p-1">{assignment?.completedAt ? format(assignment.completedAt.toDate(), "dd/MM/yy") : ''}</td>
-                                        </React.Fragment>
-                                    ))}
-                                </tr>
-                            </React.Fragment>
-                        );
-                    })
-                )}
-            </tbody>
+                    return (
+                        <tbody key={t.id} style={{ pageBreakInside: 'avoid' }}>
+                            <tr className="text-center align-top">
+                                <td className="border border-black font-semibold align-middle" rowSpan={2}>{t.number}</td>
+                                <td className="border border-black align-middle" rowSpan={2}>{getLastCompletedDate(t)}</td>
+                                {displayAssignments.map((assignment, i) => (
+                                    <td key={`${t.id}-name-${i}`} className="border border-black p-1 font-semibold" colSpan={2}>{assignment?.name || ''}</td>
+                                ))}
+                            </tr>
+                            <tr className="text-center text-xs h-8">
+                                {displayAssignments.map((assignment, i) => (
+                                    <React.Fragment key={`${t.id}-dates-${i}`}>
+                                        <td className="border border-black p-1">{assignment?.assignedAt ? format(assignment.assignedAt.toDate(), "dd/MM/yy") : ''}</td>
+                                        <td className="border border-black p-1">{assignment?.completedAt ? format(assignment.completedAt.toDate(), "dd/MM/yy") : ''}</td>
+                                    </React.Fragment>
+                                ))}
+                            </tr>
+                        </tbody>
+                    );
+                })
+              )}
           </table>
           <p className="text-xs mt-2">*Ao iniciar uma nova folha, use esta coluna para registrar a data em que cada território foi concluído pela última vez.</p>
           <p className="text-xs text-right">S-13-T 01/22</p>
