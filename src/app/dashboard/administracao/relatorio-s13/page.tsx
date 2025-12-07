@@ -170,7 +170,7 @@ export default function S13ReportPage() {
                 </tbody>
               ) : (
                 filteredTerritories.map(t => {
-                    let allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
+                    const allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
                     if (t.status === 'designado' && t.assignment) {
                         allAssignments.push({
                             name: t.assignment.name,
@@ -180,8 +180,7 @@ export default function S13ReportPage() {
                     }
                     const sortedHistory = allAssignments.sort((a, b) => (a.assignedAt?.toMillis() || 0) - (b.assignedAt?.toMillis() || 0));
                     
-                    const lastFourAssignments = sortedHistory.slice(-4); 
-                    const displayAssignments = Array(4).fill(null).map((_, i) => lastFourAssignments[i] || null);
+                    const displayAssignments = Array(4).fill(null).map((_, i) => sortedHistory[i] || null);
 
                     return (
                         <tbody key={t.id}>
