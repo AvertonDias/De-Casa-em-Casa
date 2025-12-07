@@ -132,7 +132,7 @@ export default function S13ReportPage() {
         <div 
           id="printable-area" 
           style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
-          className="bg-white text-black p-8 mx-auto min-w-[1050px] max-w-[1050px] transition-transform duration-300"
+          className="bg-white text-black p-8 mx-auto min-w-[1000px] max-w-[1000px] transition-transform duration-300"
         >
           <h1 className="text-xl font-bold text-center uppercase">REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO ({typeFilter === 'urban' ? 'URBANO' : 'RURAL'})</h1>
           <div className="flex justify-between items-end my-4">
@@ -148,8 +148,8 @@ export default function S13ReportPage() {
           <table className="w-full border-collapse border border-black text-sm">
             <thead>
               <tr className="text-center text-xs font-semibold">
-                <th className="border border-black p-1 w-[8%]" rowSpan={2}>Terr. n.º</th>
-                <th className="border border-black p-1 w-[12%]" rowSpan={2}>Última data concluída*</th>
+                <th className="border border-black p-1 w-[7%]" rowSpan={2}>Terr. n.º</th>
+                <th className="border border-black p-1 w-[10%]" rowSpan={2}>Última data concluída*</th>
                 <th className="border border-black p-1" colSpan={2}>Designado a</th>
                 <th className="border border-black p-1" colSpan={2}>Designado a</th>
                 <th className="border border-black p-1" colSpan={2}>Designado a</th>
