@@ -43,7 +43,6 @@ export default function S13ReportPage() {
         return;
     }
     
-    // Esconde os controles de zoom e desativa o zoom para a geração do PDF
     const originalZoom = zoom;
     setZoom(1);
 
@@ -58,12 +57,12 @@ export default function S13ReportPage() {
     
         html2pdf().from(element).set(opt).save().then(() => {
             setIsPrinting(false);
-            setZoom(originalZoom); // Restaura o zoom original após a impressão
+            setZoom(originalZoom);
         }).catch(() => {
             setIsPrinting(false);
             setZoom(originalZoom);
         });
-    }, 100); // Pequeno timeout para garantir que a UI renderize o zoom 1 antes de capturar
+    }, 100);
   };
 
   const filteredTerritories = allTerritories.filter(t => (t.type || 'urban') === typeFilter);
@@ -95,9 +94,6 @@ export default function S13ReportPage() {
           @page {
             size: A4 portrait;
             margin: 1cm;
-          }
-          tbody {
-            page-break-inside: avoid;
           }
         }
       `}</style>
@@ -169,23 +165,20 @@ export default function S13ReportPage() {
                 </tbody>
               ) : (
                 filteredTerritories.map(t => {
-                    // Combina histórico com a designação atual (se houver)
                     const allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
                     if (t.status === 'designado' && t.assignment) {
                         allAssignments.push({
                             name: t.assignment.name,
                             assignedAt: t.assignment.assignedAt,
-                            completedAt: undefined, // Designação atual não tem data de conclusão
+                            completedAt: undefined,
                         });
                     }
-                    // Ordena por data de designação
                     const sortedHistory = allAssignments.sort((a, b) => (a.assignedAt?.toMillis() || 0) - (b.assignedAt?.toMillis() || 0));
                     
-                    // Preenche o array de 4 posições com os dados do histórico
                     const displayAssignments = Array(4).fill(null).map((_, i) => sortedHistory[i] || null);
 
                     return (
-                        <tbody key={t.id}>
+                        <tbody key={t.id} style={{ pageBreakInside: 'avoid' }}>
                             <tr className="text-center align-top h-8">
                                 <td className="border border-black font-semibold align-middle" rowSpan={2}>{t.number}</td>
                                 <td className="border border-black align-middle" rowSpan={2}>{getLastCompletedDate(t)}</td>
