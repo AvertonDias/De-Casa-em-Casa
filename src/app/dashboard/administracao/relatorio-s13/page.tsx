@@ -54,7 +54,7 @@ export default function S13ReportPage() {
           filename: `Relatorio-S13-${typeFilter}-${serviceYear}.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+          jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
         };
     
         html2pdf().from(element).set(opt).save().then(() => {
@@ -132,7 +132,7 @@ export default function S13ReportPage() {
         <div 
           id="printable-area" 
           style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
-          className="bg-white text-black p-8 mx-auto min-w-[794px] max-w-[794px] transition-transform duration-300"
+          className="bg-white text-black p-8 mx-auto min-w-[1050px] max-w-[1050px] transition-transform duration-300"
         >
           <h1 className="text-xl font-bold text-center uppercase">REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO ({typeFilter === 'urban' ? 'URBANO' : 'RURAL'})</h1>
           <div className="flex justify-between items-end my-4">
