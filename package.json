@@ -12,9 +12,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "cap:sync": "next build && next export && npx cap sync"
   },
   "dependencies": {
+    "@capacitor/android": "^6.1.0",
+    "@capacitor/core": "^6.1.0",
+    "@capacitor/push-notifications": "^6.0.0",
     "@emailjs/browser": "^4.4.1",
     "@genkit-ai/googleai": "1.7.0",
     "@headlessui/react": "^2.2.4",
@@ -65,6 +69,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.1.0",
     "@types/cors": "^2.8.17",
     "@types/lodash.isequal": "^4.5.8",
     "@types/node": "^20.14.9",
