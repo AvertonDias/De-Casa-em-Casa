@@ -241,7 +241,7 @@ export default function S13ReportPage() {
                 <span className="ml-2 pb-1 border-b-2 border-black px-4">{user?.congregationName || '...'}</span>
             </div>
           </div>
-          <table className="w-full border-collapse border border-black text-sm">
+          <table className="w-full border-black text-sm">
             <thead>
               <tr className="text-center text-xs font-semibold">
                 <th className="border border-black p-1" rowSpan={2}>Terr. n.º</th>
