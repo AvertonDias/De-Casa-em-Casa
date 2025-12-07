@@ -6,16 +6,18 @@ import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { Territory, AssignmentHistoryLog } from '@/types/types';
-import { Printer, ArrowLeft, Map, Trees, ZoomIn, ZoomOut } from 'lucide-react';
+import { Printer, ArrowLeft, Map, Trees, ZoomIn, ZoomOut, Loader } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import html2pdf from 'html2pdf.js';
 
 export default function S13ReportPage() {
   const { user } = useUser();
   const [allTerritories, setAllTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [serviceYear, setServiceYear] = useState(new Date().getFullYear().toString());
   const [typeFilter, setTypeFilter] = useState<'urban' | 'rural'>('urban');
   const [zoom, setZoom] = useState(1);
@@ -34,10 +36,36 @@ export default function S13ReportPage() {
     return () => unsubscribe();
   }, [user]);
 
-  const handlePrint = async () => {
-    window.print();
-  };
+  const handlePrint = () => {
+    setIsPrinting(true);
+    const element = document.getElementById('printable-area');
+    if (!element) {
+        setIsPrinting(false);
+        return;
+    }
+    
+    // Esconde os controles de zoom e desativa o zoom para a geração do PDF
+    const originalZoom = zoom;
+    setZoom(1);
 
+    setTimeout(() => {
+        const opt = {
+          margin: 0.5,
+          filename: `Relatorio-S13-${typeFilter}-${serviceYear}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
+    
+        html2pdf().from(element).set(opt).save().then(() => {
+            setIsPrinting(false);
+            setZoom(originalZoom); // Restaura o zoom original após a impressão
+        }).catch(() => {
+            setIsPrinting(false);
+            setZoom(originalZoom);
+        });
+    }, 100); // Pequeno timeout para garantir que a UI renderize o zoom 1 antes de capturar
+  };
 
   const filteredTerritories = allTerritories.filter(t => (t.type || 'urban') === typeFilter);
   
@@ -52,7 +80,7 @@ export default function S13ReportPage() {
     <>
       <style jsx global>{`
         @media print {
-          body * {
+          body, .print-hidden {
             visibility: hidden;
           }
           #printable-area, #printable-area * {
@@ -63,6 +91,7 @@ export default function S13ReportPage() {
             left: 0;
             top: 0;
             width: 100%;
+            transform: scale(1) !important;
           }
           @page {
             size: A4 portrait;
@@ -74,7 +103,7 @@ export default function S13ReportPage() {
         }
       `}</style>
 
-      <div className="p-4 bg-card print:hidden">
+      <div className="p-4 bg-card print-hidden">
         <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
             <Button variant="ghost" asChild className="self-start sm:self-center">
               <Link href="/dashboard/administracao" className="flex items-center text-sm"><ArrowLeft size={16} className="mr-2"/> Voltar</Link>
@@ -92,7 +121,10 @@ export default function S13ReportPage() {
               </div>
             </div>
 
-            <Button onClick={handlePrint} className="w-full sm:w-auto justify-center"><Printer size={16} className="mr-2"/> Imprimir / PDF</Button>
+            <Button onClick={handlePrint} className="w-full sm:w-auto justify-center" disabled={isPrinting}>
+                {isPrinting ? <Loader className="animate-spin mr-2"/> : <Printer size={16} className="mr-2"/>}
+                {isPrinting ? 'Gerando...' : 'Salvar PDF'}
+            </Button>
         </div>
       </div>
 
