@@ -145,10 +145,10 @@ export default function S13ReportPage() {
               <tr className="text-center text-xs font-semibold">
                 <th className="border border-black p-1" rowSpan={2}>Terr. n.º</th>
                 <th className="border border-black p-1" rowSpan={2}>Última data concluída*</th>
-                <th className="border border-black p-1 w-1/4" colSpan={2}>Designado a</th>
-                <th className="border border-black p-1 w-1/4" colSpan={2}>Designado a</th>
-                <th className="border border-black p-1 w-1/4" colSpan={2}>Designado a</th>
-                <th className="border border-black p-1 w-1/4" colSpan={2}>Designado a</th>
+                <th className="border border-black p-1" colSpan={2}>Designado a</th>
+                <th className="border border-black p-1" colSpan={2}>Designado a</th>
+                <th className="border border-black p-1" colSpan={2}>Designado a</th>
+                <th className="border border-black p-1" colSpan={2}>Designado a</th>
               </tr>
               <tr className="text-center text-xs font-semibold">
                   {Array(4).fill(null).map((_, i) => (
