@@ -177,4 +177,3 @@ export default function ImagePreviewModal({ isOpen, imageUrl, onClose }: ImagePr
     </div>
   );
 }
-
