@@ -11,12 +11,20 @@ interface ImagePreviewModalProps {
   onClose: () => void;
 }
 
+const getDistance = (touches: React.TouchList) => {
+  return Math.hypot(
+    touches[0].clientX - touches[1].clientX,
+    touches[0].clientY - touches[1].clientY
+  );
+};
+
 export default function ImagePreviewModal({ isOpen, imageUrl, onClose }: ImagePreviewModalProps) {
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null);
   const lastMousePosition = useRef({ x: 0, y: 0 });
+  const initialPinchDistance = useRef<number | null>(null);
 
   // Reseta o estado quando o modal abre ou a imagem muda
   useEffect(() => {
@@ -38,7 +46,7 @@ export default function ImagePreviewModal({ isOpen, imageUrl, onClose }: ImagePr
       window.history.pushState({ modalOpen: true }, '');
       window.addEventListener('popstate', handlePopState);
     } else if (window.history.state?.modalOpen) {
-      window.history.back();
+      // Este caso pode não ser necessário dependendo de como o ShadCN gerencia o popstate
     }
 
     return () => {
@@ -58,7 +66,7 @@ export default function ImagePreviewModal({ isOpen, imageUrl, onClose }: ImagePr
     setPosition({ x: 0, y: 0 });
   };
   
-  // Funções para arrastar a imagem
+  // Funções para arrastar a imagem (mouse)
   const handleMouseDown = (e: React.MouseEvent<HTMLImageElement>) => {
     e.preventDefault();
     if (scale > 1) {
@@ -80,13 +88,42 @@ export default function ImagePreviewModal({ isOpen, imageUrl, onClose }: ImagePr
     setIsDragging(false);
   };
   
-   const handleWheel = (e: WheelEvent<HTMLImageElement>) => {
+  const handleWheel = (e: WheelEvent<HTMLImageElement>) => {
     e.preventDefault();
     if (e.deltaY < 0) {
       handleZoom('in');
     } else {
       handleZoom('out');
     }
+  };
+
+  // Funções de toque para pinça e arrastar
+  const handleTouchStart = (e: React.TouchEvent<HTMLImageElement>) => {
+    if (e.touches.length === 2) {
+        initialPinchDistance.current = getDistance(e.touches);
+    } else if (e.touches.length === 1 && scale > 1) {
+        lastMousePosition.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        setIsDragging(true);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLImageElement>) => {
+      if (e.touches.length === 2 && initialPinchDistance.current !== null) {
+        const newDistance = getDistance(e.touches);
+        const scaleFactor = newDistance / initialPinchDistance.current;
+        setScale(prevScale => Math.max(0.5, Math.min(prevScale * scaleFactor, 5)));
+        initialPinchDistance.current = newDistance; // Atualiza a distância para o próximo movimento
+      } else if (e.touches.length === 1 && isDragging) {
+        const dx = e.touches[0].clientX - lastMousePosition.current.x;
+        const dy = e.touches[0].clientY - lastMousePosition.current.y;
+        lastMousePosition.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        setPosition(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      }
+  };
+
+  const handleTouchEnd = () => {
+      setIsDragging(false);
+      initialPinchDistance.current = null;
   };
 
   if (!isOpen || !imageUrl) return null;
@@ -126,14 +163,18 @@ export default function ImagePreviewModal({ isOpen, imageUrl, onClose }: ImagePr
             isDragging && 'cursor-grabbing'
           )}
           style={{ 
-            transform: `scale(${scale}) translate(${position.x}px, ${position.y}px)`,
+            transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
             maxWidth: '100%',
             maxHeight: '100%',
           }}
           onMouseDown={handleMouseDown}
           onWheel={handleWheel}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         />
       </div>
     </div>
   );
 }
+
