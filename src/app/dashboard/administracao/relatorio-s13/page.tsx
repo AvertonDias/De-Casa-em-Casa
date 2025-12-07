@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -27,14 +28,12 @@ export default function S13ReportPage() {
   const [serviceYear, setServiceYear] = useState(new Date().getFullYear().toString());
   const [typeFilter, setTypeFilter] = useState<'urban' | 'rural'>('urban');
 
-  // State for zoom and pan
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const lastPositionRef = useRef({ x: 0, y: 0 });
   const initialPinchDistanceRef = useRef<number | null>(null);
   const printableAreaRef = useRef<HTMLDivElement>(null);
-
 
   useEffect(() => {
     if (!user?.congregationId) {
@@ -58,9 +57,20 @@ export default function S13ReportPage() {
         return;
     }
     
-    // Temporarily reset transform for printing
     const originalTransform = element.style.transform;
+    const originalMinWidth = element.style.minWidth;
+    const originalMaxWidth = element.style.maxWidth;
+
     element.style.transform = 'scale(1)';
+    element.style.minWidth = 'unset';
+    element.style.maxWidth = '100%';
+
+    const restoreStyles = () => {
+        setIsPrinting(false);
+        element.style.transform = originalTransform;
+        element.style.minWidth = originalMinWidth;
+        element.style.maxWidth = originalMaxWidth;
+    };
 
     setTimeout(() => {
         const opt = {
@@ -71,13 +81,7 @@ export default function S13ReportPage() {
           jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
         };
     
-        html2pdf().from(element).set(opt).save().then(() => {
-            setIsPrinting(false);
-            element.style.transform = originalTransform;
-        }).catch(() => {
-            setIsPrinting(false);
-            element.style.transform = originalTransform;
-        });
+        html2pdf().from(element).set(opt).save().then(restoreStyles).catch(restoreStyles);
     }, 100);
   };
   
@@ -94,7 +98,6 @@ export default function S13ReportPage() {
     setPosition({ x: 0, y: 0 });
   }
 
-  // --- MOUSE EVENTS ---
   const handleMouseDown = (e: React.MouseEvent) => {
     if (scale > 1) {
       e.preventDefault();
@@ -116,7 +119,6 @@ export default function S13ReportPage() {
     setIsDragging(false);
   };
 
-  // --- TOUCH EVENTS ---
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       e.preventDefault();
@@ -220,7 +222,7 @@ export default function S13ReportPage() {
           style={{ 
             transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`, 
             transformOrigin: 'top center',
-            touchAction: 'none' // Important for preventing default browser gestures
+            touchAction: 'none'
           }}
           onMouseDown={handleMouseDown}
           onTouchStart={handleTouchStart}
