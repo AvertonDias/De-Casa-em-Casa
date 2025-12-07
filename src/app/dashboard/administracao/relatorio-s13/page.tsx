@@ -97,7 +97,7 @@ export default function S13ReportPage() {
             size: A4 portrait;
             margin: 1cm;
           }
-          tr {
+          tbody {
             page-break-inside: avoid;
           }
         }
@@ -184,19 +184,19 @@ export default function S13ReportPage() {
                     const displayAssignments = Array(4).fill(null).map((_, i) => lastFourAssignments[i] || null);
 
                     return (
-                        <tbody key={t.id} style={{ pageBreakInside: 'avoid' }}>
-                            <tr className="text-center align-top">
+                        <tbody key={t.id}>
+                            <tr className="text-center align-top h-8">
                                 <td className="border border-black font-semibold align-middle" rowSpan={2}>{t.number}</td>
                                 <td className="border border-black align-middle" rowSpan={2}>{getLastCompletedDate(t)}</td>
                                 {displayAssignments.map((assignment, i) => (
-                                    <td key={`${t.id}-name-${i}`} className="border border-black p-1 font-semibold" colSpan={2}>{assignment?.name || ''}</td>
+                                    <td key={`${t.id}-name-${i}`} className="border-t border-b-0 border-l border-r border-black p-1 font-semibold" colSpan={2}>{assignment?.name || ''}</td>
                                 ))}
                             </tr>
                             <tr className="text-center text-xs h-8">
                                 {displayAssignments.map((assignment, i) => (
                                     <React.Fragment key={`${t.id}-dates-${i}`}>
-                                        <td className="border border-black p-1">{assignment?.assignedAt ? format(assignment.assignedAt.toDate(), "dd/MM/yy") : ''}</td>
-                                        <td className="border border-black p-1">{assignment?.completedAt ? format(assignment.completedAt.toDate(), "dd/MM/yy") : ''}</td>
+                                        <td className="border-t-0 border-b border-l border-r border-black p-1">{assignment?.assignedAt ? format(assignment.assignedAt.toDate(), "dd/MM/yy") : ''}</td>
+                                        <td className="border-t-0 border-b border-l border-r border-black p-1">{assignment?.completedAt ? format(assignment.completedAt.toDate(), "dd/MM/yy") : ''}</td>
                                     </React.Fragment>
                                 ))}
                             </tr>
