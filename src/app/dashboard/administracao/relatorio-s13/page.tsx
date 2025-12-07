@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -170,16 +169,19 @@ export default function S13ReportPage() {
                 </tbody>
               ) : (
                 filteredTerritories.map(t => {
+                    // Combina histórico com a designação atual (se houver)
                     const allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
                     if (t.status === 'designado' && t.assignment) {
                         allAssignments.push({
                             name: t.assignment.name,
                             assignedAt: t.assignment.assignedAt,
-                            completedAt: undefined,
+                            completedAt: undefined, // Designação atual não tem data de conclusão
                         });
                     }
+                    // Ordena por data de designação
                     const sortedHistory = allAssignments.sort((a, b) => (a.assignedAt?.toMillis() || 0) - (b.assignedAt?.toMillis() || 0));
                     
+                    // Preenche o array de 4 posições com os dados do histórico
                     const displayAssignments = Array(4).fill(null).map((_, i) => sortedHistory[i] || null);
 
                     return (
