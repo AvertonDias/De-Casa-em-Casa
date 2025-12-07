@@ -72,7 +72,7 @@ function AdminPage() {
       </div>
       <div className="mt-6">
         {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
-        {activeTab === 'congregation' && isAdmin && <CongregationEditForm />}
+        {activeTab === 'congregation' && isAdmin && <CongregationEditForm onSaveSuccess={() => setActiveTab('assignment')} />}
       </div>
     </div>
   );

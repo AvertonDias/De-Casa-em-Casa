@@ -9,22 +9,32 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader, Edit } from 'lucide-react';
 import { Label } from '../ui/label';
+import { useToast } from '@/hooks/use-toast';
 
-export default function CongregationEditForm() {
+export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess: () => void }) {
   const { user } = useUser();
+  const { toast } = useToast();
+
   const [congregationName, setCongregationName] = useState('');
   const [congregationNumber, setCongregationNumber] = useState('');
+  
+  const [originalName, setOriginalName] = useState('');
+  const [originalNumber, setOriginalNumber] = useState('');
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     if (user?.congregationId) {
       const congRef = doc(db, 'congregations', user.congregationId);
       getDoc(congRef).then(snap => {
         if (snap.exists()) {
-          setCongregationName(snap.data().name || '');
-          setCongregationNumber(snap.data().number || '');
+          const name = snap.data().name || '';
+          const number = snap.data().number || '';
+          setCongregationName(name);
+          setCongregationNumber(number);
+          setOriginalName(name);
+          setOriginalNumber(number);
         }
       });
     }
@@ -34,7 +44,6 @@ export default function CongregationEditForm() {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-    setSuccess('');
 
     if (!user || !user.congregationId) {
       setError("Congregação não encontrada.");
@@ -49,8 +58,14 @@ export default function CongregationEditForm() {
       } else {
         throw new Error("Você não tem permissão para editar a congregação.");
       }
-      setSuccess("Congregação atualizada com sucesso!");
-      setTimeout(() => setSuccess(''), 3000);
+      
+      toast({
+        title: "Sucesso!",
+        description: "Os dados da congregação foram atualizados.",
+      });
+
+      onSaveSuccess();
+
     } catch (err: any) {
       setError(err.message || "Falha ao salvar as configurações.");
     } finally {
@@ -59,6 +74,7 @@ export default function CongregationEditForm() {
   };
 
   const isDisabled = user?.role !== 'Administrador';
+  const hasChanges = congregationName.trim() !== originalName.trim() || congregationNumber.trim() !== originalNumber.trim();
 
   return (
     <div className="bg-card p-6 rounded-lg shadow-md max-w-md mx-auto">
@@ -96,9 +112,8 @@ export default function CongregationEditForm() {
         </div>
         
         {error && <p className="text-sm text-center text-destructive">{error}</p>}
-        {success && <p className="text-sm text-center text-green-500">{success}</p>}
         
-        <Button type="submit" disabled={isDisabled || isLoading} className="w-full">
+        <Button type="submit" disabled={isDisabled || isLoading || !hasChanges} className="w-full">
           {isLoading ? <Loader className="animate-spin" /> : "Salvar Alterações"}
         </Button>
       </form>
