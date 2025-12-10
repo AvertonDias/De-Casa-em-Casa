@@ -279,10 +279,14 @@ export default function S13ReportPage() {
       </div>
 
       <div
-        className="overflow-auto p-4 print:p-0 print:overflow-visible cursor-grab"
+        className="overflow-auto p-4 print:p-0 print:overflow-visible flex justify-center"
+        onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
         onMouseLeave={onMouseUp}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
       >
         <div
           id="printable-area"
@@ -292,10 +296,6 @@ export default function S13ReportPage() {
             transformOrigin: "center center",
             touchAction: "none",
           }}
-          onMouseDown={onMouseDown}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
           className="bg-white text-black p-8 mx-auto min-w-[1000px] max-w-[1000px] transition-transform duration-100"
         >
           <h1 className="text-xl font-bold text-center uppercase">REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO ({typeFilter === "urban" ? "URBANO" : "RURAL"})</h1>
@@ -377,5 +377,3 @@ export default function S13ReportPage() {
     </>
   );
 }
-
-    
