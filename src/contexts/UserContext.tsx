@@ -1,3 +1,4 @@
+
 "use client";
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
@@ -12,6 +13,7 @@ import { getDatabase, ref, onDisconnect, set, onValue } from 'firebase/database'
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { App as CapacitorApp } from '@capacitor/app';
 import { useModal } from './ModalContext';
+import { useAndroidBack } from '@/hooks/useAndroidBack';
 
 const rtdb = getDatabase(app);
 
@@ -32,7 +34,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-  const { getTopModalCloseHandler } = useModal();
+  
+  // Hook para gerenciar o botão voltar do Android (sem modais abertos)
+  useAndroidBack({});
 
   const listenersRef = useRef<{ [key: string]: () => void }>({});
 
@@ -194,25 +198,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   
   }, [user, loading, pathname, router]);
-
-  // Capacitor Back Button Handler
-  useEffect(() => {
-    const handler = CapacitorApp.addListener('backButton', (e) => {
-      const topModalCloseHandler = getTopModalCloseHandler();
-      
-      if (topModalCloseHandler) {
-        topModalCloseHandler(); // Fecha o modal de maior prioridade
-      } else if (e.canGoBack) {
-        window.history.back(); // Volta no histórico de navegação
-      } else {
-        CapacitorApp.exitApp(); // Fecha o app se não houver mais para onde voltar
-      }
-    });
-
-    return () => {
-      handler.remove();
-    };
-  }, [getTopModalCloseHandler]);
 
   const value = { user, congregation, loading, logout, updateUser };
 

@@ -1,8 +1,9 @@
+
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { X } from "lucide-react";
-import { useModal } from "@/contexts/ModalContext";
+import { useAndroidBack } from "@/hooks/useAndroidBack";
 
 interface ImagePreviewModalProps {
   isOpen: boolean;
@@ -15,27 +16,25 @@ export default function ImagePreviewModal({
   onClose,
   imageUrl,
 }: ImagePreviewModalProps) {
-  const { registerModal, unregisterModal } = useModal();
 
-  // Registrar/desregistrar o modal no contexto global
-  useEffect(() => {
-    const modalId = 'imagePreview';
-    if (isOpen) {
-      registerModal(modalId, onClose);
-    }
-    return () => {
-      unregisterModal(modalId);
-    };
-  }, [isOpen, registerModal, unregisterModal, onClose]);
+  // Hook para o botão "voltar" do Android
+  useAndroidBack({
+    enabled: isOpen,
+    onClose: onClose,
+  });
 
   useEffect(() => {
     if (!isOpen) return;
+
+    // 🔄 Tenta forçar modo paisagem (funciona em Android)
     const lockOrientation = async () => {
       try {
         if (screen.orientation?.lock) {
           await screen.orientation.lock("landscape");
         }
-      } catch {}
+      } catch {
+        // iOS ignora — comportamento normal
+      }
     };
 
     lockOrientation();
@@ -58,6 +57,7 @@ export default function ImagePreviewModal({
       "
       style={{ touchAction: "none" }}
     >
+      {/* Botão fechar */}
       <button
         onClick={onClose}
         className="absolute top-4 right-4 z-50 text-white hover:opacity-80"
@@ -66,6 +66,7 @@ export default function ImagePreviewModal({
         <X size={32} />
       </button>
 
+      {/* Container adaptável */}
       <div
         className="
           w-full h-full

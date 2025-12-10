@@ -1,8 +1,8 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { useModal } from '@/contexts/ModalContext'; // Importar
 import { reauthenticateWithCredential, EmailAuthProvider, updateProfile } from 'firebase/auth';
 import { auth, app } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
 import { sendEmail } from '@/lib/emailService';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { useAndroidBack } from '@/hooks/useAndroidBack';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
@@ -20,9 +21,13 @@ const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
-  const { registerModal, unregisterModal } = useModal(); // Usar o contexto do modal
   const { toast } = useToast();
   
+  useAndroidBack({
+    enabled: isOpen,
+    onClose: () => onOpenChange(false),
+  });
+
   const [name, setName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [confirmWhatsapp, setConfirmWhatsapp] = useState(''); 
@@ -37,17 +42,6 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
   const nameInputRef = useRef<HTMLInputElement>(null);
   const whatsappInputRef = useRef<HTMLInputElement>(null);
-  
-  // Registrar/desregistrar o modal no contexto global
-  useEffect(() => {
-    const modalId = 'editProfile';
-    if (isOpen) {
-      registerModal(modalId, () => onOpenChange(false));
-    }
-    return () => {
-      unregisterModal(modalId);
-    };
-  }, [isOpen, registerModal, unregisterModal, onOpenChange]);
 
   useEffect(() => {
     if (user && isOpen) {
