@@ -1,8 +1,8 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/contexts/UserContext';
+import { useModal } from '@/contexts/ModalContext'; // Importar
 import { reauthenticateWithCredential, EmailAuthProvider, updateProfile } from 'firebase/auth';
 import { auth, app } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -20,6 +20,7 @@ const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
+  const { registerModal, unregisterModal } = useModal(); // Usar o contexto do modal
   const { toast } = useToast();
   
   const [name, setName] = useState('');
@@ -37,6 +38,17 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   const nameInputRef = useRef<HTMLInputElement>(null);
   const whatsappInputRef = useRef<HTMLInputElement>(null);
   
+  // Registrar/desregistrar o modal no contexto global
+  useEffect(() => {
+    const modalId = 'editProfile';
+    if (isOpen) {
+      registerModal(modalId, () => onOpenChange(false));
+    }
+    return () => {
+      unregisterModal(modalId);
+    };
+  }, [isOpen, registerModal, unregisterModal, onOpenChange]);
+
   useEffect(() => {
     if (user && isOpen) {
       setName(user.name);
@@ -59,31 +71,6 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     }
   }, [user, isOpen]);
   
-  // Efeito para gerenciar o botão "voltar" do Android
-  useEffect(() => {
-    const handlePopState = (event: PopStateEvent) => {
-        if (isOpen) {
-            onOpenChange(false);
-            event.preventDefault();
-        }
-    };
-
-    if (isOpen) {
-        // Adiciona um estado ao histórico quando o modal abre
-        window.history.pushState({ modal: 'edit-profile' }, '');
-        // Ouve o evento de popstate (botão voltar)
-        window.addEventListener('popstate', handlePopState);
-    }
-
-    return () => {
-        window.removeEventListener('popstate', handlePopState);
-        // Se o modal estiver fechando e o estado for o nosso, volte para remover
-        if (isOpen && window.history.state?.modal === 'edit-profile') {
-           // A chamada é tratada pelo Dialog do ShadCN, não precisa de history.back() aqui
-        }
-    };
-  }, [isOpen, onOpenChange]);
-
   const handleSaveChanges = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);

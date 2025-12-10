@@ -1,6 +1,7 @@
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { UserProvider } from '@/contexts/UserContext';
 import { FontSizeProvider } from '@/contexts/FontSizeContext'; // Importar
+import { ModalProvider } from '@/contexts/ModalContext'; // Importar
 import type { Metadata } from "next";
 import { Toaster } from "@/components/ui/toaster";
 import { SpeedInsights } from "@vercel/speed-insights/next"
@@ -39,9 +40,11 @@ export default function RootLayout({ children }: { children: React.ReactNode; })
             enableSystem 
             disableTransitionOnChange
           >
-            <FontSizeProvider> {/* Adicionar o Provider */}
-              {children}
-            </FontSizeProvider>
+            <ModalProvider>
+              <FontSizeProvider>
+                {children}
+              </FontSizeProvider>
+            </ModalProvider>
             <Toaster />
           </ThemeProvider>
         </UserProvider>

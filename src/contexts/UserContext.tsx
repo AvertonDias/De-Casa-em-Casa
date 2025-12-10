@@ -1,4 +1,3 @@
-
 "use client";
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
@@ -11,6 +10,8 @@ import { Loader } from 'lucide-react';
 import { subMonths } from 'date-fns';
 import { getDatabase, ref, onDisconnect, set, onValue } from 'firebase/database';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { App as CapacitorApp } from '@capacitor/app';
+import { useModal } from './ModalContext';
 
 const rtdb = getDatabase(app);
 
@@ -31,11 +32,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  const { getTopModalCloseHandler } = useModal();
 
-  // Mapeamento para armazenar e gerenciar os listeners
   const listenersRef = useRef<{ [key: string]: () => void }>({});
 
-  // Função para cancelar todos os listeners ativos
   const unsubscribeAll = () => {
     Object.values(listenersRef.current).forEach(unsub => unsub());
     listenersRef.current = {};
@@ -48,7 +48,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
     await signOut(auth).catch(e => console.error("Falha no signOut do Auth:", e));
     
-    // Limpar o estado local e cancelar listeners
     setUser(null);
     setCongregation(null);
     unsubscribeAll();
@@ -69,7 +68,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     window.addEventListener('offline', handleOffline);
 
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
-      unsubscribeAll(); // Cancela todos os listeners antigos antes de começar
+      unsubscribeAll();
       setLoading(true);
 
       if (!firebaseUser) {
@@ -81,7 +80,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
       const userRef = doc(db, 'users', firebaseUser.uid);
       
-      // Listener para o documento do usuário
       listenersRef.current.user = onSnapshot(userRef, async (userDoc) => {
         if (!userDoc.exists()) {
           const pendingDataStr = sessionStorage.getItem('pendingUserData');
@@ -118,14 +116,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
         setUser(appUser);
         
-        // Se já existe um listener de congregação, cancela ele antes de criar um novo.
         if (listenersRef.current.congregation) {
             listenersRef.current.congregation();
             delete listenersRef.current.congregation;
             setCongregation(null);
         }
         
-        // Listener para o documento da congregação (GARANTE A ATUALIZAÇÃO EM TEMPO REAL)
         if (appUser.congregationId) {
           const congRef = doc(db, 'congregations', appUser.congregationId);
           listenersRef.current.congregation = onSnapshot(congRef, (congDoc) => {
@@ -159,7 +155,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   useEffect(() => {
@@ -199,6 +194,25 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   
   }, [user, loading, pathname, router]);
+
+  // Capacitor Back Button Handler
+  useEffect(() => {
+    const handler = CapacitorApp.addListener('backButton', (e) => {
+      const topModalCloseHandler = getTopModalCloseHandler();
+      
+      if (topModalCloseHandler) {
+        topModalCloseHandler(); // Fecha o modal de maior prioridade
+      } else if (e.canGoBack) {
+        window.history.back(); // Volta no histórico de navegação
+      } else {
+        CapacitorApp.exitApp(); // Fecha o app se não houver mais para onde voltar
+      }
+    });
+
+    return () => {
+      handler.remove();
+    };
+  }, [getTopModalCloseHandler]);
 
   const value = { user, congregation, loading, logout, updateUser };
 
