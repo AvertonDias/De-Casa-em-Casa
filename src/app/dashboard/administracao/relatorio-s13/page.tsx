@@ -224,7 +224,7 @@ export default function S13ReportPage() {
           ref={printableAreaRef}
           style={{ 
             transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`, 
-            transformOrigin: 'top center',
+            transformOrigin: 'center top',
             touchAction: 'none'
           }}
           onMouseDown={handleMouseDown}
