@@ -22,12 +22,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 /* ---------- helpers de touch sem conflitar com tipos DOM ---------- */
-type TouchPoint = { clientX: number; clientY: number };
-const touchToPoint = (t: React.Touch): TouchPoint => ({ clientX: t.clientX, clientY: t.clientY });
+type Point = { x: number; y: number };
+const touchToPoint = (t: React.Touch): Point => ({ x: t.clientX, y: t.clientY });
 
 /* ---------- distância entre 2 toques ---------- */
-const getDistanceFromTouches = (t1: TouchPoint, t2: TouchPoint) =>
-  Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+const getDistance = (p1: Point, p2: Point) => Math.hypot(p2.x - p1.x, p2.y - p1.y);
 
 /* ========================= COMPONENTE ========================= */
 export default function S13ReportPage() {
@@ -41,16 +40,15 @@ export default function S13ReportPage() {
 
   /* ---------------- zoom / pan ---------------- */
   const [scale, setScale] = useState<number>(1);
-  const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
 
   const printableAreaRef = useRef<HTMLDivElement | null>(null);
 
   // refs para touch/mouse state
-  const lastPointerRef = useRef<TouchPoint | null>(null); // último ponto durante drag (touch ou mouse)
-  const lastPositionRef = useRef({ x: 0, y: 0 }); // posição acumulada (usada para finalizar drag)
-  const initialPinchDistanceRef = useRef<number | null>(null); // distância inicial ao começar pinch
-  const initialScaleRef = useRef<number>(1); // scale no início do pinch
+  const lastPointerRef = useRef<Point | null>(null);
+  const lastPositionRef = useRef({ x: 0, y: 0 });
+  const initialPinchStateRef = useRef<{ distance: number, scale: number, center: Point } | null>(null);
   const lastTapRef = useRef<number>(0);
 
   // limites
@@ -81,7 +79,6 @@ export default function S13ReportPage() {
       return;
     }
 
-    // força scale 1 visual enquanto gera PDF
     const savedTransform = element.style.transform;
     element.style.transform = "scale(1) translate(0px, 0px)";
 
@@ -106,23 +103,56 @@ export default function S13ReportPage() {
   /* ================== zoom helpers ================== */
   const clampScale = (s: number) => Math.max(MIN_SCALE, Math.min(s, MAX_SCALE));
 
-  const applyZoom = (newScale: number, center?: { x: number; y: number }) => {
-    // Se passar centro, podemos ajustar position para dar sensação de zoom no ponto (opcional).
-    // Aqui fazemos zoom simples e mantemos a posição, mas preservamos limites.
+  const applyZoom = (newScale: number, center?: Point) => {
     const clamped = clampScale(newScale);
-    setScale(clamped);
-    if (clamped <= 1) {
+
+    if (printableAreaRef.current && center) {
+        const rect = printableAreaRef.current.getBoundingClientRect();
+        
+        const currentCenter = {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2,
+        };
+
+        const newPos = {
+            x: center.x - currentCenter.x,
+            y: center.y - currentCenter.y,
+        };
+
+        const oldScale = scale;
+
+        const newPosition = {
+            x: position.x - (newPos.x / oldScale) * (clamped - oldScale),
+            y: position.y - (newPos.y / oldScale) * (clamped - oldScale),
+        };
+        setPosition(newPosition);
+        lastPositionRef.current = newPosition;
+
+    } else if (clamped <= 1) {
       setPosition({ x: 0, y: 0 });
       lastPositionRef.current = { x: 0, y: 0 };
     }
+    
+    setScale(clamped);
   };
 
   const handleZoomButtons = (delta: number) => {
-    applyZoom(clampScale(scale + delta));
+    if (printableAreaRef.current) {
+        const rect = printableAreaRef.current.getBoundingClientRect();
+        const center = {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2,
+        };
+        applyZoom(scale + delta, center);
+    } else {
+        applyZoom(scale + delta);
+    }
   };
 
   const handleResetZoom = () => {
-    applyZoom(1);
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+    lastPositionRef.current = { x: 0, y: 0 };
   };
 
   /* ================== mouse events (desktop) ================== */
@@ -130,14 +160,14 @@ export default function S13ReportPage() {
     if (scale <= 1) return;
     e.preventDefault();
     setIsDragging(true);
-    lastPointerRef.current = { clientX: e.clientX, clientY: e.clientY };
+    lastPointerRef.current = { x: e.clientX, y: e.clientY };
   };
 
   const onMouseMove = (e: React.MouseEvent) => {
     if (!isDragging || !lastPointerRef.current) return;
-    const dx = e.clientX - lastPointerRef.current.clientX;
-    const dy = e.clientY - lastPointerRef.current.clientY;
-    lastPointerRef.current = { clientX: e.clientX, clientY: e.clientY };
+    const dx = e.clientX - lastPointerRef.current.x;
+    const dy = e.clientY - lastPointerRef.current.y;
+    lastPointerRef.current = { x: e.clientX, y: e.clientY };
     setPosition((p) => {
       const next = { x: p.x + dx, y: p.y + dy };
       lastPositionRef.current = next;
@@ -152,31 +182,23 @@ export default function S13ReportPage() {
 
   /* ================== touch events (mobile) ================== */
   const onTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
     if (e.touches.length === 2) {
-      // inicia pinch
-      e.preventDefault();
       const p1 = touchToPoint(e.touches[0]);
       const p2 = touchToPoint(e.touches[1]);
-      initialPinchDistanceRef.current = getDistanceFromTouches(p1, p2);
-      initialScaleRef.current = scale;
+      initialPinchStateRef.current = {
+        distance: getDistance(p1, p2),
+        scale: scale,
+        center: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 },
+      };
     } else if (e.touches.length === 1) {
-      // duplo toque?
-      e.preventDefault();
       const now = Date.now();
       if (now - lastTapRef.current < 300) {
-        // double-tap
-        setScale((prev) => {
-          const next = prev > 1 ? 1 : 2;
-          if (next === 1) {
-            setPosition({ x: 0, y: 0 });
-            lastPositionRef.current = { x: 0, y: 0 };
-          }
-          return next;
-        });
+        if (scale > 1) handleResetZoom();
+        else handleZoomButtons(1);
       }
       lastTapRef.current = now;
 
-      // possível drag
       if (scale > 1) {
         setIsDragging(true);
         lastPointerRef.current = touchToPoint(e.touches[0]);
@@ -185,22 +207,21 @@ export default function S13ReportPage() {
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && initialPinchDistanceRef.current !== null) {
-      e.preventDefault();
-      const p1 = touchToPoint(e.touches[0]);
-      const p2 = touchToPoint(e.touches[1]);
-      const dist = getDistanceFromTouches(p1, p2);
-      if (initialPinchDistanceRef.current > 0) {
-        const factor = dist / initialPinchDistanceRef.current;
-        const newScale = clampScale(initialScaleRef.current * factor);
-        setScale(newScale);
-        // não mexemos na posição aqui (poderíamos ajustar para zoom no centro)
-      }
+    e.preventDefault();
+    if (e.touches.length === 2 && initialPinchStateRef.current) {
+        const { scale: initialScale, center: initialCenter } = initialPinchStateRef.current;
+        const p1 = touchToPoint(e.touches[0]);
+        const p2 = touchToPoint(e.touches[1]);
+        const newDistance = getDistance(p1, p2);
+        
+        const factor = newDistance / initialPinchStateRef.current.distance;
+        const newScale = clampScale(initialScale * factor);
+        applyZoom(newScale, initialCenter);
+
     } else if (e.touches.length === 1 && isDragging && lastPointerRef.current) {
-      e.preventDefault();
       const p = touchToPoint(e.touches[0]);
-      const dx = p.clientX - lastPointerRef.current.clientX;
-      const dy = p.clientY - lastPointerRef.current.clientY;
+      const dx = p.x - lastPointerRef.current.x;
+      const dy = p.y - lastPointerRef.current.y;
       lastPointerRef.current = p;
       setPosition((prev) => {
         const next = { x: prev.x + dx, y: prev.y + dy };
@@ -211,11 +232,7 @@ export default function S13ReportPage() {
   };
 
   const onTouchEnd = (e: React.TouchEvent) => {
-    // se acabou a interação com dois dedos, reseta o tracking de pinch
-    if (e.touches.length < 2) {
-      initialPinchDistanceRef.current = null;
-      initialScaleRef.current = scale;
-    }
+    if (e.touches.length < 2) initialPinchStateRef.current = null;
     if (e.touches.length === 0) {
       setIsDragging(false);
       lastPointerRef.current = null;
@@ -279,7 +296,7 @@ export default function S13ReportPage() {
       </div>
 
       <div
-        className="overflow-auto p-4 print:p-0 print:overflow-visible flex justify-center"
+        className="overflow-hidden p-4 print:p-0 flex justify-center"
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
