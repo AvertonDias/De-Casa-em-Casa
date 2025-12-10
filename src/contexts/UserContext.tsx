@@ -11,7 +11,7 @@ import { Loader } from 'lucide-react';
 import { subMonths } from 'date-fns';
 import { getDatabase, ref, onDisconnect, set, onValue } from 'firebase/database';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { App as CapacitorApp } from '@capacitor/app';
+// A importação do CapacitorApp foi movida para dentro do useEffect para evitar a execução no servidor.
 import { useModal } from './ModalContext';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 
@@ -70,6 +70,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const handleOffline = () => disableNetwork(db);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
+    // Movendo a importação e o código do Capacitor para dentro do useEffect
+    if (typeof window !== 'undefined') {
+      import('@capacitor/app').then(CapacitorModule => {
+          const { App: CapacitorApp } = CapacitorModule;
+          CapacitorApp.addListener('backButton', () => {});
+      }).catch(e => console.log("Capacitor não disponível, executando em um navegador web."));
+    }
 
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       unsubscribeAll();

@@ -20,16 +20,13 @@ export function useAndroidBack({
     let handler: any;
 
     const setup = async () => {
-      try {
-        const isNative = CapacitorApp.getInfo ? await CapacitorApp.getInfo() : false;
-        if (!isNative) return;
-      } catch (e) {
-        // Roda no navegador, não faz nada
+      // Condição alterada para verificar a existência do Capacitor no objeto window.
+      // Isso garante que o código só será executado no ambiente do cliente (navegador/nativo).
+      if (typeof window === 'undefined' || !(window as any).Capacitor?.isNativePlatform()) {
         return;
       }
 
-
-      handler = CapacitorApp.addListener("backButton", ({ canGoBack }) => {
+      handler = await CapacitorApp.addListener("backButton", ({ canGoBack }) => {
         // 1️⃣ Modal aberto = fecha modal
         if (enabled && onClose) {
           onClose();
