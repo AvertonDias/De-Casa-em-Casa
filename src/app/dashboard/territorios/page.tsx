@@ -16,7 +16,7 @@ import withAuth from '@/components/withAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Disclosure, Transition } from '@headlessui/react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 
@@ -261,55 +261,50 @@ function TerritoriosPage() {
 
         {isManagerView && (
           <div className="w-full mb-6">
-            <div className="bg-card rounded-lg p-2">
-                <Disclosure as="div">
-                    {({ open }) => (
-                    <>
-                        <Disclosure.Button className="flex w-full justify-between items-center rounded-lg px-4 py-2 text-left text-lg font-medium hover:bg-white/5 focus:outline-none focus-visible:ring focus-visible:ring-primary/75">
-                            <div className="flex items-center gap-3">
-                              <SlidersHorizontal size={20} />
-                              <span>Filtros e Ordenação</span>
-                            </div>
-                            <ChevronUp className={`${open ? 'rotate-180 transform' : ''} h-5 w-5 transition-transform`} />
-                        </Disclosure.Button>
-                        <Transition show={open} enter="transition duration-100 ease-out" enterFrom="transform scale-95 opacity-0" enterTo="transform scale-100 opacity-100" leave="transition duration-75 ease-out" leaveFrom="transform scale-100 opacity-100" leaveTo="transform scale-95 opacity-100">
-                            <Disclosure.Panel className="px-4 pb-4 pt-4 text-sm text-gray-500 border-t border-border mt-2 space-y-4">
-                                <div>
-                                    <p className="font-semibold mb-2">Filtrar por Status</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        <FilterButton label="Todos" value="all" />
-                                        <FilterButton label="Disponível" value="disponivel" />
-                                        <FilterButton label="Designado" value="designado" />
-                                        <FilterButton label="Atrasado" value="atrasado" />
-                                    </div>
-                                </div>
-                                
-                                <div>
-                                  <p className="font-semibold mb-2">Ordenar por</p>
-                                  <div className="flex items-center gap-2">
-                                    <Select value={sortBy} onValueChange={setSortBy}>
-                                      <SelectTrigger className="w-full sm:w-[180px] bg-muted border-none">
-                                        <SelectValue placeholder="Ordenar por..." />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="number">Número</SelectItem>
-                                        <SelectItem value="name">Nome</SelectItem>
-                                        <SelectItem value="totalHouses">Total de Casas</SelectItem>
-                                        <SelectItem value="housesDone">Casas Feitas</SelectItem>
-                                        <SelectItem value="progress">Progresso</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                    <Button variant="outline" size="icon" onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}>
-                                      <ArrowDownUp className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                            </Disclosure.Panel>
-                        </Transition>
-                    </>
-                    )}
-                </Disclosure>
-            </div>
+            <Accordion type="single" collapsible className="w-full bg-card rounded-lg p-2">
+              <AccordionItem value="filters" className="border-b-0">
+                <AccordionTrigger className="flex w-full justify-between items-center rounded-lg px-4 py-2 text-left text-lg font-medium hover:bg-white/5 focus:outline-none focus-visible:ring focus-visible:ring-primary/75 hover:no-underline">
+                  <div className="flex items-center gap-3">
+                    <SlidersHorizontal size={20} />
+                    <span>Filtros e Ordenação</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="px-4 pb-4 pt-4 text-sm text-gray-500 border-t border-border mt-2 space-y-4">
+                      <div>
+                          <p className="font-semibold mb-2">Filtrar por Status</p>
+                          <div className="flex flex-wrap gap-2">
+                              <FilterButton label="Todos" value="all" />
+                              <FilterButton label="Disponível" value="disponivel" />
+                              <FilterButton label="Designado" value="designado" />
+                              <FilterButton label="Atrasado" value="atrasado" />
+                          </div>
+                      </div>
+                      
+                      <div>
+                        <p className="font-semibold mb-2">Ordenar por</p>
+                        <div className="flex items-center gap-2">
+                          <Select value={sortBy} onValueChange={setSortBy}>
+                            <SelectTrigger className="w-full sm:w-[180px] bg-muted border-none">
+                              <SelectValue placeholder="Ordenar por..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="number">Número</SelectItem>
+                              <SelectItem value="name">Nome</SelectItem>
+                              <SelectItem value="totalHouses">Total de Casas</SelectItem>
+                              <SelectItem value="housesDone">Casas Feitas</SelectItem>
+                              <SelectItem value="progress">Progresso</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button variant="outline" size="icon" onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}>
+                            <ArrowDownUp className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         )}
 
