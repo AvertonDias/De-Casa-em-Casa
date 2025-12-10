@@ -9,7 +9,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, MessageCircle, History, Loader, X } from 'lucide-react';
-import { Menu, Transition } from '@headlessui/react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AssignTerritoryModal from './AssignTerritoryModal';
@@ -397,26 +397,24 @@ export default function TerritoryAssignmentPanel() {
                           </div>
                        </div>
                        <div className="flex items-center justify-end flex-shrink-0 ml-2 sm:col-span-2">
-                           <Menu as="div" className="relative inline-block text-left">
-                             <Menu.Button className="p-2 rounded-full hover:bg-white/10">
-                                 <MoreVertical size={20} />
-                             </Menu.Button>
-                             <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                                 <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right bg-popover text-popover-foreground rounded-md shadow-lg z-20 ring-1 ring-black ring-opacity-5 focus:outline-none">
-                                     <div className="p-1">
-                                         {isDesignado ? (
-                                             <>
-                                                 <Menu.Item><button onClick={() => handleOpenReturnModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <CheckCircle size={16} className="mr-2"/>Devolver</button></Menu.Item>
-                                                 <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <RotateCw size={16} className="mr-2"/>Reatribuir</button></Menu.Item>
-                                                 {isOverdue && <Menu.Item><button onClick={() => handleNotifyOverdue(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm text-yellow-500 hover:bg-accent hover:text-accent-foreground disabled:opacity-50'> <MessageCircle size={16} className="mr-2"/>Notificar atraso</button></Menu.Item>}
-                                             </>
-                                         ) : (
-                                              <Menu.Item><button onClick={() => handleOpenAssignModal(t)} className='group flex rounded-md items-center w-full px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground'> <BookUser size={16} className="mr-2"/>Designar</button></Menu.Item>
-                                         )}
-                                     </div>
-                                 </Menu.Items>
-                             </Transition>
-                           </Menu>
+                           <DropdownMenu>
+                             <DropdownMenuTrigger asChild>
+                               <button className="p-2 rounded-full hover:bg-white/10">
+                                   <MoreVertical size={20} />
+                               </button>
+                             </DropdownMenuTrigger>
+                             <DropdownMenuContent className="w-56" align="end">
+                               {isDesignado ? (
+                                   <>
+                                       <DropdownMenuItem onClick={() => handleOpenReturnModal(t)}> <CheckCircle size={16} className="mr-2"/>Devolver</DropdownMenuItem>
+                                       <DropdownMenuItem onClick={() => handleOpenAssignModal(t)}> <RotateCw size={16} className="mr-2"/>Reatribuir</DropdownMenuItem>
+                                       {isOverdue && <DropdownMenuItem onClick={() => handleNotifyOverdue(t)} className="text-yellow-500 focus:text-yellow-500"> <MessageCircle size={16} className="mr-2"/>Notificar atraso</DropdownMenuItem>}
+                                   </>
+                               ) : (
+                                   <DropdownMenuItem onClick={() => handleOpenAssignModal(t)}> <BookUser size={16} className="mr-2"/>Designar</DropdownMenuItem>
+                               )}
+                             </DropdownMenuContent>
+                           </DropdownMenu>
                            <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4">
                               <History />
                             </AccordionTrigger>

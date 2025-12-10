@@ -5,7 +5,7 @@ import { useState, ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Disclosure, Transition } from '@headlessui/react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ChevronUp, ChevronsRight, LogIn, Map, Waypoints, Users, PlayCircle, Users2, SunMoon, ShieldCheck, Wifi, BarChart3 } from 'lucide-react';
 import { VideoModal } from '@/components/VideoModal';
 
@@ -30,15 +30,13 @@ const TutorialSection = ({ title, icon, imageUrl, onVideoClick, children }: {
     onVideoClick?: () => void; // Função para tocar o vídeo
     children: ReactNode; 
 }) => (
-  <Disclosure as="div" className="mb-2">
-    {({ open }) => (
-      <div className="rounded-lg bg-card p-2">
-        <Disclosure.Button className="flex w-full justify-between items-center rounded-lg px-4 py-3 text-left text-lg font-medium hover:bg-white/5 focus:outline-none focus-visible:ring focus-visible:ring-primary/75">
-          <div className="flex items-center gap-4">{icon}<span>{title}</span></div>
-          <ChevronUp className={`${open ? 'rotate-180 transform' : ''} h-5 w-5 text-primary transition-transform`} />
-        </Disclosure.Button>
-        <Transition enter="transition duration-100 ease-out" enterFrom="transform scale-95 opacity-0" enterTo="transform scale-100 opacity-100" leave="transition duration-75 ease-out" leaveFrom="transform scale-100 opacity-100" leaveTo="transform scale-95 opacity-0">
-          <Disclosure.Panel className="px-4 pb-4 pt-4 text-base text-muted-foreground border-t border-border mt-2">
+  <Accordion type="single" collapsible className="mb-2 bg-card rounded-lg p-1">
+    <AccordionItem value="item-1" className="border-b-0">
+      <AccordionTrigger className="flex w-full justify-between items-center rounded-lg px-4 py-3 text-left text-lg font-medium hover:bg-white/5 focus:outline-none focus-visible:ring focus-visible:ring-primary/75 hover:no-underline">
+        <div className="flex items-center gap-4">{icon}<span>{title}</span></div>
+      </AccordionTrigger>
+      <AccordionContent>
+          <div className="px-4 pb-4 pt-2 text-base text-muted-foreground border-t border-border mt-2">
             <div className="flex flex-col md:flex-row gap-6">
               {/* Coluna do Texto e Vídeo */}
               <div className="prose prose-invert max-w-none prose-p:my-2">
@@ -56,11 +54,10 @@ const TutorialSection = ({ title, icon, imageUrl, onVideoClick, children }: {
                   </div>
               )}
             </div>
-          </Disclosure.Panel>
-        </Transition>
-      </div>
-    )}
-  </Disclosure>
+          </div>
+      </AccordionContent>
+    </AccordionItem>
+  </Accordion>
 );
 
 
