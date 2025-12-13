@@ -105,28 +105,24 @@ setPosition(originalPosition);
     positionRef.current = { x: 0, y: 0 };
   };
 
-  // Drag handlers
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!('touches' in e)) {
-      e.preventDefault();
-    }
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    
-    dragStartRef.current = { x: clientX - position.x, y: clientY - position.y };
+    dragStartRef.current = { x: clientX, y: clientY };
     setIsDragging(true);
   };
   
   const handleDragMove = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDragging) return;
-    if (!('touches' in e)) {
-      e.preventDefault();
-    }
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-    const newX = clientX - dragStartRef.current.x;
-    const newY = clientY - dragStartRef.current.y;
+  
+    const deltaX = clientX - dragStartRef.current.x;
+    const deltaY = clientY - dragStartRef.current.y;
+  
+    const newX = positionRef.current.x + deltaX;
+    const newY = positionRef.current.y + deltaY;
+  
     setPosition({ x: newX, y: newY });
   };
   
@@ -199,7 +195,7 @@ setPosition(originalPosition);
             };
 
             return (
-              <tbody key={t.id} style={{ pageBreakInside: 'avoid' }}>
+              <tbody key={t.id} className="print-avoid-break">
                 <tr>
                   <td rowSpan={2} className="border border-black py-2" style={cellStyle}>{t.number}</td>
                   {display.map((a, i) => (
@@ -288,4 +284,6 @@ setPosition(originalPosition);
     </>
   );
 }
+
+
 
