@@ -10,7 +10,7 @@ import { Loader, Search, SlidersHorizontal, ChevronUp, X, Users as UsersIcon, Wi
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { UserListItem } from './UserListItem';
-import { EditUserByAdminModal } from './EditUserByAdminModal'; // Importar o novo modal
+import { EditUserByAdminModal } from './EditUserByAdminModal';
 import { subDays, subMonths, subHours } from 'date-fns';
 import type { AppUser, Congregation } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
@@ -108,15 +108,14 @@ export default function UserManagement() {
       dataToUpdate.status = 'ativo';
     }
 
-    if (currentUser.role !== 'Administrador' && (dataToUpdate.role || (dataToUpdate.status && dataToUpdate.status !== 'rejeitado'))) {
-      toast({ title: "Permissão Negada", description: "Apenas administradores podem alterar perfis e status.", variant: "destructive" });
-      return;
-    }
-    if (currentUser.role === 'Dirigente' && dataToUpdate.status === 'rejeitado') {
-        // Dirigentes podem rejeitar, mas não alterar outros status ou perfis
-    } else if (currentUser.role !== 'Administrador' && currentUser.role !== 'Dirigente') { // Dirigente pode aprovar
-        toast({ title: "Permissão Negada", description: "Você não tem permissão para esta ação.", variant: "destructive" });
+    if (currentUser.role === 'Dirigente' && dataToUpdate.status && !['ativo', 'rejeitado'].includes(dataToUpdate.status)) {
+        toast({ title: "Permissão Negada", description: "Você só pode aprovar ou rejeitar usuários pendentes.", variant: "destructive" });
         return;
+    }
+    
+    if (currentUser.role !== 'Administrador' && (dataToUpdate.role || (dataToUpdate.status && !['ativo', 'rejeitado'].includes(dataToUpdate.status)))) {
+      toast({ title: "Permissão Negada", description: "Apenas administradores podem alterar perfis e a maioria dos status.", variant: "destructive" });
+      return;
     }
 
     if (currentUser.uid === userId && dataToUpdate.role && dataToUpdate.role !== currentUser.role) {

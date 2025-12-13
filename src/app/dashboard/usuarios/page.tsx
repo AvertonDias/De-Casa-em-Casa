@@ -1,6 +1,6 @@
 "use client";
 
-import UserManagement from '@/components/users/UserManagement';
+import UserManagement from '@/src/components/users/UserManagement';
 import withAuth from '@/components/withAuth';
 
 function UsersPage() {
