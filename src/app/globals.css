@@ -84,10 +84,6 @@
   .animate-indeterminate-progress {
     animation: indeterminate-progress 1.5s infinite ease-in-out;
   }
-  
-  .print-avoid-break {
-      page-break-inside: avoid;
-  }
 }
 
 @keyframes indicator-pulse {
@@ -120,13 +116,7 @@
   .print-hidden {
     display: none;
   }
-  #printable-area {
-    margin: 0;
-    padding: 0;
-    box-shadow: none;
-    border: none;
-  }
-  tbody.print-avoid-break {
-    page-break-inside: avoid;
+  .print-avoid-break {
+      page-break-inside: avoid;
   }
 }

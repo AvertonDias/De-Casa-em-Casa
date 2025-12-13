@@ -179,29 +179,29 @@ export default function S13ReportPage() {
               .fill(null)
               .map((_, i) => allAssignments[i] || null);
             
-            const rowClass = !inPdf && index % 2 === 0 ? "bg-gray-100 dark:bg-gray-800/20" : "";
+            const rowClass = index % 2 === 0 ? "bg-gray-100" : "";
 
             return (
-              <tbody key={t.id} className={`print-avoid-break ${rowClass}`}>
-                <tr className="text-center">
-                  <td rowSpan={2} className="border border-black">
+              <tbody key={t.id} className={`print-avoid-break ${inPdf ? rowClass : ""}`}>
+                <tr className={`text-center ${!inPdf ? rowClass : ""}`}>
+                  <td rowSpan={2} className="border border-black py-2">
                     {t.number}
                   </td>
                   {display.map((a, i) => (
-                    <td key={i} colSpan={2} className="border border-black">
+                    <td key={i} colSpan={2} className="border border-black py-2">
                       {a?.name || ""}
                     </td>
                   ))}
                 </tr>
-                <tr className="text-center">
+                <tr className={`text-center ${!inPdf ? rowClass : ""}`}>
                   {display.map((a, i) => (
                     <React.Fragment key={i}>
-                      <td className="border border-black">
+                      <td className="border border-black py-2">
                         {a?.assignedAt
                           ? format(a.assignedAt.toDate(), "dd/MM/yy")
                           : ""}
                       </td>
-                      <td className="border border-black">
+                      <td className="border border-black py-2">
                         {a?.completedAt
                           ? format(a.completedAt.toDate(), "dd/MM/yy")
                           : ""}
