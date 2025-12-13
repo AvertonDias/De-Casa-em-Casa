@@ -1,14 +1,15 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff, Info, AlertTriangle } from 'lucide-react';
 import Image from 'next/image';
 import { useUser } from '@/contexts/UserContext';
+// 1. Importe o hook que criamos com o nome correto
+import { useAndroidBack } from '@/hooks/useAndroidBack'; 
 
 export default function UniversalLoginPage() {
   const [email, setEmail] = useState('');
@@ -19,8 +20,10 @@ export default function UniversalLoginPage() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
 
+  // 2. Use o hook na sua página com o nome correto
+  useAndroidBack();
+
   // Se o usuário já está logado e carregado, o UserContext cuidará do redirecionamento.
-  // Evita flash da tela de login para usuários já logados.
   if (user && !userLoading) {
       return null;
   }

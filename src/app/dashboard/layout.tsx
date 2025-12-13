@@ -1,4 +1,3 @@
-
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
 import Image from 'next/image';
@@ -28,6 +27,7 @@ import { Territory, Notification } from "@/types/types";
 import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
 import { SettingsMenu } from "../components/SettingsMenu";
+import AndroidBackHandler from "@/components/AndroidBackHandler";
 
 const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React.SVGProps<SVGSVGElement>) => {
   return (
@@ -384,6 +384,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
       <div className="flex h-screen bg-background">
+          <AndroidBackHandler />
           <InstallPwaModal />
           
           <Sidebar 

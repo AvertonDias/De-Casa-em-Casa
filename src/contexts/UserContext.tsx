@@ -1,4 +1,3 @@
-
 "use client";
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
@@ -11,9 +10,8 @@ import { Loader } from 'lucide-react';
 import { subMonths } from 'date-fns';
 import { getDatabase, ref, onDisconnect, set, onValue } from 'firebase/database';
 import { LoadingScreen } from '@/components/LoadingScreen';
-// A importação do CapacitorApp foi movida para dentro do useEffect para evitar a execução no servidor.
 import { useModal } from './ModalContext';
-import { useAndroidBack } from '@/hooks/useAndroidBack';
+
 
 const rtdb = getDatabase(app);
 
@@ -35,8 +33,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   
-  // Hook para gerenciar o botão voltar do Android (sem modais abertos)
-  useAndroidBack({});
 
   const listenersRef = useRef<{ [key: string]: () => void }>({});
 
@@ -70,14 +66,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const handleOffline = () => disableNetwork(db);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
-    // Movendo a importação e o código do Capacitor para dentro do useEffect
-    if (typeof window !== 'undefined') {
-      import('@capacitor/app').then(CapacitorModule => {
-          const { App: CapacitorApp } = CapacitorModule;
-          CapacitorApp.addListener('backButton', () => {});
-      }).catch(e => console.log("Capacitor não disponível, executando em um navegador web."));
-    }
 
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       unsubscribeAll();

@@ -1,53 +1,39 @@
-
 "use client";
 
 import { useEffect } from "react";
-import { App as CapacitorApp } from "@capacitor/app";
+import { useModal } from "@/contexts/ModalContext";
+import { useRouter } from 'next/navigation';
 
-interface UseAndroidBackProps {
-  /** Se existe modal aberto */
-  enabled?: boolean;
+export function useAndroidBack() {
+  const { hasOpenModal, closeTopModal } = useModal();
+  const router = useRouter();
 
-  /** Executado quando o modal deve ser fechado */
-  onClose?: () => void;
-}
-
-export function useAndroidBack({
-  enabled = false,
-  onClose,
-}: UseAndroidBackProps) {
   useEffect(() => {
-    let handler: any;
+    let App: any = null;
+    let listenerHandle: any = null;
 
-    const setup = async () => {
-      // Condição alterada para verificar a existência do Capacitor no objeto window.
-      // Isso garante que o código só será executado no ambiente do cliente (navegador/nativo).
-      if (typeof window === 'undefined' || !(window as any).Capacitor?.isNativePlatform()) {
-        return;
-      }
-
-      handler = await CapacitorApp.addListener("backButton", ({ canGoBack }) => {
-        // 1️⃣ Modal aberto = fecha modal
-        if (enabled && onClose) {
-          onClose();
-          return;
+    if (typeof window !== "undefined" && (window as any).Capacitor?.isNativePlatform()) {
+      import("@capacitor/app").then(module => {
+        App = module.App;
+        if (App) {
+          listenerHandle = App.addListener("backButton", ({ canGoBack }: { canGoBack: boolean }) => {
+            if (hasOpenModal) {
+              closeTopModal();
+              return;
+            }
+            
+            if (canGoBack) {
+              router.back();
+            } else {
+              App.exitApp();
+            }
+          });
         }
-
-        // 2️⃣ Tem histórico = volta página
-        if (canGoBack) {
-          window.history.back();
-          return;
-        }
-
-        // 3️⃣ Última tela = sai do app
-        CapacitorApp.exitApp();
       });
-    };
-
-    setup();
+    }
 
     return () => {
-      handler?.remove?.();
+      listenerHandle?.remove();
     };
-  }, [enabled, onClose]);
+  }, [hasOpenModal, closeTopModal, router]);
 }
