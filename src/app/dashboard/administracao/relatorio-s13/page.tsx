@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -279,7 +280,7 @@ export default function S13ReportPage() {
       <div className="p-4 flex justify-center bg-muted print-hidden">
         <div
           className="bg-white p-4 shadow-lg"
-          style={{ width: "210mm", minWidth: '794px', maxWidth: '794px', transform: `scale(${scale})`, transformOrigin: 'top center' }}
+          style={{ width: "200mm", transform: `scale(${scale})`, transformOrigin: 'top center' }}
         >
           <div className="text-black">
              <ReportContent />
@@ -295,8 +296,6 @@ export default function S13ReportPage() {
           left: "-10000px",
           top: 0,
           width: "210mm",
-          minWidth: '794px',
-          maxWidth: '794px',
           padding: "10mm",
         }}
       >
