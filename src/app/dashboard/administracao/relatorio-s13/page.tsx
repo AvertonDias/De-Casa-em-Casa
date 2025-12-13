@@ -122,13 +122,13 @@ export default function S13ReportPage() {
             type="number"
             value={serviceYear}
             onChange={(e) => setServiceYear(e.target.value)}
-            className="ml-2 border-b-2 border-black px-2 w-20 bg-transparent text-center"
+            className="ml-2 px-2 w-20 bg-transparent text-center border-b-2 border-black"
             aria-label="Ano de Serviço"
           />
         </div>
         <div className="flex items-center">
           <span className="font-semibold">Congregação:</span>
-          <span className="ml-2 border-b-2 border-black px-4 flex-grow min-w-[150px] text-center">
+          <span className="ml-2 px-4 flex-grow min-w-[150px] text-center border-b-2 border-black">
             {user?.congregationName || "..."}
           </span>
         </div>
