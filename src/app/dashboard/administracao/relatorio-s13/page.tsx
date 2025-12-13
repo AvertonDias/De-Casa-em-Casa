@@ -123,14 +123,14 @@ export default function S13ReportPage() {
   /* ================= CONTEÚDO REUTILIZÁVEL ================= */
   const ReportContent = () => (
     <>
-      <h1 className="text-xl font-bold text-center uppercase">
+      <h1 className="text-xl font-bold text-center uppercase mb-4">
         REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO (
         {typeFilter === "urban" ? "URBANO" : "RURAL"})
       </h1>
 
-      <div className="flex justify-between items-end my-4">
-        <div>
-          <label className="font-semibold text-sm">Ano de Serviço:</label>
+      <div className="flex justify-between items-end my-4 text-sm">
+        <div className="flex items-baseline">
+          <label className="font-semibold">Ano de Serviço:</label>
           <input
             type="number"
             value={serviceYear}
@@ -139,10 +139,9 @@ export default function S13ReportPage() {
             aria-label="Ano de Serviço"
           />
         </div>
-
-        <div className="text-right">
-          <span className="font-semibold text-sm">Congregação:</span>
-          <span className="ml-2 border-b-2 border-black px-4">
+        <div className="flex items-baseline">
+          <span className="font-semibold">Congregação:</span>
+          <span className="ml-2 border-b-2 border-black px-4 flex-grow min-w-[150px] text-center">
             {user?.congregationName || "..."}
           </span>
         </div>
