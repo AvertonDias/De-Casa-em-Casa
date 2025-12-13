@@ -373,7 +373,7 @@ export default function TerritoryAssignmentPanel() {
             <div className="col-span-4 text-left">Designado a</div>
             <div className="col-span-2 text-right">Ações</div>
           </div>
-          <Accordion type="multiple" className="w-full">
+          <Accordion type="single" collapsible className="w-full">
             {filteredTerritories.map(t => {
                 const isDesignado = t.status === 'designado' && t.assignment;
                 const isOverdue = isDesignado && t.assignment && t.assignment.dueDate.toDate() < new Date();
