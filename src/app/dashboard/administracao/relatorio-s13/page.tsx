@@ -137,9 +137,9 @@ export default function S13ReportPage() {
       <table className="w-full text-xs border-collapse">
         <thead>
           <tr className="text-center font-semibold">
-            <th rowSpan={2} className="border border-black p-1">Terr.</th>
+            <th rowSpan={2} className="border border-black p-1" style={{ textAlign: 'center' }}>Terr.</th>
             {Array(4).fill(null).map((_, i) => (
-              <th key={i} colSpan={2} className="border border-black p-1">
+              <th key={i} colSpan={2} className="border border-black p-1" style={{ textAlign: 'center' }}>
                 Designado a
               </th>
             ))}
@@ -147,8 +147,8 @@ export default function S13ReportPage() {
           <tr className="text-center font-semibold">
             {Array(4).fill(null).map((_, i) => (
               <React.Fragment key={i}>
-                <th className="border border-black p-1">Designação</th>
-                <th className="border border-black p-1">Conclusão</th>
+                <th className="border border-black p-1" style={{ textAlign: 'center' }}>Designação</th>
+                <th className="border border-black p-1" style={{ textAlign: 'center' }}>Conclusão</th>
               </React.Fragment>
             ))}
           </tr>
@@ -183,25 +183,25 @@ export default function S13ReportPage() {
 
             return (
               <tbody key={t.id} className={`print-avoid-break ${inPdf ? rowClass : ""}`}>
-                <tr className={`text-center ${!inPdf ? rowClass : ""}`}>
-                  <td rowSpan={2} className="border border-black py-2 text-center">
+                <tr className={`${!inPdf ? rowClass : ""}`}>
+                  <td rowSpan={2} className="border border-black py-2" style={{ textAlign: 'center' }}>
                     {t.number}
                   </td>
                   {display.map((a, i) => (
-                    <td key={i} colSpan={2} className="border border-black py-2 text-center">
+                    <td key={i} colSpan={2} className="border border-black py-2" style={{ textAlign: 'center' }}>
                       {a?.name || ""}
                     </td>
                   ))}
                 </tr>
-                <tr className={`text-center ${!inPdf ? rowClass : ""}`}>
+                <tr className={`${!inPdf ? rowClass : ""}`}>
                   {display.map((a, i) => (
                     <React.Fragment key={i}>
-                      <td className="border border-black py-2 text-center">
+                      <td className="border border-black py-2" style={{ textAlign: 'center' }}>
                         {a?.assignedAt
                           ? format(a.assignedAt.toDate(), "dd/MM/yy")
                           : ""}
                       </td>
-                      <td className="border border-black py-2 text-center">
+                      <td className="border border-black py-2" style={{ textAlign: 'center' }}>
                         {a?.completedAt
                           ? format(a.completedAt.toDate(), "dd/MM/yy")
                           : ""}
