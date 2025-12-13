@@ -1,7 +1,5 @@
-
 "use client";
 
-import { Fragment } from 'react';
 import type { AppUser } from '@/types/types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { MoreVertical, Check, Trash2, XCircle, Edit, User } from 'lucide-react';
