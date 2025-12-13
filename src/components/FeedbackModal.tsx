@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -9,7 +8,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
 import { sendEmail } from '@/lib/emailService';
 import { useModal } from '@/contexts/ModalContext';
-
 
 const FEEDBACK_DESTINATION_EMAIL = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL || "verton3@yahoo.com.br";
 
@@ -24,30 +22,39 @@ export function FeedbackModal() {
   const { registerModal, unregisterModal } = useModal();
   const modalId = 'feedbackModal';
   
+  // --- CORREÇÃO 1: Função de fechamento estável ---
   const handleClose = useCallback(() => {
     setIsOpen(false);
-  }, []);
+  }, []); // Dependência vazia, pois `setIsOpen` é estável.
 
+  // --- CORREÇÃO 2: Lógica de useEffect simplificada e robusta ---
   useEffect(() => {
     if (isOpen) {
+      // Registra o modal quando ele abre
       registerModal(modalId, handleClose);
-      setTimeout(() => {
+      
+      // Foco no input
+      const timer = setTimeout(() => {
         subjectInputRef.current?.focus();
       }, 100);
-    } else {
-      unregisterModal(modalId);
+
+      // A função de limpeza do useEffect será chamada quando `isOpen` se tornar `false` ou o componente for desmontado
+      return () => {
+        clearTimeout(timer);
+        unregisterModal(modalId);
+      };
     }
-    return () => unregisterModal(modalId);
   }, [isOpen, registerModal, unregisterModal, handleClose, modalId]);
 
 
-  const handleOpenChange = (open: boolean) => {
+  // --- CORREÇÃO 3: Função onOpenChange estável ---
+  const handleOpenChange = useCallback((open: boolean) => {
     if (open) {
       setSubject('');
       setMessage('');
     }
     setIsOpen(open);
-  }
+  }, []); // Dependência vazia, pois as funções de estado são estáveis.
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +79,6 @@ export function FeedbackModal() {
 
     try {
         await sendEmail('template_8jxgats', paramsToSend);
-
         toast({
             title: "Feedback Enviado!",
             description: "Agradecemos a sua mensagem.",
