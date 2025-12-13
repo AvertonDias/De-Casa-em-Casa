@@ -1,12 +1,15 @@
+
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Mail, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
 import { sendEmail } from '@/lib/emailService';
+import { useModal } from '@/contexts/ModalContext';
+
 
 const FEEDBACK_DESTINATION_EMAIL = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL || "verton3@yahoo.com.br";
 
@@ -18,14 +21,25 @@ export function FeedbackModal() {
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
   const subjectInputRef = useRef<HTMLInputElement>(null);
+  const { registerModal, unregisterModal } = useModal();
+  const modalId = 'feedbackModal';
+  
+  const handleClose = useCallback(() => {
+    setIsOpen(false);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
+      registerModal(modalId, handleClose);
       setTimeout(() => {
         subjectInputRef.current?.focus();
       }, 100);
+    } else {
+      unregisterModal(modalId);
     }
-  }, [isOpen]);
+    return () => unregisterModal(modalId);
+  }, [isOpen, registerModal, unregisterModal, handleClose, modalId]);
+
 
   const handleOpenChange = (open: boolean) => {
     if (open) {
