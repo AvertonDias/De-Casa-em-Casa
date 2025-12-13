@@ -1,6 +1,6 @@
 
 "use client";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode, useCallback } from "react";
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from "next/navigation";
@@ -97,9 +97,13 @@ function Sidebar({
     }
   }, []);
     
-  const handleLogout = async () => {
+  const handleLogoutConfirm = useCallback(async () => {
     await logout();
-  };
+  }, [logout]);
+
+  const handleCloseLogoutModal = useCallback(() => {
+    setIsLogoutConfirmOpen(false);
+  }, []);
   
   const handleShare = async () => {
     if (navigator.share) {
@@ -241,8 +245,8 @@ function Sidebar({
       </aside>
        <ConfirmationModal
         isOpen={isLogoutConfirmOpen}
-        onClose={() => setIsLogoutConfirmOpen(false)}
-        onConfirm={handleLogout}
+        onClose={handleCloseLogoutModal}
+        onConfirm={handleLogoutConfirm}
         title="Confirmar Saída"
         message="Tem certeza que deseja sair? Para entrar novamente, você precisará inserir seu e-mail e senha."
         confirmText="Sim, Sair"
