@@ -252,7 +252,7 @@ setPosition(originalPosition);
         </div>
       </div>
       <div 
-        className="p-4 flex justify-center bg-muted print-hidden w-full overflow-hidden"
+        className="p-4 flex justify-center bg-muted print-hidden w-full overflow-hidden touch-none"
         onMouseDown={handleDragStart}
         onMouseMove={handleDragMove}
         onMouseUp={handleDragEnd}
