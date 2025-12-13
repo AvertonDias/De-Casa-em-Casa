@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, {
@@ -6,7 +7,6 @@ import React, {
   useState,
   useCallback,
   ReactNode,
-  useMemo,
 } from "react";
 
 type ModalRegistry = {
@@ -61,7 +61,7 @@ export const ModalProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [openModals, modalRegistry]);
 
-  const value = useMemo(
+  const value = React.useMemo(
     () => ({
       registerModal,
       unregisterModal,

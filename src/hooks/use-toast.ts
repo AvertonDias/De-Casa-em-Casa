@@ -185,7 +185,7 @@ function useToast() {
         listeners.splice(index, 1)
       }
     }
-  }, [state])
+  }, []) // A dependência [state] foi removida para corrigir o loop infinito
 
    // Lógica para registrar/desregistrar modais de toast
   React.useEffect(() => {
