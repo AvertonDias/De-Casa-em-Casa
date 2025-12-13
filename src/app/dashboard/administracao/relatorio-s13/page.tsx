@@ -128,7 +128,7 @@ export default function S13ReportPage() {
               });
             }
             const display = Array(4).fill(null).map((_, i) => allAssignments[i] || null);
-            const rowClass = !inPdf && index % 2 === 0 ? "bg-gray-300" : "";
+            const rowClass = index % 2 === 0 ? "bg-gray-300" : "";
             return (
               <tbody key={t.id} className="print-avoid-break">
                 <tr className={rowClass}>
@@ -191,13 +191,13 @@ export default function S13ReportPage() {
           className="bg-white p-4 shadow-lg"
           style={{ width: "200mm", transform: `scale(${scale})`, transformOrigin: 'top center' }}
         >
-          <div style={{ color: 'black' }}>
+          <div className="text-black">
             <ReportContent />
           </div>
         </div>
       </div>
       <div className="hidden">
-        <div id="pdf-area">
+        <div id="pdf-area" className="text-black">
           <ReportContent inPdf={true} />
         </div>
       </div>
