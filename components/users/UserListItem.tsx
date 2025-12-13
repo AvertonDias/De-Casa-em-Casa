@@ -139,11 +139,4 @@ export const UserListItem = ({
                   </Transition>
               </Menu>
           ) : (
-            <div className="w-9 h-9" />
-          )}
-      </div>
-    </li>
-  );
-};
-
-    
+            <div className="w-9 h-9"

@@ -3,17 +3,18 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, app } from '@/lib/firebase';
+import { db, app, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Loader, Search, SlidersHorizontal, ChevronUp, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
-import { Disclosure, Transition } from '@headlessui/react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { UserListItem } from './UserListItem';
 import { EditUserByAdminModal } from './EditUserByAdminModal'; // Importar o novo modal
 import { subDays, subMonths, subHours } from 'date-fns';
 import type { AppUser, Congregation } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
+import { getIdToken } from 'firebase/auth';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
@@ -30,7 +31,7 @@ export default function UserManagement() {
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Publicador'>('all');
   const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive_month'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'rejeitado'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'rejeitado' | 'bloqueado'>('all');
 
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -46,7 +47,7 @@ export default function UserManagement() {
   };
   
   const confirmDeleteUser = useCallback(async () => {
-    if (!userToDelete || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
+    if (!userToDelete || !currentUser || !auth.currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
     
     setIsConfirmModalOpen(false);
     try {
@@ -106,12 +107,18 @@ export default function UserManagement() {
       dataToUpdate.status = 'ativo';
     }
 
-    if (currentUser.role !== 'Administrador' && (dataToUpdate.role || dataToUpdate.status)) {
-      toast({ title: "Permissão Negada", description: "Apenas administradores podem alterar perfis e status.", variant: "destructive" });
+    if (currentUser.role === 'Dirigente' && dataToUpdate.status && !['ativo', 'rejeitado'].includes(dataToUpdate.status)) {
+        toast({ title: "Permissão Negada", description: "Você só pode aprovar ou rejeitar usuários pendentes.", variant: "destructive" });
+        return;
+    }
+    
+    if (currentUser.role !== 'Administrador' && (dataToUpdate.role || (dataToUpdate.status && !['ativo', 'rejeitado'].includes(dataToUpdate.status)))) {
+      toast({ title: "Permissão Negada", description: "Apenas administradores podem alterar perfis e a maioria dos status.", variant: "destructive" });
       return;
     }
-    if (currentUser.uid === userId && dataToUpdate.role && dataToUpdate.role !== 'Administrador') {
-        toast({ title: "Ação Inválida", description: "Você não pode rebaixar a si mesmo.", variant: "destructive" });
+
+    if (currentUser.uid === userId && dataToUpdate.role && dataToUpdate.role !== currentUser.role) {
+        toast({ title: "Ação Inválida", description: "Você não pode alterar seu próprio perfil.", variant: "destructive" });
         return;
     }
     
@@ -251,65 +258,60 @@ export default function UserManagement() {
       </div>
 
       <div className="w-full">
-        <div className="bg-card rounded-lg p-2">
-            <Disclosure as="div">
-                {({ open }) => (
-                <>
-                    <Disclosure.Button className="flex w-full justify-between items-center rounded-lg px-4 py-2 text-left text-lg font-medium hover:bg-white/5 focus:outline-none focus-visible:ring focus-visible:ring-purple-500/75">
-                        <div className="flex items-center gap-3">
-                           <SlidersHorizontal size={20} />
-                           <span>Filtros</span>
+        <Accordion type="single" collapsible className="w-full bg-card rounded-lg p-2">
+            <AccordionItem value="filters" className="border-b-0">
+                <AccordionTrigger className="flex w-full justify-between items-center rounded-lg px-4 py-2 text-left text-lg font-medium hover:bg-white/5 focus:outline-none focus-visible:ring focus-visible:ring-purple-500/75 hover:no-underline">
+                    <div className="flex items-center gap-3">
+                        <SlidersHorizontal size={20} />
+                        <span>Filtros</span>
+                    </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                    <div className="px-4 pb-4 pt-4 text-sm text-gray-500 border-t border-border mt-2 space-y-4">
+                        <div>
+                            <p className="font-semibold mb-2">Status da Conta</p>
+                            <div className="flex flex-wrap gap-2">
+                                <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                <FilterButton label="Ativo" value="ativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                <FilterButton label="Pendente" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                <FilterButton label="Inativo (Visual)" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                <FilterButton label="Rejeitado" value="rejeitado" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                            </div>
                         </div>
-                        <ChevronUp className={`${open ? 'rotate-180 transform' : ''} h-5 w-5 transition-transform`} />
-                    </Disclosure.Button>
-                    <Transition show={open} enter="transition duration-100 ease-out" enterFrom="transform scale-95 opacity-0" enterTo="transform scale-100 opacity-100" leave="transition duration-75 ease-out" leaveFrom="transform scale-100 opacity-100" leaveTo="transform scale-95 opacity-100">
-                        <Disclosure.Panel className="px-4 pb-4 pt-4 text-sm text-gray-500 border-t border-border mt-2 space-y-4">
-                            <div>
-                                <p className="font-semibold mb-2">Status da Conta</p>
-                                <div className="flex flex-wrap gap-2">
-                                    <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                    <FilterButton label="Ativo" value="ativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                    <FilterButton label="Pendente" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                    <FilterButton label="Inativo (Visual)" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                    <FilterButton label="Rejeitado" value="rejeitado" currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                </div>
+                        
+                        <div>
+                            <p className="font-semibold mb-2">Status de Presença</p>
+                            <div className="flex flex-wrap gap-2">
+                                <FilterButton label="Todos" value="all" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
+                                <FilterButton label="Online" value="online" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
+                                <FilterButton label="Offline" value="offline" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
                             </div>
-                            
-                            <div>
-                                <p className="font-semibold mb-2">Status de Presença</p>
-                                <div className="flex flex-wrap gap-2">
-                                    <FilterButton label="Todos" value="all" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
-                                    <FilterButton label="Online" value="online" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
-                                    <FilterButton label="Offline" value="offline" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
-                                </div>
-                            </div>
+                        </div>
 
-                            <div>
-                                <p className="font-semibold mb-2">Perfil de Usuário</p>
-                                <div className="flex flex-wrap gap-2">
-                                    <FilterButton label="Todos" value="all" currentFilter={roleFilter} setFilter={setRoleFilter} />
-                                    <FilterButton label="Admin" value="Administrador" currentFilter={roleFilter} setFilter={setRoleFilter} />
-                                    <FilterButton label="Dirigente" value="Dirigente" currentFilter={roleFilter} setFilter={setRoleFilter} />
-                                    <FilterButton label="S. de Terr." value="Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} />
-                                    <FilterButton label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} />
-                                </div>
+                        <div>
+                            <p className="font-semibold mb-2">Perfil de Usuário</p>
+                            <div className="flex flex-wrap gap-2">
+                                <FilterButton label="Todos" value="all" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                <FilterButton label="Admin" value="Administrador" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                <FilterButton label="Dirigente" value="Dirigente" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                <FilterButton label="S. de Terr." value="Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                <FilterButton label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} />
                             </div>
+                        </div>
 
-                            <div>
-                                <p className="font-semibold mb-2">Atividade Recente (Visto por último)</p>
-                                <div className="flex flex-wrap gap-2">
-                                    <FilterButton label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} />
-                                    <FilterButton label="Ativos na Última Hora" value="active_hourly" currentFilter={activityFilter} setFilter={setActivityFilter} />
-                                    <FilterButton label="Ativos na Semana" value="active_weekly" currentFilter={activityFilter} setFilter={setActivityFilter} />
-                                    <FilterButton label="Ausentes há um Mês" value="inactive_month" currentFilter={activityFilter} setFilter={setActivityFilter} />
-                                </div>
+                        <div>
+                            <p className="font-semibold mb-2">Atividade Recente (Visto por último)</p>
+                            <div className="flex flex-wrap gap-2">
+                                <FilterButton label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                <FilterButton label="Ativos na Última Hora" value="active_hourly" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                <FilterButton label="Ativos na Semana" value="active_weekly" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                <FilterButton label="Ausentes há um Mês" value="inactive_month" currentFilter={activityFilter} setFilter={setActivityFilter} />
                             </div>
-                        </Disclosure.Panel>
-                    </Transition>
-                </>
-                )}
-            </Disclosure>
-        </div>
+                        </div>
+                    </div>
+                </AccordionContent>
+            </AccordionItem>
+        </Accordion>
       </div>
 
       <div className="relative">
@@ -374,5 +376,3 @@ export default function UserManagement() {
     </>
   );
 }
-
-    

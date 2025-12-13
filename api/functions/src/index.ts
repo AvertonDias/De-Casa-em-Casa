@@ -1,4 +1,5 @@
 
+
 // src/functions/src/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
@@ -206,7 +207,7 @@ export const deleteUserAccountV2 = withCors(async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader) {
-            return res.status(401).json({ data: { success: false, error: "Ação não autorizada. Sem token." } });
+             return res.status(401).json({ data: { success: false, error: "Ação não autorizada. Sem token." } });
         }
         const idToken = authHeader.split('Bearer ')[1];
         const decodedToken = await admin.auth().verifyIdToken(idToken);
@@ -251,7 +252,7 @@ export const deleteUserAccountV2 = withCors(async (req, res) => {
 
     } catch (error: any) {
         logger.error("Erro ao excluir usuário:", error);
-        if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked') {
+        if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked' || error.code === 'auth/argument-error') {
             return res.status(401).json({ data: { success: false, error: "Token de autenticação inválido. Faça login novamente." } });
         } else {
             return res.status(500).json({ data: { success: false, error: error.message || "Falha na exclusão." } });
