@@ -8,6 +8,7 @@ import type {
   ToastActionElement,
   ToastProps,
 } from "@/components/ui/toast"
+import { useModal } from "../contexts/ModalContext";
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 5000 // Aumentado para 5 segundos
@@ -173,10 +174,11 @@ function toast({ ...props }: Toast) {
 }
 
 function useToast() {
-  const [state, setState] = React.useState<State>(memoryState)
+  const [state, setState] = React.useState<State>(memoryState);
+  const { registerModal, unregisterModal } = useModal();
 
   React.useEffect(() => {
-    listeners.push(setState)
+    listeners.push(setState);
     return () => {
       const index = listeners.indexOf(setState)
       if (index > -1) {
@@ -184,6 +186,22 @@ function useToast() {
       }
     }
   }, [state])
+
+   // Lógica para registrar/desregistrar modais de toast
+  React.useEffect(() => {
+    state.toasts.forEach((toast) => {
+      if (toast.open) {
+        registerModal(toast.id, () => dispatch({ type: 'DISMISS_TOAST', toastId: toast.id }));
+      } else {
+        unregisterModal(toast.id);
+      }
+    });
+
+    // Limpeza ao desmontar
+    return () => {
+      state.toasts.forEach((toast) => unregisterModal(toast.id));
+    };
+  }, [state.toasts, registerModal, unregisterModal]);
 
   return {
     ...state,

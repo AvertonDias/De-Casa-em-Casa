@@ -1,3 +1,4 @@
+
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
 import Image from 'next/image';
@@ -27,7 +28,8 @@ import { Territory, Notification } from "@/types/types";
 import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
 import { SettingsMenu } from "../components/SettingsMenu";
-import AndroidBackHandler from "@/components/AndroidBackHandler";
+import { useAndroidBack } from "@/hooks/useAndroidBack";
+
 
 const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React.SVGProps<SVGSVGElement>) => {
   return (
@@ -258,6 +260,10 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
   usePresence();
+  useAndroidBack({
+    enabled: isSidebarOpen,
+    onClose: () => setSidebarOpen(false),
+  });
 
   useEffect(() => {
     // A verificação `window.Notification` é mais segura e direta.
@@ -384,7 +390,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
       <div className="flex h-screen bg-background">
-          <AndroidBackHandler />
           <InstallPwaModal />
           
           <Sidebar 

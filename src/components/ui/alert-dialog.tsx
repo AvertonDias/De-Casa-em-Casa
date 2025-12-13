@@ -1,12 +1,28 @@
+
 "use client"
 
 import * as React from "react"
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
-
+import { useModal } from "@/contexts/ModalContext";
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 
-const AlertDialog = AlertDialogPrimitive.Root
+const AlertDialog = ({ open, onOpenChange, ...props }: AlertDialogPrimitive.AlertDialogProps) => {
+  const { registerModal, unregisterModal } = useModal();
+  const id = React.useId();
+
+  React.useEffect(() => {
+    if (open) {
+      registerModal(id, () => onOpenChange?.(false));
+    } else {
+      unregisterModal(id);
+    }
+    return () => unregisterModal(id);
+  }, [open, id, registerModal, unregisterModal, onOpenChange]);
+
+  return <AlertDialogPrimitive.Root open={open} onOpenChange={onOpenChange} {...props} />;
+};
+
 
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger
 

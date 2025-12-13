@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -8,8 +9,8 @@ import Link from 'next/link';
 import { Eye, EyeOff, Info, AlertTriangle } from 'lucide-react';
 import Image from 'next/image';
 import { useUser } from '@/contexts/UserContext';
-// 1. Importe o hook que criamos com o nome correto
-import { useAndroidBack } from '@/hooks/useAndroidBack'; 
+import { useModal } from '@/contexts/ModalContext';
+
 
 export default function UniversalLoginPage() {
   const [email, setEmail] = useState('');
@@ -19,9 +20,7 @@ export default function UniversalLoginPage() {
   const [loading, setLoading] = useState(false);
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
-
-  // 2. Use o hook na sua página com o nome correto
-  useAndroidBack();
+  const { hasOpenModal } = useModal();
 
   // Se o usuário já está logado e carregado, o UserContext cuidará do redirecionamento.
   if (user && !userLoading) {

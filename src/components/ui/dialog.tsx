@@ -6,8 +6,24 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useModal } from "@/contexts/ModalContext" // Importar o hook
 
-const Dialog = DialogPrimitive.Root
+const Dialog = ({ open, onOpenChange, ...props }: DialogPrimitive.DialogProps) => {
+  const { registerModal, unregisterModal } = useModal();
+  const id = React.useId();
+
+  React.useEffect(() => {
+    if (open) {
+      registerModal(id, () => onOpenChange?.(false));
+    } else {
+      unregisterModal(id);
+    }
+    return () => unregisterModal(id);
+  }, [open, id, registerModal, unregisterModal, onOpenChange]);
+
+  return <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} {...props} />;
+};
+
 
 const DialogTrigger = DialogPrimitive.Trigger
 
@@ -46,7 +62,10 @@ const DialogContent = React.forwardRef<
       {...props}
     >
       {children}
-      {/* O botão de fechar foi removido daqui */}
+       <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
+        <X className="h-4 w-4" />
+        <span className="sr-only">Close</span>
+      </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
 ))
