@@ -118,18 +118,14 @@ export default function S13ReportPage() {
       <div className="flex justify-between items-center my-4 text-sm">
         <div className="flex items-center">
           <label className="font-semibold">Ano de Serviço:</label>
-          <input
-            type="number"
-            value={serviceYear}
-            onChange={(e) => setServiceYear(e.target.value)}
-            className="ml-2 px-2 w-20 bg-transparent text-center border-b-2 border-black"
-            aria-label="Ano de Serviço"
-          />
+          <span className="ml-2 px-4 flex-grow min-w-[60px] text-center">
+            <u>{serviceYear}</u>
+          </span>
         </div>
         <div className="flex items-center">
           <span className="font-semibold">Congregação:</span>
-          <span className="ml-2 px-4 flex-grow min-w-[150px] text-center border-b-2 border-black">
-            {user?.congregationName || "..."}
+          <span className="ml-2 px-4 flex-grow min-w-[150px] text-center">
+            <u>{user?.congregationName || "..."}</u>
           </span>
         </div>
       </div>
@@ -182,7 +178,7 @@ export default function S13ReportPage() {
             const rowClass = index % 2 === 0 ? "bg-gray-300" : "";
 
             return (
-              <tbody key={t.id} className={`print-avoid-break ${inPdf ? rowClass : ""}`}>
+              <tbody key={t.id} style={{ pageBreakInside: 'avoid !important' }} className={`${inPdf ? rowClass : ""}`}>
                 <tr className={`${!inPdf ? rowClass : ""}`}>
                   <td rowSpan={2} className="border border-black py-2" style={{ textAlign: 'center' }}>
                     {t.number}
