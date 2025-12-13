@@ -55,11 +55,24 @@ export default function S13ReportPage() {
 
   const handlePrint = async () => {
     setIsPrinting(true);
+    // Resetar o zoom e a posição para a impressão
+    const originalScale = scale;
+    const originalPosition = position;
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+    
+    // Aguardar o DOM atualizar antes de imprimir
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     const element = document.getElementById("pdf-area");
     if (!element) {
       setIsPrinting(false);
+      // Restaurar a escala e posição originais
+      setScale(originalScale);
+      setPosition(originalPosition);
       return;
     }
+
     try {
       const html2pdf = (await import("html2pdf.js")).default;
       await html2pdf()
@@ -76,6 +89,9 @@ export default function S13ReportPage() {
       console.error("Erro ao gerar PDF:", err);
     } finally {
       setIsPrinting(false);
+      // Restaurar a escala e posição originais após a impressão
+      setScale(originalScale);
+setPosition(originalPosition);
     }
   };
 
@@ -95,7 +111,7 @@ export default function S13ReportPage() {
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     
-    dragStartRef.current = { x: clientX - positionRef.current.x, y: clientY - positionRef.current.y };
+    dragStartRef.current = { x: clientX - position.x, y: clientY - position.y };
     setIsDragging(true);
   };
   
@@ -170,19 +186,20 @@ export default function S13ReportPage() {
             }
             const display = Array(4).fill(null).map((_, i) => allAssignments[i] || null);
             const isEven = index % 2 === 0;
-
-            const getCellStyle = (isHeader = false): React.CSSProperties => ({
+            const bgColor = isEven ? '#e5e7eb' : 'transparent'; // bg-gray-200
+            
+            const cellStyle: React.CSSProperties = {
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                backgroundColor: !inPdf && isEven && !isHeader ? '#f3f4f6' : 'transparent', // e.g. gray-100
-              });
+                backgroundColor: bgColor,
+            };
 
             return (
-              <tbody key={t.id} className="print-avoid-break">
+              <tbody key={t.id} style={{ pageBreakInside: 'avoid' }}>
                 <tr>
-                  <td rowSpan={2} className="border border-black py-2" style={getCellStyle()}>{t.number}</td>
+                  <td rowSpan={2} className="border border-black py-2" style={cellStyle}>{t.number}</td>
                   {display.map((a, i) => (
-                    <td key={i} colSpan={2} className="border border-black py-2" style={getCellStyle()}>
+                    <td key={i} colSpan={2} className="border border-black py-2" style={cellStyle}>
                       {a?.name || ""}
                     </td>
                   ))}
@@ -190,10 +207,10 @@ export default function S13ReportPage() {
                 <tr>
                   {display.map((a, i) => (
                     <React.Fragment key={i}>
-                      <td className="border border-black py-2" style={getCellStyle()}>
+                      <td className="border border-black py-2" style={cellStyle}>
                         {a?.assignedAt ? format(a.assignedAt.toDate(), "dd/MM/yy") : ""}
                       </td>
-                      <td className="border border-black py-2" style={getCellStyle()}>
+                      <td className="border border-black py-2" style={cellStyle}>
                         {a?.completedAt ? format(a.completedAt.toDate(), "dd/MM/yy") : ""}
                       </td>
                     </React.Fragment>
@@ -245,11 +262,11 @@ export default function S13ReportPage() {
         onTouchEnd={handleDragEnd}
       >
         <div
-          className="bg-white p-4 shadow-lg"
+          className="bg-white p-4 shadow-lg origin-top"
           style={{ 
-            width: "200mm", 
-            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`, 
-            transformOrigin: 'top center',
+            width: "210mm",
+            minHeight: "297mm",
+            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
             cursor: isDragging ? 'grabbing' : 'grab',
             transition: isDragging ? 'none' : 'transform 0.1s ease-out'
           }}
@@ -259,7 +276,7 @@ export default function S13ReportPage() {
           </div>
         </div>
       </div>
-      <div className="hidden">
+      <div className="hidden print-block">
         <div id="pdf-area" className="text-black bg-white">
           <ReportContent inPdf={true} />
         </div>
