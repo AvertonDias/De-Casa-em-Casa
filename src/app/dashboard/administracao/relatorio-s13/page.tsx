@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -38,30 +37,25 @@ export default function S13ReportPage() {
 
   /* ================= FIRESTORE ================= */
   useEffect(() => {
-    if (!user?.congregationId) {
-      if (user) setLoading(false);
-      return;
-    }
+    if (!user?.congregationId) return;
 
-    const territoriesRef = collection(
+    const ref = collection(
       db,
       "congregations",
       user.congregationId,
       "territories"
     );
 
-    const q = query(territoriesRef, orderBy("number", "asc"));
+    const q = query(ref, orderBy("number", "asc"));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    return onSnapshot(q, (snap) => {
       setAllTerritories(
-        snapshot.docs.map(
+        snap.docs.map(
           (doc) => ({ id: doc.id, ...doc.data() } as Territory)
         )
       );
       setLoading(false);
     });
-
-    return () => unsubscribe();
   }, [user]);
 
   /* ================= PDF ================= */
@@ -69,214 +63,144 @@ export default function S13ReportPage() {
     setIsPrinting(true);
 
     const element = document.getElementById("pdf-area");
-    if (!element) {
-      setIsPrinting(false);
-      return;
-    }
+    if (!element) return;
 
-    try {
-      const html2pdf = (await import("html2pdf.js")).default;
+    const html2pdf = (await import("html2pdf.js")).default;
 
-      await html2pdf()
-        .from(element)
-        .set({
-          margin: [15, 10, 15, 10], // Margens: topo, direita, baixo, esquerda em mm
-          filename: `Relatorio-S13-${typeFilter}-${serviceYear}.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#ffffff",
-          },
-          jsPDF: {
-            unit: "mm",
-            format: "a4",
-            orientation: "portrait",
-          },
-        })
-        .save();
-    } catch (err) {
-      console.error("Erro ao gerar PDF:", err);
-    } finally {
-      setIsPrinting(false);
-    }
+    await html2pdf()
+      .from(element)
+      .set({
+        margin: [15, 10, 15, 10],
+        filename: `Relatorio-S13-${typeFilter}-${serviceYear}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          backgroundColor: "#ffffff",
+        },
+        jsPDF: {
+          unit: "mm",
+          format: "a4",
+          orientation: "portrait",
+        },
+      })
+      .save();
+
+    setIsPrinting(false);
   };
 
-  /* ================= HELPERS ================= */
   const filteredTerritories = allTerritories.filter(
     (t) => (t.type || "urban") === typeFilter
   );
 
-  /* ================= CONTEÚDO REUTILIZÁVEL ================= */
+  /* ================= CONTEÚDO ================= */
   const ReportContent = ({ inPdf = false }: { inPdf?: boolean }) => (
     <>
-      <h1 className="text-xl font-bold text-center uppercase mb-4">
+      <h1 className="text-xl font-bold text-center mb-4">
         REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO (
         {typeFilter === "urban" ? "URBANO" : "RURAL"})
       </h1>
 
-      <div className="flex justify-between items-center my-4 text-sm">
-        <div className="flex items-center">
-          <label className="font-semibold">Ano de Serviço:</label>
-          <span className="ml-2 px-4 flex-grow min-w-[60px] text-center">
-            <u>{serviceYear}</u>
-          </span>
-        </div>
-        <div className="flex items-center">
-          <span className="font-semibold">Congregação:</span>
-          <span className="ml-2 px-4 flex-grow min-w-[150px] text-center">
-            <u>{user?.congregationName || "..."}</u>
-          </span>
-        </div>
-      </div>
-
       <table className="w-full text-xs border-collapse">
         <thead>
-          <tr className="text-center font-semibold">
-            <th rowSpan={2} className="border border-black p-1" style={{ textAlign: 'center' }}>Terr.</th>
+          <tr>
+            <th rowSpan={2} className="border border-black p-1">Terr.</th>
             {Array(4).fill(null).map((_, i) => (
-              <th key={i} colSpan={2} className="border border-black p-1" style={{ textAlign: 'center' }}>
+              <th key={i} colSpan={2} className="border border-black p-1">
                 Designado a
               </th>
             ))}
           </tr>
-          <tr className="text-center font-semibold">
+          <tr>
             {Array(4).fill(null).map((_, i) => (
               <React.Fragment key={i}>
-                <th className="border border-black p-1" style={{ textAlign: 'center' }}>Designação</th>
-                <th className="border border-black p-1" style={{ textAlign: 'center' }}>Conclusão</th>
+                <th className="border border-black p-1">Designação</th>
+                <th className="border border-black p-1">Conclusão</th>
               </React.Fragment>
             ))}
           </tr>
         </thead>
 
-        {loading ? (
-          <tbody>
-            <tr>
-              <td colSpan={9} className="text-center p-4">
-                Carregando dados...
-              </td>
-            </tr>
-          </tbody>
-        ) : (
-          filteredTerritories.map((t, index) => {
-            const allAssignments: Partial<AssignmentHistoryLog>[] = [
-              ...(t.assignmentHistory || []),
-            ];
+        {filteredTerritories.map((t, index) => {
+          const bg =
+            index % 2 === 0
+              ? inPdf
+                ? "#e5e7eb" // cinza PDF
+                : "bg-gray-300"
+              : "";
 
-            if (t.status === "designado" && t.assignment) {
-              allAssignments.push({
-                name: t.assignment.name,
-                assignedAt: t.assignment.assignedAt,
-              });
-            }
-
-            const display = Array(4)
-              .fill(null)
-              .map((_, i) => allAssignments[i] || null);
-            
-            const rowClass = index % 2 === 0 ? "bg-gray-300" : "";
-
-            return (
-              <tbody key={t.id} className="print-avoid-break">
-                <tr className={`${!inPdf ? rowClass : ""}`}>
-                  <td rowSpan={2} className="border border-black py-2" style={{ textAlign: 'center' }}>
-                    {t.number}
-                  </td>
-                  {display.map((a, i) => (
-                    <td key={i} colSpan={2} className="border border-black py-2" style={{ textAlign: 'center' }}>
-                      {a?.name || ""}
-                    </td>
-                  ))}
-                </tr>
-                <tr className={`${!inPdf ? rowClass : ""}`}>
-                  {display.map((a, i) => (
-                    <React.Fragment key={i}>
-                      <td className="border border-black py-2" style={{ textAlign: 'center' }}>
-                        {a?.assignedAt
-                          ? format(a.assignedAt.toDate(), "dd/MM/yy")
-                          : ""}
-                      </td>
-                      <td className="border border-black py-2" style={{ textAlign: 'center' }}>
-                        {a?.completedAt
-                          ? format(a.completedAt.toDate(), "dd/MM/yy")
-                          : ""}
-                      </td>
-                    </React.Fragment>
-                  ))}
-                </tr>
-              </tbody>
-            );
-          })
-        )}
+          return (
+            <tbody
+              key={t.id}
+              className="pdf-block"
+              style={inPdf ? { backgroundColor: bg as string } : {}}
+            >
+              <tr className={!inPdf ? bg : ""}>
+                <td rowSpan={2} className="border border-black text-center">
+                  {t.number}
+                </td>
+                {Array(4).fill(null).map((_, i) => (
+                  <td key={i} colSpan={2} className="border border-black h-6" />
+                ))}
+              </tr>
+              <tr className={!inPdf ? bg : ""}>
+                {Array(8).fill(null).map((_, i) => (
+                  <td key={i} className="border border-black h-6" />
+                ))}
+              </tr>
+            </tbody>
+          );
+        })}
       </table>
     </>
   );
 
-  /* ================= RENDER ================= */
   return (
     <>
-      {/* BARRA SUPERIOR */}
-      <div className="p-4 bg-card print-hidden">
-        <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-          <Button variant="ghost" asChild>
-            <Link href="/dashboard/administracao">
-              <ArrowLeft size={16} className="mr-2" />
-              Voltar
-            </Link>
-          </Button>
+      {/* CSS DE IMPRESSÃO */}
+      <style jsx global>{`
+        .pdf-block {
+          page-break-inside: avoid;
+          break-inside: avoid;
+        }
+      `}</style>
 
-          <div className="flex gap-2">
-            <Button onClick={() => setTypeFilter("urban")} variant={typeFilter === 'urban' ? 'default' : 'outline'}>
-              <Map size={14} className="mr-1" /> Urbanos
-            </Button>
-            <Button onClick={() => setTypeFilter("rural")} variant={typeFilter === 'rural' ? 'default' : 'outline'}>
-              <Trees size={14} className="mr-1" /> Rurais
-            </Button>
-          </div>
+      {/* BARRA */}
+      <div className="p-4 bg-card print-hidden flex justify-between">
+        <Button variant="ghost" asChild>
+          <Link href="/dashboard/administracao">
+            <ArrowLeft size={16} className="mr-2" /> Voltar
+          </Link>
+        </Button>
 
-          <div className="flex gap-2 items-center">
-             <Button variant="outline" size="icon" onClick={() => setScale(s => Math.min(s + 0.1, 2))}><ZoomIn size={16}/></Button>
-             <Button variant="outline" size="icon" onClick={() => setScale(s => Math.max(s - 0.1, 0.5))}><ZoomOut size={16}/></Button>
-             <Button variant="outline" size="icon" onClick={() => setScale(1)}><RotateCcw size={16}/></Button>
-          </div>
-
-          <Button onClick={handlePrint} disabled={isPrinting} className="w-full sm:w-auto justify-center">
-            {isPrinting ? (
-              <Loader className="animate-spin mr-2" />
-            ) : (
-              <Printer size={16} className="mr-2" />
-            )}
-            Salvar PDF
-          </Button>
-        </div>
+        <Button onClick={handlePrint} disabled={isPrinting}>
+          {isPrinting ? <Loader className="animate-spin mr-2" /> : <Printer size={16} className="mr-2" />}
+          Salvar PDF
+        </Button>
       </div>
 
       {/* VISUAL */}
       <div className="p-4 flex justify-center bg-muted print-hidden">
         <div
-          className="bg-white p-4 shadow-lg"
-          style={{ width: "200mm", transform: `scale(${scale})`, transformOrigin: 'top center' }}
+          className="bg-white p-4 shadow"
+          style={{ width: "200mm", transform: `scale(${scale})` }}
         >
-          <div style={{ color: 'black' }}>
-             <ReportContent />
-          </div>
+          <ReportContent />
         </div>
       </div>
 
-      {/* PDF (FORA DA TELA, MAS VISÍVEL AO DOM) */}
+      {/* PDF */}
       <div
-        className="bg-white"
         style={{
           position: "absolute",
           left: "-10000px",
-          top: 0,
           width: "210mm",
           padding: "10mm",
+          background: "white",
+          color: "black",
         }}
       >
-        <div id="pdf-area" style={{ color: 'black' }}>
-          <ReportContent inPdf={true} />
+        <div id="pdf-area">
+          <ReportContent inPdf />
         </div>
       </div>
     </>

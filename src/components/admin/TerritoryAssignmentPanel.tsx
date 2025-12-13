@@ -326,6 +326,8 @@ export default function TerritoryAssignmentPanel() {
       return matchesType && matchesStatus && matchesSearch;
   });
 
+  const canManageAssignments = currentUser?.role === 'Administrador' || currentUser?.role === 'Servo de Territórios';
+
   if(loading) return <div className="text-center p-8"><Loader className="animate-spin mx-auto text-primary" /></div>
 
   return (
@@ -397,24 +399,26 @@ export default function TerritoryAssignmentPanel() {
                           </div>
                        </div>
                        <div className="flex items-center justify-end flex-shrink-0 ml-2 sm:col-span-2">
-                           <DropdownMenu>
-                             <DropdownMenuTrigger asChild>
-                               <button className="p-2 rounded-full hover:bg-white/10">
-                                   <MoreVertical size={20} />
-                               </button>
-                             </DropdownMenuTrigger>
-                             <DropdownMenuContent className="w-56" align="end">
-                               {isDesignado ? (
-                                   <>
-                                       <DropdownMenuItem onClick={() => handleOpenReturnModal(t)}> <CheckCircle size={16} className="mr-2"/>Devolver</DropdownMenuItem>
-                                       <DropdownMenuItem onClick={() => handleOpenAssignModal(t)}> <RotateCw size={16} className="mr-2"/>Reatribuir</DropdownMenuItem>
-                                       {isOverdue && <DropdownMenuItem onClick={() => handleNotifyOverdue(t)} className="text-yellow-500 focus:text-yellow-500"> <MessageCircle size={16} className="mr-2"/>Notificar atraso</DropdownMenuItem>}
-                                   </>
-                               ) : (
-                                   <DropdownMenuItem onClick={() => handleOpenAssignModal(t)}> <BookUser size={16} className="mr-2"/>Designar</DropdownMenuItem>
-                               )}
-                             </DropdownMenuContent>
-                           </DropdownMenu>
+                           {canManageAssignments && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                <button className="p-2 rounded-full hover:bg-white/10">
+                                    <MoreVertical size={20} />
+                                </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="w-56" align="end">
+                                {isDesignado ? (
+                                    <>
+                                        <DropdownMenuItem onClick={() => handleOpenReturnModal(t)}> <CheckCircle size={16} className="mr-2"/>Devolver</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleOpenAssignModal(t)}> <RotateCw size={16} className="mr-2"/>Reatribuir</DropdownMenuItem>
+                                        {isOverdue && <DropdownMenuItem onClick={() => handleNotifyOverdue(t)} className="text-yellow-500 focus:text-yellow-500"> <MessageCircle size={16} className="mr-2"/>Notificar atraso</DropdownMenuItem>}
+                                    </>
+                                ) : (
+                                    <DropdownMenuItem onClick={() => handleOpenAssignModal(t)}> <BookUser size={16} className="mr-2"/>Designar</DropdownMenuItem>
+                                )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                           )}
                            <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4">
                               <History />
                             </AccordionTrigger>
