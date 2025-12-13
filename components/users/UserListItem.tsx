@@ -1,9 +1,7 @@
-
 "use client";
 
-import { Fragment } from 'react';
 import type { AppUser } from '@/types/types';
-import { Menu, Transition } from '@headlessui/react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { MoreVertical, Check, Trash2, XCircle, Edit, User } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
@@ -33,7 +31,6 @@ export const UserListItem = ({
   const handleDelete = () => onDelete(user.uid, user.name);
   const handleEdit = () => onEdit(user);
 
-
   const getStatusClass = (status: AppUser['status']) => {
     switch (status) {
       case 'ativo': return 'bg-green-500 text-white';
@@ -57,86 +54,74 @@ export const UserListItem = ({
   return (
     <li className={`p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b dark:border-gray-700 ${user.status === 'pendente' ? 'bg-yellow-500/10' : ''}`}>
       <div className="flex items-center flex-1 min-w-0">
-          <div className="relative flex-shrink-0 mr-4">
-            <Avatar className="border-2 border-primary">
-              <AvatarFallback>
-                {getInitials(user.name) || <User size={20} />}
-              </AvatarFallback>
-            </Avatar>
-            <span 
-              className={`absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full ring-2 ring-card 
-                ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} 
-              title={isOnline ? 'Online' : 'Offline'}
-            />
-          </div>
-          <div className="min-w-0">
-              <p className="font-semibold text-gray-900 dark:text-white truncate">
-                {user.name}
-                {user.uid === currentUser.uid && <span className="text-purple-400 font-normal ml-2">(Você)</span>}
-              </p>
-              <p className={`text-sm ${isOnline ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                {isOnline ? 'Online' : (user.lastSeen?.toDate ? `Visto ${formatDistanceToNow(user.lastSeen.toDate(), { addSuffix: true, locale: ptBR })}` : 'Offline')}
-              </p>
-          </div>
+        <div className="relative flex-shrink-0 mr-4">
+          <Avatar className="border-2 border-primary">
+            <AvatarFallback>
+              {getInitials(user.name) || <User size={20} />}
+            </AvatarFallback>
+          </Avatar>
+          <span 
+            className={`absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full ring-2 ring-card 
+              ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} 
+            title={isOnline ? 'Online' : 'Offline'}
+          />
+        </div>
+        <div className="min-w-0">
+            <p className="font-semibold text-gray-900 dark:text-white truncate">
+              {user.name}
+              {user.uid === currentUser.uid && <span className="text-purple-400 font-normal ml-2">(Você)</span>}
+            </p>
+            <p className={`text-sm ${isOnline ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+              {isOnline ? 'Online' : (user.lastSeen?.toDate ? `Visto ${formatDistanceToNow(user.lastSeen.toDate(), { addSuffix: true, locale: ptBR })}` : 'Offline')}
+            </p>
+        </div>
       </div>
       
       <div className="flex items-center justify-end gap-3 shrink-0">
-          <div className="flex items-center justify-end gap-3 shrink-0">
-            <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusClass(user.status)}`}>
-                {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-            </span>
-            <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRoleClass(user.role)}`}>{user.role}</span>
-          </div>
-          
-          {canShowMenu ? (
-              <Menu as="div" className="relative">
-                  <Menu.Button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+        <div className="flex items-center justify-end gap-3 shrink-0">
+          <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusClass(user.status)}`}>
+              {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+          </span>
+          <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRoleClass(user.role)}`}>{user.role}</span>
+        </div>
+        
+        {canShowMenu ? (
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
                     <MoreVertical size={20} />
-                  </Menu.Button>
-                  <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                      <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right bg-white dark:bg-gray-800 divide-y dark:divide-gray-700 rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5 focus:outline-none">
-                         <div className="p-1">
-                            {user.status === 'pendente' && (
-                              <>
-                                <Menu.Item>
-                                  {({ active }) => (
-                                    <button onClick={handleApprove} className={`${active ? 'bg-green-500 text-white' : 'text-green-600 dark:text-green-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                      <Check className="mr-2 h-4 w-4"/>Aprovar
-                                    </button>
-                                  )}
-                                </Menu.Item>
-                                <Menu.Item>
-                                  {({ active }) => (
-                                    <button onClick={() => onUpdate(user.uid, { status: 'rejeitado' })} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                      <XCircle className="mr-2 h-4 w-4"/>Rejeitar
-                                    </button>
-                                  )}
-                                </Menu.Item>
-                              </>
-                            )}
-                            {isAdmin && user.status !== 'pendente' && (
-                                <Menu.Item>
-                                    {({ active }) => (
-                                      <button onClick={handleEdit} className={`${active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-100'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                        <Edit className="mr-2 h-4 w-4"/>Editar Usuário
-                                      </button>
-                                    )}
-                                </Menu.Item>
-                            )}
-                         </div>
-                         {isAdmin && user.uid !== currentUser.uid && (
-                           <div className="p-1">
-                              <Menu.Item>
-                                {({ active }) => (
-                                  <button onClick={handleDelete} className={`${active ? 'bg-red-500 text-white' : 'text-red-500 dark:text-red-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}>
-                                    <Trash2 className="mr-2 h-4 w-4"/>Excluir (Permanente)
-                                  </button>
-                                )}
-                              </Menu.Item>
-                           </div>
-                         )}
-                      </Menu.Items>
-                  </Transition>
-              </Menu>
-          ) : (
-            <div className="w-9 h-9"
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                    {user.status === 'pendente' && (
+                      <>
+                        <DropdownMenuItem onClick={handleApprove} className="text-green-600 dark:text-green-400 focus:bg-green-500 focus:text-white">
+                          <Check className="mr-2 h-4 w-4"/>Aprovar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onUpdate(user.uid, { status: 'rejeitado' })} className="text-red-500 dark:text-red-400 focus:bg-red-500 focus:text-white">
+                          <XCircle className="mr-2 h-4 w-4"/>Rejeitar
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {isAdmin && user.status !== 'pendente' && (
+                        <DropdownMenuItem onClick={handleEdit} className="focus:bg-blue-500 focus:text-white">
+                          <Edit className="mr-2 h-4 w-4"/>Editar Usuário
+                        </DropdownMenuItem>
+                    )}
+                    {isAdmin && user.uid !== currentUser.uid && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={handleDelete} className="text-red-500 dark:text-red-400 focus:bg-red-500 focus:text-white">
+                          <Trash2 className="mr-2 h-4 w-4"/>Excluir (Permanente)
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        ) : (
+          <div className="w-9 h-9" />
+        )}
+      </div>
+    </li>
+  );
+};
