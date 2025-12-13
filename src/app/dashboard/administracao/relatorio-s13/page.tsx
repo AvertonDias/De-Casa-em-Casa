@@ -107,7 +107,9 @@ setPosition(originalPosition);
 
   // Drag handlers
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
+    if (!('touches' in e)) {
+      e.preventDefault();
+    }
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     
@@ -117,7 +119,9 @@ setPosition(originalPosition);
   
   const handleDragMove = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDragging) return;
-    e.preventDefault();
+    if (!('touches' in e)) {
+      e.preventDefault();
+    }
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
@@ -186,7 +190,7 @@ setPosition(originalPosition);
             }
             const display = Array(4).fill(null).map((_, i) => allAssignments[i] || null);
             const isEven = index % 2 === 0;
-            const bgColor = isEven ? '#e5e7eb' : 'transparent'; // bg-gray-200
+            const bgColor = isEven ? '#e5e7eb' : 'transparent';
             
             const cellStyle: React.CSSProperties = {
                 textAlign: 'center',
@@ -284,3 +288,4 @@ setPosition(originalPosition);
     </>
   );
 }
+
