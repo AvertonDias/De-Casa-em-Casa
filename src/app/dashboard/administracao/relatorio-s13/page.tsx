@@ -282,7 +282,7 @@ export default function S13ReportPage() {
           className="bg-white p-4 shadow-lg"
           style={{ width: "200mm", transform: `scale(${scale})`, transformOrigin: 'top center' }}
         >
-          <div className="text-black">
+          <div style={{ color: 'black' }}>
              <ReportContent />
           </div>
         </div>
@@ -290,7 +290,7 @@ export default function S13ReportPage() {
 
       {/* PDF (FORA DA TELA, MAS VISÍVEL AO DOM) */}
       <div
-        className="text-black bg-white"
+        className="bg-white"
         style={{
           position: "absolute",
           left: "-10000px",
@@ -299,7 +299,7 @@ export default function S13ReportPage() {
           padding: "10mm",
         }}
       >
-        <div id="pdf-area">
+        <div id="pdf-area" style={{ color: 'black' }}>
           <ReportContent />
         </div>
       </div>
