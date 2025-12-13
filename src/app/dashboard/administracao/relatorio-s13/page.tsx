@@ -128,24 +128,24 @@ export default function S13ReportPage() {
               });
             }
             const display = Array(4).fill(null).map((_, i) => allAssignments[i] || null);
-            const rowClass = index % 2 === 0 ? "bg-gray-300" : "";
+            const rowStyle = index % 2 === 0 ? { backgroundColor: '#e5e7eb' } : {};
             return (
-              <tbody key={t.id} className="print-avoid-break">
-                <tr className={rowClass}>
-                  <td rowSpan={2} className="border border-black py-2" style={{ textAlign: 'center' }}>{t.number}</td>
+              <tbody key={t.id} style={{ pageBreakInside: 'avoid !important' }}>
+                <tr style={rowStyle}>
+                  <td rowSpan={2} className="border border-black py-2" style={{ textAlign: 'center', verticalAlign: 'middle' }}>{t.number}</td>
                   {display.map((a, i) => (
-                    <td key={i} colSpan={2} className="border border-black py-2" style={{ textAlign: 'center' }}>
+                    <td key={i} colSpan={2} className="border border-black py-2" style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                       {a?.name || ""}
                     </td>
                   ))}
                 </tr>
-                <tr className={rowClass}>
+                <tr style={rowStyle}>
                   {display.map((a, i) => (
                     <React.Fragment key={i}>
-                      <td className="border border-black py-2" style={{ textAlign: 'center' }}>
+                      <td className="border border-black py-2" style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                         {a?.assignedAt ? format(a.assignedAt.toDate(), "dd/MM/yy") : ""}
                       </td>
-                      <td className="border border-black py-2" style={{ textAlign: 'center' }}>
+                      <td className="border border-black py-2" style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                         {a?.completedAt ? format(a.completedAt.toDate(), "dd/MM/yy") : ""}
                       </td>
                     </React.Fragment>
