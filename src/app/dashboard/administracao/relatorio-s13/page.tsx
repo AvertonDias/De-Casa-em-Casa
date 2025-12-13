@@ -129,18 +129,19 @@ export default function S13ReportPage() {
             }
             const display = Array(4).fill(null).map((_, i) => allAssignments[i] || null);
             const isEven = index % 2 === 0;
-            const cellStyle = {
-              textAlign: 'center',
-              verticalAlign: 'middle',
-              backgroundColor: isEven ? '#e5e7eb' : 'transparent'
-            } as React.CSSProperties;
+
+            const getCellStyle = (isHeader = false): React.CSSProperties => ({
+                textAlign: 'center',
+                verticalAlign: 'middle',
+                backgroundColor: !inPdf && isEven && !isHeader ? '#f3f4f6' : 'transparent',
+              });
 
             return (
-              <tbody key={t.id} style={{ pageBreakInside: 'avoid !important' }}>
+              <tbody key={t.id} className="print-avoid-break">
                 <tr>
-                  <td rowSpan={2} className="border border-black py-2" style={cellStyle}>{t.number}</td>
+                  <td rowSpan={2} className="border border-black py-2" style={getCellStyle()}>{t.number}</td>
                   {display.map((a, i) => (
-                    <td key={i} colSpan={2} className="border border-black py-2" style={cellStyle}>
+                    <td key={i} colSpan={2} className="border border-black py-2" style={getCellStyle()}>
                       {a?.name || ""}
                     </td>
                   ))}
@@ -148,10 +149,10 @@ export default function S13ReportPage() {
                 <tr>
                   {display.map((a, i) => (
                     <React.Fragment key={i}>
-                      <td className="border border-black py-2" style={cellStyle}>
+                      <td className="border border-black py-2" style={getCellStyle()}>
                         {a?.assignedAt ? format(a.assignedAt.toDate(), "dd/MM/yy") : ""}
                       </td>
-                      <td className="border border-black py-2" style={cellStyle}>
+                      <td className="border border-black py-2" style={getCellStyle()}>
                         {a?.completedAt ? format(a.completedAt.toDate(), "dd/MM/yy") : ""}
                       </td>
                     </React.Fragment>
@@ -192,7 +193,7 @@ export default function S13ReportPage() {
           </Button>
         </div>
       </div>
-      <div className="p-4 flex justify-center bg-muted print-hidden">
+      <div className="p-4 flex justify-center bg-muted print-hidden w-full overflow-x-auto">
         <div
           className="bg-white p-4 shadow-lg"
           style={{ width: "200mm", transform: `scale(${scale})`, transformOrigin: 'top center' }}
