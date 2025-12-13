@@ -126,9 +126,7 @@
     box-shadow: none;
     border: none;
   }
-  tbody, tr {
+  tbody.print-avoid-break {
     page-break-inside: avoid;
   }
 }
-
-
