@@ -29,6 +29,7 @@ export default function S13ReportPage() {
   const [isPrinting, setIsPrinting] = useState(false);
   const [serviceYear, setServiceYear] = useState(new Date().getFullYear().toString());
   const [typeFilter, setTypeFilter] = useState<"urban" | "rural">("urban");
+  const [scale, setScale] = useState(1);
 
   useEffect(() => {
     if (!user?.congregationId) {
@@ -88,10 +89,15 @@ export default function S13ReportPage() {
             </Link>
           </Button>
 
-          <div className="flex flex-wrap gap-2 justify-center">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
             <div className="flex bg-input p-1 rounded-lg">
               <button onClick={() => setTypeFilter("urban")} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors flex items-center ${typeFilter === "urban" ? "bg-primary text-primary-foreground" : "hover:bg-primary/20"}`}><Map size={14} className="inline mr-2" /> Urbanos</button>
               <button onClick={() => setTypeFilter("rural")} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors flex items-center ${typeFilter === "rural" ? "bg-primary text-primary-foreground" : "hover:bg-primary/20"}`}><Trees size={14} className="inline mr-2" /> Rurais</button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" onClick={() => setScale(s => s + 0.1)}><ZoomIn size={16} /></Button>
+              <Button variant="outline" size="icon" onClick={() => setScale(s => Math.max(0.5, s - 0.1))}><ZoomOut size={16} /></Button>
+              <Button variant="outline" size="icon" onClick={() => setScale(1)}><RotateCcw size={16} /></Button>
             </div>
           </div>
 
@@ -105,8 +111,8 @@ export default function S13ReportPage() {
       <div className="p-4 print:p-0 flex justify-center bg-muted">
         <div
           id="printable-area"
-          className="bg-white text-black p-4 shadow-lg"
-          style={{ width: '200mm' }} // A4 width (210mm) - margins (10mm)
+          className="bg-white text-black p-4 shadow-lg origin-top transition-transform"
+          style={{ width: '200mm', transform: `scale(${scale})` }} 
         >
           <h1 className="text-xl font-bold text-center uppercase">REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO ({typeFilter === "urban" ? "URBANO" : "RURAL"})</h1>
           <div className="flex justify-between items-end my-4">
