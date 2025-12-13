@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
@@ -29,6 +29,13 @@ export default function S13ReportPage() {
   const [serviceYear] = useState(new Date().getFullYear().toString());
   const [typeFilter, setTypeFilter] = useState<"urban" | "rural">("urban");
   const [scale, setScale] = useState(1);
+
+  // Drag and Pan states
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const positionRef = useRef({ x: 0, y: 0 });
+
 
   useEffect(() => {
     if (!user?.congregationId) {
@@ -76,6 +83,40 @@ export default function S13ReportPage() {
     (t) => (t.type || "urban") === typeFilter
   );
 
+  const resetZoomAndPosition = () => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+    positionRef.current = { x: 0, y: 0 };
+  };
+
+  // Drag handlers
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    
+    dragStartRef.current = { x: clientX - positionRef.current.x, y: clientY - positionRef.current.y };
+    setIsDragging(true);
+  };
+  
+  const handleDragMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+
+    const newX = clientX - dragStartRef.current.x;
+    const newY = clientY - dragStartRef.current.y;
+    setPosition({ x: newX, y: newY });
+  };
+  
+  const handleDragEnd = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    positionRef.current = position;
+  };
+
+
   const ReportContent = ({ inPdf = false }: { inPdf?: boolean }) => (
     <>
       <h1 className="text-xl font-bold text-center uppercase mb-4">
@@ -98,16 +139,16 @@ export default function S13ReportPage() {
       <table className="w-full text-xs border-collapse">
         <thead>
           <tr className="text-center font-semibold">
-            <th rowSpan={2} className="border border-black p-1" style={{ textAlign: 'center' }}>Terr.</th>
+            <th rowSpan={2} className="border border-black p-1" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Terr.</th>
             {Array(4).fill(null).map((_, i) => (
-              <th key={i} colSpan={2} className="border border-black p-1" style={{ textAlign: 'center' }}>Designado a</th>
+              <th key={i} colSpan={2} className="border border-black p-1" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Designado a</th>
             ))}
           </tr>
           <tr className="text-center font-semibold">
             {Array(4).fill(null).map((_, i) => (
               <React.Fragment key={i}>
-                <th className="border border-black p-1" style={{ textAlign: 'center' }}>Designação</th>
-                <th className="border border-black p-1" style={{ textAlign: 'center' }}>Conclusão</th>
+                <th className="border border-black p-1" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Designação</th>
+                <th className="border border-black p-1" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Conclusão</th>
               </React.Fragment>
             ))}
           </tr>
@@ -133,7 +174,7 @@ export default function S13ReportPage() {
             const getCellStyle = (isHeader = false): React.CSSProperties => ({
                 textAlign: 'center',
                 verticalAlign: 'middle',
-                backgroundColor: !inPdf && isEven && !isHeader ? '#f3f4f6' : 'transparent',
+                backgroundColor: !inPdf && isEven && !isHeader ? '#f3f4f6' : 'transparent', // e.g. gray-100
               });
 
             return (
@@ -186,17 +227,32 @@ export default function S13ReportPage() {
           <div className="flex gap-2 items-center">
             <Button variant="outline" size="icon" onClick={() => setScale(s => Math.min(s + 0.1, 2))}><ZoomIn size={16}/></Button>
             <Button variant="outline" size="icon" onClick={() => setScale(s => Math.max(s - 0.1, 0.5))}><ZoomOut size={16}/></Button>
-            <Button variant="outline" size="icon" onClick={() => setScale(1)}><RotateCcw size={16}/></Button>
+            <Button variant="outline" size="icon" onClick={resetZoomAndPosition}><RotateCcw size={16}/></Button>
           </div>
           <Button onClick={handlePrint} disabled={isPrinting} className="w-full sm:w-auto justify-center">
             {isPrinting ? <Loader className="animate-spin mr-2" /> : <Printer size={16} className="mr-2" />} Salvar PDF
           </Button>
         </div>
       </div>
-      <div className="p-4 flex justify-center bg-muted print-hidden w-full overflow-x-auto">
+      <div 
+        className="p-4 flex justify-center bg-muted print-hidden w-full overflow-hidden"
+        onMouseDown={handleDragStart}
+        onMouseMove={handleDragMove}
+        onMouseUp={handleDragEnd}
+        onMouseLeave={handleDragEnd}
+        onTouchStart={handleDragStart}
+        onTouchMove={handleDragMove}
+        onTouchEnd={handleDragEnd}
+      >
         <div
           className="bg-white p-4 shadow-lg"
-          style={{ width: "200mm", transform: `scale(${scale})`, transformOrigin: 'top center' }}
+          style={{ 
+            width: "200mm", 
+            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`, 
+            transformOrigin: 'top center',
+            cursor: isDragging ? 'grabbing' : 'grab',
+            transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+          }}
         >
           <div className="text-black">
             <ReportContent />
@@ -204,7 +260,7 @@ export default function S13ReportPage() {
         </div>
       </div>
       <div className="hidden">
-        <div id="pdf-area" className="text-black">
+        <div id="pdf-area" className="text-black bg-white">
           <ReportContent inPdf={true} />
         </div>
       </div>
