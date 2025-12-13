@@ -179,7 +179,7 @@ export default function S13ReportPage() {
               .fill(null)
               .map((_, i) => allAssignments[i] || null);
             
-            const rowClass = index % 2 === 0 ? "bg-gray-200" : "";
+            const rowClass = index % 2 === 0 ? "bg-gray-300" : "";
 
             return (
               <tbody key={t.id} className={`print-avoid-break ${inPdf ? rowClass : ""}`}>
