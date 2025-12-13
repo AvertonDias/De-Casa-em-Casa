@@ -178,7 +178,7 @@ export default function S13ReportPage() {
             const rowClass = index % 2 === 0 ? "bg-gray-300" : "";
 
             return (
-              <tbody key={t.id} style={{ pageBreakInside: 'avoid !important' }} className={`${inPdf ? rowClass : ""}`}>
+              <tbody key={t.id} className="print-avoid-break">
                 <tr className={`${!inPdf ? rowClass : ""}`}>
                   <td rowSpan={2} className="border border-black py-2" style={{ textAlign: 'center' }}>
                     {t.number}
