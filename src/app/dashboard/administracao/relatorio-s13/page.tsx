@@ -145,9 +145,8 @@ export default function S13ReportPage() {
                 ))}
               </tr>
             </thead>
-            <tbody>
             {loading ? (
-                <tr><td colSpan={10} className="text-center p-4">Carregando dados...</td></tr>
+                <tbody><tr><td colSpan={10} className="text-center p-4">Carregando dados...</td></tr></tbody>
             ) : (
               filteredTerritories.map((t) => {
                 const allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
@@ -162,7 +161,7 @@ export default function S13ReportPage() {
                 const displayAssignments = Array(4).fill(null).map((_, i) => sortedHistory[i] || null);
 
                 return (
-                  <React.Fragment key={t.id}>
+                  <tbody key={t.id} className="print-avoid-break">
                     <tr className="text-center align-top h-8">
                       <td className="border border-black font-semibold align-middle" rowSpan={2}>{t.number}</td>
                       <td className="border border-black align-middle" rowSpan={2}>{getLastCompletedDate(t)}</td>
@@ -178,11 +177,10 @@ export default function S13ReportPage() {
                         </React.Fragment>
                       ))}
                     </tr>
-                  </React.Fragment>
+                  </tbody>
                 );
               })
             )}
-            </tbody>
           </table>
 
           <p className="text-xs mt-2">*Ao iniciar uma nova folha, use esta coluna para registrar a data em que cada território foi concluído pela última vez.</p>
