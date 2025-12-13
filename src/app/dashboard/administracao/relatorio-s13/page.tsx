@@ -107,19 +107,6 @@ export default function S13ReportPage() {
     (t) => (t.type || "urban") === typeFilter
   );
 
-  const getLastCompletedDate = (territory: Territory) => {
-    const history = territory.assignmentHistory || [];
-    if (history.length === 0) return "---";
-
-    const sorted = [...history].sort(
-      (a, b) => b.completedAt.toMillis() - a.completedAt.toMillis()
-    );
-
-    return format(sorted[0].completedAt.toDate(), "dd/MM/yy", {
-      locale: ptBR,
-    });
-  };
-
   /* ================= CONTEÚDO REUTILIZÁVEL ================= */
   const ReportContent = () => (
     <>
@@ -151,7 +138,6 @@ export default function S13ReportPage() {
         <thead>
           <tr className="text-center font-semibold">
             <th rowSpan={2} className="border border-black p-1">Terr.</th>
-            <th rowSpan={2} className="border border-black p-1">Última*</th>
             {Array(4).fill(null).map((_, i) => (
               <th key={i} colSpan={2} className="border border-black p-1">
                 Designado a
@@ -171,7 +157,7 @@ export default function S13ReportPage() {
         {loading ? (
           <tbody>
             <tr>
-              <td colSpan={10} className="text-center p-4">
+              <td colSpan={9} className="text-center p-4">
                 Carregando dados...
               </td>
             </tr>
@@ -198,9 +184,6 @@ export default function S13ReportPage() {
                 <tr className="text-center">
                   <td rowSpan={2} className="border border-black">
                     {t.number}
-                  </td>
-                  <td rowSpan={2} className="border border-black">
-                    {getLastCompletedDate(t)}
                   </td>
                   {display.map((a, i) => (
                     <td key={i} colSpan={2} className="border border-black">
@@ -229,10 +212,6 @@ export default function S13ReportPage() {
           })
         )}
       </table>
-
-      <p className="text-xs mt-2">
-        * Data da última conclusão registrada.
-      </p>
     </>
   );
 
