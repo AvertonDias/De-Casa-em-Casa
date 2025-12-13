@@ -43,9 +43,9 @@ export default function RootLayout({ children }: { children: React.ReactNode; })
             <ModalProvider>
               <FontSizeProvider>
                 {children}
+                <Toaster />
               </FontSizeProvider>
             </ModalProvider>
-            <Toaster />
           </ThemeProvider>
         </UserProvider>
         <SpeedInsights/>
