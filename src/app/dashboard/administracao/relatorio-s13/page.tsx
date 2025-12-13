@@ -108,7 +108,7 @@ export default function S13ReportPage() {
   );
 
   /* ================= CONTEÚDO REUTILIZÁVEL ================= */
-  const ReportContent = () => (
+  const ReportContent = ({ inPdf = false }: { inPdf?: boolean }) => (
     <>
       <h1 className="text-xl font-bold text-center uppercase mb-4">
         REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO (
@@ -163,7 +163,7 @@ export default function S13ReportPage() {
             </tr>
           </tbody>
         ) : (
-          filteredTerritories.map((t) => {
+          filteredTerritories.map((t, index) => {
             const allAssignments: Partial<AssignmentHistoryLog>[] = [
               ...(t.assignmentHistory || []),
             ];
@@ -178,9 +178,11 @@ export default function S13ReportPage() {
             const display = Array(4)
               .fill(null)
               .map((_, i) => allAssignments[i] || null);
+            
+            const rowClass = !inPdf && index % 2 === 0 ? "bg-gray-100 dark:bg-gray-800/20" : "";
 
             return (
-              <tbody key={t.id} className="print-avoid-break">
+              <tbody key={t.id} className={`print-avoid-break ${rowClass}`}>
                 <tr className="text-center">
                   <td rowSpan={2} className="border border-black">
                     {t.number}
@@ -278,7 +280,7 @@ export default function S13ReportPage() {
         }}
       >
         <div id="pdf-area" style={{ color: 'black' }}>
-          <ReportContent />
+          <ReportContent inPdf={true} />
         </div>
       </div>
     </>
