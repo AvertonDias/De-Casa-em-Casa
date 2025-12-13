@@ -174,34 +174,17 @@ function toast({ ...props }: Toast) {
 }
 
 function useToast() {
-  const [state, setState] = React.useState<State>(memoryState);
-  const { registerModal, unregisterModal } = useModal();
+  const [state, setState] = React.useState<State>(memoryState)
 
   React.useEffect(() => {
-    listeners.push(setState);
+    listeners.push(setState)
     return () => {
       const index = listeners.indexOf(setState)
       if (index > -1) {
         listeners.splice(index, 1)
       }
     }
-  }, []);
-
-   // Lógica para registrar/desregistrar modais de toast
-  React.useEffect(() => {
-    state.toasts.forEach((toast) => {
-      if (toast.open) {
-        registerModal(toast.id, () => dispatch({ type: 'DISMISS_TOAST', toastId: toast.id }));
-      } else {
-        unregisterModal(toast.id);
-      }
-    });
-
-    // Limpeza ao desmontar
-    return () => {
-      state.toasts.forEach((toast) => unregisterModal(toast.id));
-    };
-  }, [state.toasts, registerModal, unregisterModal]);
+  }, [])
 
   return {
     ...state,
