@@ -21,14 +21,6 @@ import { ptBR } from "date-fns/locale";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-/* ---------- helpers de touch sem conflitar com tipos DOM ---------- */
-type Point = { x: number; y: number };
-const touchToPoint = (t: React.Touch): Point => ({ x: t.clientX, y: t.clientY });
-
-/* ---------- distância entre 2 toques ---------- */
-const getDistance = (p1: Point, p2: Point) => Math.hypot(p2.x - p1.x, p2.y - p1.y);
-
-/* ========================= COMPONENTE ========================= */
 export default function S13ReportPage() {
   const { user } = useUser();
 
@@ -38,24 +30,6 @@ export default function S13ReportPage() {
   const [serviceYear, setServiceYear] = useState(new Date().getFullYear().toString());
   const [typeFilter, setTypeFilter] = useState<"urban" | "rural">("urban");
 
-  /* ---------------- zoom / pan ---------------- */
-  const [scale, setScale] = useState<number>(1);
-  const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-
-  const printableAreaRef = useRef<HTMLDivElement | null>(null);
-
-  // refs para touch/mouse state
-  const lastPointerRef = useRef<Point | null>(null);
-  const lastPositionRef = useRef({ x: 0, y: 0 });
-  const initialPinchStateRef = useRef<{ distance: number, scale: number, center: Point } | null>(null);
-  const lastTapRef = useRef<number>(0);
-
-  // limites
-  const MIN_SCALE = 0.7;
-  const MAX_SCALE = 3.0;
-
-  /* ================== Firestore (sem alterações) ================== */
   useEffect(() => {
     if (!user?.congregationId) {
       if (user) setLoading(false);
@@ -70,7 +44,6 @@ export default function S13ReportPage() {
     return () => unsubscribe();
   }, [user]);
 
-  /* ================== impressão (mantém behavior) ================== */
   const handlePrint = async () => {
     setIsPrinting(true);
     const element = document.getElementById("printable-area");
@@ -79,167 +52,23 @@ export default function S13ReportPage() {
       return;
     }
 
-    const savedTransform = element.style.transform;
-    element.style.transform = "scale(1) translate(0px, 0px)";
-
     try {
       const html2pdf = (await import("html2pdf.js")).default;
       const opt = {
-        margin: 0.2,
+        margin: [5, 5, 5, 5], // margens em mm (top, right, bottom, left)
         filename: `Relatorio-S13-${typeFilter}-${serviceYear}.pdf`,
         image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 1.8, useCORS: true },
-        jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
+        html2canvas: { scale: 2, useCORS: true, dpi: 192, letterRendering: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       };
       await html2pdf().from(element).set(opt).save();
     } catch (err) {
       console.error("Erro ao gerar PDF:", err);
     } finally {
-      element.style.transform = savedTransform;
       setIsPrinting(false);
     }
   };
 
-  /* ================== zoom helpers ================== */
-  const clampScale = (s: number) => Math.max(MIN_SCALE, Math.min(s, MAX_SCALE));
-
-  const applyZoom = (newScale: number, center?: Point) => {
-    const clamped = clampScale(newScale);
-
-    if (printableAreaRef.current && center) {
-        const rect = printableAreaRef.current.getBoundingClientRect();
-        
-        const currentCenter = {
-            x: rect.left + rect.width / 2,
-            y: rect.top + rect.height / 2,
-        };
-
-        const newPos = {
-            x: center.x - currentCenter.x,
-            y: center.y - currentCenter.y,
-        };
-
-        const oldScale = scale;
-
-        const newPosition = {
-            x: position.x - (newPos.x / oldScale) * (clamped - oldScale),
-            y: position.y - (newPos.y / oldScale) * (clamped - oldScale),
-        };
-        setPosition(newPosition);
-        lastPositionRef.current = newPosition;
-
-    } else if (clamped <= 1) {
-      setPosition({ x: 0, y: 0 });
-      lastPositionRef.current = { x: 0, y: 0 };
-    }
-    
-    setScale(clamped);
-  };
-
-  const handleZoomButtons = (delta: number) => {
-    if (printableAreaRef.current) {
-        const rect = printableAreaRef.current.getBoundingClientRect();
-        const center = {
-            x: rect.left + rect.width / 2,
-            y: rect.top + rect.height / 2,
-        };
-        applyZoom(scale + delta, center);
-    } else {
-        applyZoom(scale + delta);
-    }
-  };
-
-  const handleResetZoom = () => {
-    setScale(1);
-    setPosition({ x: 0, y: 0 });
-    lastPositionRef.current = { x: 0, y: 0 };
-  };
-
-  /* ================== mouse events (desktop) ================== */
-  const onMouseDown = (e: React.MouseEvent) => {
-    if (scale <= 1) return;
-    e.preventDefault();
-    setIsDragging(true);
-    lastPointerRef.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const onMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !lastPointerRef.current) return;
-    const dx = e.clientX - lastPointerRef.current.x;
-    const dy = e.clientY - lastPointerRef.current.y;
-    lastPointerRef.current = { x: e.clientX, y: e.clientY };
-    setPosition((p) => {
-      const next = { x: p.x + dx, y: p.y + dy };
-      lastPositionRef.current = next;
-      return next;
-    });
-  };
-
-  const onMouseUp = () => {
-    setIsDragging(false);
-    lastPointerRef.current = null;
-  };
-
-  /* ================== touch events (mobile) ================== */
-  const onTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault();
-    if (e.touches.length === 2) {
-      const p1 = touchToPoint(e.touches[0]);
-      const p2 = touchToPoint(e.touches[1]);
-      initialPinchStateRef.current = {
-        distance: getDistance(p1, p2),
-        scale: scale,
-        center: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 },
-      };
-    } else if (e.touches.length === 1) {
-      const now = Date.now();
-      if (now - lastTapRef.current < 300) {
-        if (scale > 1) handleResetZoom();
-        else handleZoomButtons(1);
-      }
-      lastTapRef.current = now;
-
-      if (scale > 1) {
-        setIsDragging(true);
-        lastPointerRef.current = touchToPoint(e.touches[0]);
-      }
-    }
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    e.preventDefault();
-    if (e.touches.length === 2 && initialPinchStateRef.current) {
-        const { scale: initialScale, center: initialCenter } = initialPinchStateRef.current;
-        const p1 = touchToPoint(e.touches[0]);
-        const p2 = touchToPoint(e.touches[1]);
-        const newDistance = getDistance(p1, p2);
-        
-        const factor = newDistance / initialPinchStateRef.current.distance;
-        const newScale = clampScale(initialScale * factor);
-        applyZoom(newScale, initialCenter);
-
-    } else if (e.touches.length === 1 && isDragging && lastPointerRef.current) {
-      const p = touchToPoint(e.touches[0]);
-      const dx = p.x - lastPointerRef.current.x;
-      const dy = p.y - lastPointerRef.current.y;
-      lastPointerRef.current = p;
-      setPosition((prev) => {
-        const next = { x: prev.x + dx, y: prev.y + dy };
-        lastPositionRef.current = next;
-        return next;
-      });
-    }
-  };
-
-  const onTouchEnd = (e: React.TouchEvent) => {
-    if (e.touches.length < 2) initialPinchStateRef.current = null;
-    if (e.touches.length === 0) {
-      setIsDragging(false);
-      lastPointerRef.current = null;
-    }
-  };
-
-  /* ================== helpers de render ================== */
   const filteredTerritories = allTerritories.filter((t) => (t.type || "urban") === typeFilter);
 
   const getLastCompletedDate = (territory: Territory) => {
@@ -249,24 +78,8 @@ export default function S13ReportPage() {
     return format(sorted[0].completedAt.toDate(), "dd/MM/yy", { locale: ptBR });
   };
 
-  /* ================== RENDER JSX ================== */
   return (
     <>
-      <style jsx global>{`
-        @media print {
-          body, .print-hidden { visibility: hidden; }
-          #printable-area, #printable-area * { visibility: visible; }
-          #printable-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            transform: scale(1) !important;
-          }
-          @page { size: A4 portrait; margin: 1cm; }
-        }
-      `}</style>
-
       <div className="p-4 bg-card print-hidden">
         <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
           <Button variant="ghost" asChild className="self-start sm:self-center">
@@ -280,12 +93,6 @@ export default function S13ReportPage() {
               <button onClick={() => setTypeFilter("urban")} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors flex items-center ${typeFilter === "urban" ? "bg-primary text-primary-foreground" : "hover:bg-primary/20"}`}><Map size={14} className="inline mr-2" /> Urbanos</button>
               <button onClick={() => setTypeFilter("rural")} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors flex items-center ${typeFilter === "rural" ? "bg-primary text-primary-foreground" : "hover:bg-primary/20"}`}><Trees size={14} className="inline mr-2" /> Rurais</button>
             </div>
-
-            <div className="flex bg-input p-1 rounded-lg">
-              <Button variant="ghost" size="sm" onClick={() => handleZoomButtons(-0.1)}><ZoomOut size={16} /></Button>
-              <Button variant="ghost" size="sm" onClick={handleResetZoom}><RotateCcw size={14} /></Button>
-              <Button variant="ghost" size="sm" onClick={() => handleZoomButtons(0.1)}><ZoomIn size={16} /></Button>
-            </div>
           </div>
 
           <Button onClick={handlePrint} className="w-full sm:w-auto justify-center" disabled={isPrinting}>
@@ -295,41 +102,27 @@ export default function S13ReportPage() {
         </div>
       </div>
 
-      <div
-        className="overflow-hidden p-4 print:p-0 flex justify-center"
-        onMouseDown={onMouseDown}
-        onMouseMove={onMouseMove}
-        onMouseUp={onMouseUp}
-        onMouseLeave={onMouseUp}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-      >
+      <div className="p-4 print:p-0 flex justify-center bg-muted">
         <div
           id="printable-area"
-          ref={printableAreaRef}
-          style={{
-            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-            transformOrigin: "center center",
-            touchAction: "none",
-          }}
-          className="bg-white text-black p-8 mx-auto min-w-[1000px] max-w-[1000px] transition-transform duration-100"
+          className="bg-white text-black p-4 shadow-lg"
+          style={{ width: '200mm' }} // A4 width (210mm) - margins (10mm)
         >
           <h1 className="text-xl font-bold text-center uppercase">REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO ({typeFilter === "urban" ? "URBANO" : "RURAL"})</h1>
           <div className="flex justify-between items-end my-4">
             <div>
-              <label htmlFor="service-year" className="font-semibold">Ano de Serviço:</label>
-              <input id="service-year" type="text" value={serviceYear} onChange={(e) => setServiceYear(e.target.value)} className="border-b-2 border-black focus:outline-none bg-white w-24 ml-2" />
+              <label htmlFor="service-year" className="font-semibold text-sm">Ano de Serviço:</label>
+              <input id="service-year" type="text" value={serviceYear} onChange={(e) => setServiceYear(e.target.value)} className="border-b-2 border-black focus:outline-none bg-white w-24 ml-2 text-sm" />
             </div>
             <div className="text-right">
-              <span className="font-semibold">Congregação:</span>
-              <span className="ml-2 pb-1 border-b-2 border-black px-4">{user?.congregationName || "..."}</span>
+              <span className="font-semibold text-sm">Congregação:</span>
+              <span className="ml-2 pb-1 border-b-2 border-black px-4 text-sm">{user?.congregationName || "..."}</span>
             </div>
           </div>
 
-          <table className="w-full text-sm">
+          <table className="w-full text-xs">
             <thead>
-              <tr className="text-center text-xs font-semibold">
+              <tr className="text-center font-semibold">
                 <th className="border border-black p-1" rowSpan={2}>Terr. n.º</th>
                 <th className="border border-black p-1" rowSpan={2}>Última data concluída*</th>
                 <th className="border border-black p-1" colSpan={2}>Designado a</th>
@@ -337,7 +130,7 @@ export default function S13ReportPage() {
                 <th className="border border-black p-1" colSpan={2}>Designado a</th>
                 <th className="border border-black p-1" colSpan={2}>Designado a</th>
               </tr>
-              <tr className="text-center text-xs font-semibold">
+              <tr className="text-center font-semibold">
                 {Array(4).fill(null).map((_, i) => (
                   <React.Fragment key={i}>
                     <th className="border border-black p-1">Data da designação</th>
@@ -346,11 +139,9 @@ export default function S13ReportPage() {
                 ))}
               </tr>
             </thead>
-
+            <tbody>
             {loading ? (
-              <tbody>
                 <tr><td colSpan={10} className="text-center p-4">Carregando dados...</td></tr>
-              </tbody>
             ) : (
               filteredTerritories.map((t) => {
                 const allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
@@ -365,7 +156,7 @@ export default function S13ReportPage() {
                 const displayAssignments = Array(4).fill(null).map((_, i) => sortedHistory[i] || null);
 
                 return (
-                  <tbody key={t.id} style={{ pageBreakInside: "avoid" }}>
+                  <React.Fragment key={t.id}>
                     <tr className="text-center align-top h-8">
                       <td className="border border-black font-semibold align-middle" rowSpan={2}>{t.number}</td>
                       <td className="border border-black align-middle" rowSpan={2}>{getLastCompletedDate(t)}</td>
@@ -381,10 +172,11 @@ export default function S13ReportPage() {
                         </React.Fragment>
                       ))}
                     </tr>
-                  </tbody>
+                  </React.Fragment>
                 );
               })
             )}
+            </tbody>
           </table>
 
           <p className="text-xs mt-2">*Ao iniciar uma nova folha, use esta coluna para registrar a data em que cada território foi concluído pela última vez.</p>

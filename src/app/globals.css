@@ -107,3 +107,23 @@
     background-position: 200% 0;
   }
 }
+
+@media print {
+  body, html {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-hidden {
+    display: none;
+  }
+  #printable-area {
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+  }
+  tbody, tr {
+    page-break-inside: avoid;
+  }
+}
+
