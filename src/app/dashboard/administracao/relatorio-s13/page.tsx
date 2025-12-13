@@ -184,11 +184,11 @@ export default function S13ReportPage() {
             return (
               <tbody key={t.id} className={`print-avoid-break ${inPdf ? rowClass : ""}`}>
                 <tr className={`text-center ${!inPdf ? rowClass : ""}`}>
-                  <td rowSpan={2} className="border border-black py-2">
+                  <td rowSpan={2} className="border border-black py-2 text-center">
                     {t.number}
                   </td>
                   {display.map((a, i) => (
-                    <td key={i} colSpan={2} className="border border-black py-2">
+                    <td key={i} colSpan={2} className="border border-black py-2 text-center">
                       {a?.name || ""}
                     </td>
                   ))}
@@ -196,12 +196,12 @@ export default function S13ReportPage() {
                 <tr className={`text-center ${!inPdf ? rowClass : ""}`}>
                   {display.map((a, i) => (
                     <React.Fragment key={i}>
-                      <td className="border border-black py-2">
+                      <td className="border border-black py-2 text-center">
                         {a?.assignedAt
                           ? format(a.assignedAt.toDate(), "dd/MM/yy")
                           : ""}
                       </td>
-                      <td className="border border-black py-2">
+                      <td className="border border-black py-2 text-center">
                         {a?.completedAt
                           ? format(a.completedAt.toDate(), "dd/MM/yy")
                           : ""}
