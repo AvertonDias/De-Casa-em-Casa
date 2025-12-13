@@ -2,11 +2,11 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc, runTransaction, getDocs, addDoc, serverTimestamp, Timestamp, where, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil, X } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil, X, GripVertical } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
 import { EditCasaModal } from '@/components/EditCasaModal';
 import { useUser } from '@/contexts/UserContext';
@@ -37,6 +37,10 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const [isReordering, setIsReordering] = useState(false);
   const router = useRouter();
   
+  // Drag and Drop states
+  const [draggedItem, setDraggedItem] = useState<Casa | null>(null);
+  const dragItemNode = useRef<HTMLLIElement | null>(null);
+
 
   // Estados para modais
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -141,17 +145,40 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
       progresso: (quadra?.totalHouses || 0) > 0 ? Math.round(((quadra?.housesDone || 0) / (quadra?.totalHouses || 1)) * 100) : 0,
   }
 
-  const handleReorder = (casaId: string, direction: 'up' | 'down') => {
-    const currentIndex = casas.findIndex(c => c.id === casaId);
-    if (currentIndex === -1) return;
-    if ((direction === 'up' && currentIndex === 0) || (direction === 'down' && currentIndex === casas.length - 1)) return;
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    const reorderedCasas = [...casas];
-    const [movedItem] = reorderedCasas.splice(currentIndex, 1);
-    reorderedCasas.splice(newIndex, 0, movedItem);
-    setRecentlyMovedId(movedItem.id);
-    setCasas(reorderedCasas);
+  // Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent<HTMLLIElement> | React.TouchEvent<HTMLLIElement>, item: Casa) => {
+      setDraggedItem(item);
+      // For touch, the target is different
+      if (e.nativeEvent instanceof TouchEvent) {
+          dragItemNode.current = e.target as HTMLLIElement;
+      } else {
+          dragItemNode.current = e.currentTarget;
+      }
+      dragItemNode.current?.addEventListener('dragend', handleDragEnd);
   };
+  
+  const handleDragEnter = (e: React.DragEvent<HTMLLIElement> | React.TouchEvent<HTMLLIElement>, targetItem: Casa) => {
+    if (!draggedItem || draggedItem.id === targetItem.id) return;
+    
+    setCasas(oldList => {
+      let newList = JSON.parse(JSON.stringify(oldList));
+      const draggedItemIndex = newList.findIndex((i: Casa) => i.id === draggedItem.id);
+      const targetItemIndex = newList.findIndex((i: Casa) => i.id === targetItem.id);
+      
+      // Remove o item arrastado e o insere na nova posição
+      const [removed] = newList.splice(draggedItemIndex, 1);
+      newList.splice(targetItemIndex, 0, removed);
+      
+      return newList;
+    });
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    dragItemNode.current?.removeEventListener('dragend', handleDragEnd);
+    dragItemNode.current = null;
+  };
+  
 
   const handleToggleCheckbox = (casa: Casa) => {
     setStatusAction({ casa, newStatus: !casa.status });
@@ -325,14 +352,13 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     } catch (error)      {
       console.error("Falha ao reordenar:", error);
     } finally {
-      setRecentlyMovedId(null);
       setIsReordering(false);
+      setDraggedItem(null);
     }
   };
 
   const startReordering = () => {
     setIsReordering(true);
-    setRecentlyMovedId(null);
   };
 
   const currentQuadraIndex = allQuadras.findIndex(q => q.id === quadraId);
@@ -428,13 +454,34 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
           
             <div className="bg-card rounded-lg shadow-md">
               <ul className="divide-y divide-border">
-                {filteredCasas.map((casa, index) => (
+                {filteredCasas.map((casa) => (
                   <li 
-                    key={casa.id} 
+                    key={casa.id}
+                    draggable={isReordering}
+                    onDragStart={isReordering ? (e) => handleDragStart(e, casa) : undefined}
+                    onDragEnter={isReordering ? (e) => handleDragEnter(e, casa) : undefined}
+                    onTouchStart={isReordering ? (e) => handleDragStart(e, casa) : undefined}
+                    onTouchMove={(e) => {
+                        const touch = e.touches[0];
+                        const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                        const targetLi = element?.closest('li');
+                        if (targetLi && targetLi.dataset.id && targetLi.dataset.id !== casa.id) {
+                           const targetCasa = casas.find(c => c.id === targetLi.dataset.id);
+                           if (targetCasa) {
+                             handleDragEnter(e, targetCasa);
+                           }
+                        }
+                    }}
+                    onTouchEnd={handleDragEnd}
                     onClick={() => handleHouseClick(casa.id)}
                     data-id={casa.id}
-                    className={`flex items-center p-3 transition-colors duration-500 ${casa.id === recentlyMovedId ? 'bg-primary/20' : ''}`}
+                    className={`flex items-center p-3 transition-colors duration-300 ${draggedItem?.id === casa.id ? 'bg-primary/30 opacity-50' : ''}`}
                   >
+                    {isReordering && (
+                        <div className="text-muted-foreground cursor-grab touch-none mr-2">
+                            <GripVertical size={24} />
+                        </div>
+                    )}
                     <input
                       type="checkbox"
                       checked={casa.status}
@@ -446,16 +493,11 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                       {casa.observations && <p className="text-sm text-muted-foreground">{casa.observations}</p>}
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                        {isReordering ? (
-                          <>
-                            <button onClick={() => handleReorder(casa.id, 'up')} disabled={index === 0} className="p-2 rounded-full disabled:opacity-30"><ArrowUp size={20}/></button>
-                            <button onClick={() => handleReorder(casa.id, 'down')} disabled={index === casas.length-1} className="p-2 rounded-full disabled:opacity-30"><ArrowDown size={20}/></button>
-                          </>
-                        ) : (
-                          <button onClick={() => handleEditClick(casa)} className="p-2 rounded-full text-muted-foreground hover:text-foreground"><Pencil size={18}/></button>
-                        )}
-                    </div>
+                    {!isReordering && (
+                        <button onClick={(e) => { e.stopPropagation(); handleEditClick(casa); }} className="p-2 rounded-full text-muted-foreground hover:text-foreground">
+                            <Pencil size={18}/>
+                        </button>
+                    )}
                   </li>
                 ))}
               </ul>
