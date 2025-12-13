@@ -7,7 +7,7 @@ import { useModal } from "@/contexts/ModalContext";
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 
-const AlertDialog = ({ open, onOpenChange, ...props }: AlertDialogPrimitive.AlertDialogProps) => {
+const AlertDialogRoot = ({ open, onOpenChange, ...props }: AlertDialogPrimitive.AlertDialogProps) => {
   const { registerModal, unregisterModal } = useModal();
   const id = React.useId();
 
@@ -23,9 +23,8 @@ const AlertDialog = ({ open, onOpenChange, ...props }: AlertDialogPrimitive.Aler
   return <AlertDialogPrimitive.Root open={open} onOpenChange={onOpenChange} {...props} />;
 };
 
-
+const AlertDialog = AlertDialogRoot;
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger
-
 const AlertDialogPortal = AlertDialogPrimitive.Portal
 
 const AlertDialogOverlay = React.forwardRef<
