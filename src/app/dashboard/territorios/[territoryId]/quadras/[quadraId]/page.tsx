@@ -470,14 +470,14 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                         <button 
                             onClick={() => moveHouse(index, 'up')} 
                             disabled={index === 0} 
-                            className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                            className="p-1 text-blue-500 hover:text-blue-400 disabled:opacity-30"
                         >
                             <ArrowUp size={20} />
                         </button>
                         <button 
                             onClick={() => moveHouse(index, 'down')} 
                             disabled={index === casas.length - 1} 
-                            className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                            className="p-1 text-blue-500 hover:text-blue-400 disabled:opacity-30"
                         >
                             <ArrowDown size={20} />
                         </button>
@@ -543,5 +543,6 @@ export default withAuth(QuadraDetailPage);
     
 
     
+
 
 
