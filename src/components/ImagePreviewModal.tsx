@@ -141,7 +141,7 @@ export default function ImagePreviewModal({
     <div className="fixed inset-0 z-50 bg-black">
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 z-50 text-white"
+        className="absolute top-4 right-4 z-50 rounded-full bg-black/50 p-1 text-white transition-opacity hover:opacity-75"
       >
         <X size={32} />
       </button>
