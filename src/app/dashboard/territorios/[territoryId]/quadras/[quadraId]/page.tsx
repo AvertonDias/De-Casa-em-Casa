@@ -6,7 +6,7 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc, runTransaction, getDocs, addDoc, serverTimestamp, Timestamp, where, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil, X, GripVertical } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil, X, GripVertical, ChevronsUpDown } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
 import { EditCasaModal } from '@/components/EditCasaModal';
 import { useUser } from '@/contexts/UserContext';
@@ -479,7 +479,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                   >
                     {isReordering && (
                         <div className="text-muted-foreground cursor-grab touch-none mr-2">
-                            <GripVertical size={24} />
+                            <ChevronsUpDown size={24} />
                         </div>
                     )}
                     <input
