@@ -212,7 +212,8 @@ export const deleteUserAccountV2 = withCors(async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader) {
-             return res.status(401).json({ data: { success: false, error: "Ação não autorizada. Sem token." } });
+             res.status(401).json({ data: { success: false, error: "Ação não autorizada. Sem token." } });
+             return;
         }
         const idToken = authHeader.split('Bearer ')[1];
         const decodedToken = await admin.auth().verifyIdToken(idToken);
@@ -220,14 +221,16 @@ export const deleteUserAccountV2 = withCors(async (req, res) => {
         
         const { userIdToDelete } = req.body.data;
         if (!userIdToDelete) {
-            return res.status(400).json({ data: { success: false, error: "ID do usuário a ser deletado é obrigatório." } });
+            res.status(400).json({ data: { success: false, error: "ID do usuário a ser deletado é obrigatório." } });
+            return;
         }
 
         const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
         const callingUserData = callingUserSnap.data();
         
         if (!callingUserData) {
-            return res.status(403).json({ data: { success: false, error: "Usuário requisitante não encontrado." } });
+            res.status(403).json({ data: { success: false, error: "Usuário requisitante não encontrado." } });
+            return;
         }
 
         const isCallingUserAdmin = callingUserData.role === "Administrador";
@@ -240,12 +243,14 @@ export const deleteUserAccountV2 = withCors(async (req, res) => {
 
         // Permissão para autoexclusão de um admin é bloqueada
         if (isCallingUserAdmin && isSelfDelete) {
-            return res.status(403).json({ data: { success: false, error: "Admin não pode se autoexcluir por esta função." } });
+            res.status(403).json({ data: { success: false, error: "Admin não pode se autoexcluir por esta função." } });
+            return;
         }
         
         // Verifica se é uma autoexclusão ou se um admin está deletando outro usuário
         if (!isSelfDelete && !isAdminDeletingOther) {
-             return res.status(403).json({ data: { success: false, error: "Sem permissão para esta ação." } });
+             res.status(403).json({ data: { success: false, error: "Sem permissão para esta ação." } });
+             return;
         }
 
         await admin.auth().deleteUser(userIdToDelete);
@@ -253,22 +258,23 @@ export const deleteUserAccountV2 = withCors(async (req, res) => {
         if ((await userDocRef.get()).exists) {
             await userDocRef.delete();
         }
-        return res.status(200).json({ data: { success: true } });
+        res.status(200).json({ data: { success: true } });
 
     } catch (error: any) {
         logger.error("Erro ao excluir usuário:", error);
         if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked' || error.code === 'auth/argument-error') {
-            return res.status(401).json({ data: { success: false, error: "Token de autenticação inválido. Faça login novamente." } });
+            res.status(401).json({ data: { success: false, error: "Token de autenticação inválido. Faça login novamente." } });
         } else if (error.code === 'auth/user-not-found') {
              // Se o usuário já foi deletado no Auth, mas o doc do Firestore ainda existe,
              // prossiga para deletar o doc do Firestore.
             const userDocRef = db.collection("users").doc(req.body.data.userIdToDelete);
             if ((await userDocRef.get()).exists) {
                 await userDocRef.delete();
-                 return res.status(200).json({ data: { success: true, message: "Documento do Firestore do usuário órfão removido." } });
+                 res.status(200).json({ data: { success: true, message: "Documento do Firestore do usuário órfão removido." } });
+                 return; // Importante retornar aqui
             }
         }
-        return res.status(500).json({ data: { success: false, error: error.message || "Falha na exclusão." } });
+        res.status(500).json({ data: { success: false, error: error.message || "Falha na exclusão." } });
     }
 });
 
@@ -382,5 +388,7 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
+
+    
 
     
