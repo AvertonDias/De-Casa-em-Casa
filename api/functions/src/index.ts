@@ -1,5 +1,4 @@
 
-
 // src/functions/src/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
@@ -10,6 +9,22 @@ import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
 import * as crypto from "crypto";
 import { AppUser } from "./types/types";
+import cors from "cors";
+
+// Crie uma instância do CORS que permite requisições da sua aplicação
+const corsHandler = cors({ 
+    origin: [
+        "https://de-casa-em-casa.web.app",
+        "https://de-casa-em-casa.firebaseapp.com",
+        "https://de-casa-em-casa.vercel.app",
+        /https:\/\/de-casa-em-casa--pr-.*\.web\.app/,
+        /https:\/\/.*\.vercel\.app/,
+        /https:\/\/.*\.cloudworkstations\.dev/
+    ],
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Firebase-Instance-ID-Token"]
+});
+
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -18,27 +33,15 @@ const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   CORS WRAPPER
+//   CORS WRAPPER (Agora usando o pacote 'cors')
 // ========================================================================
-function withCors(handler: (req: https.Request, res: any) => void | Promise<void>) {
-    return https.onRequest({ 
-        cors: [
-            "https://de-casa-em-casa.web.app",
-            "https://de-casa-em-casa.firebaseapp.com",
-            "https://de-casa-em-casa.vercel.app", // Domínio de produção Vercel
-            /https:\/\/de-casa-em-casa--pr-.*\.web\.app/, // Previews do Firebase
-            /https:\/\/.*\.vercel\.app/, // Outros domínios Vercel (previews)
-            /https:\/\/.*\.cloudworkstations\.dev/ // Ambiente de desenvolvimento
-        ]
-    }, async (req, res) => {
-        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Firebase-Instance-ID-Token');
-        if (req.method === 'OPTIONS') {
-            res.status(204).send('');
-            return;
-        }
-        await handler(req, res);
+const withCors = (handler: (req: https.Request, res: any) => void | Promise<void>) => {
+    return https.onRequest(async (req, res) => {
+        corsHandler(req, res, async () => {
+            await handler(req, res);
+        });
     });
-}
+};
 
 
 // ========================================================================
