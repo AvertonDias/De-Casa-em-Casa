@@ -63,26 +63,28 @@ export default function NovaCongregacaoPage() {
         
         const result: any = await createCongregationAndAdmin(dataToSend);
         
-        const resultData = result.data as { success: boolean, userId?: string, message?: string, error?: string };
-
-        if (resultData.success) {
+        if (result.data?.success) {
             toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
             await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
         } else {
-            // Este `else` captura falhas de negócio retornadas pela função
-            throw new Error(resultData.error || "Ocorreu um erro desconhecido no servidor.");
+            // Este `else` captura falhas de negócio retornadas pela função onde success é false
+             throw new Error(result.data?.error || "Ocorreu um erro desconhecido no servidor.");
         }
 
     } catch (error: any) {
         console.error("Erro na criação ou login:", error);
 
-        // Tratamento de erros mais específico
+        // Tratamento de erros de chamada da função (incluindo 409)
         let friendlyMessage = "Erro inesperado. Tente novamente mais tarde.";
-        if (error.code === 'functions/already-exists' || (error.details && error.details.code === 409)) {
-            // A mensagem de erro da função agora será exibida
-            friendlyMessage = error.message || "Número da congregação ou e-mail já estão em uso.";
-        } else if (error.message) {
+        
+        // Verifica se é um erro da função do Firebase com detalhes
+        if (error.code === 'functions/aborted' || error.code === 'functions/unavailable' || (error.details && error.details.httpErrorCode === 409)) {
             friendlyMessage = error.message;
+        } else if (error.message) {
+            // Para outros tipos de erro, como o "already-exists" customizado
+            friendlyMessage = error.message;
+        } else if (error.code === 'auth/email-already-in-use') {
+             friendlyMessage = "Este e-mail já está em uso por outro administrador.";
         }
         
         setErrorMessage(friendlyMessage);
