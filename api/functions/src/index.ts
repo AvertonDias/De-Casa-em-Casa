@@ -1,3 +1,4 @@
+
 // src/functions/src/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
@@ -5,9 +6,11 @@ import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
 import * as crypto from "crypto";
-import { AppUser } from "./types/types";
-import * as cors from "cors";
+import type { AppUser } from "./types/types"; // Caminho relativo
+import cors from "cors"; // CORREÇÃO: importação padrão
+import type { Request, Response } from "express"; // Tipos do Express
 
+// Crie uma instância do CORS que permite requisições da sua aplicação
 const corsHandler = cors({ 
     origin: [
         "https://de-casa-em-casa.web.app",
@@ -27,16 +30,24 @@ const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   FUNÇÕES HTTPS
+//   FUNÇÕES HTTPS (onCall)
 // ========================================================================
 
-function createHttpsFunction(handler: (req: https.Request, res: any) => Promise<any>) {
-    return https.onRequest((req, res) => {
-        corsHandler(req, res, async () => {
-            await handler(req, res);
+// Wrapper para simplificar a aplicação de CORS
+function createHttpsFunction(handler: (req: Request, res: Response) => Promise<any>) {
+    return https.onRequest(async (req: Request, res: Response) => {
+        // Envolve sua função com o corsHandler de forma assíncrona
+        await new Promise<void>((resolve, reject) => {
+            corsHandler(req, res, (err) => {
+                if (err) return reject(err);
+                resolve();
+            });
         });
+        // Após o CORS, executa a lógica principal
+        return await handler(req, res);
     });
 }
+
 
 export const createCongregationAndAdminV2 = createHttpsFunction(async (req, res) => {
     try {
@@ -47,17 +58,15 @@ export const createCongregationAndAdminV2 = createHttpsFunction(async (req, res)
           congregationName,
           congregationNumber,
           whatsapp,
-        } = req.body.data; // <-- CORREÇÃO AQUI
+        } = req.body; // <-- DADOS VÊM DIRETAMENTE DO BODY AGORA
 
         if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
-          res.status(400).json({ data: { success: false, error: "Todos os campos são obrigatórios." } });
-          return;
+          return res.status(400).json({ success: false, error: "Todos os campos são obrigatórios." });
         }
 
         const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).get();
         if (!congQuery.empty) {
-            res.status(409).json({ data: { success: false, error: "Uma congregação com este número já existe." } });
-            return;
+            return res.status(409).json({ success: false, error: "Uma congregação com este número já existe." });
         }
 
         const newUser = await admin.auth().createUser({
@@ -91,22 +100,18 @@ export const createCongregationAndAdminV2 = createHttpsFunction(async (req, res)
         } as Omit<AppUser, 'uid'>);
 
         await batch.commit();
-        res.status(200).json({
-            data: {
-                success: true,
-                userId: newUser.uid,
-                message: "Congregação criada com sucesso!",
-            },
+        return res.status(200).json({
+            success: true,
+            userId: newUser.uid,
+            message: "Congregação criada com sucesso!",
         });
 
     } catch (error: any) {
         logger.error("Erro em createCongregationAndAdmin:", error);
         if (error.code === "auth/email-already-exists") {
-            res.status(409).json({ data: { success: false, error: "Este e-mail já está em uso." } });
-        } else if (error.name === 'TypeError') {
-            res.status(400).json({ data: { success: false, error: "Estrutura de dados inválida. Verifique os campos enviados." } });
+            return res.status(409).json({ success: false, error: "Este e-mail já está em uso." });
         } else {
-            res.status(500).json({ data: { success: false, error: error.message || "Erro interno no servidor" } });
+            return res.status(500).json({ success: false, error: error.message || "Erro interno no servidor" });
         }
     }
 });
@@ -114,25 +119,23 @@ export const createCongregationAndAdminV2 = createHttpsFunction(async (req, res)
 
 export const notifyOnNewUserV2 = createHttpsFunction(async (req, res) => {
     try {
-        const { newUserName, congregationId } = req.body.data;
+        const { newUserName, congregationId } = req.body;
         if (!newUserName || !congregationId) {
-            res.status(400).json({ data: { success: false, error: "Dados insuficientes para notificação." } });
-            return;
+            return res.status(400).json({ success: false, error: "Dados insuficientes para notificação." });
         }
-        res.status(200).json({ data: { success: true, message: "Processo de notificação concluído (sem criar notificação no DB)." } });
+        return res.status(200).json({ success: true, message: "Processo de notificação concluído (sem criar notificação no DB)." });
     } catch (error: any) {
         logger.error("Erro no processo de notificação de novo usuário:", error);
-        res.status(500).json({ data: { success: false, error: "Falha no processo de notificação." } });
+        return res.status(500).json({ success: false, error: "Falha no processo de notificação." });
     }
 });
 
 
 export const requestPasswordResetV2 = createHttpsFunction(async (req, res) => {
     try {
-        const { email } = req.body.data;
+        const { email } = req.body;
         if (!email) {
-            res.status(400).json({ data: { success: false, error: "O e-mail é obrigatório." } });
-            return;
+            return res.status(400).json({ success: false, error: "O e-mail é obrigatório." });
         }
 
         try {
@@ -144,15 +147,13 @@ export const requestPasswordResetV2 = createHttpsFunction(async (req, res) => {
                 uid: user.uid,
                 expires: admin.firestore.Timestamp.fromMillis(expires),
             });
-            res.status(200).json({ data: { success: true, token } });
+            return res.status(200).json({ success: true, token });
         } catch (error: any) {
             if (error.code === "auth/user-not-found") {
-                res.status(200).json({
-                    data: {
-                        success: true,
-                        token: null,
-                        message: "Se o e-mail existir, um link será enviado.",
-                    },
+                return res.status(200).json({
+                    success: true,
+                    token: null,
+                    message: "Se o e-mail existir, um link será enviado.",
                 });
             } else {
                 throw error;
@@ -160,39 +161,36 @@ export const requestPasswordResetV2 = createHttpsFunction(async (req, res) => {
         }
     } catch (error: any) {
         logger.error("Erro ao gerar token de redefinição:", error);
-        res.status(500).json({ data: { success: false, error: "Erro ao iniciar o processo de redefinição." } });
+        return res.status(500).json({ success: false, error: "Erro ao iniciar o processo de redefinição." });
     }
 });
 
 
 export const resetPasswordWithTokenV2 = createHttpsFunction(async (req, res) => {
     try {
-        const { token, newPassword } = req.body.data;
+        const { token, newPassword } = req.body;
         if (!token || !newPassword) {
-            res.status(400).json({ data: { success: false, error: "Token e nova senha são obrigatórios." } });
-            return;
+            return res.status(400).json({ success: false, error: "Token e nova senha são obrigatórios." });
         }
 
         const tokenRef = db.collection("resetTokens").doc(token);
         const tokenDoc = await tokenRef.get();
 
         if (!tokenDoc.exists) {
-            res.status(404).json({ data: { success: false, error: "Token inválido ou já utilizado." } });
-            return;
+            return res.status(404).json({ success: false, error: "Token inválido ou já utilizado." });
         }
         if (tokenDoc.data()?.expires.toMillis() < Date.now()) {
             await tokenRef.delete();
-            res.status(410).json({ data: { success: false, error: "O token de redefinição expirou." } });
-            return;
+            return res.status(410).json({ success: false, error: "O token de redefinição expirou." });
         }
 
         const uid = tokenDoc.data()?.uid;
         await admin.auth().updateUser(uid, { password: newPassword });
         await tokenRef.delete();
-        res.status(200).json({ data: { success: true } });
+        return res.status(200).json({ success: true });
     } catch (error: any) {
         logger.error("Erro ao redefinir senha com token:", error);
-        res.status(500).json({ data: { success: false, error: "Falha ao atualizar a senha." } });
+        return res.status(500).json({ success: false, error: "Falha ao atualizar a senha." });
     }
 });
 
@@ -201,23 +199,20 @@ export const deleteUserAccountV2 = createHttpsFunction(async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader) {
-             res.status(401).json({ data: { success: false, error: "Ação não autorizada. Sem token." } });
-             return;
+             return res.status(401).json({ success: false, error: "Ação não autorizada. Sem token." });
         }
         const idToken = authHeader.split('Bearer ')[1];
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const callingUserUid = decodedToken.uid;
-        const { userIdToDelete } = req.body.data;
+        const { userIdToDelete } = req.body;
 
         if (!userIdToDelete) {
-            res.status(400).json({ data: { success: false, error: "ID do usuário a ser deletado é obrigatório." } });
-            return;
+            return res.status(400).json({ success: false, error: "ID do usuário a ser deletado é obrigatório." });
         }
 
         const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
         if (!callingUserSnap.exists) {
-             res.status(404).json({ data: { success: false, error: "Usuário requisitante não encontrado." } });
-             return;
+             return res.status(404).json({ success: false, error: "Usuário requisitante não encontrado." });
         }
         const isCallingUserAdmin = callingUserSnap.data()?.role === "Administrador";
 
@@ -225,13 +220,11 @@ export const deleteUserAccountV2 = createHttpsFunction(async (req, res) => {
         const isAdminDeletingOther = isCallingUserAdmin && !isSelfDelete;
 
         if (!isSelfDelete && !isAdminDeletingOther) {
-             res.status(403).json({ data: { success: false, error: "Sem permissão." } });
-             return;
+             return res.status(403).json({ success: false, error: "Sem permissão." });
         }
 
         if (isCallingUserAdmin && isSelfDelete) {
-            res.status(403).json({ data: { success: false, error: "Admin não pode se autoexcluir por esta função." } });
-            return;
+            return res.status(403).json({ success: false, error: "Admin não pode se autoexcluir por esta função." });
         }
 
         await admin.auth().deleteUser(userIdToDelete);
@@ -239,14 +232,14 @@ export const deleteUserAccountV2 = createHttpsFunction(async (req, res) => {
         if ((await userDocRef.get()).exists) {
             await userDocRef.delete();
         }
-        res.status(200).json({ data: { success: true } });
+        return res.status(200).json({ success: true });
 
     } catch (error: any) {
         logger.error("Erro ao excluir usuário:", error);
         if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked') {
-            res.status(401).json({ data: { success: false, error: "Token de autenticação inválido. Faça login novamente." } });
+            return res.status(401).json({ success: false, error: "Token de autenticação inválido. Faça login novamente." });
         } else {
-            res.status(500).json({ data: { success: false, error: error.message || "Falha na exclusão." } });
+            return res.status(500).json({ success: false, error: error.message || "Falha na exclusão." });
         }
     }
 });
@@ -360,3 +353,5 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
+
+    
