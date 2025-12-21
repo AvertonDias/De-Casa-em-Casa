@@ -139,7 +139,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     if (recentlyMovedId) {
       const timer = setTimeout(() => {
         setRecentlyMovedId(null);
-      }, 500); // Highlight for 500ms
+      }, 800); // Highlight for 800ms
       return () => clearTimeout(timer);
     }
   }, [recentlyMovedId]);
@@ -543,4 +543,5 @@ export default withAuth(QuadraDetailPage);
     
 
     
+
 
