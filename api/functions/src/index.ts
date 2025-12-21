@@ -5,7 +5,7 @@ import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
 import * as crypto from "crypto";
-import { AppUser } from "@/types/types";
+import { AppUser } from "./types/types";
 import * as cors from "cors";
 
 const corsHandler = cors({ 
@@ -30,7 +30,7 @@ setGlobalOptions({ region: "southamerica-east1" });
 //   FUNÇÕES HTTPS
 // ========================================================================
 
-function createHttpsFunction(handler: (req: https.Request, res: https.Response) => Promise<any>) {
+function createHttpsFunction(handler: (req: https.Request, res: any) => Promise<any>) {
     return https.onRequest((req, res) => {
         corsHandler(req, res, async () => {
             await handler(req, res);
