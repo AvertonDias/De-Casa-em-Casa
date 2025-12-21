@@ -37,10 +37,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const [isReordering, setIsReordering] = useState(false);
   const router = useRouter();
   
-  // Drag and Drop states
-  const [draggedItem, setDraggedItem] = useState<Casa | null>(null);
-  const dragItemNode = useRef<HTMLLIElement | null>(null);
-
 
   // Estados para modais
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -90,7 +86,8 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     const q = query(casasRef, orderBy('order'));
     
     const unsubCasas = onSnapshot(q, (casasSnap) => {
-      if (!isReordering) {
+      // Apenas atualize se não estiver no meio de uma reordenação pelo cliente
+      // if (!isReordering) {
         const fetchedCasas = casasSnap.docs.map(docSnap => ({
           id: docSnap.id,
           order: 0,
@@ -98,7 +95,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
           ...docSnap.data(),
         })) as Casa[];
         setCasas(fetchedCasas);
-      }
+      // }
     }, (error) => {
       console.error("Erro ao ouvir as atualizações das casas:", error);
     });
@@ -108,7 +105,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
       unsubCasas();
       unsubAllQuadras();
     };
-  }, [user, userLoading, territoryId, quadraId, isReordering]);
+  }, [user, userLoading, territoryId, quadraId]);
   
   useEffect(() => {
     if (!loading && quadra === null) {
@@ -145,38 +142,17 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
       progresso: (quadra?.totalHouses || 0) > 0 ? Math.round(((quadra?.housesDone || 0) / (quadra?.totalHouses || 1)) * 100) : 0,
   }
 
-  // Drag and Drop Handlers
-  const handleDragStart = (e: React.DragEvent<HTMLLIElement> | React.TouchEvent<HTMLLIElement>, item: Casa) => {
-      setDraggedItem(item);
-      // For touch, the target is different
-      if (e.nativeEvent instanceof TouchEvent) {
-          dragItemNode.current = e.target as HTMLLIElement;
-      } else {
-          dragItemNode.current = e.currentTarget;
-      }
-      dragItemNode.current?.addEventListener('dragend', handleDragEnd);
-  };
-  
-  const handleDragEnter = (e: React.DragEvent<HTMLLIElement> | React.TouchEvent<HTMLLIElement>, targetItem: Casa) => {
-    if (!draggedItem || draggedItem.id === targetItem.id) return;
-    
-    setCasas(oldList => {
-      let newList = JSON.parse(JSON.stringify(oldList));
-      const draggedItemIndex = newList.findIndex((i: Casa) => i.id === draggedItem.id);
-      const targetItemIndex = newList.findIndex((i: Casa) => i.id === targetItem.id);
-      
-      // Remove o item arrastado e o insere na nova posição
-      const [removed] = newList.splice(draggedItemIndex, 1);
-      newList.splice(targetItemIndex, 0, removed);
-      
-      return newList;
-    });
-  };
+  const moveHouse = (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === casas.length - 1) return;
 
-  const handleDragEnd = () => {
-    setDraggedItem(null);
-    dragItemNode.current?.removeEventListener('dragend', handleDragEnd);
-    dragItemNode.current = null;
+    const newCasas = [...casas];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+
+    // Swap
+    [newCasas[index], newCasas[targetIndex]] = [newCasas[targetIndex], newCasas[index]];
+    
+    setCasas(newCasas);
   };
   
 
@@ -353,7 +329,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
       console.error("Falha ao reordenar:", error);
     } finally {
       setIsReordering(false);
-      setDraggedItem(null);
     }
   };
 
@@ -454,28 +429,12 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
           
             <div className="bg-card rounded-lg shadow-md">
               <ul className="divide-y divide-border">
-                {filteredCasas.map((casa) => (
+                {filteredCasas.map((casa, index) => (
                   <li 
                     key={casa.id}
-                    draggable={isReordering}
-                    onDragStart={isReordering ? (e) => handleDragStart(e, casa) : undefined}
-                    onDragEnter={isReordering ? (e) => handleDragEnter(e, casa) : undefined}
-                    onTouchStart={isReordering ? (e) => handleDragStart(e, casa) : undefined}
-                    onTouchMove={(e) => {
-                        const touch = e.touches[0];
-                        const element = document.elementFromPoint(touch.clientX, touch.clientY);
-                        const targetLi = element?.closest('li');
-                        if (targetLi && targetLi.dataset.id && targetLi.dataset.id !== casa.id) {
-                           const targetCasa = casas.find(c => c.id === targetLi.dataset.id);
-                           if (targetCasa) {
-                             handleDragEnter(e, targetCasa);
-                           }
-                        }
-                    }}
-                    onTouchEnd={handleDragEnd}
                     onClick={() => handleHouseClick(casa.id)}
                     data-id={casa.id}
-                    className={`flex items-center p-3 transition-colors duration-300 ${draggedItem?.id === casa.id ? 'bg-primary/30 opacity-50' : ''}`}
+                    className="flex items-center p-3 transition-colors duration-300"
                   >
                     
                     <input
@@ -494,8 +453,21 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                             <Pencil size={18}/>
                         </button>
                     ): (
-                      <div className="text-muted-foreground cursor-grab touch-none ml-2">
-                          <ChevronsUpDown size={24} />
+                      <div className="flex flex-col ml-2">
+                        <button 
+                            onClick={() => moveHouse(index, 'up')} 
+                            disabled={index === 0} 
+                            className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                        >
+                            <ArrowUp size={20} />
+                        </button>
+                        <button 
+                            onClick={() => moveHouse(index, 'down')} 
+                            disabled={index === casas.length - 1} 
+                            className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                        >
+                            <ArrowDown size={20} />
+                        </button>
                       </div>
                     )}
                   </li>
