@@ -51,7 +51,6 @@ export default function UserManagement() {
     
     setIsConfirmModalOpen(false);
     try {
-        const idToken = await getIdToken(auth.currentUser, true);
         await deleteUserAccount({ userIdToDelete: userToDelete.uid });
         toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {

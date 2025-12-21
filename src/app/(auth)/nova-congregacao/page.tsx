@@ -77,14 +77,12 @@ export default function NovaCongregacaoPage() {
         // Tratamento de erros de chamada da função (incluindo 409)
         let friendlyMessage = "Erro inesperado. Tente novamente mais tarde.";
         
-        // Verifica se é um erro da função do Firebase com detalhes
-        if (error.code === 'functions/aborted' || error.code === 'functions/unavailable' || (error.details && error.details.httpErrorCode === 409)) {
-            friendlyMessage = error.message;
+        if (error.code === 'functions/internal') {
+          friendlyMessage = "Ocorreu um erro no servidor. Verifique os logs ou tente novamente.";
+        } else if (error.code?.includes('unavailable')) {
+            friendlyMessage = "Serviço temporariamente indisponível. Tente mais tarde.";
         } else if (error.message) {
-            // Para outros tipos de erro, como o "already-exists" customizado
             friendlyMessage = error.message;
-        } else if (error.code === 'auth/email-already-in-use') {
-             friendlyMessage = "Este e-mail já está em uso por outro administrador.";
         }
         
         setErrorMessage(friendlyMessage);

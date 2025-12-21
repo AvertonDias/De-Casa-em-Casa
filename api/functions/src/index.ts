@@ -254,9 +254,16 @@ export const deleteUserAccountV2 = withCors(async (req, res) => {
         logger.error("Erro ao excluir usuário:", error);
         if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked' || error.code === 'auth/argument-error') {
             return res.status(401).json({ data: { success: false, error: "Token de autenticação inválido. Faça login novamente." } });
-        } else {
-            return res.status(500).json({ data: { success: false, error: error.message || "Falha na exclusão." } });
+        } else if (error.code === 'auth/user-not-found') {
+             // Se o usuário já foi deletado no Auth, mas o doc do Firestore ainda existe,
+             // prossiga para deletar o doc do Firestore.
+            const userDocRef = db.collection("users").doc(req.body.data.userIdToDelete);
+            if ((await userDocRef.get()).exists) {
+                await userDocRef.delete();
+                 return res.status(200).json({ data: { success: true, message: "Documento do Firestore do usuário órfão removido." } });
+            }
         }
+        return res.status(500).json({ data: { success: false, error: error.message || "Falha na exclusão." } });
     }
 });
 
