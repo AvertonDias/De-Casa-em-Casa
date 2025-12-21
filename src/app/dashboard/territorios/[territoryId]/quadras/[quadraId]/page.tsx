@@ -355,7 +355,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 
   
   if (userLoading || loading) {
-    return <div className="flex items-center justify-center h-full"><Loader className="animate-spin text-purple-600" size={48} /></div>;
+    return <div className="flex h-full w-full items-center justify-center"><Loader className="animate-spin text-purple-600" size={48} /></div>;
   }
   
   if (!quadra || !territoryId) {
@@ -543,6 +543,7 @@ export default withAuth(QuadraDetailPage);
     
 
     
+
 
 
 
