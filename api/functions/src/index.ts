@@ -25,9 +25,10 @@ function withCors(handler: (req: https.Request, res: any) => void | Promise<void
         cors: [
             "https://de-casa-em-casa.web.app",
             "https://de-casa-em-casa.firebaseapp.com",
-            /https:\/\/de-casa-em-casa--pr-.*\.web\.app/,
-            /https:\/\/.*\.vercel\.app/,
-            /https:\/\/.*\.cloudworkstations\.dev/
+            "https://de-casa-em-casa.vercel.app", // Domínio de produção Vercel
+            /https:\/\/de-casa-em-casa--pr-.*\.web\.app/, // Previews do Firebase
+            /https:\/\/.*\.vercel\.app/, // Outros domínios Vercel (previews)
+            /https:\/\/.*\.cloudworkstations\.dev/ // Ambiente de desenvolvimento
         ]
     }, async (req, res) => {
         res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Firebase-Instance-ID-Token');
