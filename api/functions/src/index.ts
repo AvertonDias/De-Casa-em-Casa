@@ -26,6 +26,7 @@ function withCors(handler: (req: https.Request, res: any) => void | Promise<void
             "https://de-casa-em-casa.web.app",
             "https://de-casa-em-casa.firebaseapp.com",
             /https:\/\/de-casa-em-casa--pr-.*\.web\.app/,
+            /https:\/\/.*\.vercel\.app/,
             /https:\/\/.*\.cloudworkstations\.dev/
         ]
     }, async (req, res) => {
