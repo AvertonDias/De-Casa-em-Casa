@@ -134,6 +134,16 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
       setHighlightedHouseId(null);
     }
   }, [highlightedHouseId]);
+  
+  useEffect(() => {
+    if (recentlyMovedId) {
+      const timer = setTimeout(() => {
+        setRecentlyMovedId(null);
+      }, 500); // Highlight for 500ms
+      return () => clearTimeout(timer);
+    }
+  }, [recentlyMovedId]);
+
 
   const stats = {
       total: quadra?.totalHouses || 0,
@@ -146,6 +156,8 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     if (direction === 'up' && index === 0) return;
     if (direction === 'down' && index === casas.length - 1) return;
 
+    const movedItemId = casas[index].id;
+
     const newCasas = [...casas];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
 
@@ -153,6 +165,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     [newCasas[index], newCasas[targetIndex]] = [newCasas[targetIndex], newCasas[index]];
     
     setCasas(newCasas);
+    setRecentlyMovedId(movedItemId);
   };
   
 
@@ -434,7 +447,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                     key={casa.id}
                     onClick={() => handleHouseClick(casa.id)}
                     data-id={casa.id}
-                    className="flex items-center p-3 transition-colors duration-300"
+                    className={`flex items-center p-3 transition-colors duration-300 ${recentlyMovedId === casa.id ? 'bg-primary/20' : ''}`}
                   >
                     
                     <input
@@ -530,3 +543,4 @@ export default withAuth(QuadraDetailPage);
     
 
     
+
