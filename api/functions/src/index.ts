@@ -1,17 +1,13 @@
-
 // src/functions/src/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
-import {
-  onDocumentDeleted,
-} from "firebase-functions/v2/firestore";
+import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
 import * as crypto from "crypto";
-import { AppUser } from "./types/types";
-import cors from "cors";
+import { AppUser } from "@/types/types";
+import * as cors from "cors";
 
-// Crie uma instância do CORS que permite requisições da sua aplicação
 const corsHandler = cors({ 
     origin: [
         "https://de-casa-em-casa.web.app",
@@ -19,12 +15,10 @@ const corsHandler = cors({
         "https://de-casa-em-casa.vercel.app",
         /https:\/\/de-casa-em-casa--pr-.*\.web\.app/,
         /https:\/\/.*\.vercel\.app/,
-        /https:\/\/.*\.cloudworkstations\.dev/
-    ],
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Firebase-Instance-ID-Token"]
+        /https:\/\/.*\.cloudworkstations\.dev/,
+        "http://localhost:3000"
+    ] 
 });
-
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -33,22 +27,18 @@ const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   CORS WRAPPER (Agora usando o pacote 'cors')
+//   FUNÇÕES HTTPS
 // ========================================================================
-const withCors = (handler: (req: https.Request, res: any) => void | Promise<void>) => {
-    return https.onRequest(async (req, res) => {
+
+function createHttpsFunction(handler: (req: https.Request, res: https.Response) => Promise<any>) {
+    return https.onRequest((req, res) => {
         corsHandler(req, res, async () => {
             await handler(req, res);
         });
     });
-};
+}
 
-
-// ========================================================================
-//   FUNÇÕES HTTPS (onCall transformadas em onRequest com withCors)
-// ========================================================================
-
-export const createCongregationAndAdminV2 = withCors(async (req, res) => {
+export const createCongregationAndAdminV2 = createHttpsFunction(async (req, res) => {
     try {
         const {
           adminName,
@@ -57,7 +47,7 @@ export const createCongregationAndAdminV2 = withCors(async (req, res) => {
           congregationName,
           congregationNumber,
           whatsapp,
-        } = req.body.data;
+        } = req.body.data; // <-- CORREÇÃO AQUI
 
         if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
           res.status(400).json({ data: { success: false, error: "Todos os campos são obrigatórios." } });
@@ -113,24 +103,23 @@ export const createCongregationAndAdminV2 = withCors(async (req, res) => {
         logger.error("Erro em createCongregationAndAdmin:", error);
         if (error.code === "auth/email-already-exists") {
             res.status(409).json({ data: { success: false, error: "Este e-mail já está em uso." } });
+        } else if (error.name === 'TypeError') {
+            res.status(400).json({ data: { success: false, error: "Estrutura de dados inválida. Verifique os campos enviados." } });
         } else {
             res.status(500).json({ data: { success: false, error: error.message || "Erro interno no servidor" } });
         }
     }
 });
 
-export const notifyOnNewUserV2 = withCors(async (req, res) => {
+
+export const notifyOnNewUserV2 = createHttpsFunction(async (req, res) => {
     try {
         const { newUserName, congregationId } = req.body.data;
         if (!newUserName || !congregationId) {
             res.status(400).json({ data: { success: false, error: "Dados insuficientes para notificação." } });
             return;
         }
-        
-        // A lógica para criar notificações no Firestore foi removida.
-        
         res.status(200).json({ data: { success: true, message: "Processo de notificação concluído (sem criar notificação no DB)." } });
-
     } catch (error: any) {
         logger.error("Erro no processo de notificação de novo usuário:", error);
         res.status(500).json({ data: { success: false, error: "Falha no processo de notificação." } });
@@ -138,7 +127,7 @@ export const notifyOnNewUserV2 = withCors(async (req, res) => {
 });
 
 
-export const requestPasswordResetV2 = withCors(async (req, res) => {
+export const requestPasswordResetV2 = createHttpsFunction(async (req, res) => {
     try {
         const { email } = req.body.data;
         if (!email) {
@@ -176,7 +165,7 @@ export const requestPasswordResetV2 = withCors(async (req, res) => {
 });
 
 
-export const resetPasswordWithTokenV2 = withCors(async (req, res) => {
+export const resetPasswordWithTokenV2 = createHttpsFunction(async (req, res) => {
     try {
         const { token, newPassword } = req.body.data;
         if (!token || !newPassword) {
@@ -208,7 +197,7 @@ export const resetPasswordWithTokenV2 = withCors(async (req, res) => {
 });
 
 
-export const deleteUserAccountV2 = withCors(async (req, res) => {
+export const deleteUserAccountV2 = createHttpsFunction(async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader) {
@@ -218,39 +207,31 @@ export const deleteUserAccountV2 = withCors(async (req, res) => {
         const idToken = authHeader.split('Bearer ')[1];
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const callingUserUid = decodedToken.uid;
-        
         const { userIdToDelete } = req.body.data;
+
         if (!userIdToDelete) {
             res.status(400).json({ data: { success: false, error: "ID do usuário a ser deletado é obrigatório." } });
             return;
         }
 
         const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-        const callingUserData = callingUserSnap.data();
-        
-        if (!callingUserData) {
-            res.status(403).json({ data: { success: false, error: "Usuário requisitante não encontrado." } });
-            return;
+        if (!callingUserSnap.exists) {
+             res.status(404).json({ data: { success: false, error: "Usuário requisitante não encontrado." } });
+             return;
         }
+        const isCallingUserAdmin = callingUserSnap.data()?.role === "Administrador";
 
-        const isCallingUserAdmin = callingUserData.role === "Administrador";
-
-        // Autoexclusão (o usuário se deleta)
         const isSelfDelete = callingUserUid === userIdToDelete;
-
-        // Admin deletando outro usuário
         const isAdminDeletingOther = isCallingUserAdmin && !isSelfDelete;
 
-        // Permissão para autoexclusão de um admin é bloqueada
+        if (!isSelfDelete && !isAdminDeletingOther) {
+             res.status(403).json({ data: { success: false, error: "Sem permissão." } });
+             return;
+        }
+
         if (isCallingUserAdmin && isSelfDelete) {
             res.status(403).json({ data: { success: false, error: "Admin não pode se autoexcluir por esta função." } });
             return;
-        }
-        
-        // Verifica se é uma autoexclusão ou se um admin está deletando outro usuário
-        if (!isSelfDelete && !isAdminDeletingOther) {
-             res.status(403).json({ data: { success: false, error: "Sem permissão para esta ação." } });
-             return;
         }
 
         await admin.auth().deleteUser(userIdToDelete);
@@ -262,22 +243,13 @@ export const deleteUserAccountV2 = withCors(async (req, res) => {
 
     } catch (error: any) {
         logger.error("Erro ao excluir usuário:", error);
-        if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked' || error.code === 'auth/argument-error') {
+        if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked') {
             res.status(401).json({ data: { success: false, error: "Token de autenticação inválido. Faça login novamente." } });
-        } else if (error.code === 'auth/user-not-found') {
-             // Se o usuário já foi deletado no Auth, mas o doc do Firestore ainda existe,
-             // prossiga para deletar o doc do Firestore.
-            const userDocRef = db.collection("users").doc(req.body.data.userIdToDelete);
-            if ((await userDocRef.get()).exists) {
-                await userDocRef.delete();
-                 res.status(200).json({ data: { success: true, message: "Documento do Firestore do usuário órfão removido." } });
-                 return; // Importante retornar aqui
-            }
+        } else {
+            res.status(500).json({ data: { success: false, error: error.message || "Falha na exclusão." } });
         }
-        res.status(500).json({ data: { success: false, error: error.message || "Falha na exclusão." } });
     }
 });
-
 
 
 // ========================================================================
@@ -388,7 +360,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
-
-    
-
-    
