@@ -342,6 +342,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
       console.error("Falha ao reordenar:", error);
     } finally {
       setIsReordering(false);
+      setLoading(false);
     }
   };
 
@@ -537,13 +538,4 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 
 export default withAuth(QuadraDetailPage);
 
-
-
-
     
-
-    
-
-
-
-
