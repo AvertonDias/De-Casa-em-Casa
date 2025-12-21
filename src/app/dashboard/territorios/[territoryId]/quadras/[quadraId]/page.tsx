@@ -477,11 +477,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                     data-id={casa.id}
                     className={`flex items-center p-3 transition-colors duration-300 ${draggedItem?.id === casa.id ? 'bg-primary/30 opacity-50' : ''}`}
                   >
-                    {isReordering && (
-                        <div className="text-muted-foreground cursor-grab touch-none mr-2">
-                            <ChevronsUpDown size={24} />
-                        </div>
-                    )}
+                    
                     <input
                       type="checkbox"
                       checked={casa.status}
@@ -493,10 +489,14 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                       {casa.observations && <p className="text-sm text-muted-foreground">{casa.observations}</p>}
                     </div>
                     
-                    {!isReordering && (
+                    {!isReordering ? (
                         <button onClick={(e) => { e.stopPropagation(); handleEditClick(casa); }} className="p-2 rounded-full text-muted-foreground hover:text-foreground">
                             <Pencil size={18}/>
                         </button>
+                    ): (
+                      <div className="text-muted-foreground cursor-grab touch-none ml-2">
+                          <ChevronsUpDown size={24} />
+                      </div>
                     )}
                   </li>
                 ))}
@@ -554,5 +554,7 @@ export default withAuth(QuadraDetailPage);
 
 
 
+
+    
 
     
