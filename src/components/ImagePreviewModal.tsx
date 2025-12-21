@@ -15,30 +15,20 @@ export default function ImagePreviewModal({
   onClose,
   imageUrl,
 }: ImagePreviewModalProps) {
-
-  /* ======================
-     DETECÇÃO DE TOUCH
-     ====================== */
+  const containerRef = useRef<HTMLDivElement>(null);
   const isTouch =
     typeof window !== "undefined" &&
     ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
-  /* ======================
-     STATES
-     ====================== */
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
 
   const dragStart = useRef({ x: 0, y: 0 });
   const lastPosition = useRef({ x: 0, y: 0 });
-
   const lastTap = useRef(0);
   const initialDistance = useRef(0);
 
-  /* ======================
-     RESET AO ABRIR
-     ====================== */
   useEffect(() => {
     if (isOpen) {
       setScale(1);
@@ -47,11 +37,23 @@ export default function ImagePreviewModal({
     }
   }, [isOpen]);
 
+  const handleWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    setScale(prev => Math.max(1, Math.min(prev - e.deltaY * 0.001, 4)));
+  };
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (isOpen && node) {
+      node.addEventListener("wheel", handleWheel, { passive: false });
+      return () => {
+        node.removeEventListener("wheel", handleWheel);
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen || !imageUrl) return null;
 
-  /* ======================
-     DRAG (CORRIGIDO)
-     ====================== */
   const startDrag = (x: number, y: number) => {
     if (scale <= 1) return;
     setIsDragging(true);
@@ -82,9 +84,6 @@ export default function ImagePreviewModal({
     lastPosition.current = position;
   };
 
-  /* ======================
-     TOUCH: DUPLO TOQUE + PINÇA
-     ====================== */
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       startDrag(e.touches[0].clientX, e.touches[0].clientY);
@@ -124,19 +123,6 @@ export default function ImagePreviewModal({
     }
   };
 
-  /* ======================
-     SCROLL NO PC
-     ====================== */
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    setScale(prev =>
-      Math.max(1, Math.min(prev - e.deltaY * 0.001, 4))
-    );
-  };
-
-  /* ======================
-     RENDER
-     ====================== */
   return (
     <div className="fixed inset-0 z-50 bg-black">
       <button
@@ -147,6 +133,7 @@ export default function ImagePreviewModal({
       </button>
 
       <div
+        ref={containerRef}
         className="absolute flex items-center justify-center overflow-hidden touch-none"
         style={{
           top: "50%",
@@ -164,7 +151,6 @@ export default function ImagePreviewModal({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={endDrag}
-        onWheel={handleWheel}
       >
         <img
           src={imageUrl}
