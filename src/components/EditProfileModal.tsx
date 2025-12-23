@@ -177,7 +177,6 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                 .replace('{{ action_button_text }}', 'Criar Nova Senha')
                 .replace('{{ to_email }}', user.email);
 
-            // Ajusta os parâmetros para o template genérico
             const templateParams = {
                 to_email: user.email,
                 subject: emailSubject,
