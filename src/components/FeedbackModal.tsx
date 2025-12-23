@@ -7,11 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
-import { sendEmail } from '@/lib/emailService';
+import { sendFeedbackEmail } from '@/lib/emailService';
 import { useModal } from '@/contexts/ModalContext';
 
 const FEEDBACK_DESTINATION_EMAIL = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL || "verton3@yahoo.com.br";
-const FEEDBACK_TEMPLATE_ID = 'template_8jxgats'; // Template específico para feedback
 
 export function FeedbackModal() {
   const { user, congregation } = useUser();
@@ -73,7 +72,7 @@ export function FeedbackModal() {
     };
 
     try {
-        await sendEmail(FEEDBACK_TEMPLATE_ID, paramsToSend);
+        await sendFeedbackEmail(paramsToSend);
         toast({
             title: "Feedback Enviado!",
             description: "Agradecemos a sua mensagem.",

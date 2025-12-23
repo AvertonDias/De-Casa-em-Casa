@@ -11,13 +11,12 @@ import { Input } from '@/components/ui/input';
 import { Eye, EyeOff, Trash2, KeyRound, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
-import { sendEmail } from '@/lib/emailService';
+import { sendPasswordResetEmail } from '@/lib/emailService';
 import { httpsCallable } from 'firebase/functions';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { getIdToken } from 'firebase/auth';
 
 const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
-const RESET_PASSWORD_TEMPLATE_ID = 'template_uw6rp1c';
 
 // Função para buscar o conteúdo do template
 async function getEmailTemplate() {
@@ -183,7 +182,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                 html_content: finalHtml, 
             };
             
-            await sendEmail(RESET_PASSWORD_TEMPLATE_ID, templateParams);
+            await sendPasswordResetEmail(templateParams);
         }
       
         setPasswordResetSuccess(

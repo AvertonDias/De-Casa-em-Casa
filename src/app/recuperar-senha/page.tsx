@@ -8,12 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { sendEmail } from '@/lib/emailService';
+import { sendPasswordResetEmail } from '@/lib/emailService';
 import { functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 
 const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
-const RESET_PASSWORD_TEMPLATE_ID = 'template_uw6rp1c';
 
 // Função para buscar o conteúdo do template
 async function getEmailTemplate() {
@@ -78,7 +77,7 @@ export default function ForgotPasswordPage() {
                 html_content: finalHtml, 
             };
             
-            await sendEmail(RESET_PASSWORD_TEMPLATE_ID, templateParams);
+            await sendPasswordResetEmail(templateParams);
         }
       
         setIsSubmitted(true);
