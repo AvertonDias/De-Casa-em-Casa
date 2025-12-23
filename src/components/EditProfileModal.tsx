@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -165,11 +166,11 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         if (result.token) {
             const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
             const emailTemplate = await getEmailTemplate();
-            const emailSubject = "Redefinição de Senha - De Casa em Casa";
+            
             const messageBody = `Você solicitou a redefinição de sua senha. Use o botão abaixo para criar uma nova.`;
             
             const finalHtml = emailTemplate
-                .replace('{{ subject }}', emailSubject)
+                .replace('{{ subject }}', 'Redefinição de Senha')
                 .replace('{{ to_name }}', user.name)
                 .replace('{{ message }}', messageBody)
                 .replace(/{{action_link}}/g, resetLink)
@@ -178,8 +179,8 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
             const templateParams = {
                 to_email: user.email,
-                subject: emailSubject,
-                html_content: finalHtml,
+                subject: 'Redefinição de Senha - De Casa em Casa',
+                html_content: finalHtml, 
             };
             
             await sendEmail(PASSWORD_RESET_TEMPLATE_ID, templateParams);
@@ -267,6 +268,11 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
           <DialogDescription>
             Altere seu nome e WhatsApp. Para alterar sua senha, use o botão de redefinição por e-mail.
           </DialogDescription>
+          {user?.email && (
+            <p className="text-sm text-muted-foreground pt-2">
+              E-mail: <span className="font-semibold text-foreground">{user.email}</span>
+            </p>
+          )}
         </DialogHeader>
         
         <div className="px-6 space-y-4 max-h-[60vh] overflow-y-auto">
