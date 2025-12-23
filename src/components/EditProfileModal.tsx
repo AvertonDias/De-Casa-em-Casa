@@ -17,6 +17,7 @@ import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { getIdToken } from 'firebase/auth';
 
 const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
+const RESET_PASSWORD_TEMPLATE_ID = 'template_uw6rp1c';
 
 // Função para buscar o conteúdo do template
 async function getEmailTemplate() {
@@ -165,28 +166,24 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         if (result.token) {
             const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
             const emailTemplate = await getEmailTemplate();
-            const emailSubject = "Redefinição de Senha - De Casa em Casa";
+            
             const messageBody = `Você solicitou a redefinição de sua senha. Use o botão abaixo para criar uma nova.`;
             
             const finalHtml = emailTemplate
-                .replace('{{ subject }}', emailSubject)
+                .replace('{{ subject }}', 'Redefinição de Senha')
                 .replace('{{ to_name }}', user.name)
                 .replace('{{ message }}', messageBody)
                 .replace(/{{action_link}}/g, resetLink)
                 .replace('{{ action_button_text }}', 'Criar Nova Senha')
                 .replace('{{ to_email }}', user.email);
 
-            // Parâmetros para o template 'template_8jxgats' (Feedback)
             const templateParams = {
-                email: user.email, // O campo 'email' do template de feedback
-                subject: emailSubject,
-                user_name: 'Sistema',
-                user_email: 'nao-responda@decasaemcasa.com',
-                congregation_info: 'N/A',
-                feedback_message: finalHtml, // Injetamos nosso HTML aqui
+                to_email: user.email,
+                subject: 'Redefinição de Senha - De Casa em Casa',
+                html_content: finalHtml, 
             };
             
-            await sendEmail(templateParams);
+            await sendEmail(RESET_PASSWORD_TEMPLATE_ID, templateParams);
         }
       
         setPasswordResetSuccess(
