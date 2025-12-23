@@ -77,7 +77,7 @@ export default function NovaCongregacaoPage() {
         // Tratamento de erros de chamada da função (incluindo 409)
         let friendlyMessage = "Erro inesperado. Tente novamente mais tarde.";
         
-        if (error.code === 'functions/internal') {
+        if (error.code === 'functions/internal' || error.message.includes('internal')) {
           friendlyMessage = "Ocorreu um erro no servidor. Verifique os logs ou tente novamente.";
         } else if (error.code?.includes('unavailable')) {
             friendlyMessage = "Serviço temporariamente indisponível. Tente mais tarde.";
