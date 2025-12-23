@@ -42,15 +42,15 @@ export default function ForgotPasswordPage() {
         
         if (result.token) {
             const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
+            // Ajuste dos parâmetros para o template_8jxgats
             const templateParams = {
-                to_email: email,
-                to_name: 'Usuário',
+                email: email, // O template espera 'email'
                 subject: 'Redefinição de Senha - De Casa em Casa',
-                message: 'Você solicitou a redefinição de sua senha. Clique no botão abaixo para criar uma nova. Se você não solicitou isso, ignore este e-mail.',
-                action_button_text: 'Redefinir Minha Senha',
-                action_link: resetLink,
+                user_name: 'Usuário',
+                feedback_message: `Você solicitou a redefinição de sua senha. <a href="${resetLink}" target="_blank" style="color: #ffffff; background-color: #8E44AD; padding: 10px 15px; text-decoration: none; border-radius: 5px; display: inline-block;">Clique aqui para criar uma nova senha.</a><br><br>Se você não solicitou isso, ignore este e-mail.`,
+                congregation_info: 'N/A' // Adicionado para completar o template
             };
-            await sendEmail('template_geral', templateParams);
+            await sendEmail('template_8jxgats', templateParams); // ID do template corrigido
         }
       
         setIsSubmitted(true);
