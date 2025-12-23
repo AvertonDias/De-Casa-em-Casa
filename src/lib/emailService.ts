@@ -14,7 +14,7 @@ emailjs.init({ publicKey: PUBLIC_KEY });
  * @param templateParams - Um objeto contendo as variáveis para o template.
  */
 export const sendEmail = (templateId: string, templateParams: Record<string, unknown>) => {
+  // O EmailJS espera que a chave para o conteúdo HTML seja 'html_content'
+  // se você estiver substituindo o corpo do e-mail inteiro.
   return emailjs.send(SERVICE_ID, templateId, templateParams);
 };
-
-    
