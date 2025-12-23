@@ -72,10 +72,11 @@ export default function ForgotPasswordPage() {
                 .replace('{{ to_email }}', email);
 
 
+            // Ajusta os parâmetros para o template genérico
             const templateParams = {
                 to_email: email,
                 subject: emailSubject,
-                html_content: finalHtml, 
+                html_content: finalHtml,
             };
             
             await sendEmail(templateParams);
