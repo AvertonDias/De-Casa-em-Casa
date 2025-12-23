@@ -5,15 +5,15 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'; 
 import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { auth, db, app } from '@/lib/firebase';
+import { functions } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Eye, EyeOff } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { maskPhone } from '@/lib/utils';
+import { httpsCallable } from 'firebase/functions';
 
-const functions = getFunctions(app, 'southamerica-east1');
 const notifyOnNewUser = httpsCallable(functions, 'notifyOnNewUserV2');
 
 export default function SignUpPage() {
@@ -73,7 +73,15 @@ export default function SignUpPage() {
 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName: name.trim() });
-      await notifyOnNewUser({ newUserName: name.trim(), congregationId });
+      
+      await fetch(
+          'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/notifyOnNewUserV2',
+          {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', },
+              body: JSON.stringify({ newUserName: name.trim(), congregationId }),
+          }
+      );
       
       toast({
         title: 'Solicitação enviada!',

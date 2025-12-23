@@ -29,47 +29,42 @@ const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   FUNÇÕES HTTPS (onCall)
+//   FUNÇÕES HTTPS (onRequest)
 // ========================================================================
 
 // Wrapper para simplificar a aplicação de CORS
-function createHttpsFunction(handler: (req: Request, res: Response) => Promise<void>) {
+function createHttpsFunction(handler: (req: Request, res: Response) => Promise<any>) {
     return https.onRequest(async (req: Request, res: Response) => {
-        return new Promise<void>((resolve) => {
-            corsHandler(req, res, async (err) => {
-                if (err) {
-                    logger.error("CORS Error:", err);
-                    res.status(500).json({ error: "CORS Configuration Error" });
-                    resolve();
-                    return;
+        // Envolve sua função com o corsHandler
+        corsHandler(req, res, async () => {
+            try {
+                await handler(req, res);
+            } catch (e: any) {
+                logger.error("Function Error:", e);
+                // Garante que uma resposta seja enviada mesmo em caso de erro inesperado
+                if (!res.headersSent) {
+                    res.status(500).json({ success: false, error: "Internal Server Error", message: e.message });
                 }
-                try {
-                    await handler(req, res);
-                } catch (e: any) {
-                    logger.error("Function Error:", e);
-                    res.status(500).json({ error: "Internal Server Error", message: e.message });
-                }
-                resolve();
-            });
+            }
         });
     });
 }
 
 export const createCongregationAndAdminV2 = createHttpsFunction(async (req, res) => {
+    const {
+      adminName,
+      adminEmail,
+      adminPassword,
+      congregationName,
+      congregationNumber,
+      whatsapp,
+    } = req.body; // <-- DADOS VÊM DIRETAMENTE DO BODY AGORA
+
+    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
+      return res.status(400).json({ success: false, error: "Todos os campos são obrigatórios." });
+    }
+
     try {
-        const {
-          adminName,
-          adminEmail,
-          adminPassword,
-          congregationName,
-          congregationNumber,
-          whatsapp,
-        } = req.body; // Use req.body, o httpsCallable já faz o unwrap
-
-        if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
-          return res.status(400).json({ success: false, error: "Todos os campos são obrigatórios." });
-        }
-
         const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).get();
         if (!congQuery.empty) {
             return res.status(409).json({ success: false, error: "Uma congregação com este número já existe." });
@@ -123,11 +118,11 @@ export const createCongregationAndAdminV2 = createHttpsFunction(async (req, res)
 });
 
 export const notifyOnNewUserV2 = createHttpsFunction(async (req, res) => {
+    const { newUserName, congregationId } = req.body;
+    if (!newUserName || !congregationId) {
+        return res.status(400).json({ success: false, error: "Dados insuficientes para notificação." });
+    }
     try {
-        const { newUserName, congregationId } = req.body;
-        if (!newUserName || !congregationId) {
-            return res.status(400).json({ success: false, error: "Dados insuficientes para notificação." });
-        }
         return res.status(200).json({ success: true, message: "Processo de notificação concluído (sem criar notificação no DB)." });
     } catch (error: any) {
         logger.error("Erro no processo de notificação de novo usuário:", error);
@@ -136,46 +131,43 @@ export const notifyOnNewUserV2 = createHttpsFunction(async (req, res) => {
 });
 
 export const requestPasswordResetV2 = createHttpsFunction(async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+        return res.status(400).json({ success: false, error: "O e-mail é obrigatório." });
+    }
+
     try {
-        const { email } = req.body;
-        if (!email) {
-            return res.status(400).json({ success: false, error: "O e-mail é obrigatório." });
-        }
+        const user = await admin.auth().getUserByEmail(email);
+        const token = crypto.randomUUID();
+        const expires = Date.now() + 3600 * 1000; // 1 hora
 
-        try {
-            const user = await admin.auth().getUserByEmail(email);
-            const token = crypto.randomUUID();
-            const expires = Date.now() + 3600 * 1000; // 1 hora
-
-            await db.collection("resetTokens").doc(token).set({
-                uid: user.uid,
-                expires: admin.firestore.Timestamp.fromMillis(expires),
-            });
-            return res.status(200).json({ success: true, token });
-        } catch (error: any) {
-            if (error.code === "auth/user-not-found") {
-                return res.status(200).json({
-                    success: true,
-                    token: null,
-                    message: "Se o e-mail existir, um link será enviado.",
-                });
-            } else {
-                throw error;
-            }
-        }
+        await db.collection("resetTokens").doc(token).set({
+            uid: user.uid,
+            expires: admin.firestore.Timestamp.fromMillis(expires),
+        });
+        return res.status(200).json({ success: true, token });
     } catch (error: any) {
-        logger.error("Erro ao gerar token de redefinição:", error);
-        return res.status(500).json({ success: false, error: "Erro ao iniciar o processo de redefinição." });
+        if (error.code === "auth/user-not-found") {
+            // Não vaze a informação se o usuário existe ou não
+            return res.status(200).json({
+                success: true,
+                token: null,
+                message: "Se o e-mail existir, um link será enviado.",
+            });
+        } else {
+            logger.error("Erro ao gerar token de redefinição:", error);
+            return res.status(500).json({ success: false, error: "Erro ao iniciar o processo de redefinição." });
+        }
     }
 });
 
 export const resetPasswordWithTokenV2 = createHttpsFunction(async (req, res) => {
-    try {
-        const { token, newPassword } = req.body;
-        if (!token || !newPassword) {
-            return res.status(400).json({ success: false, error: "Token e nova senha são obrigatórios." });
-        }
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+        return res.status(400).json({ success: false, error: "Token e nova senha são obrigatórios." });
+    }
 
+    try {
         const tokenRef = db.collection("resetTokens").doc(token);
         const tokenDoc = await tokenRef.get();
 
@@ -198,12 +190,13 @@ export const resetPasswordWithTokenV2 = createHttpsFunction(async (req, res) => 
 });
 
 export const deleteUserAccountV2 = createHttpsFunction(async (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+         return res.status(401).json({ success: false, error: "Ação não autorizada. Sem token." });
+    }
+    const idToken = authHeader.split('Bearer ')[1];
+    
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) {
-             return res.status(401).json({ success: false, error: "Ação não autorizada. Sem token." });
-        }
-        const idToken = authHeader.split('Bearer ')[1];
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const callingUserUid = decodedToken.uid;
         const { userIdToDelete } = req.body;

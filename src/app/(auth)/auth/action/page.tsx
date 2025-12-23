@@ -11,10 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader, KeyRound, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
+import { functions } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
 
-const functions = getFunctions(app, 'southamerica-east1');
 const resetPasswordWithToken = httpsCallable(functions, 'resetPasswordWithTokenV2');
 
 function PasswordResetAction() {
@@ -60,11 +59,19 @@ function PasswordResetAction() {
     setStage('verifying');
 
     try {
-      const result: any = await resetPasswordWithToken({ token, newPassword });
+      const response = await fetch(
+          'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/resetPasswordWithTokenV2',
+          {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token, newPassword }),
+          }
+      );
+
+      const result = await response.json();
       
-      const { success, message: functionMessage, error: functionError } = result.data;
-      if (!success) {
-        throw new Error(functionError || functionMessage || `Ocorreu um erro desconhecido.`);
+      if (!response.ok) {
+          throw new Error(result.error || `Ocorreu um erro: ${response.statusText}`);
       }
 
       setStage('success');
@@ -73,13 +80,10 @@ function PasswordResetAction() {
       console.error("Erro ao redefinir senha com token:", err);
       
       let errorMessage = 'Ocorreu um erro inesperado. Tente novamente.';
-      // A HttpsError do Firebase vem com um código no `err.code`
-      if (err.code) {
-        if (err.code.includes('not-found')) {
-          errorMessage = 'O link de redefinição é inválido ou já foi utilizado.';
-        } else if (err.code.includes('deadline-exceeded')) {
-          errorMessage = 'O link de redefinição expirou. Por favor, solicite um novo.';
-        }
+      if (err.message.includes('inválido ou já foi utilizado')) {
+        errorMessage = 'O link de redefinição é inválido ou já foi utilizado.';
+      } else if (err.message.includes('expirou')) {
+        errorMessage = 'O link de redefinição expirou. Por favor, solicite um novo.';
       }
 
       toast({

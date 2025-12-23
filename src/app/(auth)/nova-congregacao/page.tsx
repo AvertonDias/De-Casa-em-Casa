@@ -9,13 +9,11 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Loader, Eye, EyeOff } from "lucide-react"; 
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, app } from '@/lib/firebase';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { auth, functions } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
 import { maskPhone } from '@/lib/utils'; 
 
-const functions = getFunctions(app, 'southamerica-east1');
-const createCongregationAndAdmin = httpsCallable(functions, 'createCongregationAndAdminV2');
-
+const createCongregationAndAdminV2 = httpsCallable(functions, 'createCongregationAndAdminV2');
 
 export default function NovaCongregacaoPage() {
   const [adminName, setAdminName] = useState('');
@@ -51,41 +49,40 @@ export default function NovaCongregacaoPage() {
     
     setIsLoading(true);
 
-    try {
-        const dataToSend = {
-            adminName: adminName.trim(),
-            adminEmail: adminEmail.trim(),
-            adminPassword: adminPassword,
-            whatsapp: whatsapp,
-            congregationName: congregationName.trim(),
-            congregationNumber: congregationNumber.trim()
-        };
-        
-        const result: any = await createCongregationAndAdmin(dataToSend);
-        
-        if (result.data?.success) {
-            toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
-            await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-        } else {
-            // Este `else` captura falhas de negócio retornadas pela função onde success é false
-             throw new Error(result.data?.error || "Ocorreu um erro desconhecido no servidor.");
-        }
+    const dataToSend = {
+        adminName: adminName.trim(),
+        adminEmail: adminEmail.trim(),
+        adminPassword: adminPassword,
+        whatsapp: whatsapp,
+        congregationName: congregationName.trim(),
+        congregationNumber: congregationNumber.trim()
+    };
 
+    try {
+        const response = await fetch(
+            'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdminV2',
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(dataToSend),
+            }
+        );
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || `Ocorreu um erro: ${response.statusText}`);
+        }
+        
+        toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
+        await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+        // O UserProvider se encarregará do redirecionamento
+        
     } catch (error: any) {
         console.error("Erro na criação ou login:", error);
-
-        // Tratamento de erros de chamada da função (incluindo 409)
-        let friendlyMessage = "Erro inesperado. Tente novamente mais tarde.";
-        
-        if (error.code === 'functions/internal' || error.message.includes('internal')) {
-          friendlyMessage = "Ocorreu um erro no servidor. Verifique os logs ou tente novamente.";
-        } else if (error.code?.includes('unavailable')) {
-            friendlyMessage = "Serviço temporariamente indisponível. Tente mais tarde.";
-        } else if (error.message) {
-            friendlyMessage = error.message;
-        }
-        
-        setErrorMessage(friendlyMessage);
+        setErrorMessage(error.message || "Erro inesperado. Tente novamente mais tarde.");
     } finally {
         setIsLoading(false);
     }

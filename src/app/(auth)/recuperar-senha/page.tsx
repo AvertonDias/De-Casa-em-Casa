@@ -9,10 +9,9 @@ import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { sendEmail } from '@/lib/emailService';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/lib/firebase';
+import { functions } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
 
-const functions = getFunctions(app, 'southamerica-east1');
 const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
 
 export default function ForgotPasswordPage() {
@@ -26,28 +25,35 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      const result: any = await requestPasswordReset({ email });
-      const { success, token, message } = result.data;
+        const response = await fetch(
+            'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordResetV2',
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            }
+        );
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || `Ocorreu um erro: ${response.statusText}`);
+        }
+        
+        if (result.token) {
+            const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
+            const templateParams = {
+                to_email: email,
+                to_name: 'Usuário',
+                subject: 'Redefinição de Senha - De Casa em Casa',
+                message: 'Você solicitou a redefinição de sua senha. Clique no botão abaixo para criar uma nova. Se você não solicitou isso, ignore este e-mail.',
+                action_button_text: 'Redefinir Minha Senha',
+                action_link: resetLink,
+            };
+            await sendEmail('template_geral', templateParams);
+        }
       
-      if (!success && message) {
-        throw new Error(message);
-      }
-      
-      if (token) {
-          const resetLink = `${window.location.origin}/auth/action?token=${token}`;
-          const templateParams = {
-              to_email: email,
-              to_name: 'Usuário',
-              subject: 'Redefinição de Senha - De Casa em Casa',
-              message: 'Você solicitou a redefinição de sua senha. Clique no botão abaixo para criar uma nova. Se você não solicitou isso, ignore este e-mail.',
-              action_button_text: 'Redefinir Minha Senha',
-              action_link: resetLink,
-          };
-            
-          await sendEmail('template_geral', templateParams);
-      }
-      
-      setIsSubmitted(true);
+        setIsSubmitted(true);
 
     } catch (err: any) {
       console.error("Erro no processo de reset:", err);
