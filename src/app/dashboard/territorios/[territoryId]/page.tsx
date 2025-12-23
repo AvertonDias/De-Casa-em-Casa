@@ -395,7 +395,7 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
 
   if (loading || userLoading || !territory || !user || !territoryId) return <div className="p-8 text-center">Carregando...</div>;
   
-  const isManagerView = user.role === 'Administrador' || user.role === 'Dirigente';
+  const isManagerView = user.role === 'Administrador' || user.role === 'Dirigente' || user.role === 'Servo de Territórios' || user.role === 'Ajudante de Servo de Territórios';
   const isAdmin = user.role === 'Administrador';
   const isUrban = territory.type !== 'rural';
 
