@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -12,7 +13,6 @@ import { functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 
 const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
-const PASSWORD_RESET_TEMPLATE_ID = 'template_geral';
 
 // Função para buscar o conteúdo do template
 async function getEmailTemplate() {
@@ -70,13 +70,17 @@ export default function ForgotPasswordPage() {
                 .replace('{{ action_button_text }}', 'Criar Nova Senha')
                 .replace('{{ to_email }}', email);
 
+            // Parâmetros para o template 'template_8jxgats' (Feedback)
             const templateParams = {
-                to_email: email,
+                email: email, // O campo 'email' do template de feedback
                 subject: emailSubject,
-                html_content: finalHtml,
+                user_name: 'Sistema',
+                user_email: 'nao-responda@decasaemcasa.com',
+                congregation_info: 'N/A',
+                feedback_message: finalHtml, // Injetamos nosso HTML aqui
             };
             
-            await sendEmail(PASSWORD_RESET_TEMPLATE_ID, templateParams);
+            await sendEmail(templateParams);
         }
       
         setIsSubmitted(true);
