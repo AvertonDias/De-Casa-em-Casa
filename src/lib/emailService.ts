@@ -2,29 +2,26 @@
 import emailjs from '@emailjs/browser';
 
 const SERVICE_ID = 'service_w3xe95d';
-const TEMPLATE_ID = 'template_8jxgats'; // Usando o template que sabemos que existe
+const TEMPLATE_ID = 'template_geral'; // CORREÇÃO: Usando o template genérico
 const PUBLIC_KEY = 'JdR2XKNICKcHc1jny';
 
 emailjs.init({ publicKey: PUBLIC_KEY });
 
 /**
- * Envia um e-mail usando EmailJS.
- * Este template usa o 'template_8jxgats' e passa o HTML completo
- * para o campo 'feedback_message' para ter controle total sobre o conteúdo.
+ * Envia um e-mail usando EmailJS com um template genérico.
+ * Este template espera que o conteúdo HTML completo seja passado
+ * para controlar totalmente a aparência do e-mail.
  */
 export const sendEmail = async (templateParams: {
   to_email: string;
   subject: string;
-  // O conteúdo HTML completo do e-mail
   html_content: string; 
 }) => {
+  // Os parâmetros são mapeados para as variáveis esperadas pelo template 'template_geral'
   const paramsForTemplate = {
-    email: templateParams.to_email, // O template espera 'email'
+    to_email: templateParams.to_email,
     subject: templateParams.subject,
-    feedback_message: templateParams.html_content, // Nosso HTML vai aqui
-    user_name: 'Sistema', // Preenchedor para evitar erros no template
-    user_email: 'nao-responda@decasaemcasa.com', // Preenchedor
-    congregation_info: 'N/A' // Preenchedor
+    html_content: templateParams.html_content,
   };
 
   return emailjs.send(SERVICE_ID, TEMPLATE_ID, paramsForTemplate);
