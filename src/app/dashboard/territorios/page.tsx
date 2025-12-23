@@ -210,7 +210,7 @@ function TerritoriosPage() {
     );
   }
   
-  const isManagerView = user?.role === 'Administrador' || user?.role === 'Dirigente';
+  const isManagerView = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
   const isAdmin = user?.role === 'Administrador';
 
   const FilterButton = ({ label, value }: { label: string; value: typeof statusFilter }) => (
