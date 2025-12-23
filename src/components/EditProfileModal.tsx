@@ -167,9 +167,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
             const emailTemplate = await getEmailTemplate();
             
             const messageBody = `Você solicitou a redefinição de sua senha. Use o botão abaixo para criar uma nova.`;
+            const emailSubject = "Redefinição de Senha - De Casa em Casa";
 
             const finalHtml = emailTemplate
-                .replace('{{ subject }}', 'Redefinição de Senha')
+                .replace('{{ subject }}', emailSubject)
                 .replace('{{ to_name }}', user.name)
                 .replace('{{ message }}', messageBody)
                 .replace(/{{action_link}}/g, resetLink)
@@ -178,12 +179,9 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
             // Ajusta os parâmetros para o template de feedback
             const templateParams = {
-                email: user.email, // O destino
-                subject: 'Redefinição de Senha - De Casa em Casa',
-                user_name: 'Sistema',
-                user_email: 'nao-responda@decasaemcasa.com',
-                congregation_info: 'N/A',
-                feedback_message: finalHtml,
+                to_email: user.email,
+                subject: emailSubject,
+                html_content: finalHtml,
             };
             
             await sendEmail(templateParams);
