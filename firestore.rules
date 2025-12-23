@@ -38,6 +38,11 @@ service cloud.firestore {
       return userData != null && userData.role in ['Administrador', 'Dirigente'];
     }
 
+    function canManageUsers() {
+      let userData = getUserData(request.auth.uid);
+      return userData != null && userData.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'];
+    }
+
     // --- Coleções ---
 
     match /congregations/{congId} {
@@ -78,16 +83,16 @@ service cloud.firestore {
                       !('status' in request.resource.data) &&
                       !('congregationId' in request.resource.data);
 
-      // Dirigentes ou Admins podem ATUALIZAR outros usuários (status, papel).
-      allow update: if isDirigenteOrAdmin() && isUserInCongregation(resource.data.congregationId);
+      // Dirigentes, Servos e Admins podem ATUALIZAR outros usuários (status, papel).
+      allow update: if canManageUsers() && isUserInCongregation(resource.data.congregationId);
 
       // Admins podem DELETAR outros usuários, mas apenas da sua própria congregação e não a si mesmos.
       allow delete: if isRole('Administrador') && 
                       request.auth.uid != userId && 
                       isUserInCongregation(getUserData(userId).congregationId);
       
-      // Permite a listagem de usuários se o requisitante for Dirigente ou Admin e estiver na mesma congregação.
-      allow list: if isDirigenteOrAdmin() && request.query.where.get('congregationId')[2] == getUserData(request.auth.uid).congregationId;
+      // Permite a listagem de usuários se o requisitante tiver permissão e estiver na mesma congregação.
+      allow list: if canManageUsers() && request.query.where.get('congregationId')[2] == getUserData(request.auth.uid).congregationId;
 
 
       match /notifications/{notificationId} {
