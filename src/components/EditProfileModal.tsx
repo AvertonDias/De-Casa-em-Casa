@@ -174,10 +174,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                 .replace('{{ message }}', messageBody)
                 .replace(/{{action_link}}/g, resetLink)
                 .replace('{{ action_button_text }}', 'Criar Nova Senha')
-                .replace('{{ to_email }}', user.email);
+                .replace('{{email}}', user.email);
 
             const templateParams = {
-                to_email: user.email,
+                email: user.email,
                 subject: 'Redefinição de Senha - De Casa em Casa',
                 html_content: finalHtml, 
             };

@@ -68,11 +68,11 @@ export default function ForgotPasswordPage() {
                 .replace('{{ message }}', messageBody)
                 .replace(/{{action_link}}/g, resetLink)
                 .replace('{{ action_button_text }}', 'Criar Nova Senha')
-                .replace('{{ to_email }}', email);
+                .replace('{{email}}', email);
 
 
             const templateParams = {
-                to_email: email,
+                email: email,
                 subject: 'Redefinição de Senha - De Casa em Casa',
                 html_content: finalHtml, 
             };
