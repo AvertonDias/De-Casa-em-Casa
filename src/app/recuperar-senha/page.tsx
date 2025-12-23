@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -13,6 +12,7 @@ import { functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 
 const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
+const PASSWORD_RESET_TEMPLATE_ID = 'template_geral';
 
 // Função para buscar o conteúdo do template
 async function getEmailTemplate() {
@@ -59,18 +59,16 @@ export default function ForgotPasswordPage() {
         if (result.token) {
             const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
             const emailTemplate = await getEmailTemplate();
-            
-            const messageBody = `Você solicitou a redefinição de sua senha. Use o botão abaixo para criar uma nova.`;
             const emailSubject = "Redefinição de Senha - De Casa em Casa";
+            const messageBody = `Você solicitou a redefinição de sua senha. Use o botão abaixo para criar uma nova.`;
             
             const finalHtml = emailTemplate
                 .replace('{{ subject }}', emailSubject)
-                .replace('{{ to_name }}', 'Usuário')
+                .replace('{{ to_name }}', 'Usuário') 
                 .replace('{{ message }}', messageBody)
                 .replace(/{{action_link}}/g, resetLink)
                 .replace('{{ action_button_text }}', 'Criar Nova Senha')
                 .replace('{{ to_email }}', email);
-
 
             const templateParams = {
                 to_email: email,
@@ -78,7 +76,7 @@ export default function ForgotPasswordPage() {
                 html_content: finalHtml,
             };
             
-            await sendEmail(templateParams);
+            await sendEmail(PASSWORD_RESET_TEMPLATE_ID, templateParams);
         }
       
         setIsSubmitted(true);

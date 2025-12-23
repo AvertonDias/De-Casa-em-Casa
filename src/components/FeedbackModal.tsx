@@ -10,6 +10,7 @@ import { sendEmail } from '@/lib/emailService';
 import { useModal } from '@/contexts/ModalContext';
 
 const FEEDBACK_DESTINATION_EMAIL = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL || "verton3@yahoo.com.br";
+const FEEDBACK_TEMPLATE_ID = 'template_8jxgats'; // Template específico para feedback
 
 export function FeedbackModal() {
   const { user, congregation } = useUser();
@@ -22,23 +23,18 @@ export function FeedbackModal() {
   const { registerModal, unregisterModal } = useModal();
   const modalId = 'feedbackModal';
   
-  // --- CORREÇÃO 1: Função de fechamento estável ---
   const handleClose = useCallback(() => {
     setIsOpen(false);
-  }, []); // Dependência vazia, pois `setIsOpen` é estável.
+  }, []);
 
-  // --- CORREÇÃO 2: Lógica de useEffect simplificada e robusta ---
   useEffect(() => {
     if (isOpen) {
-      // Registra o modal quando ele abre
       registerModal(modalId, handleClose);
       
-      // Foco no input
       const timer = setTimeout(() => {
         subjectInputRef.current?.focus();
       }, 100);
 
-      // A função de limpeza do useEffect será chamada quando `isOpen` se tornar `false` ou o componente for desmontado
       return () => {
         clearTimeout(timer);
         unregisterModal(modalId);
@@ -46,15 +42,13 @@ export function FeedbackModal() {
     }
   }, [isOpen, registerModal, unregisterModal, handleClose, modalId]);
 
-
-  // --- CORREÇÃO 3: Função onOpenChange estável ---
   const handleOpenChange = useCallback((open: boolean) => {
     if (open) {
       setSubject('');
       setMessage('');
     }
     setIsOpen(open);
-  }, []); // Dependência vazia, pois as funções de estado são estáveis.
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,7 +72,7 @@ export function FeedbackModal() {
     };
 
     try {
-        await sendEmail('template_8jxgats', paramsToSend);
+        await sendEmail(FEEDBACK_TEMPLATE_ID, paramsToSend);
         toast({
             title: "Feedback Enviado!",
             description: "Agradecemos a sua mensagem.",

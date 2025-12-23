@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -17,6 +16,7 @@ import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { getIdToken } from 'firebase/auth';
 
 const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
+const PASSWORD_RESET_TEMPLATE_ID = 'template_geral';
 
 // Função para buscar o conteúdo do template
 async function getEmailTemplate() {
@@ -165,10 +165,9 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         if (result.token) {
             const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
             const emailTemplate = await getEmailTemplate();
-            
-            const messageBody = `Você solicitou a redefinição de sua senha. Use o botão abaixo para criar uma nova.`;
             const emailSubject = "Redefinição de Senha - De Casa em Casa";
-
+            const messageBody = `Você solicitou a redefinição de sua senha. Use o botão abaixo para criar uma nova.`;
+            
             const finalHtml = emailTemplate
                 .replace('{{ subject }}', emailSubject)
                 .replace('{{ to_name }}', user.name)
@@ -183,7 +182,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                 html_content: finalHtml,
             };
             
-            await sendEmail(templateParams);
+            await sendEmail(PASSWORD_RESET_TEMPLATE_ID, templateParams);
         }
       
         setPasswordResetSuccess(
