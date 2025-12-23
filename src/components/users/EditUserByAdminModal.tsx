@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
@@ -93,6 +92,7 @@ export function EditUserByAdminModal({ isOpen, onClose, userToEdit, onSave }: Ed
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="Publicador">Publicador</SelectItem>
+                                    <SelectItem value="Ajudante de Servo de Territórios">Ajudante de Servo de Territórios</SelectItem>
                                     <SelectItem value="Servo de Territórios">Servo de Territórios</SelectItem>
                                     <SelectItem value="Dirigente">Dirigente</SelectItem>
                                     <SelectItem value="Administrador">Administrador</SelectItem>

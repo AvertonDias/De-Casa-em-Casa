@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -24,7 +23,7 @@ function AdminPage() {
   const { user } = useUser();
   
   const isAdmin = user?.role === 'Administrador';
-  const isManager = isAdmin || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios';
+  const isManager = isAdmin || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
 
   const [activeTab, setActiveTab] = useState('assignment');
 

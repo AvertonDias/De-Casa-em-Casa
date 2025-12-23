@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -326,7 +324,7 @@ export default function TerritoryAssignmentPanel() {
       return matchesType && matchesStatus && matchesSearch;
   });
 
-  const canManageAssignments = currentUser?.role === 'Administrador' || currentUser?.role === 'Servo de Territórios';
+  const canManageAssignments = currentUser?.role === 'Administrador' || currentUser?.role === 'Servo de Territórios' || currentUser?.role === 'Ajudante de Servo de Territórios';
 
   if(loading) return <div className="text-center p-8"><Loader className="animate-spin mx-auto text-primary" /></div>
 

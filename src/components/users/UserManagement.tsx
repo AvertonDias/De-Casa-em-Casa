@@ -1,19 +1,23 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, auth, functions } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Loader, Search, SlidersHorizontal, ChevronUp, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
-import { UserListItem } from '@/components/users/UserListItem';
-import { EditUserByAdminModal } from '@/components/users/EditUserByAdminModal';
+import { UserListItem } from './UserListItem';
+import { EditUserByAdminModal } from './EditUserByAdminModal'; // Importar o novo modal
 import { subDays, subMonths, subHours } from 'date-fns';
 import type { AppUser, Congregation } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 import { getIdToken } from 'firebase/auth';
+
+const functions = getFunctions(app, 'southamerica-east1');
+const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
+
 
 export default function UserManagement() {
   const { user: currentUser, loading: userLoading, congregation } = useUser(); 
@@ -24,7 +28,7 @@ export default function UserManagement() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Publicador'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Ajudante de Servo de Territórios' | 'Publicador'>('all');
   const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive_month'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'rejeitado' | 'bloqueado'>('all');
 
@@ -46,24 +50,7 @@ export default function UserManagement() {
     
     setIsConfirmModalOpen(false);
     try {
-        const idToken = await getIdToken(auth.currentUser);
-        const response = await fetch(
-            'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/deleteUserAccountV2',
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`,
-                },
-                body: JSON.stringify({ userIdToDelete: userToDelete.uid }),
-            }
-        );
-
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.error || `Ocorreu um erro: ${response.statusText}`);
-        }
-        
+        await deleteUserAccount({ userIdToDelete: userToDelete.uid });
         toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {
         toast({ title: "Erro", description: error.message || "Falha ao excluir usuário.", variant: "destructive"});
@@ -307,6 +294,7 @@ export default function UserManagement() {
                                 <FilterButton label="Admin" value="Administrador" currentFilter={roleFilter} setFilter={setRoleFilter} />
                                 <FilterButton label="Dirigente" value="Dirigente" currentFilter={roleFilter} setFilter={setRoleFilter} />
                                 <FilterButton label="S. de Terr." value="Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                <FilterButton label="Ajudante" value="Ajudante de Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} />
                                 <FilterButton label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} />
                             </div>
                         </div>

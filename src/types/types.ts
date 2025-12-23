@@ -1,4 +1,3 @@
-
 // src/types/types.ts
 
 import { Timestamp, FieldValue } from "firebase/firestore";
@@ -10,7 +9,7 @@ export interface AppUser {
   email: string;
   photoURL?: string;
   whatsapp?: string; // Campo para o WhatsApp
-  role: 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Publicador';
+  role: 'Administrador' | 'Dirigente' | 'Ajudante de Servo de Territórios' | 'Servo de Territórios' | 'Publicador';
   status: 'ativo' | 'inativo' | 'pendente' | 'rejeitado' | 'bloqueado';
   congregationId?: string;
   congregationName?: string | null;

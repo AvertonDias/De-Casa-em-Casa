@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { AppUser } from '@/types/types';
@@ -48,6 +47,7 @@ export const UserListItem = ({
       case 'Administrador': return 'bg-purple-500 text-white';
       case 'Dirigente': return 'bg-blue-500 text-white';
       case 'Servo de Territórios': return 'bg-cyan-500 text-white';
+      case 'Ajudante de Servo de Territórios': return 'bg-teal-500 text-white';
       default: return 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200';
     }
   };
