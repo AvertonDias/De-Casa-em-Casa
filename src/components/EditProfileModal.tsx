@@ -182,7 +182,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                 html_content: finalHtml,
             };
             
-            await sendEmail('template_geral', templateParams);
+            await sendEmail(templateParams);
         }
       
         setPasswordResetSuccess(

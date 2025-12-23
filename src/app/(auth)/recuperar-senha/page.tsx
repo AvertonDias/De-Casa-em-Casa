@@ -77,7 +77,7 @@ export default function ForgotPasswordPage() {
                 html_content: finalHtml, 
             };
             
-            await sendEmail('template_geral', templateParams);
+            await sendEmail(templateParams);
         }
       
         setIsSubmitted(true);
@@ -105,7 +105,7 @@ export default function ForgotPasswordPage() {
               Se uma conta com o e-mail <span className="font-semibold text-foreground">{email}</span> existir, um link de recuperação será enviado.
             </p>
             <p className="p-3 text-sm font-semibold bg-yellow-500/20 text-yellow-300 border border-yellow-500/50 rounded-lg">
-              IMPORTANTE: Se você não encontrar o e-mail, por favor, verifique sua pasta de SPAM.
+              IMPORTANTE: Se não encontrar o e-mail, por favor, verifique sua pasta de SPAM.
             </p>
             <Button asChild className="w-full">
               <Link href="/">Voltar para o Login</Link>
