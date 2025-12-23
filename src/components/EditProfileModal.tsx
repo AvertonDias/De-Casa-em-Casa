@@ -176,10 +176,14 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                 .replace('{{ action_button_text }}', 'Criar Nova Senha')
                 .replace('{{ to_email }}', user.email);
 
+            // Ajusta os parâmetros para o template de feedback
             const templateParams = {
-                to_email: user.email,
+                email: user.email, // O destino
                 subject: 'Redefinição de Senha - De Casa em Casa',
-                html_content: finalHtml,
+                user_name: 'Sistema',
+                user_email: 'nao-responda@decasaemcasa.com',
+                congregation_info: 'N/A',
+                feedback_message: finalHtml,
             };
             
             await sendEmail(templateParams);
