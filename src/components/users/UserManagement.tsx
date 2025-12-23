@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, auth } from '@/lib/firebase';
+import { db, auth, app } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Loader, Search, SlidersHorizontal, ChevronUp, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
@@ -376,3 +377,5 @@ export default function UserManagement() {
     </>
   );
 }
+
+    
