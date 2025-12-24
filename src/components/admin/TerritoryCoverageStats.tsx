@@ -81,6 +81,8 @@ export default function TerritoryCoverageStats() {
         const completionTimes: number[] = [];
         
         const allCompletedTerritories = new Set<string>();
+        const completionsInLast12Months: Date[] = [];
+
 
         urbanTerritories.forEach(t => {
             const history = t.assignmentHistory || [];
@@ -95,18 +97,30 @@ export default function TerritoryCoverageStats() {
             if (lastEventDate < sixMonthsAgo) notWorkedLast6MonthsTerritories.push(t);
             if (lastEventDate < twelveMonthsAgo) notWorkedLast12MonthsTerritories.push(t);
             
-            const lastCompletion = history
-                .filter(h => h.completedAt)
-                .sort((a,b) => b.completedAt.toMillis() - a.completedAt.toMillis())[0];
+            const completions = history.filter(h => h.completedAt);
+            if (completions.length > 0) {
+                 allCompletedTerritories.add(t.id);
+            }
 
+            completions.forEach(comp => {
+                const completionDate = comp.completedAt.toDate();
+                if (completionDate >= twelveMonthsAgo) {
+                    completionsInLast12Months.push(completionDate);
+                }
+
+                const assignment = history.find(h => h.completedAt && h.completedAt.isEqual(comp.completedAt));
+                if (assignment) {
+                     const timeDiff = differenceInDays(completionDate, assignment.assignedAt.toDate());
+                     if (timeDiff > 0) completionTimes.push(timeDiff);
+                }
+            });
+
+            // Consider only the most recent completion for the 6/12 month stats lists
+            const lastCompletion = completions.sort((a,b) => b.completedAt.toMillis() - a.completedAt.toMillis())[0];
             if(lastCompletion) {
                 const completionDate = lastCompletion.completedAt.toDate();
-                allCompletedTerritories.add(t.id);
                 if (completionDate >= sixMonthsAgo) completedLast6MonthsTerritories.push(t);
                 if (completionDate >= twelveMonthsAgo) completedLast12MonthsTerritories.push(t);
-                
-                const timeDiff = differenceInDays(completionDate, lastCompletion.assignedAt.toDate());
-                if(timeDiff > 0) completionTimes.push(timeDiff);
             }
         });
         
@@ -121,8 +135,10 @@ export default function TerritoryCoverageStats() {
             ? Math.round(completionTimes.reduce((a, b) => a + b, 0) / completionTimes.length)
             : 0;
         
-        const estimatedTimeToCompleteAll = avgCompletionTime > 0
-            ? Math.round((totalTerritories * avgCompletionTime) / 30) // in months
+        // ** NOVA LÓGICA DE CÁLCULO **
+        const monthlyCompletionRate = completionsInLast12Months.length / 12;
+        const estimatedTimeToCompleteAll = monthlyCompletionRate > 0
+            ? Math.round(totalTerritories / monthlyCompletionRate)
             : 0;
 
         return {
