@@ -64,7 +64,7 @@ export default function S13ReportPage() {
     // Aguardar o DOM atualizar antes de imprimir
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    const element = document.getElementById("pdf-area");
+    const element = document.getElementById("pdf-area-s13");
     if (!element) {
       setIsPrinting(false);
       // Restaurar a escala e posição originais
@@ -91,7 +91,7 @@ export default function S13ReportPage() {
       setIsPrinting(false);
       // Restaurar a escala e posição originais após a impressão
       setScale(originalScale);
-setPosition(originalPosition);
+      setPosition(originalPosition);
     }
   };
 
@@ -228,11 +228,6 @@ setPosition(originalPosition);
     <>
       <div className="p-4 bg-card print-hidden">
         <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-          <Button variant="ghost" asChild>
-            <Link href="/dashboard/administracao">
-              <ArrowLeft size={16} className="mr-2" />Voltar
-            </Link>
-          </Button>
           <div className="flex gap-2">
             <Button onClick={() => setTypeFilter("urban")} variant={typeFilter === 'urban' ? 'default' : 'outline'}>
               <Map size={14} className="mr-1" /> Urbanos
@@ -271,19 +266,16 @@ setPosition(originalPosition);
             transition: isDragging ? 'none' : 'transform 0.1s ease-out'
           }}
         >
-          <div className="text-black">
+          <div id="pdf-area-s13" className="text-black bg-white">
             <ReportContent />
           </div>
         </div>
       </div>
       <div className="hidden print-block">
-        <div id="pdf-area" className="text-black bg-white">
+        <div className="text-black bg-white">
           <ReportContent inPdf={true} />
         </div>
       </div>
     </>
   );
 }
-
-
-

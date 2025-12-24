@@ -6,7 +6,7 @@ import { useUser } from "@/contexts/UserContext";
 import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
 import { Territory } from "@/types/types";
-import { Printer, ArrowLeft, Loader } from "lucide-react";
+import { Printer, ArrowLeft, Loader, Map, Trees } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Link from "next/link";
@@ -16,10 +16,10 @@ interface AvailableTerritory extends Territory {
   lastCompletionDate?: Date | null;
 }
 
-const ReportContent = ({ territories, congregationName }: { territories: AvailableTerritory[], congregationName?: string | null }) => (
+const ReportContent = ({ territories, congregationName, type }: { territories: AvailableTerritory[], congregationName?: string | null, type: 'urban' | 'rural' }) => (
     <>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-bold">Territórios disponíveis</h1>
+        <h1 className="text-xl font-bold uppercase">Territórios {type === 'urban' ? 'Urbanos' : 'Rurais'} Disponíveis</h1>
         <p className="text-sm font-semibold">{congregationName || "..."}</p>
       </div>
       <table className="w-full text-left border-collapse">
@@ -31,7 +31,7 @@ const ReportContent = ({ territories, congregationName }: { territories: Availab
           </tr>
         </thead>
         <tbody>
-          {territories.map((t, index) => (
+          {territories.map((t) => (
             <tr key={t.id} className="border-b border-gray-400">
               <td className="p-2">{t.number}-{t.name}</td>
               <td className="p-2">{t.lastCompletionDate ? format(t.lastCompletionDate, "dd/MM/yyyy") : 'Nunca trabalhado'}</td>
@@ -46,9 +46,10 @@ const ReportContent = ({ territories, congregationName }: { territories: Availab
 
 export default function AvailableTerritoriesReport() {
   const { user } = useUser();
-  const [availableTerritories, setAvailableTerritories] = useState<AvailableTerritory[]>([]);
+  const [allTerritories, setAllTerritories] = useState<AvailableTerritory[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<'urban' | 'rural'>('urban');
 
   useEffect(() => {
     if (!user?.congregationId) {
@@ -77,35 +78,35 @@ export default function AvailableTerritoriesReport() {
         const dateA = a.lastCompletionDate?.getTime() || 0;
         const dateB = b.lastCompletionDate?.getTime() || 0;
         if (dateA === 0 && dateB === 0) return a.number.localeCompare(b.number, undefined, { numeric: true });
-        if (dateA === 0) return 1; // Sem data vai pro fim
-        if (dateB === 0) return -1; // Sem data vai pro fim
+        if (dateA === 0) return -1;
+        if (dateB === 0) return 1;
         return dateA - dateB;
       });
 
-      setAvailableTerritories(territoriesData);
+      setAllTerritories(territoriesData);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, [user]);
+  
+  const filteredTerritories = allTerritories.filter(t => (t.type || 'urban') === typeFilter);
 
   const handlePrint = async () => {
     setIsPrinting(true);
     await new Promise(resolve => setTimeout(resolve, 100)); // Aguarda DOM atualizar
 
-    const printContent = document.getElementById("print-version")?.innerHTML;
-    if (!printContent) {
+    const printContentEl = document.getElementById("print-version-available");
+    if (!printContentEl) {
       setIsPrinting(false);
       return;
     }
     
-    const element = document.createElement("div");
-    element.innerHTML = printContent;
-    
-    // Esconder o preview na versão de impressão
-    const preview = element.querySelector("#pdf-preview-area");
-    if(preview) (preview as HTMLElement).style.display = 'none';
-
+    const element = printContentEl.querySelector("#pdf-content-available");
+    if (!element) {
+        setIsPrinting(false);
+        return;
+    }
 
     try {
       const html2pdf = (await import("html2pdf.js")).default;
@@ -113,7 +114,7 @@ export default function AvailableTerritoriesReport() {
         .from(element)
         .set({
           margin: [15, 10, 15, 10],
-          filename: `Territorios-Disponiveis.pdf`,
+          filename: `Territorios-Disponiveis-${typeFilter}.pdf`,
           image: { type: "jpeg", quality: 0.98 },
           html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
@@ -127,20 +128,28 @@ export default function AvailableTerritoriesReport() {
   };
 
   return (
-    <div id="print-version">
-      <div className="flex justify-end mb-4 print-hidden">
+    <div id="print-version-available">
+      <div className="flex justify-between items-center mb-4 print-hidden">
+        <div className="flex gap-2">
+            <Button onClick={() => setTypeFilter("urban")} variant={typeFilter === 'urban' ? 'default' : 'outline'}>
+              <Map size={14} className="mr-1" /> Urbanos
+            </Button>
+            <Button onClick={() => setTypeFilter("rural")} variant={typeFilter === 'rural' ? 'default' : 'outline'}>
+              <Trees size={14} className="mr-1" /> Rurais
+            </Button>
+        </div>
         <Button onClick={handlePrint} disabled={isPrinting || loading} className="w-full sm:w-auto justify-center">
             {isPrinting ? <Loader className="animate-spin mr-2" /> : <Printer size={16} className="mr-2" />} Salvar PDF
         </Button>
       </div>
 
-      <div id="pdf-preview-area" className="p-4 flex justify-center bg-muted print-hidden w-full overflow-auto">
+      <div className="p-4 flex justify-center bg-muted print-hidden w-full overflow-auto">
         <div className="bg-white p-8 shadow-lg" style={{ width: "210mm", minHeight: "297mm" }}>
           {loading ? (
              <div className="flex items-center justify-center h-full"><Loader className="animate-spin" /></div>
           ) : (
-            <div className="text-black">
-              <ReportContent territories={availableTerritories} congregationName={user?.congregationName}/>
+            <div id="pdf-content-available" className="text-black">
+              <ReportContent territories={filteredTerritories} congregationName={user?.congregationName} type={typeFilter} />
             </div>
           )}
         </div>
