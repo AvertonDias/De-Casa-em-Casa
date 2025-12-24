@@ -7,8 +7,10 @@ import { Territory } from "@/types/types";
 import { collection, onSnapshot } from "firebase/firestore";
 import { subMonths, differenceInDays } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
-import { Loader, BarChart3, TrendingUp, CalendarCheck, CalendarX, XCircle, Timer, Forward } from "lucide-react";
+import { Loader, BarChart3, TrendingUp, CalendarCheck, CalendarX, XCircle, Timer, Forward, Printer, Map, Trees } from "lucide-react";
 import TerritoryListModal from "./TerritoryListModal";
+import { Button } from "../ui/button";
+
 
 interface StatItemProps {
     label: string;
@@ -39,14 +41,13 @@ const StatItem = ({ label, value, subValue, Icon, onClick }: StatItemProps) => {
     );
 };
 
-interface TerritoryCoverageStatsProps {
-    territoryType: 'urban' | 'rural';
-}
-
-export default function TerritoryCoverageStats({ territoryType }: TerritoryCoverageStatsProps) {
+export default function TerritoryCoverageStats() {
     const { user } = useUser();
     const [territories, setTerritories] = useState<Territory[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isPrinting, setIsPrinting] = useState(false);
+    const [territoryType, setTerritoryType] = useState<'urban' | 'rural'>('urban');
+
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalTitle, setModalTitle] = useState('');
@@ -172,19 +173,42 @@ export default function TerritoryCoverageStats({ territoryType }: TerritoryCover
         setIsModalOpen(true);
     };
 
+    const handlePrint = async () => {
+        setIsPrinting(true);
+        // Aguarda a renderização para garantir que o conteúdo a ser impresso esteja atualizado
+        await new Promise(resolve => setTimeout(resolve, 100)); 
+
+        const element = document.getElementById("stats-print-area");
+        if (!element) {
+            setIsPrinting(false);
+            return;
+        }
+
+        try {
+            const html2pdf = (await import("html2pdf.js")).default;
+            await html2pdf()
+                .from(element)
+                .set({
+                    margin: [15, 15, 15, 15],
+                    filename: `relatorio-cobertura-${territoryType}.pdf`,
+                    image: { type: "jpeg", quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true, backgroundColor: "#111827" }, // Fundo escuro para tema dark
+                    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+                })
+                .save();
+        } catch (err) {
+            console.error("Erro ao gerar PDF:", err);
+        } finally {
+            setIsPrinting(false);
+        }
+    };
+
+
     if (loading) {
         return <div className="flex justify-center p-8"><Loader className="animate-spin" /></div>;
     }
 
-    if (!stats) {
-        return (
-            <div className="bg-card p-6 rounded-lg shadow-md">
-                <h2 className="text-xl font-bold mb-4 flex items-center"><BarChart3 className="mr-3 text-primary" />Cobertura do Território</h2>
-                <p className="text-muted-foreground text-center py-4">Nenhum território do tipo '{territoryType === 'urban' ? 'Urbano' : 'Rural'}' encontrado para gerar estatísticas.</p>
-            </div>
-        );
-    }
-    
+
     return (
         <>
             <TerritoryListModal 
@@ -193,23 +217,65 @@ export default function TerritoryCoverageStats({ territoryType }: TerritoryCover
                 title={modalTitle}
                 territories={territoriesToShow}
             />
-            <div className="bg-card p-6 rounded-lg shadow-md">
-                <h2 className="text-xl font-bold mb-1">Cobertura do Território</h2>
-                <p className="text-sm text-muted-foreground mb-4">Estatísticas referentes apenas aos territórios do tipo '{territoryType === 'urban' ? 'Urbano' : 'Rural'}'.</p>
-                
-                <div className="space-y-2">
-                    <StatItem Icon={BarChart3} label="Total de territórios" value={stats.totalTerritories.count} onClick={() => handleStatClick(`Total de Territórios (${territoryType})`, stats.totalTerritories.territories)} />
-                    <StatItem Icon={TrendingUp} label="Em andamento" value={stats.inProgress.count} onClick={() => handleStatClick("Territórios em Andamento", stats.inProgress.territories)} />
-                    <StatItem Icon={CalendarCheck} label="Concluído últimos 6 meses" value={stats.completedLast6Months.count} subValue={`${((stats.completedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Concluídos nos Últimos 6 Meses", stats.completedLast6Months.territories)} />
-                    <StatItem Icon={CalendarCheck} label="Concluído últimos 12 meses" value={stats.completedLast12Months.count} subValue={`${((stats.completedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Concluídos nos Últimos 12 Meses", stats.completedLast12Months.territories)} />
-                    <StatItem Icon={CalendarX} label="Não concluído nos últimos 6 meses" value={stats.notCompletedLast6Months.count} subValue={`${((stats.notCompletedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Não Concluídos nos Últimos 6 Meses", stats.notCompletedLast6Months.territories)} />
-                    <StatItem Icon={CalendarX} label="Não concluído nos últimos 12 meses" value={stats.notCompletedLast12Months.count} subValue={`${((stats.notCompletedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Não Concluídos nos Últimos 12 Meses", stats.notCompletedLast12Months.territories)} />
-                    <StatItem Icon={XCircle} label="Não trabalhado nos últimos 6 meses" value={stats.notWorkedLast6Months.count} subValue={`${((stats.notWorkedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Não Trabalhados nos Últimos 6 Meses", stats.notWorkedLast6Months.territories)} />
-                    <StatItem Icon={XCircle} label="Não trabalhado nos últimos 12 meses" value={stats.notWorkedLast12Months.count} subValue={`${((stats.notWorkedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Não Trabalhados nos Últimos 12 Meses", stats.notWorkedLast12Months.territories)} />
-                    <StatItem Icon={Timer} label="Tempo médio para completar um território" value={`${stats.avgCompletionTime} Dias`} />
-                    <StatItem Icon={Forward} label="Tempo estimado para completar todo o território" value={`${stats.estimatedTimeToCompleteAll} Meses`} />
+            <div id="stats-print-area" className="bg-card p-6 rounded-lg shadow-md">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4 print-hidden">
+                    <div className="flex gap-2">
+                        <Button onClick={() => setTerritoryType("urban")} variant={territoryType === 'urban' ? 'default' : 'outline'}><Map size={14} className="mr-1" /> Urbanos</Button>
+                        <Button onClick={() => setTerritoryType("rural")} variant={territoryType === 'rural' ? 'default' : 'outline'}><Trees size={14} className="mr-1" /> Rurais</Button>
+                    </div>
+                    <Button onClick={handlePrint} disabled={isPrinting}>
+                        {isPrinting ? <Loader className="animate-spin mr-2" /> : <Printer size={16} className="mr-2" />}
+                        Salvar PDF
+                    </Button>
                 </div>
+                
+                <div className="print-header hidden text-center mb-6">
+                    <h1 className="text-xl font-bold">Relatório de Cobertura - {territoryType === 'urban' ? 'Urbanos' : 'Rurais'}</h1>
+                    <p className="text-sm text-muted-foreground">{user?.congregationName}</p>
+                </div>
+                
+                <h2 className="text-xl font-bold mb-1 print-hidden">Cobertura do Território</h2>
+                <p className="text-sm text-muted-foreground mb-4 print-hidden">Estatísticas referentes apenas aos territórios do tipo '{territoryType === 'urban' ? 'Urbano' : 'Rural'}'.</p>
+
+                {!stats ? (
+                     <p className="text-muted-foreground text-center py-4">Nenhum território do tipo '{territoryType === 'urban' ? 'Urbano' : 'Rural'}' encontrado para gerar estatísticas.</p>
+                ) : (
+                    <div className="space-y-2">
+                        <StatItem Icon={BarChart3} label="Total de territórios" value={stats.totalTerritories.count} onClick={() => handleStatClick(`Total de Territórios (${territoryType})`, stats.totalTerritories.territories)} />
+                        <StatItem Icon={TrendingUp} label="Em andamento" value={stats.inProgress.count} onClick={() => handleStatClick("Territórios em Andamento", stats.inProgress.territories)} />
+                        <StatItem Icon={CalendarCheck} label="Concluído últimos 6 meses" value={stats.completedLast6Months.count} subValue={`${((stats.completedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Concluídos nos Últimos 6 Meses", stats.completedLast6Months.territories)} />
+                        <StatItem Icon={CalendarCheck} label="Concluído últimos 12 meses" value={stats.completedLast12Months.count} subValue={`${((stats.completedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Concluídos nos Últimos 12 Meses", stats.completedLast12Months.territories)} />
+                        <StatItem Icon={CalendarX} label="Não concluído nos últimos 6 meses" value={stats.notCompletedLast6Months.count} subValue={`${((stats.notCompletedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Não Concluídos nos Últimos 6 Meses", stats.notCompletedLast6Months.territories)} />
+                        <StatItem Icon={CalendarX} label="Não concluído nos últimos 12 meses" value={stats.notCompletedLast12Months.count} subValue={`${((stats.notCompletedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Não Concluídos nos Últimos 12 Meses", stats.notCompletedLast12Months.territories)} />
+                        <StatItem Icon={XCircle} label="Não trabalhado nos últimos 6 meses" value={stats.notWorkedLast6Months.count} subValue={`${((stats.notWorkedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Não Trabalhados nos Últimos 6 Meses", stats.notWorkedLast6Months.territories)} />
+                        <StatItem Icon={XCircle} label="Não trabalhado nos últimos 12 meses" value={stats.notWorkedLast12Months.count} subValue={`${((stats.notWorkedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Não Trabalhados nos Últimos 12 Meses", stats.notWorkedLast12Months.territories)} />
+                        <StatItem Icon={Timer} label="Tempo médio para completar um território" value={`${stats.avgCompletionTime} Dias`} />
+                        <StatItem Icon={Forward} label="Tempo estimado para completar todo o território" value={`${stats.estimatedTimeToCompleteAll} Meses`} />
+                    </div>
+                )}
             </div>
+            
+            <style jsx global>{`
+                @media print {
+                    body * { visibility: hidden; }
+                    #stats-print-area, #stats-print-area * { visibility: visible; }
+                    #stats-print-area { 
+                        position: absolute; 
+                        left: 0; 
+                        top: 0; 
+                        width: 100%;
+                        background-color: white !important; /* Forçar fundo branco na impressão */
+                        color: black !important; /* Forçar texto preto na impressão */
+                    }
+                    .print-hidden { display: none; }
+                    .print-header { display: block !important; }
+                    .dark #stats-print-area, .dark #stats-print-area * {
+                        background-color: white !important;
+                        color: black !important;
+                    }
+                    .dark .text-muted-foreground { color: #555 !important; }
+                }
+            `}</style>
         </>
     );
 }

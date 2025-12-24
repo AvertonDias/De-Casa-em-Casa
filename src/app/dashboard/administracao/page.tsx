@@ -33,7 +33,6 @@ type Tab = 'assignment' | 'overview' | 'report' | 'available';
 function AdminPage() {
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState<Tab>('assignment');
-  const [statsType, setStatsType] = useState<'urban' | 'rural'>('urban');
   
   const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
 
@@ -77,19 +76,7 @@ function AdminPage() {
       </div>
 
       <div className="mt-6">
-        {activeTab === 'overview' && (
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <Button onClick={() => setStatsType("urban")} variant={statsType === 'urban' ? 'default' : 'outline'}>
-                <Map size={14} className="mr-1" /> Urbanos
-              </Button>
-              <Button onClick={() => setStatsType("rural")} variant={statsType === 'rural' ? 'default' : 'outline'}>
-                <Trees size={14} className="mr-1" /> Rurais
-              </Button>
-            </div>
-            <TerritoryCoverageStats territoryType={statsType} />
-          </div>
-        )}
+        {activeTab === 'overview' && <TerritoryCoverageStats />}
         {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
         {activeTab === 'available' && <AvailableTerritoriesReport />}
         {activeTab === 'report' && <S13ReportPage />}
