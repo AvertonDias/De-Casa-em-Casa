@@ -196,7 +196,7 @@ export default function TerritoryCoverageStats() {
                 </div>
                 <div style="font-size: 0.875rem;">
                     ${stats ? Object.entries(statsData).map(([key, item]) => `
-                        <div style="display: flex; padding-top: 12px; padding-bottom: 12px; border-bottom: 1px solid #eee;">
+                        <div style="display: flex; align-items: center; padding-top: 12px; padding-bottom: 12px; border-bottom: 1px solid #eee;">
                             <span style="color: black; flex-grow: 1;">${key}</span>
                             <div style="text-align: left;">
                                 <span style="font-weight: bold; font-size: 1.125rem; color: black;">${item.value}</span>
