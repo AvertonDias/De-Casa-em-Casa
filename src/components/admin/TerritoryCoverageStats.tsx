@@ -87,15 +87,30 @@ export default function TerritoryCoverageStats() {
         urbanTerritories.forEach(t => {
             const history = t.assignmentHistory || [];
             
-            const lastEventDate = history.length > 0
-                ? history.reduce((latest, entry) => 
-                    (entry.completedAt || entry.assignedAt).toDate() > latest ? (entry.completedAt || entry.assignedAt).toDate() : latest,
-                    new Date(0)
-                  )
-                : t.assignment ? t.assignment.assignedAt.toDate() : new Date(0);
+            // Combina o histórico com a designação atual para obter o último evento
+            const allEvents = [...history];
+            if (t.assignment) {
+                // Adiciona a designação atual como um evento sem data de conclusão
+                allEvents.push({
+                    uid: t.assignment.uid,
+                    name: t.assignment.name,
+                    assignedAt: t.assignment.assignedAt,
+                    completedAt: null as any, // Tipo forçado para corresponder, mas sabemos que não tem
+                });
+            }
 
-            if (lastEventDate < sixMonthsAgo) notWorkedLast6MonthsTerritories.push(t);
-            if (lastEventDate < twelveMonthsAgo) notWorkedLast12MonthsTerritories.push(t);
+            const lastEventDate = allEvents.length > 0
+                ? allEvents.reduce((latest, entry) => {
+                    // A data do evento é a data de conclusão ou, se não houver, a de designação
+                    const eventDate = (entry.completedAt || entry.assignedAt).toDate();
+                    return eventDate > latest ? eventDate : latest;
+                }, new Date(0))
+                : new Date(0); // Se não houver eventos, data zero
+
+            if (lastEventDate > new Date(0)) { // Só considera se houver algum evento
+                if (lastEventDate < sixMonthsAgo) notWorkedLast6MonthsTerritories.push(t);
+                if (lastEventDate < twelveMonthsAgo) notWorkedLast12MonthsTerritories.push(t);
+            }
             
             const completions = history.filter(h => h.completedAt);
             if (completions.length > 0) {
