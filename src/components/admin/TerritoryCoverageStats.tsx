@@ -34,8 +34,8 @@ const StatItem = ({ label, value, subValue, Icon, onClick, isPreviewing }: StatI
                 {!isPreviewing && <Icon className="h-5 w-5 mr-3 text-muted-foreground" />}
                 <span className={isPreviewing ? "text-black" : "text-foreground/90"}>{label}</span>
             </div>
-            <div className="text-center w-24">
-                <span className={`font-bold text-lg ${isPreviewing ? "text-black" : "text-foreground"}`}>{value}</span>
+            <div className={`text-center w-24 ${isPreviewing ? "text-black" : "text-foreground"}`}>
+                <span className="font-bold text-lg">{value}</span>
                 {subValue && <span className={`text-sm ${isPreviewing ? "text-gray-600" : "text-muted-foreground"} ml-2`}>({subValue})</span>}
             </div>
         </Wrapper>
@@ -177,12 +177,12 @@ export default function TerritoryCoverageStats() {
     if (isPreviewing) {
         return (
             <div className="fixed inset-0 bg-muted z-50 p-8 overflow-y-auto">
-                <div className="flex justify-end gap-4 mb-8">
+                <div className="flex justify-end gap-4 mb-8 print-hidden">
                     <Button variant="outline" onClick={() => setIsPreviewing(false)}>
                         <X className="mr-2"/> Sair da Visualização
                     </Button>
                     <Button onClick={handlePrint}>
-                        <Printer className="mr-2"/> Salvar PDF
+                        <Printer className="mr-2"/> Imprimir
                     </Button>
                 </div>
                 <div id="stats-print-area" className="bg-white mx-auto" style={{width: '210mm'}}>
@@ -214,13 +214,13 @@ export default function TerritoryCoverageStats() {
                         body {
                             background-color: white !important;
                         }
+                        .print-hidden {
+                            display: none !important;
+                        }
                         .fixed.inset-0 {
                             position: static;
                             overflow: visible;
                             padding: 0;
-                        }
-                        .flex.justify-end {
-                            display: none;
                         }
                         #stats-print-area {
                             box-shadow: none;
@@ -243,7 +243,7 @@ export default function TerritoryCoverageStats() {
                 territories={territoriesToShow}
             />
             <div className="bg-card p-6 rounded-lg shadow-md">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4 print-hidden">
                      <div className="flex items-center gap-2">
                         <Button onClick={() => setTypeFilter("urban")} variant={typeFilter === 'urban' ? 'default' : 'outline'}>
                             <Map size={16} className="mr-2"/>Urbanos
