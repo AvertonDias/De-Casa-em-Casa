@@ -7,7 +7,7 @@ import { Territory } from "@/types/types";
 import { collection, onSnapshot } from "firebase/firestore";
 import { subMonths, differenceInDays } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
-import { Loader, BarChart3, TrendingUp, CalendarCheck, CalendarX, XCircle, Timer, Forward, Printer, Map, Trees } from "lucide-react";
+import { Loader, BarChart3, TrendingUp, CalendarCheck, CalendarX, XCircle, Timer, Forward, Printer, X } from "lucide-react";
 import TerritoryListModal from "./TerritoryListModal";
 import { Button } from "../ui/button";
 
@@ -45,7 +45,7 @@ export default function TerritoryCoverageStats() {
     const { user } = useUser();
     const [territories, setTerritories] = useState<Territory[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isPrinting, setIsPrinting] = useState(false);
+    const [isPreviewing, setIsPreviewing] = useState(false);
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalTitle, setModalTitle] = useState('');
@@ -175,9 +175,67 @@ export default function TerritoryCoverageStats() {
         window.print();
     };
 
-
     if (loading) {
         return <div className="flex justify-center p-8"><Loader className="animate-spin" /></div>;
+    }
+
+    if (isPreviewing) {
+        return (
+            <div className="fixed inset-0 bg-muted z-50 p-8 overflow-y-auto">
+                <div className="flex justify-end gap-4 mb-8">
+                    <Button variant="outline" onClick={() => setIsPreviewing(false)}>
+                        <X className="mr-2"/> Sair da Visualização
+                    </Button>
+                    <Button onClick={handlePrint}>
+                        <Printer className="mr-2"/> Imprimir
+                    </Button>
+                </div>
+                <div id="stats-print-area" className="bg-white mx-auto" style={{width: '210mm'}}>
+                    <div className="p-8">
+                        <div className="print-header text-center mb-6">
+                            <h1 className="text-xl font-bold text-black">Relatório de Cobertura - Urbanos</h1>
+                            <p className="text-sm text-gray-600">{user?.congregationName}</p>
+                        </div>
+                        <div className="space-y-2" style={{color: 'black'}}>
+                          {stats && (
+                            <>
+                              <StatItem Icon={BarChart3} label="Total de territórios" value={stats.totalTerritories.count} />
+                              <StatItem Icon={TrendingUp} label="Em andamento" value={stats.inProgress.count} />
+                              <StatItem Icon={CalendarCheck} label="Concluído últimos 6 meses" value={stats.completedLast6Months.count} subValue={`${((stats.completedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
+                              <StatItem Icon={CalendarCheck} label="Concluído últimos 12 meses" value={stats.completedLast12Months.count} subValue={`${((stats.completedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
+                              <StatItem Icon={CalendarX} label="Não concluído nos últimos 6 meses" value={stats.notCompletedLast6Months.count} subValue={`${((stats.notCompletedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
+                              <StatItem Icon={CalendarX} label="Não concluído nos últimos 12 meses" value={stats.notCompletedLast12Months.count} subValue={`${((stats.notCompletedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
+                              <StatItem Icon={XCircle} label="Não trabalhado nos últimos 6 meses" value={stats.notWorkedLast6Months.count} subValue={`${((stats.notWorkedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
+                              <StatItem Icon={XCircle} label="Não trabalhado nos últimos 12 meses" value={stats.notWorkedLast12Months.count} subValue={`${((stats.notWorkedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
+                              <StatItem Icon={Timer} label="Tempo médio para completar um território" value={`${stats.avgCompletionTime} Dias`} />
+                              <StatItem Icon={Forward} label="Tempo estimado para completar todo o território" value={`${stats.estimatedTimeToCompleteAll} Meses`} />
+                            </>
+                          )}
+                        </div>
+                    </div>
+                </div>
+                 <style jsx global>{`
+                    @media print {
+                        body {
+                            background-color: white !important;
+                        }
+                        .fixed.inset-0 {
+                            position: static;
+                            overflow: visible;
+                            padding: 0;
+                        }
+                        .flex.justify-end {
+                            display: none;
+                        }
+                        #stats-print-area {
+                            box-shadow: none;
+                            border: none;
+                            width: 100%;
+                        }
+                    }
+                `}</style>
+            </div>
+        );
     }
 
 
@@ -189,18 +247,13 @@ export default function TerritoryCoverageStats() {
                 title={modalTitle}
                 territories={territoriesToShow}
             />
-            <div id="stats-print-area" className="bg-card p-6 rounded-lg shadow-md">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4 print:hidden">
+            <div className="bg-card p-6 rounded-lg shadow-md">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4">
                     <h2 className="text-xl font-bold">Cobertura (Territórios Urbanos)</h2>
-                    <Button onClick={handlePrint} disabled={isPrinting}>
-                        {isPrinting ? <Loader className="animate-spin mr-2" /> : <Printer size={16} className="mr-2" />}
-                        Salvar PDF / Imprimir
+                    <Button onClick={() => setIsPreviewing(true)}>
+                        <Printer size={16} className="mr-2" />
+                        Visualizar Impressão
                     </Button>
-                </div>
-                
-                <div className="print-header hidden print:block text-center mb-6">
-                    <h1 className="text-xl font-bold">Relatório de Cobertura - Urbanos</h1>
-                    <p className="text-sm text-muted-foreground">{user?.congregationName}</p>
                 </div>
 
                 {!stats ? (
@@ -220,38 +273,6 @@ export default function TerritoryCoverageStats() {
                     </div>
                 )}
             </div>
-            
-            <style jsx global>{`
-                @media print {
-                    body * {
-                        visibility: hidden;
-                    }
-                    #stats-print-area, #stats-print-area * {
-                        visibility: visible;
-                    }
-                    #stats-print-area {
-                        position: absolute;
-                        left: 0;
-                        top: 0;
-                        width: 100%;
-                        background-color: white !important;
-                        color: black !important;
-                        padding: 1rem;
-                    }
-                    .print-hidden {
-                        display: none !important;
-                    }
-                    .print\\:block {
-                        display: block !important;
-                    }
-                    .dark #stats-print-area, .dark #stats-print-area * {
-                        background-color: white !important;
-                        color: black !important;
-                    }
-                    .text-muted-foreground { color: #555 !important; }
-                    .text-foreground, .text-foreground\\/90, .font-bold { color: black !important; }
-                }
-            `}</style>
         </>
     );
 }
