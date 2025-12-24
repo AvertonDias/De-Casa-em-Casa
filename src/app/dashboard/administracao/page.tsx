@@ -1,13 +1,16 @@
 
 "use client";
 
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { BookUser, FileText, Loader, BarChart, Settings } from 'lucide-react';
+import { Loader, BarChart3, BookUser, FileText, Settings as SettingsIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
+import { cn } from '@/lib/utils';
+import CongregationEditForm from '@/components/admin/CongregationEditForm';
 
-// --- Dynamic Imports ---
+// --- Dynamic Imports for each tab ---
 const TerritoryAssignmentPanel = dynamic(
   () => import('@/components/admin/TerritoryAssignmentPanel').then(mod => mod.default),
   { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
@@ -18,9 +21,26 @@ const TerritoryCoverageStats = dynamic(
   { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
 );
 
+const S13ReportLink = () => (
+  <div className="bg-card p-6 rounded-lg shadow-md mt-6 text-center">
+    <h3 className="text-xl font-bold mb-4">Relatório de Designação de Território</h3>
+    <p className="text-muted-foreground mb-6">Gere e visualize o relatório S-13 para o ano de serviço atual.</p>
+    <Link 
+      href="/dashboard/administracao/relatorio-s13"
+      className="inline-flex items-center justify-center px-6 py-3 bg-secondary text-secondary-foreground font-semibold rounded-lg hover:bg-secondary/80"
+    >
+      <FileText size={18} className="mr-2" />
+      <span>Gerar Relatório S-13</span>
+    </Link>
+  </div>
+);
+
+
+type Tab = 'overview' | 'assignment' | 'report';
 
 function AdminPage() {
   const { user } = useUser();
+  const [activeTab, setActiveTab] = useState<Tab>('overview');
   
   const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
 
@@ -33,6 +53,20 @@ function AdminPage() {
     );
   }
 
+  const TabButton = ({ tabId, label, icon: Icon }: { tabId: Tab, label: string, icon: React.ElementType }) => (
+    <button
+      onClick={() => setActiveTab(tabId)}
+      className={cn(
+        "whitespace-nowrap px-3 py-2 text-sm font-semibold transition-colors flex items-center gap-2",
+        activeTab === tabId
+          ? 'text-primary border-b-2 border-primary'
+          : 'text-muted-foreground hover:text-foreground'
+      )}
+    >
+      <Icon size={16} /> {label}
+    </button>
+  );
+
   return (
     <div className="p-4 md:p-8 space-y-6">
       <div>
@@ -40,22 +74,18 @@ function AdminPage() {
         <p className="text-muted-foreground">Ferramentas para gerenciar e analisar os territórios.</p>
       </div>
 
-      <div className="border-b border-border" />
-
-      <TerritoryCoverageStats />
-
-      <div className="mt-8">
-        <TerritoryAssignmentPanel />
+      <div className="border-b border-border">
+        <nav className="-mb-px flex space-x-4" aria-label="Tabs">
+          <TabButton tabId="overview" label="Visão Geral" icon={BarChart3} />
+          <TabButton tabId="assignment" label="Designar Territórios" icon={BookUser} />
+          <TabButton tabId="report" label="Relatório S-13" icon={FileText} />
+        </nav>
       </div>
-      
-      <div className="mt-8 pt-6 border-t border-border">
-         <Link 
-            href="/dashboard/administracao/relatorio-s13"
-            className="inline-flex items-center justify-center px-4 py-2 bg-secondary text-secondary-foreground font-semibold rounded-lg hover:bg-secondary/80 w-full sm:w-auto"
-        >
-          <FileText size={16} className="mr-2" />
-          <span>Gerar Relatório S-13</span>
-        </Link>
+
+      <div className="mt-6">
+        {activeTab === 'overview' && <TerritoryCoverageStats />}
+        {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
+        {activeTab === 'report' && <S13ReportLink />}
       </div>
     </div>
   );
