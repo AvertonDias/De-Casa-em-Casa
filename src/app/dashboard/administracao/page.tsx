@@ -40,7 +40,7 @@ type Tab = 'overview' | 'assignment' | 'report';
 
 function AdminPage() {
   const { user } = useUser();
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [activeTab, setActiveTab] = useState<Tab>('assignment');
   
   const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
 
@@ -76,8 +76,8 @@ function AdminPage() {
 
       <div className="border-b border-border">
         <nav className="-mb-px flex space-x-4" aria-label="Tabs">
-          <TabButton tabId="overview" label="Visão Geral" icon={BarChart3} />
           <TabButton tabId="assignment" label="Designar Territórios" icon={BookUser} />
+          <TabButton tabId="overview" label="Visão Geral" icon={BarChart3} />
           <TabButton tabId="report" label="Relatório S-13" icon={FileText} />
         </nav>
       </div>
