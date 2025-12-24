@@ -14,7 +14,6 @@ import { EditUserByAdminModal } from './EditUserByAdminModal'; // Importar o nov
 import { subDays, subMonths, subHours } from 'date-fns';
 import type { AppUser, Congregation } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
-import { getIdToken } from 'firebase/auth';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
@@ -47,11 +46,10 @@ export default function UserManagement() {
   };
   
   const confirmDeleteUser = useCallback(async () => {
-    if (!userToDelete || !currentUser || !auth.currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
+    if (!userToDelete || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
     
     setIsConfirmModalOpen(false);
     try {
-        // Envolve o payload em um objeto 'data'
         await deleteUserAccount({ userIdToDelete: userToDelete.uid });
         toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {
@@ -154,7 +152,7 @@ export default function UserManagement() {
         status: {
             ativo: users.filter(u => u.status === 'ativo').length,
             pendente: users.filter(u => u.status === 'pendente').length,
-            inativo: users.filter(u => u.status === 'ativo' && (!u.lastSeen || u.lastSeen.toDate() < oneMonthAgo)).length,
+            inativo: users.filter(u => u.status === 'inativo').length,
         },
         presence: {
             online: users.filter(u => u.isOnline === true).length,
