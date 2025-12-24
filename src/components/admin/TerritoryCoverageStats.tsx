@@ -191,12 +191,12 @@ export default function TerritoryCoverageStats() {
                     </Button>
                 </div>
                 <div id="stats-print-area" className="bg-white mx-auto" style={{width: '210mm'}}>
-                    <div className="p-8">
+                    <div className="p-8 text-black">
                         <div className="print-header text-center mb-6">
                             <h1 className="text-xl font-bold text-black">Relatório de Cobertura - Urbanos</h1>
                             <p className="text-sm text-gray-600">{user?.congregationName}</p>
                         </div>
-                        <div className="space-y-2" style={{color: 'black'}}>
+                        <div className="space-y-2">
                           {stats && (
                             <>
                               <StatItem Icon={BarChart3} label="Total de territórios" value={stats.totalTerritories.count} />
