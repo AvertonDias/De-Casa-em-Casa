@@ -44,12 +44,10 @@ export default function ForgotPasswordPage() {
         if (result.token) {
             const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
             
-            const templateParams = {
+            await sendPasswordResetEmail({
                 email: email,
                 link: resetLink,
-            };
-            
-            await sendPasswordResetEmail(templateParams);
+            });
         }
       
         setIsSubmitted(true);
