@@ -21,5 +21,9 @@ export const sendFeedbackEmail = async (templateParams: any) => {
  * @param params Deve conter `email` e `link`.
  */
 export const sendPasswordResetEmail = async (params: { email: string; link: string; }) => {
-  return emailjs.send(SERVICE_ID, PASSWORD_RESET_TEMPLATE_ID, params);
+  const templateParams = {
+    email: params.email,
+    link: params.link,
+  };
+  return emailjs.send(SERVICE_ID, PASSWORD_RESET_TEMPLATE_ID, templateParams);
 };
