@@ -25,7 +25,7 @@ async function getEmailTemplate() {
     } catch (error) {
         console.error(error);
         // Retorna um HTML básico em caso de falha
-        return '<p>{{ message }}</p><a href="{{action_link}}">Clique aqui</a>';
+        return '<p>{{ message }}</p><a href="{{reset_link}}">Clique aqui</a>';
     }
 }
 
@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
                 .replace('{{ subject }}', 'Redefinição de Senha')
                 .replace('{{ to_name }}', 'Usuário')
                 .replace('{{ message }}', messageBody)
-                .replace(/{{action_link}}/g, resetLink)
+                .replace(/{{reset_link}}/g, resetLink)
                 .replace('{{ action_button_text }}', 'Criar Nova Senha')
                 .replace('{{email}}', email);
 
@@ -75,6 +75,7 @@ export default function ForgotPasswordPage() {
                 email: email,
                 subject: 'Redefinição de Senha - De Casa em Casa',
                 html_content: finalHtml, 
+                reset_link: resetLink
             };
             
             await sendPasswordResetEmail(templateParams);
