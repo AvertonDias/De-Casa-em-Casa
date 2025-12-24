@@ -170,12 +170,12 @@ export default function TerritoryCoverageStats() {
         if (!stats) return;
         setIsPrinting(true);
 
-        const printArea = document.createElement("div");
-        printArea.id = "pdf-content";
-        printArea.className = "bg-white p-8";
-        printArea.style.width = "210mm";
-        
-        const statsData = {
+        type StatDataItem = {
+            value: string | number;
+            subValue?: string;
+        };
+
+        const statsData: Record<string, StatDataItem> = {
             "Total de territórios": { value: stats.totalTerritories.count },
             "Em andamento": { value: stats.inProgress.count },
             "Concluído últimos 6 meses": { value: stats.completedLast6Months.count, subValue: `${((stats.completedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%` },
@@ -187,29 +187,30 @@ export default function TerritoryCoverageStats() {
             "Tempo médio para completar um território": { value: `${stats.avgCompletionTime} Dias` },
             "Estimativa para cobrir tudo": { value: `${stats.estimatedTimeToCompleteAll} Meses` },
         };
-
+        
+        const printArea = document.createElement("div");
+        printArea.id = "pdf-content";
         printArea.innerHTML = `
-            <div style="color: black; font-family: sans-serif;"> 
+            <div style="font-family: sans-serif; color: black; background-color: white; padding: 2rem;">
                 <div style="text-align: center; margin-bottom: 24px;">
-                    <h1 style="font-size: 1.25rem; font-weight: bold; color: black;">Relatório de Cobertura - ${typeFilter === 'urban' ? 'Urbanos' : 'Rurais'}</h1>
+                    <h1 style="font-size: 1.25rem; font-weight: bold;">Relatório de Cobertura - ${typeFilter === 'urban' ? 'Urbanos' : 'Rurais'}</h1>
                     <p style="font-size: 0.875rem; color: #555;">${user?.congregationName}</p>
                 </div>
                 <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
                     <tbody>
-                        ${stats ? Object.entries(statsData).map(([key, item]) => `
+                        ${Object.entries(statsData).map(([key, item]) => `
                             <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 12px 0; color: black;">${key}</td>
-                                <td style="padding: 12px 0; text-align: left;">
-                                    <span style="font-weight: bold; font-size: 1.125rem; color: black;">${item.value}</span>
+                                <td style="padding: 12px 8px 12px 0; text-align: left; vertical-align: middle;">${key}</td>
+                                <td style="padding: 12px 0; text-align: left; vertical-align: middle;">
+                                    <span style="font-weight: bold; font-size: 1.125rem;">${item.value}</span>
                                     ${item.subValue ? `<span style="font-size: 0.875rem; margin-left: 8px; color: #555;">(${item.subValue})</span>` : ''}
                                 </td>
                             </tr>
-                        `).join('') : ''}
+                        `).join('')}
                     </tbody>
                 </table>
             </div>
         `;
-
         document.body.appendChild(printArea);
 
         try {
