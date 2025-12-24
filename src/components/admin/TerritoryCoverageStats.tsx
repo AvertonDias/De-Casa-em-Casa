@@ -46,8 +46,6 @@ export default function TerritoryCoverageStats() {
     const [territories, setTerritories] = useState<Territory[]>([]);
     const [loading, setLoading] = useState(true);
     const [isPrinting, setIsPrinting] = useState(false);
-    const [territoryType, setTerritoryType] = useState<'urban' | 'rural'>('urban');
-
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalTitle, setModalTitle] = useState('');
@@ -67,7 +65,7 @@ export default function TerritoryCoverageStats() {
     }, [user?.congregationId]);
 
     const stats = useMemo(() => {
-        const filteredTerritories = territories.filter(t => (t.type || 'urban') === territoryType);
+        const filteredTerritories = territories.filter(t => (t.type || 'urban') === 'urban');
         if (filteredTerritories.length === 0) return null;
 
         const now = new Date();
@@ -165,7 +163,7 @@ export default function TerritoryCoverageStats() {
             estimatedTimeToCompleteAll,
         };
 
-    }, [territories, territoryType]);
+    }, [territories]);
 
     const handleStatClick = (title: string, territories: Territory[]) => {
         setModalTitle(title);
@@ -173,34 +171,8 @@ export default function TerritoryCoverageStats() {
         setIsModalOpen(true);
     };
 
-    const handlePrint = async () => {
-        setIsPrinting(true);
-        // Aguarda a renderização para garantir que o conteúdo a ser impresso esteja atualizado
-        await new Promise(resolve => setTimeout(resolve, 100)); 
-
-        const element = document.getElementById("stats-print-area");
-        if (!element) {
-            setIsPrinting(false);
-            return;
-        }
-
-        try {
-            const html2pdf = (await import("html2pdf.js")).default;
-            await html2pdf()
-                .from(element)
-                .set({
-                    margin: [15, 15, 15, 15],
-                    filename: `relatorio-cobertura-${territoryType}.pdf`,
-                    image: { type: "jpeg", quality: 0.98 },
-                    html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" }, 
-                    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-                })
-                .save();
-        } catch (err) {
-            console.error("Erro ao gerar PDF:", err);
-        } finally {
-            setIsPrinting(false);
-        }
+    const handlePrint = () => {
+        window.print();
     };
 
 
@@ -218,30 +190,24 @@ export default function TerritoryCoverageStats() {
                 territories={territoriesToShow}
             />
             <div id="stats-print-area" className="bg-card p-6 rounded-lg shadow-md">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4 print-hidden">
-                    <div className="flex gap-2">
-                        <Button onClick={() => setTerritoryType("urban")} variant={territoryType === 'urban' ? 'default' : 'outline'}><Map size={14} className="mr-1" /> Urbanos</Button>
-                        <Button onClick={() => setTerritoryType("rural")} variant={territoryType === 'rural' ? 'default' : 'outline'}><Trees size={14} className="mr-1" /> Rurais</Button>
-                    </div>
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4 print:hidden">
+                    <h2 className="text-xl font-bold">Cobertura (Territórios Urbanos)</h2>
                     <Button onClick={handlePrint} disabled={isPrinting}>
                         {isPrinting ? <Loader className="animate-spin mr-2" /> : <Printer size={16} className="mr-2" />}
-                        Salvar PDF
+                        Salvar PDF / Imprimir
                     </Button>
                 </div>
                 
-                <div className="print-header hidden text-center mb-6">
-                    <h1 className="text-xl font-bold">Relatório de Cobertura - {territoryType === 'urban' ? 'Urbanos' : 'Rurais'}</h1>
+                <div className="print-header hidden print:block text-center mb-6">
+                    <h1 className="text-xl font-bold">Relatório de Cobertura - Urbanos</h1>
                     <p className="text-sm text-muted-foreground">{user?.congregationName}</p>
                 </div>
-                
-                <h2 className="text-xl font-bold mb-1 print-hidden">Cobertura do Território</h2>
-                <p className="text-sm text-muted-foreground mb-4 print-hidden">Estatísticas referentes apenas aos territórios do tipo '{territoryType === 'urban' ? 'Urbano' : 'Rural'}'.</p>
 
                 {!stats ? (
-                     <p className="text-muted-foreground text-center py-4">Nenhum território do tipo '{territoryType === 'urban' ? 'Urbano' : 'Rural'}' encontrado para gerar estatísticas.</p>
+                     <p className="text-muted-foreground text-center py-4">Nenhum território do tipo 'Urbano' encontrado para gerar estatísticas.</p>
                 ) : (
                     <div className="space-y-2">
-                        <StatItem Icon={BarChart3} label="Total de territórios" value={stats.totalTerritories.count} onClick={() => handleStatClick(`Total de Territórios (${territoryType})`, stats.totalTerritories.territories)} />
+                        <StatItem Icon={BarChart3} label="Total de territórios" value={stats.totalTerritories.count} onClick={() => handleStatClick(`Total de Territórios (urbanos)`, stats.totalTerritories.territories)} />
                         <StatItem Icon={TrendingUp} label="Em andamento" value={stats.inProgress.count} onClick={() => handleStatClick("Territórios em Andamento", stats.inProgress.territories)} />
                         <StatItem Icon={CalendarCheck} label="Concluído últimos 6 meses" value={stats.completedLast6Months.count} subValue={`${((stats.completedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Concluídos nos Últimos 6 Meses", stats.completedLast6Months.territories)} />
                         <StatItem Icon={CalendarCheck} label="Concluído últimos 12 meses" value={stats.completedLast12Months.count} subValue={`${((stats.completedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Concluídos nos Últimos 12 Meses", stats.completedLast12Months.territories)} />
@@ -257,24 +223,33 @@ export default function TerritoryCoverageStats() {
             
             <style jsx global>{`
                 @media print {
-                    body * { visibility: hidden; }
-                    #stats-print-area, #stats-print-area * { visibility: visible; }
-                    #stats-print-area { 
-                        position: absolute; 
-                        left: 0; 
-                        top: 0; 
+                    body * {
+                        visibility: hidden;
+                    }
+                    #stats-print-area, #stats-print-area * {
+                        visibility: visible;
+                    }
+                    #stats-print-area {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
                         width: 100%;
                         background-color: white !important;
                         color: black !important;
+                        padding: 1rem;
                     }
-                    .print-hidden { display: none !important; }
-                    .print-header { display: block !important; }
+                    .print-hidden {
+                        display: none !important;
+                    }
+                    .print\\:block {
+                        display: block !important;
+                    }
                     .dark #stats-print-area, .dark #stats-print-area * {
                         background-color: white !important;
                         color: black !important;
                     }
-                    .dark .text-muted-foreground { color: #555 !important; }
-                    .text-foreground, .text-foreground/90, .font-bold { color: black !important; }
+                    .text-muted-foreground { color: #555 !important; }
+                    .text-foreground, .text-foreground\\/90, .font-bold { color: black !important; }
                 }
             `}</style>
         </>
