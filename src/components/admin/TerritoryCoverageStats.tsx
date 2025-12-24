@@ -18,9 +18,10 @@ interface StatItemProps {
     subValue?: string;
     Icon: React.ElementType;
     onClick?: () => void;
+    isPrinting?: boolean;
 }
 
-const StatItem = ({ label, value, subValue, Icon, onClick }: StatItemProps) => {
+const StatItem = ({ label, value, subValue, Icon, onClick, isPrinting }: StatItemProps) => {
     const isClickable = onClick && Number(value) > 0;
     const Wrapper = isClickable ? 'button' : 'div';
     
@@ -30,12 +31,12 @@ const StatItem = ({ label, value, subValue, Icon, onClick }: StatItemProps) => {
             className={`flex justify-between items-center py-3 border-b border-border/50 w-full text-left ${isClickable ? 'hover:bg-accent/50 transition-colors rounded-md px-2 -mx-2' : ''}`}
         >
             <div className="flex items-center">
-                <Icon className="h-5 w-5 mr-3 text-muted-foreground" />
-                <span className="text-foreground/90">{label}</span>
+                <Icon className={`h-5 w-5 mr-3 ${isPrinting ? 'text-black' : 'text-muted-foreground'}`} />
+                <span className={`${isPrinting ? 'text-black' : 'text-foreground/90'}`}>{label}</span>
             </div>
             <div className="text-right">
-                <span className="font-bold text-lg">{value}</span>
-                {subValue && <span className="text-sm text-muted-foreground ml-2">({subValue})</span>}
+                <span className={`font-bold text-lg ${isPrinting ? 'text-black' : ''}`}>{value}</span>
+                {subValue && <span className={`text-sm  ml-2 ${isPrinting ? 'text-black' : 'text-muted-foreground'}`}>({subValue})</span>}
             </div>
         </Wrapper>
     );
@@ -197,7 +198,7 @@ export default function TerritoryCoverageStats() {
                     ${stats ? Object.entries(statsData).map(([key, item]) => `
                         <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; padding-bottom: 12px; border-bottom: 1px solid #eee;">
                             <span style="color: black; flex-grow: 1;">${key}</span>
-                            <div style="text-align: right;">
+                            <div style="text-align: left;">
                                 <span style="font-weight: bold; font-size: 1.125rem; color: black;">${item.value}</span>
                                 ${item.subValue ? `<span style="font-size: 0.875rem; margin-left: 8px; color: #555;">(${item.subValue})</span>` : ''}
                             </div>
