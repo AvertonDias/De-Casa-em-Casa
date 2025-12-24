@@ -18,25 +18,24 @@ interface StatItemProps {
     subValue?: string;
     Icon: React.ElementType;
     onClick?: () => void;
-    isPreviewing?: boolean;
 }
 
-const StatItem = ({ label, value, subValue, Icon, onClick, isPreviewing }: StatItemProps) => {
+const StatItem = ({ label, value, subValue, Icon, onClick }: StatItemProps) => {
     const isClickable = onClick && Number(value) > 0;
-    const Wrapper = isClickable && !isPreviewing ? 'button' : 'div';
+    const Wrapper = isClickable ? 'button' : 'div';
     
     return (
         <Wrapper
-            onClick={isClickable && !isPreviewing ? onClick : undefined}
-            className={`flex justify-between items-center py-3 border-b border-border/50 w-full text-left ${isClickable && !isPreviewing ? 'hover:bg-accent/50 transition-colors rounded-md px-2 -mx-2' : ''}`}
+            onClick={isClickable ? onClick : undefined}
+            className={`flex justify-between items-center py-3 border-b border-border/50 w-full text-left ${isClickable ? 'hover:bg-accent/50 transition-colors rounded-md px-2 -mx-2' : ''}`}
         >
             <div className="flex items-center">
-                {!isPreviewing && <Icon className="h-5 w-5 mr-3 text-muted-foreground" />}
-                <span className={isPreviewing ? "text-black" : "text-foreground/90"}>{label}</span>
+                <Icon className="h-5 w-5 mr-3 text-muted-foreground" />
+                <span className="text-foreground/90">{label}</span>
             </div>
-            <div className={`text-center w-24 ${isPreviewing ? "text-black" : "text-foreground"}`}>
+            <div className="text-center w-24">
                 <span className="font-bold text-lg">{value}</span>
-                {subValue && <span className={`text-sm ${isPreviewing ? "text-gray-600" : "text-muted-foreground"} ml-2`}>({subValue})</span>}
+                {subValue && <span className="text-sm text-muted-foreground ml-2">({subValue})</span>}
             </div>
         </Wrapper>
     );
@@ -47,7 +46,7 @@ export default function TerritoryCoverageStats() {
     const [territories, setTerritories] = useState<Territory[]>([]);
     const [loading, setLoading] = useState(true);
     const [typeFilter, setTypeFilter] = useState<'urban' | 'rural'>('urban');
-    const [isPreviewing, setIsPreviewing] = useState(false);
+    const [isPrinting, setIsPrinting] = useState(false);
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalTitle, setModalTitle] = useState('');
@@ -166,73 +165,69 @@ export default function TerritoryCoverageStats() {
         setIsModalOpen(true);
     };
 
-    const handlePrint = () => {
-        window.print();
+    const handlePrint = async () => {
+        setIsPrinting(true);
+        // Gera o conteúdo do PDF em um elemento temporário
+        const printArea = document.createElement("div");
+        printArea.id = "pdf-content";
+        printArea.className = "bg-white p-8";
+        printArea.style.width = "210mm";
+        printArea.innerHTML = `
+            <div class="text-center mb-6">
+                <h1 class="text-xl font-bold text-black">Relatório de Cobertura - ${typeFilter === 'urban' ? 'Urbanos' : 'Rurais'}</h1>
+                <p class="text-sm text-gray-600">${user?.congregationName}</p>
+            </div>
+            <div class="space-y-2">
+                ${stats ? Object.entries({
+                    "Total de territórios": { value: stats.totalTerritories.count, Icon: BarChart3 },
+                    "Em andamento": { value: stats.inProgress.count, Icon: TrendingUp },
+                    "Concluído últimos 6 meses": { value: stats.completedLast6Months.count, subValue: `${((stats.completedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`, Icon: CalendarCheck },
+                    "Concluído últimos 12 meses": { value: stats.completedLast12Months.count, subValue: `${((stats.completedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`, Icon: CalendarCheck },
+                    "Não concluído nos últimos 6 meses": { value: stats.notCompletedLast6Months.count, subValue: `${((stats.notCompletedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`, Icon: CalendarX },
+                    "Não concluído nos últimos 12 meses": { value: stats.notCompletedLast12Months.count, subValue: `${((stats.notCompletedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`, Icon: CalendarX },
+                    "Não trabalhado nos últimos 6 meses": { value: stats.notWorkedLast6Months.count, subValue: `${((stats.notWorkedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`, Icon: XCircle },
+                    "Não trabalhado nos últimos 12 meses": { value: stats.notWorkedLast12Months.count, subValue: `${((stats.notWorkedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`, Icon: XCircle },
+                    "Tempo médio para completar um território": { value: `${stats.avgCompletionTime} Dias`, Icon: Timer },
+                    "Estimativa para cobrir tudo": { value: `${stats.estimatedTimeToCompleteAll} Meses`, Icon: Forward },
+                }).map(([key, item]) => `
+                    <div class="flex justify-between items-center py-3 border-b text-black">
+                        <span class="text-black">${key}</span>
+                        <div class="text-center w-24 text-black">
+                            <span class="font-bold text-lg">${item.value}</span>
+                            ${item.subValue ? `<span class="text-sm text-gray-600 ml-2">(${item.subValue})</span>` : ''}
+                        </div>
+                    </div>
+                `).join('') : ''}
+            </div>
+        `;
+
+        document.body.appendChild(printArea);
+
+        try {
+            const html2pdf = (await import("html2pdf.js")).default;
+            await html2pdf()
+                .from(printArea)
+                .set({
+                    margin: [15, 10, 15, 10],
+                    filename: `Relatorio-Cobertura-${typeFilter}.pdf`,
+                    image: { type: "jpeg", quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+                    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+                })
+                .save();
+        } catch (err) {
+            console.error("Erro ao gerar PDF:", err);
+        } finally {
+            document.body.removeChild(printArea);
+            setIsPrinting(false);
+        }
     };
+
 
     if (loading) {
         return <div className="flex justify-center p-8"><Loader className="animate-spin" /></div>;
     }
     
-    if (isPreviewing) {
-        return (
-            <div className="fixed inset-0 bg-muted z-50 p-8 overflow-y-auto">
-                <div className="flex justify-end gap-4 mb-8 print-hidden">
-                    <Button variant="outline" onClick={() => setIsPreviewing(false)}>
-                        <X className="mr-2"/> Sair da Visualização
-                    </Button>
-                    <Button onClick={handlePrint}>
-                        <Printer className="mr-2"/> Salvar PDF
-                    </Button>
-                </div>
-                <div id="stats-print-area" className="bg-white mx-auto" style={{width: '210mm'}}>
-                    <div className="p-8 text-black">
-                         <div className="print-header text-center mb-6">
-                            <h1 className="text-xl font-bold text-black">Relatório de Cobertura - {typeFilter === 'urban' ? 'Urbanos' : 'Rurais'}</h1>
-                            <p className="text-sm text-gray-600">{user?.congregationName}</p>
-                        </div>
-                        <div className="space-y-2">
-                          {stats && (
-                            <>
-                              <StatItem isPreviewing={true} Icon={BarChart3} label="Total de territórios" value={stats.totalTerritories.count} />
-                              <StatItem isPreviewing={true} Icon={TrendingUp} label="Em andamento" value={stats.inProgress.count} />
-                              <StatItem isPreviewing={true} Icon={CalendarCheck} label="Concluído últimos 6 meses" value={stats.completedLast6Months.count} subValue={`${((stats.completedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
-                              <StatItem isPreviewing={true} Icon={CalendarCheck} label="Concluído últimos 12 meses" value={stats.completedLast12Months.count} subValue={`${((stats.completedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
-                              <StatItem isPreviewing={true} Icon={CalendarX} label="Não concluído nos últimos 6 meses" value={stats.notCompletedLast6Months.count} subValue={`${((stats.notCompletedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
-                              <StatItem isPreviewing={true} Icon={CalendarX} label="Não concluído nos últimos 12 meses" value={stats.notCompletedLast12Months.count} subValue={`${((stats.notCompletedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
-                              <StatItem isPreviewing={true} Icon={XCircle} label="Não trabalhado nos últimos 6 meses" value={stats.notWorkedLast6Months.count} subValue={`${((stats.notWorkedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
-                              <StatItem isPreviewing={true} Icon={XCircle} label="Não trabalhado nos últimos 12 meses" value={stats.notWorkedLast12Months.count} subValue={`${((stats.notWorkedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
-                              <StatItem isPreviewing={true} Icon={Timer} label="Tempo médio para completar um território" value={`${stats.avgCompletionTime} Dias`} />
-                              <StatItem isPreviewing={true} Icon={Forward} label="Estimativa para cobrir tudo" value={`${stats.estimatedTimeToCompleteAll} Meses`} />
-                            </>
-                          )}
-                        </div>
-                    </div>
-                </div>
-                 <style jsx global>{`
-                    @media print {
-                        body {
-                            background-color: white !important;
-                        }
-                        .print-hidden {
-                            display: none !important;
-                        }
-                        .fixed.inset-0 {
-                            position: static;
-                            overflow: visible;
-                            padding: 0;
-                        }
-                        #stats-print-area {
-                            box-shadow: none;
-                            border: none;
-                            width: 100%;
-                        }
-                    }
-                `}</style>
-            </div>
-        );
-    }
-
 
     return (
         <>
@@ -243,7 +238,7 @@ export default function TerritoryCoverageStats() {
                 territories={territoriesToShow}
             />
             <div className="bg-card p-6 rounded-lg shadow-md">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4 print-hidden">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4">
                      <div className="flex items-center gap-2">
                         <Button onClick={() => setTypeFilter("urban")} variant={typeFilter === 'urban' ? 'default' : 'outline'}>
                             <Map size={16} className="mr-2"/>Urbanos
@@ -252,9 +247,9 @@ export default function TerritoryCoverageStats() {
                              <Trees size={16} className="mr-2"/>Rurais
                         </Button>
                     </div>
-                    <Button onClick={() => setIsPreviewing(true)}>
+                    <Button onClick={handlePrint} disabled={isPrinting}>
                         <Printer size={16} className="mr-2" />
-                        Visualizar Documento
+                        {isPrinting ? "Gerando..." : "Salvar PDF"}
                     </Button>
                 </div>
 
