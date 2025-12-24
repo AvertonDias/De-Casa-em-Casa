@@ -2,7 +2,6 @@
 "use client";
 
 import { useTheme } from 'next-themes';
-import { useFontSize } from "@/contexts/FontSizeContext";
 import { useUser } from '@/contexts/UserContext';
 import { Button } from "@/components/ui/button";
 import {
@@ -11,21 +10,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Settings, Sun, Moon, Laptop, User, House, CaseUpper } from 'lucide-react';
-import { Slider } from '@/components/ui/slider';
 
 interface SettingsMenuProps {
   asButton?: boolean;
   onEditProfileClick: () => void;
   onEditCongregationClick: () => void;
+  onFontSizeClick: () => void;
 }
 
-export function SettingsMenu({ asButton = false, onEditProfileClick, onEditCongregationClick }: SettingsMenuProps) {
+export function SettingsMenu({ asButton = false, onEditProfileClick, onEditCongregationClick, onFontSizeClick }: SettingsMenuProps) {
   const { setTheme, resolvedTheme } = useTheme();
-  const { scale, setScale } = useFontSize();
   const { user } = useUser();
 
   const TriggerComponent = asButton ? (
@@ -64,9 +61,14 @@ export function SettingsMenu({ asButton = false, onEditProfileClick, onEditCongr
           )}
 
           <DropdownMenuSeparator />
-
-          <Accordion type="multiple" className="w-full">
-            <AccordionItem value="theme">
+          
+          <DropdownMenuItem onClick={onFontSizeClick}>
+              <CaseUpper className="mr-2 h-4 w-4" />
+              <span>Ajustar Tamanho do Texto</span>
+          </DropdownMenuItem>
+          
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="theme" className="border-b-0">
               <AccordionTrigger className="text-sm font-semibold px-2 py-1.5 rounded-sm hover:bg-accent hover:no-underline">
                 <div className="flex items-center gap-2"><ThemeIcon /><span>Tema</span></div>
               </AccordionTrigger>
@@ -85,25 +87,6 @@ export function SettingsMenu({ asButton = false, onEditProfileClick, onEditCongr
                         <span>Padrão do dispositivo</span>
                     </DropdownMenuItem>
                 </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="font-size" className="border-b-0">
-               <AccordionTrigger className="text-sm font-semibold px-2 py-1.5 rounded-sm hover:bg-accent hover:no-underline">
-                 <div className="flex items-center gap-2"><CaseUpper /><span>Tamanho do Texto</span></div>
-              </AccordionTrigger>
-              <AccordionContent className="pt-4 pb-2 px-4">
-                  <div className="flex items-center gap-4">
-                      <span className="text-xs">A</span>
-                      <Slider
-                        value={[scale]}
-                        onValueChange={(value) => setScale(value[0])}
-                        min={0.8}
-                        max={1.3}
-                        step={0.1}
-                      />
-                      <span className="text-lg">A</span>
-                  </div>
               </AccordionContent>
             </AccordionItem>
           </Accordion>

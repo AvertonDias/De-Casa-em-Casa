@@ -30,6 +30,7 @@ import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
 import { SettingsMenu } from "../components/SettingsMenu";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
+import { FontSizeModal } from "@/components/FontSizeModal";
 
 
 const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React.SVGProps<SVGSVGElement>) => {
@@ -80,6 +81,7 @@ function Sidebar({
     unreadNotificationsCount,
     onEditProfileClick,
     onEditCongregationClick,
+    onFontSizeClick,
 }: { 
     isOpen: boolean; 
     onClose: () => void;
@@ -87,6 +89,7 @@ function Sidebar({
     unreadNotificationsCount: number;
     onEditProfileClick: () => void;
     onEditCongregationClick: () => void;
+    onFontSizeClick: () => void;
 }) {
   const pathname = usePathname();
   const { user, logout } = useUser();
@@ -154,7 +157,11 @@ function Sidebar({
                 />
                 <div className="flex flex-col items-end gap-2">
                     <div className="hidden md:block">
-                        <SettingsMenu onEditProfileClick={onEditProfileClick} onEditCongregationClick={onEditCongregationClick} />
+                        <SettingsMenu 
+                          onEditProfileClick={onEditProfileClick} 
+                          onEditCongregationClick={onEditCongregationClick}
+                          onFontSizeClick={onFontSizeClick}
+                        />
                     </div>
                     <button onClick={onClose} className="md:hidden p-1 rounded-full"><AnimatedHamburgerIcon isOpen={isOpen} /></button>
                 </div>
@@ -264,6 +271,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isCongregationModalOpen, setIsCongregationModalOpen] = useState(false);
+  const [isFontSizeModalOpen, setIsFontSizeModalOpen] = useState(false);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
@@ -407,6 +415,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
             unreadNotificationsCount={unreadNotificationsCount}
             onEditProfileClick={() => setIsProfileModalOpen(true)}
             onEditCongregationClick={() => setIsCongregationModalOpen(true)}
+            onFontSizeClick={() => setIsFontSizeModalOpen(true)}
           />
 
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -420,7 +429,11 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                     )}
                   </div>
                   <h1 className="text-lg font-bold">De Casa em Casa</h1>
-                  <SettingsMenu onEditProfileClick={() => setIsProfileModalOpen(true)} onEditCongregationClick={() => setIsCongregationModalOpen(true)} /> 
+                  <SettingsMenu 
+                    onEditProfileClick={() => setIsProfileModalOpen(true)} 
+                    onEditCongregationClick={() => setIsCongregationModalOpen(true)}
+                    onFontSizeClick={() => setIsFontSizeModalOpen(true)}
+                  /> 
               </header>
               <div className="sticky top-0 z-10 bg-background">
                 <div className="p-4 md:p-8 pb-0">
@@ -435,6 +448,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
           <EditProfileModal isOpen={isProfileModalOpen} onOpenChange={setIsProfileModalOpen} />
           <EditCongregationModal isOpen={isCongregationModalOpen} onOpenChange={setIsCongregationModalOpen} />
+          <FontSizeModal isOpen={isFontSizeModalOpen} onOpenChange={setIsFontSizeModalOpen} />
       </div>
   );
 }
