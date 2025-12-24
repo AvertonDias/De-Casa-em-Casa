@@ -57,9 +57,6 @@ function AdminPage() {
       <div className="border-b border-border overflow-x-auto">
         <div className="flex items-center">
             <TabButton id="assignment" label="Designar Territórios" icon={BookUser} />
-            {isAdmin && (
-              <TabButton id="congregation" label="Editar Congregação" icon={Settings} />
-            )}
             
             <Link 
                 href="/dashboard/administracao/relatorio-s13"
@@ -72,7 +69,6 @@ function AdminPage() {
       </div>
       <div className="mt-6">
         {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
-        {activeTab === 'congregation' && isAdmin && <CongregationEditForm onSaveSuccess={() => setActiveTab('assignment')} />}
       </div>
     </div>
   );
