@@ -151,12 +151,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         if (result.token) {
             const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
             
-            const templateParams = {
+            await sendPasswordResetEmail({
                 email: user.email,
                 link: resetLink,
-            };
-            
-            await sendPasswordResetEmail(templateParams);
+            });
         }
       
         setPasswordResetSuccess(
