@@ -16,7 +16,35 @@ interface AvailableTerritory extends Territory {
   lastCompletionDate?: Date | null;
 }
 
-export default function AvailableReportPage() {
+const ReportContent = ({ territories, congregationName }: { territories: AvailableTerritory[], congregationName?: string | null }) => (
+    <>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-xl font-bold">Territórios disponíveis</h1>
+        <p className="text-sm font-semibold">{congregationName || "..."}</p>
+      </div>
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr>
+            <th className="border-b-2 border-black p-2 font-bold">Número</th>
+            <th className="border-b-2 border-black p-2 font-bold">Data da conclusão</th>
+            <th className="border-b-2 border-black p-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {territories.map((t, index) => (
+            <tr key={t.id} className="border-b border-gray-400">
+              <td className="p-2">{t.number}-{t.name}</td>
+              <td className="p-2">{t.lastCompletionDate ? format(t.lastCompletionDate, "dd/MM/yyyy") : 'Nunca trabalhado'}</td>
+              <td className="p-2"></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+
+
+export default function AvailableTerritoriesReport() {
   const { user } = useUser();
   const [availableTerritories, setAvailableTerritories] = useState<AvailableTerritory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,11 +93,19 @@ export default function AvailableReportPage() {
     setIsPrinting(true);
     await new Promise(resolve => setTimeout(resolve, 100)); // Aguarda DOM atualizar
 
-    const element = document.getElementById("pdf-area");
-    if (!element) {
+    const printContent = document.getElementById("print-version")?.innerHTML;
+    if (!printContent) {
       setIsPrinting(false);
       return;
     }
+    
+    const element = document.createElement("div");
+    element.innerHTML = printContent;
+    
+    // Esconder o preview na versão de impressão
+    const preview = element.querySelector("#pdf-preview-area");
+    if(preview) (preview as HTMLElement).style.display = 'none';
+
 
     try {
       const html2pdf = (await import("html2pdf.js")).default;
@@ -90,65 +126,25 @@ export default function AvailableReportPage() {
     }
   };
 
-  const ReportContent = () => (
-    <>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-bold">Territórios disponíveis</h1>
-        <p className="text-sm font-semibold">{user?.congregationName || "..."}</p>
-      </div>
-      <table className="w-full text-left border-collapse">
-        <thead>
-          <tr>
-            <th className="border-b-2 border-black p-2 font-bold">Número</th>
-            <th className="border-b-2 border-black p-2 font-bold">Data da conclusão</th>
-            <th className="border-b-2 border-black p-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {availableTerritories.map((t, index) => (
-            <tr key={t.id} className="border-b border-gray-400">
-              <td className="p-2">{t.number}-{t.name}</td>
-              <td className="p-2">{t.lastCompletionDate ? format(t.lastCompletionDate, "dd/MM/yyyy") : 'Nunca trabalhado'}</td>
-              <td className="p-2"></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
-  );
-
   return (
-    <>
-      <div className="p-4 bg-card print-hidden">
-        <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-          <Button variant="ghost" asChild>
-            <Link href="/dashboard/administracao">
-              <ArrowLeft size={16} className="mr-2" />Voltar
-            </Link>
-          </Button>
-          <h2 className="text-lg font-semibold">Relatório de Disponíveis</h2>
-          <Button onClick={handlePrint} disabled={isPrinting || loading} className="w-full sm:w-auto justify-center">
+    <div id="print-version">
+      <div className="flex justify-end mb-4 print-hidden">
+        <Button onClick={handlePrint} disabled={isPrinting || loading} className="w-full sm:w-auto justify-center">
             {isPrinting ? <Loader className="animate-spin mr-2" /> : <Printer size={16} className="mr-2" />} Salvar PDF
-          </Button>
-        </div>
+        </Button>
       </div>
-      <div className="p-4 flex justify-center bg-muted print-hidden w-full overflow-auto">
-        <div id="pdf-area" className="bg-white p-8 shadow-lg" style={{ width: "210mm", minHeight: "297mm" }}>
+
+      <div id="pdf-preview-area" className="p-4 flex justify-center bg-muted print-hidden w-full overflow-auto">
+        <div className="bg-white p-8 shadow-lg" style={{ width: "210mm", minHeight: "297mm" }}>
           {loading ? (
              <div className="flex items-center justify-center h-full"><Loader className="animate-spin" /></div>
           ) : (
             <div className="text-black">
-              <ReportContent />
+              <ReportContent territories={availableTerritories} congregationName={user?.congregationName}/>
             </div>
           )}
         </div>
       </div>
-      {/* Hidden element for printing */}
-      <div className="hidden print-block">
-        <div id="print-version" className="text-black bg-white p-8">
-            <ReportContent />
-        </div>
-      </div>
-    </>
+    </div>
   );
 }

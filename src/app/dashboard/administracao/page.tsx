@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Loader, BarChart3, BookUser, FileText, Settings as SettingsIcon, ClipboardList } from 'lucide-react';
+import { Loader, BarChart3, BookUser, FileText, SettingsIcon, ClipboardList } from 'lucide-react';
 import Link from 'next/link';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
@@ -20,6 +20,12 @@ const TerritoryCoverageStats = dynamic(
   () => import('@/components/admin/TerritoryCoverageStats').then(mod => mod.default),
   { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
 );
+
+const AvailableTerritoriesReport = dynamic(
+  () => import('@/components/admin/AvailableTerritoriesReport').then(mod => mod.default),
+  { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
+);
+
 
 const S13ReportLink = () => (
   <div className="bg-card p-6 rounded-lg shadow-md mt-6 text-center">
@@ -86,19 +92,7 @@ function AdminPage() {
       <div className="mt-6">
         {activeTab === 'overview' && <TerritoryCoverageStats />}
         {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
-        {activeTab === 'available' && (
-             <div className="bg-card p-6 rounded-lg shadow-md mt-6 text-center">
-                <h3 className="text-xl font-bold mb-4">Relatório de Territórios Disponíveis</h3>
-                <p className="text-muted-foreground mb-6">Gere uma lista ordenada de territórios disponíveis para facilitar a próxima designação.</p>
-                <Link 
-                  href="/dashboard/administracao/relatorio-disponiveis"
-                  className="inline-flex items-center justify-center px-6 py-3 bg-secondary text-secondary-foreground font-semibold rounded-lg hover:bg-secondary/80"
-                >
-                  <ClipboardList size={18} className="mr-2" />
-                  <span>Gerar Relatório</span>
-                </Link>
-            </div>
-        )}
+        {activeTab === 'available' && <AvailableTerritoriesReport />}
         {activeTab === 'report' && <S13ReportLink />}
       </div>
     </div>
