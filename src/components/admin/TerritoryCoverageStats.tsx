@@ -18,24 +18,30 @@ interface StatItemProps {
     subValue?: string;
     Icon: React.ElementType;
     onClick?: () => void;
+    isPrinting?: boolean; // Adicionado para controlar o estilo de impressão
 }
 
-const StatItem = ({ label, value, subValue, Icon, onClick }: StatItemProps) => {
+const StatItem = ({ label, value, subValue, Icon, onClick, isPrinting = false }: StatItemProps) => {
     const isClickable = onClick && Number(value) > 0;
-    const Wrapper = isClickable ? 'button' : 'div';
+    const Wrapper = isClickable && !isPrinting ? 'button' : 'div';
     
+    const textColorClass = isPrinting ? 'text-black' : 'text-foreground/90';
+    const valueColorClass = isPrinting ? 'text-black' : 'font-bold text-lg';
+    const mutedColorClass = isPrinting ? 'text-gray-600' : 'text-muted-foreground';
+
+
     return (
         <Wrapper
             onClick={isClickable ? onClick : undefined}
-            className={`flex justify-between items-center py-3 border-b border-border/50 w-full text-left ${isClickable ? 'hover:bg-accent/50 transition-colors rounded-md px-2 -mx-2' : ''}`}
+            className={`flex justify-between items-center py-3 border-b border-border/50 w-full text-left ${isClickable && !isPrinting ? 'hover:bg-accent/50 transition-colors rounded-md px-2 -mx-2' : ''}`}
         >
             <div className="flex items-center">
-                <Icon className="h-5 w-5 mr-3 text-muted-foreground" />
-                <span className="text-foreground/90">{label}</span>
+                {!isPrinting && <Icon className={`h-5 w-5 mr-3 ${mutedColorClass}`} />}
+                <span className={textColorClass}>{label}</span>
             </div>
             <div className="text-center w-24">
-                <span className="font-bold text-lg">{value}</span>
-                {subValue && <span className="text-sm text-muted-foreground ml-2">({subValue})</span>}
+                <span className={valueColorClass}>{value}</span>
+                {subValue && <span className={`text-sm ${mutedColorClass} ml-2`}>({subValue})</span>}
             </div>
         </Wrapper>
     );
@@ -172,32 +178,37 @@ export default function TerritoryCoverageStats() {
         printArea.id = "pdf-content";
         printArea.className = "bg-white p-8";
         printArea.style.width = "210mm";
+        
+        const statsData = {
+            "Total de territórios": { value: stats!.totalTerritories.count },
+            "Em andamento": { value: stats!.inProgress.count },
+            "Concluído últimos 6 meses": { value: stats!.completedLast6Months.count, subValue: `${((stats!.completedLast6Months.count / stats!.totalTerritories.count) * 100).toFixed(0)}%` },
+            "Concluído últimos 12 meses": { value: stats!.completedLast12Months.count, subValue: `${((stats!.completedLast12Months.count / stats!.totalTerritories.count) * 100).toFixed(0)}%` },
+            "Não concluído nos últimos 6 meses": { value: stats!.notCompletedLast6Months.count, subValue: `${((stats!.notCompletedLast6Months.count / stats!.totalTerritories.count) * 100).toFixed(0)}%` },
+            "Não concluído nos últimos 12 meses": { value: stats!.notCompletedLast12Months.count, subValue: `${((stats!.notCompletedLast12Months.count / stats!.totalTerritories.count) * 100).toFixed(0)}%` },
+            "Não trabalhado nos últimos 6 meses": { value: stats!.notWorkedLast6Months.count, subValue: `${((stats!.notWorkedLast6Months.count / stats!.totalTerritories.count) * 100).toFixed(0)}%` },
+            "Não trabalhado nos últimos 12 meses": { value: stats!.notWorkedLast12Months.count, subValue: `${((stats!.notWorkedLast12Months.count / stats!.totalTerritories.count) * 100).toFixed(0)}%` },
+            "Tempo médio para completar um território": { value: `${stats!.avgCompletionTime} Dias` },
+            "Estimativa para cobrir tudo": { value: `${stats!.estimatedTimeToCompleteAll} Meses` },
+        };
+
         printArea.innerHTML = `
-            <div class="text-center mb-6">
-                <h1 class="text-xl font-bold text-black">Relatório de Cobertura - ${typeFilter === 'urban' ? 'Urbanos' : 'Rurais'}</h1>
-                <p class="text-sm text-gray-600">${user?.congregationName}</p>
-            </div>
-            <div class="space-y-2">
-                ${stats ? Object.entries({
-                    "Total de territórios": { value: stats.totalTerritories.count, Icon: BarChart3 },
-                    "Em andamento": { value: stats.inProgress.count, Icon: TrendingUp },
-                    "Concluído últimos 6 meses": { value: stats.completedLast6Months.count, subValue: `${((stats.completedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`, Icon: CalendarCheck },
-                    "Concluído últimos 12 meses": { value: stats.completedLast12Months.count, subValue: `${((stats.completedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`, Icon: CalendarCheck },
-                    "Não concluído nos últimos 6 meses": { value: stats.notCompletedLast6Months.count, subValue: `${((stats.notCompletedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`, Icon: CalendarX },
-                    "Não concluído nos últimos 12 meses": { value: stats.notCompletedLast12Months.count, subValue: `${((stats.notCompletedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`, Icon: CalendarX },
-                    "Não trabalhado nos últimos 6 meses": { value: stats.notWorkedLast6Months.count, subValue: `${((stats.notWorkedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`, Icon: XCircle },
-                    "Não trabalhado nos últimos 12 meses": { value: stats.notWorkedLast12Months.count, subValue: `${((stats.notWorkedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`, Icon: XCircle },
-                    "Tempo médio para completar um território": { value: `${stats.avgCompletionTime} Dias`, Icon: Timer },
-                    "Estimativa para cobrir tudo": { value: `${stats.estimatedTimeToCompleteAll} Meses`, Icon: Forward },
-                }).map(([key, item]) => `
-                    <div class="flex justify-between items-center py-3 border-b text-black">
-                        <span class="text-black">${key}</span>
-                        <div class="text-center w-24 text-black">
-                            <span class="font-bold text-lg">${item.value}</span>
-                            ${item.subValue ? `<span class="text-sm text-gray-600 ml-2">(${item.subValue})</span>` : ''}
+            <div style="color: black;"> 
+                <div class="text-center mb-6">
+                    <h1 class="text-xl font-bold" style="color: black;">Relatório de Cobertura - ${typeFilter === 'urban' ? 'Urbanos' : 'Rurais'}</h1>
+                    <p class="text-sm" style="color: #555;">${user?.congregationName}</p>
+                </div>
+                <div class="space-y-2">
+                    ${stats ? Object.entries(statsData).map(([key, item]) => `
+                        <div class="flex justify-between items-center py-3 border-b">
+                            <span style="color: black;">${key}</span>
+                            <div class="text-center w-24">
+                                <span class="font-bold text-lg" style="color: black;">${item.value}</span>
+                                ${item.subValue ? `<span class="text-sm ml-2" style="color: #555;">(${item.subValue})</span>` : ''}
+                            </div>
                         </div>
-                    </div>
-                `).join('') : ''}
+                    `).join('') : ''}
+                </div>
             </div>
         `;
 
