@@ -1,9 +1,8 @@
 
 "use client";
 
-import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { BookUser, FileText, Edit, Loader, Settings } from 'lucide-react';
+import { BookUser, FileText, Loader, BarChart, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
@@ -14,8 +13,8 @@ const TerritoryAssignmentPanel = dynamic(
   { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
 );
 
-const CongregationEditForm = dynamic(
-  () => import('@/components/admin/CongregationEditForm').then(mod => mod.default),
+const TerritoryCoverageStats = dynamic(
+  () => import('@/components/admin/TerritoryCoverageStats').then(mod => mod.default),
   { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
 );
 
@@ -23,10 +22,7 @@ const CongregationEditForm = dynamic(
 function AdminPage() {
   const { user } = useUser();
   
-  const isAdmin = user?.role === 'Administrador';
-  const isManager = isAdmin || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
-
-  const [activeTab, setActiveTab] = useState('assignment');
+  const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
 
   if (!user || !isManager) {
     return (
@@ -36,39 +32,30 @@ function AdminPage() {
       </div>
     );
   }
-  
-  const TabButton = ({ id, label, icon: Icon }: { id: string, label: string, icon: React.ElementType }) => (
-    <button
-      onClick={() => setActiveTab(id)}
-      className={`whitespace-nowrap px-3 py-2 text-sm font-semibold transition-colors flex items-center gap-2 ${activeTab === id ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}
-    >
-      <Icon size={16} />
-      <span>{label}</span>
-    </button>
-  );
 
   return (
     <div className="p-4 md:p-8 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Administração</h1>
-        <p className="text-muted-foreground">Ferramentas para gerenciar os territórios e a congregação.</p>
+        <p className="text-muted-foreground">Ferramentas para gerenciar e analisar os territórios.</p>
       </div>
 
-      <div className="border-b border-border overflow-x-auto">
-        <div className="flex items-center">
-            <TabButton id="assignment" label="Designar Territórios" icon={BookUser} />
-            
-            <Link 
-                href="/dashboard/administracao/relatorio-s13"
-                className="whitespace-nowrap px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors ml-auto flex items-center gap-2"
-            >
-              <FileText size={16} />
-              <span>Relatório S-13</span>
-            </Link>
-        </div>
+      <div className="border-b border-border" />
+
+      <TerritoryCoverageStats />
+
+      <div className="mt-8">
+        <TerritoryAssignmentPanel />
       </div>
-      <div className="mt-6">
-        {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
+      
+      <div className="mt-8 pt-6 border-t border-border">
+         <Link 
+            href="/dashboard/administracao/relatorio-s13"
+            className="inline-flex items-center justify-center px-4 py-2 bg-secondary text-secondary-foreground font-semibold rounded-lg hover:bg-secondary/80 w-full sm:w-auto"
+        >
+          <FileText size={16} className="mr-2" />
+          <span>Gerar Relatório S-13</span>
+        </Link>
       </div>
     </div>
   );
