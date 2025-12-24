@@ -18,24 +18,25 @@ interface StatItemProps {
     subValue?: string;
     Icon: React.ElementType;
     onClick?: () => void;
+    isPreviewing?: boolean;
 }
 
-const StatItem = ({ label, value, subValue, Icon, onClick }: StatItemProps) => {
+const StatItem = ({ label, value, subValue, Icon, onClick, isPreviewing }: StatItemProps) => {
     const isClickable = onClick && Number(value) > 0;
-    const Wrapper = isClickable ? 'button' : 'div';
+    const Wrapper = isClickable && !isPreviewing ? 'button' : 'div';
     
     return (
         <Wrapper
-            onClick={isClickable ? onClick : undefined}
-            className={`flex justify-between items-center py-3 border-b border-border/50 w-full text-left ${isClickable ? 'hover:bg-accent/50 transition-colors rounded-md px-2 -mx-2' : ''}`}
+            onClick={isClickable && !isPreviewing ? onClick : undefined}
+            className={`flex justify-between items-center py-3 border-b border-border/50 w-full text-left ${isClickable && !isPreviewing ? 'hover:bg-accent/50 transition-colors rounded-md px-2 -mx-2' : ''}`}
         >
             <div className="flex items-center">
-                <Icon className="h-5 w-5 mr-3 text-muted-foreground print-hidden" />
-                <span className="text-foreground/90">{label}</span>
+                {!isPreviewing && <Icon className="h-5 w-5 mr-3 text-muted-foreground" />}
+                <span className={isPreviewing ? "text-black" : "text-foreground/90"}>{label}</span>
             </div>
             <div className="text-center w-24">
-                <span className="font-bold text-lg text-foreground">{value}</span>
-                {subValue && <span className="text-sm text-muted-foreground ml-2">({subValue})</span>}
+                <span className={`font-bold text-lg ${isPreviewing ? "text-black" : "text-foreground"}`}>{value}</span>
+                {subValue && <span className={`text-sm ${isPreviewing ? "text-gray-600" : "text-muted-foreground"} ml-2`}>({subValue})</span>}
             </div>
         </Wrapper>
     );
@@ -199,16 +200,16 @@ export default function TerritoryCoverageStats() {
                         <div className="space-y-2">
                           {stats && (
                             <>
-                              <StatItem Icon={BarChart3} label="Total de territórios" value={stats.totalTerritories.count} />
-                              <StatItem Icon={TrendingUp} label="Em andamento" value={stats.inProgress.count} />
-                              <StatItem Icon={CalendarCheck} label="Concluído últimos 6 meses" value={stats.completedLast6Months.count} subValue={`${((stats.completedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
-                              <StatItem Icon={CalendarCheck} label="Concluído últimos 12 meses" value={stats.completedLast12Months.count} subValue={`${((stats.completedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
-                              <StatItem Icon={CalendarX} label="Não concluído nos últimos 6 meses" value={stats.notCompletedLast6Months.count} subValue={`${((stats.notCompletedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
-                              <StatItem Icon={CalendarX} label="Não concluído nos últimos 12 meses" value={stats.notCompletedLast12Months.count} subValue={`${((stats.notCompletedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
-                              <StatItem Icon={XCircle} label="Não trabalhado nos últimos 6 meses" value={stats.notWorkedLast6Months.count} subValue={`${((stats.notWorkedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
-                              <StatItem Icon={XCircle} label="Não trabalhado nos últimos 12 meses" value={stats.notWorkedLast12Months.count} subValue={`${((stats.notWorkedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
-                              <StatItem Icon={Timer} label="Tempo médio para completar um território" value={`${stats.avgCompletionTime} Dias`} />
-                              <StatItem Icon={Forward} label="Tempo estimado para completar todo o território" value={`${stats.estimatedTimeToCompleteAll} Meses`} />
+                              <StatItem isPreviewing={true} Icon={BarChart3} label="Total de territórios" value={stats.totalTerritories.count} />
+                              <StatItem isPreviewing={true} Icon={TrendingUp} label="Em andamento" value={stats.inProgress.count} />
+                              <StatItem isPreviewing={true} Icon={CalendarCheck} label="Concluído últimos 6 meses" value={stats.completedLast6Months.count} subValue={`${((stats.completedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
+                              <StatItem isPreviewing={true} Icon={CalendarCheck} label="Concluído últimos 12 meses" value={stats.completedLast12Months.count} subValue={`${((stats.completedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
+                              <StatItem isPreviewing={true} Icon={CalendarX} label="Não concluído nos últimos 6 meses" value={stats.notCompletedLast6Months.count} subValue={`${((stats.notCompletedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
+                              <StatItem isPreviewing={true} Icon={CalendarX} label="Não concluído nos últimos 12 meses" value={stats.notCompletedLast12Months.count} subValue={`${((stats.notCompletedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
+                              <StatItem isPreviewing={true} Icon={XCircle} label="Não trabalhado nos últimos 6 meses" value={stats.notWorkedLast6Months.count} subValue={`${((stats.notWorkedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
+                              <StatItem isPreviewing={true} Icon={XCircle} label="Não trabalhado nos últimos 12 meses" value={stats.notWorkedLast12Months.count} subValue={`${((stats.notWorkedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} />
+                              <StatItem isPreviewing={true} Icon={Timer} label="Tempo médio para completar um território" value={`${stats.avgCompletionTime} Dias`} />
+                              <StatItem isPreviewing={true} Icon={Forward} label="Tempo estimado para completar todo o território" value={`${stats.estimatedTimeToCompleteAll} Meses`} />
                             </>
                           )}
                         </div>
