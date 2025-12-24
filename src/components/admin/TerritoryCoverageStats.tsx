@@ -182,7 +182,7 @@ export default function TerritoryCoverageStats() {
                         <X className="mr-2"/> Sair da Visualização
                     </Button>
                     <Button onClick={handlePrint}>
-                        <Printer className="mr-2"/> Imprimir
+                        <Printer className="mr-2"/> Salvar PDF
                     </Button>
                 </div>
                 <div id="stats-print-area" className="bg-white mx-auto" style={{width: '210mm'}}>
@@ -254,7 +254,7 @@ export default function TerritoryCoverageStats() {
                     </div>
                     <Button onClick={() => setIsPreviewing(true)}>
                         <Printer size={16} className="mr-2" />
-                        Visualizar Impressão
+                        Visualizar Documento
                     </Button>
                 </div>
 
