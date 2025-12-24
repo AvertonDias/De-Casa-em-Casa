@@ -31,7 +31,7 @@ const StatItem = ({ label, value, subValue, Icon, onClick }: StatItemProps) => {
                 <Icon className="h-5 w-5 mr-3 text-muted-foreground" />
                 <span className="text-foreground/90">{label}</span>
             </div>
-            <div className="text-right">
+            <div className="text-center w-24">
                 <span className="font-bold text-lg text-foreground">{value}</span>
                 {subValue && <span className="text-sm text-muted-foreground ml-2">({subValue})</span>}
             </div>
@@ -79,10 +79,11 @@ export default function TerritoryCoverageStats({ territoryType }: TerritoryCover
         
         const completedLast6MonthsTerritories: Territory[] = [];
         const completedLast12MonthsTerritories: Territory[] = [];
+        
         const notWorkedLast6MonthsTerritories: Territory[] = [];
         const notWorkedLast12MonthsTerritories: Territory[] = [];
-        const completionTimes: number[] = [];
         
+        const completionTimes: number[] = [];
         const completionsInLast12Months: Date[] = [];
 
         filteredTerritories.forEach(t => {
