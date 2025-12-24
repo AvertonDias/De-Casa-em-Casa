@@ -276,7 +276,7 @@ export default function UserManagement() {
                                 <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Ativo" value="ativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Pendente" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                <FilterButton label="Inativo (Visual)" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                <FilterButton label="Inativo" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
                             </div>
                         </div>
                         
