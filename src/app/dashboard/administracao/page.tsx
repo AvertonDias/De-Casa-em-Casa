@@ -9,6 +9,7 @@ import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
 import { cn } from '@/lib/utils';
 import CongregationEditForm from '@/components/admin/CongregationEditForm';
+import S13ReportPage from './relatorio-s13/page';
 
 // --- Dynamic Imports for each tab ---
 const TerritoryAssignmentPanel = dynamic(
@@ -25,22 +26,6 @@ const AvailableTerritoriesReport = dynamic(
   () => import('@/components/admin/AvailableTerritoriesReport').then(mod => mod.default),
   { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
 );
-
-
-const S13ReportLink = () => (
-  <div className="bg-card p-6 rounded-lg shadow-md mt-6 text-center">
-    <h3 className="text-xl font-bold mb-4">Relatório de Designação de Território</h3>
-    <p className="text-muted-foreground mb-6">Gere e visualize o relatório S-13 para o ano de serviço atual.</p>
-    <Link 
-      href="/dashboard/administracao/relatorio-s13"
-      className="inline-flex items-center justify-center px-6 py-3 bg-secondary text-secondary-foreground font-semibold rounded-lg hover:bg-secondary/80"
-    >
-      <FileText size={18} className="mr-2" />
-      <span>Gerar Relatório S-13</span>
-    </Link>
-  </div>
-);
-
 
 type Tab = 'assignment' | 'overview' | 'report' | 'available';
 
@@ -93,7 +78,7 @@ function AdminPage() {
         {activeTab === 'overview' && <TerritoryCoverageStats />}
         {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
         {activeTab === 'available' && <AvailableTerritoriesReport />}
-        {activeTab === 'report' && <S13ReportLink />}
+        {activeTab === 'report' && <S13ReportPage />}
       </div>
     </div>
   );
