@@ -4,7 +4,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
 import { useFontSize } from '@/contexts/FontSizeContext';
-import { CaseUpper } from 'lucide-react';
+import { CaseUpper, RotateCcw } from 'lucide-react';
+import { Button } from './ui/button';
 
 interface FontSizeModalProps {
   isOpen: boolean;
@@ -12,7 +13,7 @@ interface FontSizeModalProps {
 }
 
 export function FontSizeModal({ isOpen, onOpenChange }: FontSizeModalProps) {
-  const { scale, setScale } = useFontSize();
+  const { scale, setScale, resetFontSize } = useFontSize();
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -38,6 +39,9 @@ export function FontSizeModal({ isOpen, onOpenChange }: FontSizeModalProps) {
                     aria-label="Ajustar tamanho da fonte"
                 />
                 <span className="text-xl font-bold">A</span>
+                <Button variant="ghost" size="icon" onClick={resetFontSize} title="Resetar tamanho">
+                    <RotateCcw className="h-5 w-5 text-muted-foreground"/>
+                </Button>
             </div>
         </div>
       </DialogContent>
