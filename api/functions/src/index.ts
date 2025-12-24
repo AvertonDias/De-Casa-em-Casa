@@ -189,37 +189,35 @@ export const resetPasswordWithTokenV2 = createHttpsFunction(async (req, res) => 
     }
 });
 
-export const deleteUserAccountV2 = createHttpsFunction(async (req, res) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-         return res.status(401).json({ success: false, error: "Ação não autorizada. Sem token." });
+export const deleteUserAccountV2 = https.onCall(async (request) => {
+    // A verificação do token de autenticação é feita automaticamente pelo onCall
+    if (!request.auth) {
+        throw new https.HttpsError('unauthenticated', 'Ação não autorizada.');
     }
-    const idToken = authHeader.split('Bearer ')[1];
     
+    const callingUserUid = request.auth.uid;
+    const { userIdToDelete } = request.data;
+
+    if (!userIdToDelete) {
+        throw new https.HttpsError('invalid-argument', 'ID do usuário a ser deletado é obrigatório.');
+    }
+
     try {
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
-        const callingUserUid = decodedToken.uid;
-        const { userIdToDelete } = req.body;
-
-        if (!userIdToDelete) {
-            return res.status(400).json({ success: false, error: "ID do usuário a ser deletado é obrigatório." });
-        }
-
         const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
         if (!callingUserSnap.exists) {
-             return res.status(404).json({ success: false, error: "Usuário requisitante não encontrado." });
+            throw new https.HttpsError('not-found', 'Usuário requisitante não encontrado.');
         }
+        
         const isCallingUserAdmin = callingUserSnap.data()?.role === "Administrador";
-
         const isSelfDelete = callingUserUid === userIdToDelete;
         const isAdminDeletingOther = isCallingUserAdmin && !isSelfDelete;
 
         if (!isSelfDelete && !isAdminDeletingOther) {
-             return res.status(403).json({ success: false, error: "Sem permissão." });
+            throw new https.HttpsError('permission-denied', 'Sem permissão para esta ação.');
         }
 
         if (isCallingUserAdmin && isSelfDelete) {
-            return res.status(403).json({ success: false, error: "Admin não pode se autoexcluir por esta função." });
+            throw new https.HttpsError('permission-denied', 'Admin não pode se autoexcluir por esta função.');
         }
 
         await admin.auth().deleteUser(userIdToDelete);
@@ -227,15 +225,15 @@ export const deleteUserAccountV2 = createHttpsFunction(async (req, res) => {
         if ((await userDocRef.get()).exists) {
             await userDocRef.delete();
         }
-        return res.status(200).json({ success: true });
+
+        return { success: true };
 
     } catch (error: any) {
         logger.error("Erro ao excluir usuário:", error);
-        if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-revoked') {
-            return res.status(401).json({ success: false, error: "Token de autenticação inválido. Faça login novamente." });
-        } else {
-            return res.status(500).json({ success: false, error: error.message || "Falha na exclusão." });
+        if (error instanceof https.HttpsError) {
+            throw error; // Re-throw HttpsError
         }
+        throw new https.HttpsError('internal', error.message || "Falha na exclusão.");
     }
 });
 
@@ -348,3 +346,5 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
+
+    

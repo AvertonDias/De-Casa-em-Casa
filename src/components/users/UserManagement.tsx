@@ -51,9 +51,11 @@ export default function UserManagement() {
     
     setIsConfirmModalOpen(false);
     try {
+        // Envolve o payload em um objeto 'data'
         await deleteUserAccount({ userIdToDelete: userToDelete.uid });
         toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {
+        console.error("Erro ao deletar usuário:", error);
         toast({ title: "Erro", description: error.message || "Falha ao excluir usuário.", variant: "destructive"});
     } finally {
         setUserToDelete(null);
@@ -152,7 +154,7 @@ export default function UserManagement() {
         status: {
             ativo: users.filter(u => u.status === 'ativo').length,
             pendente: users.filter(u => u.status === 'pendente').length,
-            inativo: users.filter(u => u.status === 'inativo').length,
+            inativo: users.filter(u => u.status === 'ativo' && (!u.lastSeen || u.lastSeen.toDate() < oneMonthAgo)).length,
         },
         presence: {
             online: users.filter(u => u.isOnline === true).length,
@@ -168,7 +170,7 @@ export default function UserManagement() {
         activity: {
             active_hourly: users.filter(u => u.lastSeen && u.lastSeen.toDate() > oneHourAgo).length,
             active_weekly: users.filter(u => u.lastSeen && u.lastSeen.toDate() > oneWeekAgo).length,
-            inactive_month: users.filter(u => u.status === 'inativo').length,
+            inactive_month: users.filter(u => u.status === 'ativo' && (!u.lastSeen || u.lastSeen.toDate() < oneMonthAgo)).length,
         }
     };
   }, [users]);
@@ -188,14 +190,16 @@ export default function UserManagement() {
     }
     
     if (activityFilter !== 'all') {
+        const now = new Date();
         if (activityFilter === 'active_hourly') {
-            const oneHourAgo = subHours(new Date(), 1);
+            const oneHourAgo = subHours(now, 1);
             filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneHourAgo);
         } else if (activityFilter === 'active_weekly') {
-            const oneWeekAgo = subDays(new Date(), 7);
+            const oneWeekAgo = subDays(now, 7);
             filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneWeekAgo);
         } else if (activityFilter === 'inactive_month') {
-            filtered = filtered.filter(u => u.status === 'inativo');
+            const oneMonthAgo = subMonths(now, 1);
+            filtered = filtered.filter(u => u.status === 'ativo' && (!u.lastSeen || u.lastSeen.toDate() < oneMonthAgo));
         }
     }
 
@@ -409,3 +413,5 @@ export default function UserManagement() {
     </>
   );
 }
+
+    
