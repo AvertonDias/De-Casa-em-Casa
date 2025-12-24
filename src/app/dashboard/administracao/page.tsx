@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { BookUser, FileText, Edit, Loader } from 'lucide-react';
+import { BookUser, FileText, Edit, Loader, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
@@ -57,7 +58,7 @@ function AdminPage() {
         <div className="flex items-center">
             <TabButton id="assignment" label="Designar Territórios" icon={BookUser} />
             {isAdmin && (
-              <TabButton id="congregation" label="Editar Congregação" icon={Edit} />
+              <TabButton id="congregation" label="Editar Congregação" icon={Settings} />
             )}
             
             <Link 

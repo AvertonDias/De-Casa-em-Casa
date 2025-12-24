@@ -1,3 +1,4 @@
+
 "use client";
 import { useEffect, useState, type ReactNode, useCallback } from "react";
 import Image from 'next/image';
@@ -9,7 +10,7 @@ import { doc, updateDoc, collection, query, where, onSnapshot, writeBatch, getDo
 import { useFontSize } from "@/contexts/FontSizeContext"; // Importar o hook de fonte
 
 
-import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell } from 'lucide-react';
+import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell, House } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -22,6 +23,7 @@ import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
 import withAuth from "@/components/withAuth";
 import { usePresence } from "@/hooks/usePresence";
 import { EditProfileModal } from "@/components/EditProfileModal"; // Importar o modal de perfil
+import { EditCongregationModal } from "@/components/EditCongregationModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal"; // IMPORTAR O NOVO MODAL
 import { Territory, Notification } from "@/types/types";
 import { Timestamp } from "firebase/firestore";
@@ -77,12 +79,14 @@ function Sidebar({
     pendingUsersCount, 
     unreadNotificationsCount,
     onEditProfileClick,
+    onEditCongregationClick,
 }: { 
     isOpen: boolean; 
     onClose: () => void;
     pendingUsersCount: number;
     unreadNotificationsCount: number;
     onEditProfileClick: () => void;
+    onEditCongregationClick: () => void;
 }) {
   const pathname = usePathname();
   const { user, logout } = useUser();
@@ -150,7 +154,7 @@ function Sidebar({
                 />
                 <div className="flex flex-col items-end gap-2">
                     <div className="hidden md:block">
-                        <SettingsMenu onEditProfileClick={onEditProfileClick} />
+                        <SettingsMenu onEditProfileClick={onEditProfileClick} onEditCongregationClick={onEditCongregationClick} />
                     </div>
                     <button onClick={onClose} className="md:hidden p-1 rounded-full"><AnimatedHamburgerIcon isOpen={isOpen} /></button>
                 </div>
@@ -259,6 +263,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useUser();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isCongregationModalOpen, setIsCongregationModalOpen] = useState(false);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
@@ -401,6 +406,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
             pendingUsersCount={pendingUsersCount}
             unreadNotificationsCount={unreadNotificationsCount}
             onEditProfileClick={() => setIsProfileModalOpen(true)}
+            onEditCongregationClick={() => setIsCongregationModalOpen(true)}
           />
 
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -414,7 +420,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                     )}
                   </div>
                   <h1 className="text-lg font-bold">De Casa em Casa</h1>
-                  <SettingsMenu onEditProfileClick={() => setIsProfileModalOpen(true)} /> 
+                  <SettingsMenu onEditProfileClick={() => setIsProfileModalOpen(true)} onEditCongregationClick={() => setIsCongregationModalOpen(true)} /> 
               </header>
               <div className="sticky top-0 z-10 bg-background">
                 <div className="p-4 md:p-8 pb-0">
@@ -428,6 +434,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
               </main>
           </div>
           <EditProfileModal isOpen={isProfileModalOpen} onOpenChange={setIsProfileModalOpen} />
+          <EditCongregationModal isOpen={isCongregationModalOpen} onOpenChange={setIsCongregationModalOpen} />
       </div>
   );
 }

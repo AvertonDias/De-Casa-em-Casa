@@ -3,6 +3,7 @@
 
 import { useTheme } from 'next-themes';
 import { useFontSize } from "@/contexts/FontSizeContext";
+import { useUser } from '@/contexts/UserContext';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,16 +13,18 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Settings, Sun, Moon, Laptop, ZoomIn, ZoomOut, RotateCcw, User } from 'lucide-react';
+import { Settings, Sun, Moon, Laptop, ZoomIn, ZoomOut, RotateCcw, User, House } from 'lucide-react';
 
 interface SettingsMenuProps {
   asButton?: boolean;
   onEditProfileClick: () => void;
+  onEditCongregationClick: () => void;
 }
 
-export function SettingsMenu({ asButton = false, onEditProfileClick }: SettingsMenuProps) {
-  const { setTheme, theme, resolvedTheme } = useTheme();
+export function SettingsMenu({ asButton = false, onEditProfileClick, onEditCongregationClick }: SettingsMenuProps) {
+  const { setTheme, resolvedTheme } = useTheme();
   const { increaseFontSize, decreaseFontSize, resetFontSize } = useFontSize();
+  const { user } = useUser();
 
   const TriggerComponent = asButton ? (
     <Button variant="outline" className="w-full justify-center">
@@ -50,7 +53,16 @@ export function SettingsMenu({ asButton = false, onEditProfileClick }: SettingsM
             <User className="mr-2 h-4 w-4" />
             <span>Editar Perfil</span>
           </DropdownMenuItem>
+          
+          {user?.role === 'Administrador' && (
+            <DropdownMenuItem onClick={onEditCongregationClick}>
+              <House className="mr-2 h-4 w-4" />
+              <span>Editar Congregação</span>
+            </DropdownMenuItem>
+          )}
+
           <DropdownMenuSeparator />
+
           <Accordion type="multiple" className="w-full">
             <AccordionItem value="theme">
               <AccordionTrigger className="text-sm font-semibold px-2 py-1.5 rounded-sm hover:bg-accent hover:no-underline">
