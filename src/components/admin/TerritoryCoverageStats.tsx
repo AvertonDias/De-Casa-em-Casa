@@ -18,30 +18,24 @@ interface StatItemProps {
     subValue?: string;
     Icon: React.ElementType;
     onClick?: () => void;
-    isPrinting?: boolean; // Adicionado para controlar o estilo de impressão
 }
 
-const StatItem = ({ label, value, subValue, Icon, onClick, isPrinting = false }: StatItemProps) => {
+const StatItem = ({ label, value, subValue, Icon, onClick }: StatItemProps) => {
     const isClickable = onClick && Number(value) > 0;
-    const Wrapper = isClickable && !isPrinting ? 'button' : 'div';
+    const Wrapper = isClickable ? 'button' : 'div';
     
-    const textColorClass = isPrinting ? 'text-black' : 'text-foreground/90';
-    const valueColorClass = isPrinting ? 'text-black' : 'font-bold text-lg';
-    const mutedColorClass = isPrinting ? 'text-gray-600' : 'text-muted-foreground';
-
-
     return (
         <Wrapper
             onClick={isClickable ? onClick : undefined}
-            className={`flex justify-between items-center py-3 border-b border-border/50 w-full text-left ${isClickable && !isPrinting ? 'hover:bg-accent/50 transition-colors rounded-md px-2 -mx-2' : ''}`}
+            className={`flex justify-between items-center py-3 border-b border-border/50 w-full text-left ${isClickable ? 'hover:bg-accent/50 transition-colors rounded-md px-2 -mx-2' : ''}`}
         >
             <div className="flex items-center">
-                {!isPrinting && <Icon className={`h-5 w-5 mr-3 ${mutedColorClass}`} />}
-                <span className={textColorClass}>{label}</span>
+                <Icon className="h-5 w-5 mr-3 text-muted-foreground" />
+                <span className="text-foreground/90">{label}</span>
             </div>
-            <div className="text-center w-24">
-                <span className={valueColorClass}>{value}</span>
-                {subValue && <span className={`text-sm ${mutedColorClass} ml-2`}>({subValue})</span>}
+            <div className="text-right">
+                <span className="font-bold text-lg">{value}</span>
+                {subValue && <span className="text-sm text-muted-foreground ml-2">({subValue})</span>}
             </div>
         </Wrapper>
     );
@@ -172,39 +166,40 @@ export default function TerritoryCoverageStats() {
     };
 
     const handlePrint = async () => {
+        if (!stats) return;
         setIsPrinting(true);
-        // Gera o conteúdo do PDF em um elemento temporário
+
         const printArea = document.createElement("div");
         printArea.id = "pdf-content";
         printArea.className = "bg-white p-8";
         printArea.style.width = "210mm";
         
         const statsData = {
-            "Total de territórios": { value: stats!.totalTerritories.count },
-            "Em andamento": { value: stats!.inProgress.count },
-            "Concluído últimos 6 meses": { value: stats!.completedLast6Months.count, subValue: `${((stats!.completedLast6Months.count / stats!.totalTerritories.count) * 100).toFixed(0)}%` },
-            "Concluído últimos 12 meses": { value: stats!.completedLast12Months.count, subValue: `${((stats!.completedLast12Months.count / stats!.totalTerritories.count) * 100).toFixed(0)}%` },
-            "Não concluído nos últimos 6 meses": { value: stats!.notCompletedLast6Months.count, subValue: `${((stats!.notCompletedLast6Months.count / stats!.totalTerritories.count) * 100).toFixed(0)}%` },
-            "Não concluído nos últimos 12 meses": { value: stats!.notCompletedLast12Months.count, subValue: `${((stats!.notCompletedLast12Months.count / stats!.totalTerritories.count) * 100).toFixed(0)}%` },
-            "Não trabalhado nos últimos 6 meses": { value: stats!.notWorkedLast6Months.count, subValue: `${((stats!.notWorkedLast6Months.count / stats!.totalTerritories.count) * 100).toFixed(0)}%` },
-            "Não trabalhado nos últimos 12 meses": { value: stats!.notWorkedLast12Months.count, subValue: `${((stats!.notWorkedLast12Months.count / stats!.totalTerritories.count) * 100).toFixed(0)}%` },
-            "Tempo médio para completar um território": { value: `${stats!.avgCompletionTime} Dias` },
-            "Estimativa para cobrir tudo": { value: `${stats!.estimatedTimeToCompleteAll} Meses` },
+            "Total de territórios": { value: stats.totalTerritories.count },
+            "Em andamento": { value: stats.inProgress.count },
+            "Concluído últimos 6 meses": { value: stats.completedLast6Months.count, subValue: `${((stats.completedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%` },
+            "Concluído últimos 12 meses": { value: stats.completedLast12Months.count, subValue: `${((stats.completedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%` },
+            "Não concluído nos últimos 6 meses": { value: stats.notCompletedLast6Months.count, subValue: `${((stats.notCompletedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%` },
+            "Não concluído nos últimos 12 meses": { value: stats.notCompletedLast12Months.count, subValue: `${((stats.notCompletedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%` },
+            "Não trabalhado nos últimos 6 meses": { value: stats.notWorkedLast6Months.count, subValue: `${((stats.notWorkedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%` },
+            "Não trabalhado nos últimos 12 meses": { value: stats.notWorkedLast12Months.count, subValue: `${((stats.notWorkedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%` },
+            "Tempo médio para completar um território": { value: `${stats.avgCompletionTime} Dias` },
+            "Estimativa para cobrir tudo": { value: `${stats.estimatedTimeToCompleteAll} Meses` },
         };
 
         printArea.innerHTML = `
-            <div style="color: black;"> 
-                <div class="text-center mb-6">
-                    <h1 class="text-xl font-bold" style="color: black;">Relatório de Cobertura - ${typeFilter === 'urban' ? 'Urbanos' : 'Rurais'}</h1>
-                    <p class="text-sm" style="color: #555;">${user?.congregationName}</p>
+            <div style="color: black; font-family: sans-serif;"> 
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <h1 style="font-size: 1.25rem; font-weight: bold; color: black;">Relatório de Cobertura - ${typeFilter === 'urban' ? 'Urbanos' : 'Rurais'}</h1>
+                    <p style="font-size: 0.875rem; color: #555;">${user?.congregationName}</p>
                 </div>
-                <div class="space-y-2">
+                <div style="font-size: 0.875rem;">
                     ${stats ? Object.entries(statsData).map(([key, item]) => `
-                        <div class="flex justify-between items-center py-3 border-b">
-                            <span style="color: black;">${key}</span>
-                            <div class="text-center w-24">
-                                <span class="font-bold text-lg" style="color: black;">${item.value}</span>
-                                ${item.subValue ? `<span class="text-sm ml-2" style="color: #555;">(${item.subValue})</span>` : ''}
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; padding-bottom: 12px; border-bottom: 1px solid #eee;">
+                            <span style="color: black; flex-grow: 1;">${key}</span>
+                            <div style="text-align: right;">
+                                <span style="font-weight: bold; font-size: 1.125rem; color: black;">${item.value}</span>
+                                ${item.subValue ? `<span style="font-size: 0.875rem; margin-left: 8px; color: #555;">(${item.subValue})</span>` : ''}
                             </div>
                         </div>
                     `).join('') : ''}
@@ -220,7 +215,7 @@ export default function TerritoryCoverageStats() {
                 .from(printArea)
                 .set({
                     margin: [15, 10, 15, 10],
-                    filename: `Relatorio-Cobertura-${typeFilter}.pdf`,
+                    filename: `Relatorio-de-Cobertura-${typeFilter}.pdf`,
                     image: { type: "jpeg", quality: 0.98 },
                     html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
                     jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
