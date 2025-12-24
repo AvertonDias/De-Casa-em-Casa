@@ -30,7 +30,7 @@ const StatItem = ({ label, value, subValue, Icon, onClick }: StatItemProps) => {
             className={`flex justify-between items-center py-3 border-b border-border/50 w-full text-left ${isClickable ? 'hover:bg-accent/50 transition-colors rounded-md px-2 -mx-2' : ''}`}
         >
             <div className="flex items-center">
-                <Icon className="h-5 w-5 mr-3 text-muted-foreground" />
+                <Icon className="h-5 w-5 mr-3 text-muted-foreground print-hidden" />
                 <span className="text-foreground/90">{label}</span>
             </div>
             <div className="text-center w-24">
@@ -192,7 +192,7 @@ export default function TerritoryCoverageStats() {
                     margin: [15, 15, 15, 15],
                     filename: `relatorio-cobertura-${territoryType}.pdf`,
                     image: { type: "jpeg", quality: 0.98 },
-                    html2canvas: { scale: 2, useCORS: true, backgroundColor: "#111827" }, // Fundo escuro para tema dark
+                    html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" }, 
                     jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
                 })
                 .save();
@@ -264,16 +264,17 @@ export default function TerritoryCoverageStats() {
                         left: 0; 
                         top: 0; 
                         width: 100%;
-                        background-color: white !important; /* Forçar fundo branco na impressão */
-                        color: black !important; /* Forçar texto preto na impressão */
+                        background-color: white !important;
+                        color: black !important;
                     }
-                    .print-hidden { display: none; }
+                    .print-hidden { display: none !important; }
                     .print-header { display: block !important; }
                     .dark #stats-print-area, .dark #stats-print-area * {
                         background-color: white !important;
                         color: black !important;
                     }
                     .dark .text-muted-foreground { color: #555 !important; }
+                    .text-foreground, .text-foreground/90, .font-bold { color: black !important; }
                 }
             `}</style>
         </>
