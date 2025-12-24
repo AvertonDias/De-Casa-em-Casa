@@ -16,22 +16,8 @@ import { httpsCallable } from 'firebase/functions';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { getIdToken } from 'firebase/auth';
 
-const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
 
-// Função para buscar o conteúdo do template
-async function getEmailTemplate() {
-    try {
-        const response = await fetch('/email-template.html');
-        if (!response.ok) {
-            throw new Error('Não foi possível carregar o template de e-mail.');
-        }
-        return await response.text();
-    } catch (error) {
-        console.error(error);
-        // Retorna um HTML básico em caso de falha
-        return '<p>{{ message }}</p><a href="{{reset_link}}">Clique aqui</a>';
-    }
-}
+const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
@@ -164,23 +150,15 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         
         if (result.token) {
             const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
-            const emailTemplate = await getEmailTemplate();
-            
             const messageBody = `Você solicitou a redefinição de sua senha. Use o botão abaixo para criar uma nova.`;
-            
-            const finalHtml = emailTemplate
-                .replace('{{ subject }}', 'Redefinição de Senha')
-                .replace('{{ to_name }}', user.name)
-                .replace('{{ message }}', messageBody)
-                .replace(/{{reset_link}}/g, resetLink)
-                .replace('{{ action_button_text }}', 'Criar Nova Senha')
-                .replace('{{email}}', user.email);
 
             const templateParams = {
                 email: user.email,
+                to_name: user.name,
                 subject: 'Redefinição de Senha - De Casa em Casa',
-                html_content: finalHtml, 
-                reset_link: resetLink
+                message: messageBody,
+                reset_link: resetLink,
+                action_button_text: 'Criar Nova Senha'
             };
             
             await sendPasswordResetEmail(templateParams);

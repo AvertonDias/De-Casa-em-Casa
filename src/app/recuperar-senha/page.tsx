@@ -14,21 +14,6 @@ import { httpsCallable } from 'firebase/functions';
 
 const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
 
-// Função para buscar o conteúdo do template
-async function getEmailTemplate() {
-    try {
-        const response = await fetch('/email-template.html');
-        if (!response.ok) {
-            throw new Error('Não foi possível carregar o template de e-mail.');
-        }
-        return await response.text();
-    } catch (error) {
-        console.error(error);
-        // Retorna um HTML básico em caso de falha
-        return '<p>{{ message }}</p><a href="{{reset_link}}">Clique aqui</a>';
-    }
-}
-
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -58,24 +43,16 @@ export default function ForgotPasswordPage() {
         
         if (result.token) {
             const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
-            const emailTemplate = await getEmailTemplate();
             
             const messageBody = `Você solicitou a redefinição de sua senha. Use o botão abaixo para criar uma nova.`;
             
-            const finalHtml = emailTemplate
-                .replace('{{ subject }}', 'Redefinição de Senha')
-                .replace('{{ to_name }}', 'Usuário')
-                .replace('{{ message }}', messageBody)
-                .replace(/{{reset_link}}/g, resetLink)
-                .replace('{{ action_button_text }}', 'Criar Nova Senha')
-                .replace('{{email}}', email);
-
-
             const templateParams = {
                 email: email,
+                to_name: 'Usuário',
                 subject: 'Redefinição de Senha - De Casa em Casa',
-                html_content: finalHtml, 
-                reset_link: resetLink
+                message: messageBody,
+                reset_link: resetLink,
+                action_button_text: 'Criar Nova Senha'
             };
             
             await sendPasswordResetEmail(templateParams);
