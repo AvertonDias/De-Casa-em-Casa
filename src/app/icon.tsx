@@ -11,30 +11,26 @@ export const size = {
 export const contentType = 'image/png'
 
 // Image generation
-export default function Icon() {
+export default async function Icon() {
+  // A imagem está na pasta /public, então o Next.js a serve na raiz.
+  // Construímos a URL absoluta para a imagem.
+  const imageUrl = `${process.env.VERCEL_URL ? 'https' : 'http'}://${process.env.VERCEL_URL || 'localhost:3000'}/images/Logo_v3.png`;
+  
+  const imageData = await fetch(imageUrl).then((res) => res.arrayBuffer());
+
   return new ImageResponse(
     (
-      // ImageResponse JSX element
-      <div
+      <img
+        src={imageData as any}
+        width="32"
+        height="32"
+        alt="Favicon"
         style={{
-          fontSize: 18,
-          background: '#8E44AD',
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white',
-          borderRadius: 8,
-          fontWeight: 'bold',
+          borderRadius: '4px',
         }}
-      >
-        DC
-      </div>
+      />
     ),
-    // ImageResponse options
     {
-      // For convenience, we can re-use the exported icons size metadata
       ...size,
     }
   )
