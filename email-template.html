@@ -33,15 +33,14 @@
                     <!-- Conteúdo -->
                     <tr>
                         <td class="content">
-                            <h2>{{ subject }}</h2>
-                            <p>Olá {{ to_name }},</p>
-                            <p>{{ message }}</p>
+                            <h2>Redefinição de Senha Solicitada</h2>
+                            <p>Recebemos uma solicitação para redefinir a senha da sua conta. Para continuar, por favor, clique no link abaixo para criar uma nova senha:</p>
                             <p style="text-align: center;">
-                                <a href="{{reset_link}}" target="_blank" class="button">{{ action_button_text }}</a>
+                                <a href="{{link}}" target="_blank" class="button">Redefinir Senha</a>
                             </p>
-                            <p style="font-size: 12px; color: #999; text-align: center; word-break: break-all;">Se o botão não funcionar, copie e cole este link no seu navegador:<br/> <a href="{{reset_link}}">{{reset_link}}</a></p>
-                            <p>Este link irá expirar em breve.</p>
-                            <p>Se você não solicitou esta ação, por favor, ignore este e-mail.</p>
+                            <p style="font-size: 12px; color: #999; text-align: center; word-break: break-all;">Se o botão não funcionar, copie e cole este link no seu navegador:<br/> <a href="{{link}}">{{link}}</a></p>
+                            <p>Este link irá expirar em uma hora.</p>
+                            <p>Se você não solicitou esta redefinição de senha, por favor, ignore este e-mail. Sua conta permanece segura.</p>
                             <p>Atenciosamente,<br/>Equipe De Casa em Casa</p>
                         </td>
                     </tr>

@@ -150,15 +150,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         
         if (result.token) {
             const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
-            const messageBody = `Você solicitou a redefinição de sua senha. Use o botão abaixo para criar uma nova.`;
-
+            
             const templateParams = {
                 email: user.email,
-                to_name: user.name,
-                subject: 'Redefinição de Senha - De Casa em Casa',
-                message: messageBody,
-                reset_link: resetLink,
-                action_button_text: 'Criar Nova Senha'
+                link: resetLink,
             };
             
             await sendPasswordResetEmail(templateParams);
