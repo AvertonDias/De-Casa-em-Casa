@@ -1,0 +1,154 @@
+
+"use client";
+
+import React, { useEffect, useState, useRef } from "react";
+import { useUser } from "@/contexts/UserContext";
+import { db } from "@/lib/firebase";
+import { collection, query, where, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
+import { Territory } from "@/types/types";
+import { Printer, ArrowLeft, Loader } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+
+interface AvailableTerritory extends Territory {
+  lastCompletionDate?: Date | null;
+}
+
+export default function AvailableReportPage() {
+  const { user } = useUser();
+  const [availableTerritories, setAvailableTerritories] = useState<AvailableTerritory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  useEffect(() => {
+    if (!user?.congregationId) {
+      if (user) setLoading(false);
+      return;
+    }
+    const territoriesRef = collection(db,"congregations",user.congregationId,"territories");
+    const q = query(territoriesRef, where("status", "==", "disponivel"));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const territoriesData = snapshot.docs.map((doc) => {
+        const data = doc.data() as Territory;
+        const history = data.assignmentHistory || [];
+        const lastCompletion = history
+          .filter(h => h.completedAt)
+          .sort((a, b) => b.completedAt.toMillis() - a.completedAt.toMillis())[0];
+
+        return { 
+            id: doc.id, 
+            ...data,
+            lastCompletionDate: lastCompletion ? lastCompletion.completedAt.toDate() : null 
+        } as AvailableTerritory;
+      });
+      
+      territoriesData.sort((a, b) => {
+        const dateA = a.lastCompletionDate?.getTime() || 0;
+        const dateB = b.lastCompletionDate?.getTime() || 0;
+        if (dateA === 0 && dateB === 0) return a.number.localeCompare(b.number, undefined, { numeric: true });
+        if (dateA === 0) return 1; // Sem data vai pro fim
+        if (dateB === 0) return -1; // Sem data vai pro fim
+        return dateA - dateB;
+      });
+
+      setAvailableTerritories(territoriesData);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const handlePrint = async () => {
+    setIsPrinting(true);
+    await new Promise(resolve => setTimeout(resolve, 100)); // Aguarda DOM atualizar
+
+    const element = document.getElementById("pdf-area");
+    if (!element) {
+      setIsPrinting(false);
+      return;
+    }
+
+    try {
+      const html2pdf = (await import("html2pdf.js")).default;
+      await html2pdf()
+        .from(element)
+        .set({
+          margin: [15, 10, 15, 10],
+          filename: `Territorios-Disponiveis.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        })
+        .save();
+    } catch (err) {
+      console.error("Erro ao gerar PDF:", err);
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  const ReportContent = () => (
+    <>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-xl font-bold">Territórios disponíveis</h1>
+        <p className="text-sm font-semibold">{user?.congregationName || "..."}</p>
+      </div>
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr>
+            <th className="border-b-2 border-black p-2 font-bold">Número</th>
+            <th className="border-b-2 border-black p-2 font-bold">Data da conclusão</th>
+            <th className="border-b-2 border-black p-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {availableTerritories.map((t, index) => (
+            <tr key={t.id} className="border-b border-gray-400">
+              <td className="p-2">{t.number}-{t.name}</td>
+              <td className="p-2">{t.lastCompletionDate ? format(t.lastCompletionDate, "dd/MM/yyyy") : 'Nunca trabalhado'}</td>
+              <td className="p-2"></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+
+  return (
+    <>
+      <div className="p-4 bg-card print-hidden">
+        <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+          <Button variant="ghost" asChild>
+            <Link href="/dashboard/administracao">
+              <ArrowLeft size={16} className="mr-2" />Voltar
+            </Link>
+          </Button>
+          <h2 className="text-lg font-semibold">Relatório de Disponíveis</h2>
+          <Button onClick={handlePrint} disabled={isPrinting || loading} className="w-full sm:w-auto justify-center">
+            {isPrinting ? <Loader className="animate-spin mr-2" /> : <Printer size={16} className="mr-2" />} Salvar PDF
+          </Button>
+        </div>
+      </div>
+      <div className="p-4 flex justify-center bg-muted print-hidden w-full overflow-auto">
+        <div id="pdf-area" className="bg-white p-8 shadow-lg" style={{ width: "210mm", minHeight: "297mm" }}>
+          {loading ? (
+             <div className="flex items-center justify-center h-full"><Loader className="animate-spin" /></div>
+          ) : (
+            <div className="text-black">
+              <ReportContent />
+            </div>
+          )}
+        </div>
+      </div>
+      {/* Hidden element for printing */}
+      <div className="hidden print-block">
+        <div id="print-version" className="text-black bg-white p-8">
+            <ReportContent />
+        </div>
+      </div>
+    </>
+  );
+}
