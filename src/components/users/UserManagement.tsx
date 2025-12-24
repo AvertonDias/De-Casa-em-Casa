@@ -152,7 +152,7 @@ export default function UserManagement() {
         status: {
             ativo: users.filter(u => u.status === 'ativo').length,
             pendente: users.filter(u => u.status === 'pendente').length,
-            inativo: users.filter(u => u.status === 'ativo' && (!u.lastSeen || u.lastSeen.toDate() < oneMonthAgo)).length,
+            inativo: users.filter(u => u.status === 'inativo').length,
         },
         presence: {
             online: users.filter(u => u.isOnline === true).length,
@@ -168,7 +168,7 @@ export default function UserManagement() {
         activity: {
             active_hourly: users.filter(u => u.lastSeen && u.lastSeen.toDate() > oneHourAgo).length,
             active_weekly: users.filter(u => u.lastSeen && u.lastSeen.toDate() > oneWeekAgo).length,
-            inactive_month: users.filter(u => u.status === 'ativo' && (!u.lastSeen || u.lastSeen.toDate() < oneMonthAgo)).length,
+            inactive_month: users.filter(u => u.status === 'inativo').length,
         }
     };
   }, [users]);
@@ -195,8 +195,7 @@ export default function UserManagement() {
             const oneWeekAgo = subDays(new Date(), 7);
             filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneWeekAgo);
         } else if (activityFilter === 'inactive_month') {
-            const oneMonthAgo = subMonths(new Date(), 1);
-            filtered = filtered.filter(u => u.status === 'ativo' && (!u.lastSeen || u.lastSeen.toDate() < oneMonthAgo));
+            filtered = filtered.filter(u => u.status === 'inativo');
         }
     }
 
