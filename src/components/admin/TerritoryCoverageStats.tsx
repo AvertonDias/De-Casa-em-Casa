@@ -194,17 +194,19 @@ export default function TerritoryCoverageStats() {
                     <h1 style="font-size: 1.25rem; font-weight: bold; color: black;">Relatório de Cobertura - ${typeFilter === 'urban' ? 'Urbanos' : 'Rurais'}</h1>
                     <p style="font-size: 0.875rem; color: #555;">${user?.congregationName}</p>
                 </div>
-                <div style="font-size: 0.875rem;">
-                    ${stats ? Object.entries(statsData).map(([key, item]) => `
-                        <div style="display: flex; align-items: center; padding-top: 12px; padding-bottom: 12px; border-bottom: 1px solid #eee;">
-                            <span style="color: black; flex-grow: 1;">${key}</span>
-                            <div style="text-align: left;">
-                                <span style="font-weight: bold; font-size: 1.125rem; color: black;">${item.value}</span>
-                                ${item.subValue ? `<span style="font-size: 0.875rem; margin-left: 8px; color: #555;">(${item.subValue})</span>` : ''}
-                            </div>
-                        </div>
-                    `).join('') : ''}
-                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                    <tbody>
+                        ${stats ? Object.entries(statsData).map(([key, item]) => `
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 12px 0; color: black;">${key}</td>
+                                <td style="padding: 12px 0; text-align: left;">
+                                    <span style="font-weight: bold; font-size: 1.125rem; color: black;">${item.value}</span>
+                                    ${item.subValue ? `<span style="font-size: 0.875rem; margin-left: 8px; color: #555;">(${item.subValue})</span>` : ''}
+                                </td>
+                            </tr>
+                        `).join('') : ''}
+                    </tbody>
+                </table>
             </div>
         `;
 
@@ -216,7 +218,7 @@ export default function TerritoryCoverageStats() {
                 .from(printArea)
                 .set({
                     margin: [15, 10, 15, 10],
-                    filename: `Relatorio-de-Cobertura-${typeFilter}.pdf`,
+                    filename: `Relatorio-Cobertura-${typeFilter}.pdf`,
                     image: { type: "jpeg", quality: 0.98 },
                     html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
                     jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
