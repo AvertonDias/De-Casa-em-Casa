@@ -3,13 +3,14 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Loader, BarChart3, BookUser, FileText, SettingsIcon, ClipboardList } from 'lucide-react';
+import { Loader, BarChart3, BookUser, FileText, SettingsIcon, ClipboardList, Map, Trees } from 'lucide-react';
 import Link from 'next/link';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
 import { cn } from '@/lib/utils';
 import CongregationEditForm from '@/components/admin/CongregationEditForm';
 import S13ReportPage from './relatorio-s13/page';
+import { Button } from '@/components/ui/button';
 
 // --- Dynamic Imports for each tab ---
 const TerritoryAssignmentPanel = dynamic(
@@ -32,6 +33,7 @@ type Tab = 'assignment' | 'overview' | 'report' | 'available';
 function AdminPage() {
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState<Tab>('assignment');
+  const [statsType, setStatsType] = useState<'urban' | 'rural'>('urban');
   
   const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
 
@@ -75,7 +77,19 @@ function AdminPage() {
       </div>
 
       <div className="mt-6">
-        {activeTab === 'overview' && <TerritoryCoverageStats />}
+        {activeTab === 'overview' && (
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button onClick={() => setStatsType("urban")} variant={statsType === 'urban' ? 'default' : 'outline'}>
+                <Map size={14} className="mr-1" /> Urbanos
+              </Button>
+              <Button onClick={() => setStatsType("rural")} variant={statsType === 'rural' ? 'default' : 'outline'}>
+                <Trees size={14} className="mr-1" /> Rurais
+              </Button>
+            </div>
+            <TerritoryCoverageStats territoryType={statsType} />
+          </div>
+        )}
         {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
         {activeTab === 'available' && <AvailableTerritoriesReport />}
         {activeTab === 'report' && <S13ReportPage />}

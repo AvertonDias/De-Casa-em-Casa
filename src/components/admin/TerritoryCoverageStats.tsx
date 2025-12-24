@@ -39,7 +39,11 @@ const StatItem = ({ label, value, subValue, Icon, onClick }: StatItemProps) => {
     );
 };
 
-export default function TerritoryCoverageStats() {
+interface TerritoryCoverageStatsProps {
+    territoryType: 'urban' | 'rural';
+}
+
+export default function TerritoryCoverageStats({ territoryType }: TerritoryCoverageStatsProps) {
     const { user } = useUser();
     const [territories, setTerritories] = useState<Territory[]>([]);
     const [loading, setLoading] = useState(true);
@@ -62,17 +66,16 @@ export default function TerritoryCoverageStats() {
     }, [user?.congregationId]);
 
     const stats = useMemo(() => {
-        if (territories.length === 0) return null;
+        const filteredTerritories = territories.filter(t => (t.type || 'urban') === territoryType);
+        if (filteredTerritories.length === 0) return null;
 
         const now = new Date();
         const sixMonthsAgo = subMonths(now, 6);
         const twelveMonthsAgo = subMonths(now, 12);
         
-        const urbanTerritories = territories.filter(t => (t.type || 'urban') === 'urban');
-        const totalTerritories = urbanTerritories.length;
-        if (totalTerritories === 0) return null;
+        const totalTerritories = filteredTerritories.length;
         
-        const inProgressTerritories = urbanTerritories.filter(t => t.status === 'designado');
+        const inProgressTerritories = filteredTerritories.filter(t => t.status === 'designado');
         
         const completedLast6MonthsTerritories: Territory[] = [];
         const completedLast12MonthsTerritories: Territory[] = [];
@@ -80,11 +83,9 @@ export default function TerritoryCoverageStats() {
         const notWorkedLast12MonthsTerritories: Territory[] = [];
         const completionTimes: number[] = [];
         
-        const allCompletedTerritories = new Set<string>();
         const completionsInLast12Months: Date[] = [];
 
-
-        urbanTerritories.forEach(t => {
+        filteredTerritories.forEach(t => {
             const history = t.assignmentHistory || [];
             
             const allEvents = [...history];
@@ -97,26 +98,20 @@ export default function TerritoryCoverageStats() {
                 });
             }
 
-            const lastEventDate = allEvents.length > 0
-                ? allEvents.reduce((latest, entry) => {
+            if (allEvents.length > 0) {
+                const lastEventDate = allEvents.reduce((latest, entry) => {
                     const eventDate = (entry.completedAt || entry.assignedAt).toDate();
                     return eventDate > latest ? eventDate : latest;
-                }, new Date(0))
-                : new Date(0);
+                }, new Date(0));
 
-            if (lastEventDate > new Date(0)) {
                 if (lastEventDate < sixMonthsAgo) notWorkedLast6MonthsTerritories.push(t);
                 if (lastEventDate < twelveMonthsAgo) notWorkedLast12MonthsTerritories.push(t);
             } else {
-                 // Se não há eventos, considera-se não trabalhado em qualquer período
                 notWorkedLast6MonthsTerritories.push(t);
                 notWorkedLast12MonthsTerritories.push(t);
             }
             
             const completions = history.filter(h => h.completedAt);
-            if (completions.length > 0) {
-                 allCompletedTerritories.add(t.id);
-            }
 
             completions.forEach(comp => {
                 const completionDate = comp.completedAt.toDate();
@@ -139,10 +134,10 @@ export default function TerritoryCoverageStats() {
             }
         });
         
-        const notCompletedLast6MonthsTerritories = urbanTerritories.filter(t => 
+        const notCompletedLast6MonthsTerritories = filteredTerritories.filter(t => 
             !completedLast6MonthsTerritories.find(comp => comp.id === t.id)
         );
-        const notCompletedLast12MonthsTerritories = urbanTerritories.filter(t => 
+        const notCompletedLast12MonthsTerritories = filteredTerritories.filter(t => 
             !completedLast12MonthsTerritories.find(comp => comp.id === t.id)
         );
 
@@ -156,7 +151,7 @@ export default function TerritoryCoverageStats() {
             : 0;
 
         return {
-            totalTerritories: { count: totalTerritories, territories: urbanTerritories },
+            totalTerritories: { count: totalTerritories, territories: filteredTerritories },
             inProgress: { count: inProgressTerritories.length, territories: inProgressTerritories },
             completedLast6Months: { count: completedLast6MonthsTerritories.length, territories: completedLast6MonthsTerritories },
             completedLast12Months: { count: completedLast12MonthsTerritories.length, territories: completedLast12MonthsTerritories },
@@ -168,7 +163,7 @@ export default function TerritoryCoverageStats() {
             estimatedTimeToCompleteAll,
         };
 
-    }, [territories]);
+    }, [territories, territoryType]);
 
     const handleStatClick = (title: string, territories: Territory[]) => {
         setModalTitle(title);
@@ -184,7 +179,7 @@ export default function TerritoryCoverageStats() {
         return (
             <div className="bg-card p-6 rounded-lg shadow-md">
                 <h2 className="text-xl font-bold mb-4 flex items-center"><BarChart3 className="mr-3 text-primary" />Cobertura do Território</h2>
-                <p className="text-muted-foreground text-center py-4">Nenhum território urbano encontrado para gerar estatísticas.</p>
+                <p className="text-muted-foreground text-center py-4">Nenhum território do tipo '{territoryType === 'urban' ? 'Urbano' : 'Rural'}' encontrado para gerar estatísticas.</p>
             </div>
         );
     }
@@ -199,10 +194,10 @@ export default function TerritoryCoverageStats() {
             />
             <div className="bg-card p-6 rounded-lg shadow-md">
                 <h2 className="text-xl font-bold mb-1">Cobertura do Território</h2>
-                <p className="text-sm text-muted-foreground mb-4">Estatísticas referentes apenas aos territórios urbanos.</p>
+                <p className="text-sm text-muted-foreground mb-4">Estatísticas referentes apenas aos territórios do tipo '{territoryType === 'urban' ? 'Urbano' : 'Rural'}'.</p>
                 
                 <div className="space-y-2">
-                    <StatItem Icon={BarChart3} label="Total de territórios" value={stats.totalTerritories.count} onClick={() => handleStatClick("Total de Territórios Urbanos", stats.totalTerritories.territories)} />
+                    <StatItem Icon={BarChart3} label="Total de territórios" value={stats.totalTerritories.count} onClick={() => handleStatClick(`Total de Territórios (${territoryType})`, stats.totalTerritories.territories)} />
                     <StatItem Icon={TrendingUp} label="Em andamento" value={stats.inProgress.count} onClick={() => handleStatClick("Territórios em Andamento", stats.inProgress.territories)} />
                     <StatItem Icon={CalendarCheck} label="Concluído últimos 6 meses" value={stats.completedLast6Months.count} subValue={`${((stats.completedLast6Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Concluídos nos Últimos 6 Meses", stats.completedLast6Months.territories)} />
                     <StatItem Icon={CalendarCheck} label="Concluído últimos 12 meses" value={stats.completedLast12Months.count} subValue={`${((stats.completedLast12Months.count / stats.totalTerritories.count) * 100).toFixed(0)}%`} onClick={() => handleStatClick("Concluídos nos Últimos 12 Meses", stats.completedLast12Months.territories)} />
