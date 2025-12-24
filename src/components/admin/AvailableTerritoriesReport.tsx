@@ -61,14 +61,13 @@ export default function AvailableTerritoriesReport() {
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const territoriesData = snapshot.docs.map((doc) => {
-        const data = doc.data() as Territory;
+        const data = { id: doc.id, ...doc.data() } as Territory;
         const history = data.assignmentHistory || [];
         const lastCompletion = history
           .filter(h => h.completedAt)
           .sort((a, b) => b.completedAt.toMillis() - a.completedAt.toMillis())[0];
 
         return { 
-            id: doc.id, 
             ...data,
             lastCompletionDate: lastCompletion ? lastCompletion.completedAt.toDate() : null 
         } as AvailableTerritory;
