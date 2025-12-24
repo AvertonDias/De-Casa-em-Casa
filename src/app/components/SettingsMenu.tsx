@@ -11,9 +11,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Settings, Sun, Moon, Laptop, ZoomIn, ZoomOut, RotateCcw, User, House } from 'lucide-react';
+import { Settings, Sun, Moon, Laptop, User, House, CaseUpper } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
 
 interface SettingsMenuProps {
   asButton?: boolean;
@@ -23,7 +25,7 @@ interface SettingsMenuProps {
 
 export function SettingsMenu({ asButton = false, onEditProfileClick, onEditCongregationClick }: SettingsMenuProps) {
   const { setTheme, resolvedTheme } = useTheme();
-  const { increaseFontSize, decreaseFontSize, resetFontSize } = useFontSize();
+  const { scale, setScale } = useFontSize();
   const { user } = useUser();
 
   const TriggerComponent = asButton ? (
@@ -87,21 +89,21 @@ export function SettingsMenu({ asButton = false, onEditProfileClick, onEditCongr
             </AccordionItem>
 
             <AccordionItem value="font-size" className="border-b-0">
-              <AccordionTrigger className="text-sm font-semibold px-2 py-1.5 rounded-sm hover:bg-accent hover:no-underline">
-                 <div className="flex items-center gap-2"><ZoomIn /><span>Tamanho do Texto</span></div>
+               <AccordionTrigger className="text-sm font-semibold px-2 py-1.5 rounded-sm hover:bg-accent hover:no-underline">
+                 <div className="flex items-center gap-2"><CaseUpper /><span>Tamanho do Texto</span></div>
               </AccordionTrigger>
-              <AccordionContent className="pt-2">
-                <div className="pl-5">
-                    <DropdownMenuItem onClick={increaseFontSize}>
-                      <ZoomIn className="mr-2 h-4 w-4" /> Aumentar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={decreaseFontSize}>
-                      <ZoomOut className="mr-2 h-4 w-4" /> Diminuir
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={resetFontSize}>
-                      <RotateCcw className="mr-2 h-4 w-4" /> Restaurar
-                    </DropdownMenuItem>
-                </div>
+              <AccordionContent className="pt-4 pb-2 px-4">
+                  <div className="flex items-center gap-4">
+                      <span className="text-xs">A</span>
+                      <Slider
+                        value={[scale]}
+                        onValueChange={(value) => setScale(value[0])}
+                        min={0.8}
+                        max={1.3}
+                        step={0.1}
+                      />
+                      <span className="text-lg">A</span>
+                  </div>
               </AccordionContent>
             </AccordionItem>
           </Accordion>

@@ -10,6 +10,7 @@ const STEP = 0.1;
 
 interface FontSizeContextType {
   scale: number;
+  setScale: (newScale: number) => void;
   increaseFontSize: () => void;
   decreaseFontSize: () => void;
   resetFontSize: () => void;
@@ -26,14 +27,14 @@ export const useFontSize = () => {
 };
 
 export const FontSizeProvider = ({ children }: { children: ReactNode }) => {
-  const [scale, setScale] = useState(1.0);
+  const [scale, setScaleState] = useState(1.0);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Efeito para carregar a escala salva do localStorage APENAS no lado do cliente
   useEffect(() => {
     const savedScale = localStorage.getItem(FONT_SIZE_KEY);
     if (savedScale) {
-      setScale(parseFloat(savedScale));
+      setScaleState(parseFloat(savedScale));
     }
     setIsLoaded(true); // Marca que o carregamento inicial do cliente foi concluído
   }, []);
@@ -47,21 +48,27 @@ export const FontSizeProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem(FONT_SIZE_KEY, scale.toString());
     }
   }, [scale, isLoaded]);
+  
+  const setScale = useCallback((newScale: number) => {
+    const clampedScale = Math.max(MIN_SCALE, Math.min(newScale, MAX_SCALE));
+    setScaleState(clampedScale);
+  }, []);
 
   const increaseFontSize = useCallback(() => {
-    setScale(prevScale => Math.min(prevScale + STEP, MAX_SCALE));
+    setScaleState(prevScale => Math.min(prevScale + STEP, MAX_SCALE));
   }, []);
 
   const decreaseFontSize = useCallback(() => {
-    setScale(prevScale => Math.max(prevScale - STEP, MIN_SCALE));
+    setScaleState(prevScale => Math.max(prevScale - STEP, MIN_SCALE));
   }, []);
 
   const resetFontSize = useCallback(() => {
-    setScale(1.0);
+    setScaleState(1.0);
   }, []);
 
   const value = {
     scale,
+    setScale,
     increaseFontSize,
     decreaseFontSize,
     resetFontSize,
