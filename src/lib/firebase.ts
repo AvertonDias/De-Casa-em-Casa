@@ -1,12 +1,10 @@
+
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth, browserLocalPersistence, setPersistence } from "firebase/auth";
 import { 
   getFirestore, 
   initializeFirestore, 
-  enableIndexedDbPersistence, 
-  disableNetwork,
-  enableNetwork,
   persistentLocalCache, 
   persistentMultipleTabManager, 
   type Firestore 
@@ -14,7 +12,7 @@ import {
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getFunctions, type Functions } from "firebase/functions";
 import { getMessaging, type Messaging } from "firebase/messaging";
-import { getDatabase, type Database, goOffline, goOnline } from "firebase/database";
+import { getDatabase, type Database } from "firebase/database";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -37,6 +35,25 @@ if (!getApps().length) {
     app = getApp();
 }
 
+// Inicialização do Firestore com a nova abordagem de persistência
+let db: Firestore;
+try {
+    db = initializeFirestore(app, {
+      cache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    });
+} catch (e: any) {
+    // Se a inicialização falhar (ex: por já existir), apenas pegamos a instância
+    if (e.code === 'failed-precondition') {
+        console.warn("A persistência do Firestore falhou porque múltiplas abas estão abertas. A funcionalidade offline pode ser limitada.");
+    } else if (e.code === 'unimplemented') {
+        console.warn("Este navegador não suporta a persistência offline do Firestore.");
+    }
+    db = getFirestore(app);
+}
+
+
 const auth: Auth = getAuth(app);
 const storage: FirebaseStorage = getStorage(app);
 const functions: Functions = getFunctions(app, 'southamerica-east1');
@@ -44,19 +61,6 @@ const rtdb: Database = getDatabase(app);
 
 // Garante a persistência de login mais robusta
 setPersistence(auth, browserLocalPersistence);
-
-// Inicialização do Firestore
-const db: Firestore = getFirestore(app);
-
-// Ativando a persistência offline de forma explícita
-enableIndexedDbPersistence(db)
-  .catch((err) => {
-    if (err.code == 'failed-precondition') {
-      console.warn("A persistência do Firestore falhou porque múltiplas abas estão abertas. Funcionalidade offline pode ser limitada.");
-    } else if (err.code == 'unimplemented') {
-      console.warn("Este navegador não suporta a persistência offline do Firestore.");
-    }
-  });
 
 
 // Inicializa o Messaging apenas no lado do cliente
@@ -71,4 +75,5 @@ if (typeof window !== 'undefined') {
 
 
 // Exporta tudo para ser usado em outras partes do aplicativo
-export { app, auth, db, storage, functions, messaging, rtdb, disableNetwork, enableNetwork, goOffline, goOnline };
+export { app, auth, db, storage, functions, messaging, rtdb };
+
