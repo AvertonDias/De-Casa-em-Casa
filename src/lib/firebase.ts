@@ -1,11 +1,20 @@
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth, browserLocalPersistence, setPersistence } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, type Firestore } from "firebase/firestore";
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  enableIndexedDbPersistence, 
+  disableNetwork,
+  enableNetwork,
+  persistentLocalCache, 
+  persistentMultipleTabManager, 
+  type Firestore 
+} from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getFunctions, type Functions } from "firebase/functions";
 import { getMessaging, type Messaging } from "firebase/messaging";
-import { getDatabase, type Database } from "firebase/database";
+import { getDatabase, type Database, goOffline, goOnline } from "firebase/database";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -36,10 +45,19 @@ const rtdb: Database = getDatabase(app);
 // Garante a persistência de login mais robusta
 setPersistence(auth, browserLocalPersistence);
 
-// Inicialização robusta do Firestore com cache offline
-const db: Firestore = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-});
+// Inicialização do Firestore
+const db: Firestore = getFirestore(app);
+
+// Ativando a persistência offline de forma explícita
+enableIndexedDbPersistence(db)
+  .catch((err) => {
+    if (err.code == 'failed-precondition') {
+      console.warn("A persistência do Firestore falhou porque múltiplas abas estão abertas. Funcionalidade offline pode ser limitada.");
+    } else if (err.code == 'unimplemented') {
+      console.warn("Este navegador não suporta a persistência offline do Firestore.");
+    }
+  });
+
 
 // Inicializa o Messaging apenas no lado do cliente
 let messaging: Messaging | null = null;
@@ -53,4 +71,4 @@ if (typeof window !== 'undefined') {
 
 
 // Exporta tudo para ser usado em outras partes do aplicativo
-export { app, auth, db, storage, functions, messaging, rtdb };
+export { app, auth, db, storage, functions, messaging, rtdb, disableNetwork, enableNetwork, goOffline, goOnline };

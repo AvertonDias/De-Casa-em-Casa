@@ -32,7 +32,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   
-
   const listenersRef = useRef<{ [key: string]: () => void }>({});
 
   const unsubscribeAll = () => {
@@ -213,8 +212,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       case 'ativo':
       case 'inativo':
         if (isAuthPage || isWaitingPage) {
-          const isAdmin = user.role === 'Administrador';
-          const redirectTo = isAdmin ? '/dashboard' : '/dashboard/territorios';
+          const isAdminOrManager = user.role === 'Administrador' || user.role === 'Dirigente';
+          const redirectTo = isAdminOrManager ? '/dashboard' : '/dashboard/meus-territorios';
           router.replace(redirectTo);
         }
         break;
@@ -223,7 +222,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         break;
     }
   
-  }, [user, loading, initialSyncing, pathname, router]);
+  }, [user, loading, initialSyncing, pathname, router, logout]);
 
   const value = { user, congregation, loading: loading || initialSyncing, logout, updateUser, initialSyncing };
 
