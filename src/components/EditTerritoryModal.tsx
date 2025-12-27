@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -22,6 +21,7 @@ interface EditTerritoryModalProps {
 export default function EditTerritoryModal({ territory, isOpen, onClose, onSave, onReset, onDelete }: EditTerritoryModalProps) {
   const { user } = useUser();
   const isAdmin = user?.role === 'Administrador';
+  const canManage = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios';
   const { toast } = useToast();
 
   const [number, setNumber] = useState('');
@@ -174,16 +174,18 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
                    <input id="edit-file-upload" type="file" className="sr-only" onChange={handleFileChange} accept="image/*" />
                 </div>
               </div>
-
-              <div className="border-t border-red-500/30 pt-4 mt-4">
-                <h3 className="text-red-400 font-semibold flex items-center mb-2"><AlertCircle className="mr-2"/>Ações de Risco</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => onReset(territory.id)} className="p-2 border border-yellow-500 text-yellow-500 rounded-md hover:bg-yellow-500/20">Limpar Território</button>
-                  <button onClick={() => onDelete(territory.id)} className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700">Excluir Território</button>
-                </div>
-              </div>
             </div>
           )}
+
+          {canManage && (
+              <div className="border-t border-red-500/30 pt-4 mt-4">
+                <h3 className="text-red-400 font-semibold flex items-center mb-2"><AlertCircle className="mr-2"/>Ações de Risco</h3>
+                <div className={`grid ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+                  <button onClick={() => onReset(territory.id)} className="p-2 border border-yellow-500 text-yellow-500 rounded-md hover:bg-yellow-500/20">Limpar Território</button>
+                  {isAdmin && <button onClick={() => onDelete(territory.id)} className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700">Excluir Território</button>}
+                </div>
+              </div>
+            )}
           
           {error && (<p className="text-sm text-red-500 text-center">{error}</p>)}
 
