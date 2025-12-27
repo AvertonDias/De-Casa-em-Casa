@@ -59,6 +59,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const fetchAllData = async () => {
       if (!user?.congregationId || sessionStorage.getItem(`initialDataFetched_${user.congregationId}`)) {
+        setInitialSyncing(false); // Garante que o estado de syncing seja falso se já foi feito
         return;
       }
       
@@ -91,11 +92,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    if (user && congregation) {
-      // Inicia o fetch em segundo plano sem bloquear a UI
+    if (user && congregation && !loading) {
       fetchAllData();
     }
-  }, [user, congregation]);
+  }, [user, congregation, loading]);
 
 
   useEffect(() => {
@@ -188,7 +188,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
   
   useEffect(() => {
-    if (loading) return;
+    if (loading || initialSyncing) return; // Não faz nada se estiver carregando ou sincronizando
   
     const isAuthPage = ['/', '/cadastro', '/recuperar-senha', '/nova-congregacao'].some(p => p === pathname);
     const isAuthActionPage = pathname?.startsWith('/auth/action');
@@ -223,17 +223,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
         break;
     }
   
-  }, [user, loading, pathname, router, logout]);
+  }, [user, loading, initialSyncing, pathname, router, logout]);
 
   const value = { user, congregation, loading, logout, updateUser, initialSyncing };
 
-  // Mostra a tela de loading apenas se os dados essenciais ainda não foram carregados.
-  // A sincronização em segundo plano não deve mais bloquear a UI.
-  if (loading && !initialSyncing) {
+  if (loading) {
     return <LoadingScreen isSyncing={false} />;
   }
 
-  // Se a sincronização inicial estiver acontecendo, mostramos uma tela específica
   if (initialSyncing) {
       return <LoadingScreen isSyncing={true} />;
   }
