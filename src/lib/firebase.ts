@@ -46,7 +46,7 @@ try {
 } catch (e: any) {
     // Se a inicialização falhar (ex: por já existir), apenas pegamos a instância
     if (e.code === 'failed-precondition') {
-        console.warn("A persistência do Firestore falhou porque múltiplas abas estão abertas. A funcionalidade offline pode ser limitada.");
+        console.warn("A persistência do Firestore pode ser limitada porque múltiplas abas estão abertas.");
     } else if (e.code === 'unimplemented') {
         console.warn("Este navegador não suporta a persistência offline do Firestore.");
     }
