@@ -3,56 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>De Casa em Casa - Offline</title>
+    <title>Você está offline</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #111015; /* Fundo escuro igual ao tema do app */
-            color: #d1d5db; /* Texto claro */
+            background-color: #1a1a1a;
+            color: #e0e0e0;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
             text-align: center;
-            flex-direction: column;
             padding: 20px;
         }
         .container {
             max-width: 400px;
         }
-        svg {
-            width: 64px;
-            height: 64px;
-            color: #a78bfa; /* Cor primária */
-            margin-bottom: 24px;
-        }
         h1 {
+            color: #8E44AD;
             font-size: 24px;
-            font-weight: 600;
-            color: #fff;
-            margin: 0 0 16px;
         }
         p {
             font-size: 16px;
             line-height: 1.5;
-            margin: 0;
+        }
+        svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 20px;
+            stroke: #8E44AD;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 20h.01"></path>
-            <path d="M2.18 17.52C2.43 18.3 3.06 19 4 19h16c.94 0 1.57-.7 1.82-1.48"></path>
-            <path d="M8.83 14.17C10.15 15.22 12 15.65 14 15.35"></path>
-            <path d="M14.17 8.83C12.85 7.78 11 7.35 9 7.65"></path>
-            <path d="m22 2-20 20"></path>
-            <path d="M19 4c-1.5 1.5-3.5 2.5-6 2.5s-4.5-1-6-2.5"></path>
-            <path d="M6 21c1.5-1.5 3.5-2.5 6-2.5s4.5 1 6 2.5"></path>
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.7 10.7c.3-.3.8-.3 1.1 0l3.6 3.6c.3.3.3.8 0 1.1s-.8.3-1.1 0l-3.6-3.6c-.3-.3-.3-.8 0-1.1z"/><path d="M14 6a2 2 0 0 1 2 2v2"/><path d="m2 2 20 20"/><path d="M17.7 17.7a2 2 0 0 1-2.1 2.1H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4.5"/></svg>
         <h1>Você está offline</h1>
-        <p>Este conteúdo ainda não foi salvo no seu dispositivo para acesso offline. Por favor, conecte-se à internet para visualizá-lo pela primeira vez.</p>
+        <p>Parece que você perdeu a conexão com a internet. Os dados já visualizados continuarão disponíveis, mas esta página específica não pode ser carregada agora.</p>
+        <p>Por favor, verifique sua conexão e tente novamente.</p>
     </div>
 </body>
 </html>
