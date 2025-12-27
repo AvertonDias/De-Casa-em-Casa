@@ -3,8 +3,8 @@
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, serverTimestamp, Timestamp, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db, app } from '@/lib/firebase';
+import { doc, onSnapshot, updateDoc, serverTimestamp, Timestamp, getDoc, setDoc, collection, query, getDocs } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 import type { AppUser, Congregation } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader } from 'lucide-react';
@@ -18,6 +18,7 @@ interface UserContextType {
   loading: boolean;
   logout: (redirectPath?: string) => Promise<void>;
   updateUser: (data: Partial<AppUser>) => Promise<void>;
+  initialSyncing: boolean; // Novo estado para o sync inicial
 }
 
 export const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -27,6 +28,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [congregation, setCongregation] = useState<Congregation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialSyncing, setInitialSyncing] = useState(false); // Estado para o sync
   const router = useRouter();
   const pathname = usePathname();
   
@@ -53,6 +55,48 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const userRef = doc(db, 'users', user.uid);
     await updateDoc(userRef, data);
   };
+
+  // Efeito para pré-carregar todos os dados da congregação
+  useEffect(() => {
+    const fetchAllData = async () => {
+      if (!user?.congregationId || sessionStorage.getItem(`initialDataFetched_${user.congregationId}`)) {
+        return;
+      }
+      
+      console.log("Iniciando pré-carregamento de dados para uso offline...");
+      setInitialSyncing(true);
+
+      try {
+        const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
+        const territoriesSnapshot = await getDocs(territoriesRef);
+
+        for (const territoryDoc of territoriesSnapshot.docs) {
+          // Para cada território, busca suas subcoleções
+          const quadrasRef = collection(territoryDoc.ref, 'quadras');
+          const quadrasSnapshot = await getDocs(quadrasRef);
+
+          for (const quadraDoc of quadrasSnapshot.docs) {
+            // Para cada quadra, busca as casas
+            const casasRef = collection(quadraDoc.ref, 'casas');
+            await getDocs(casasRef); // A simples leitura armazena em cache
+          }
+        }
+        
+        sessionStorage.setItem(`initialDataFetched_${user.congregationId}`, 'true');
+        console.log("Pré-carregamento de dados offline concluído com sucesso.");
+
+      } catch (error) {
+        console.error("Erro durante o pré-carregamento de dados offline:", error);
+      } finally {
+        setInitialSyncing(false);
+      }
+    };
+
+    if (user && congregation) {
+      fetchAllData();
+    }
+  }, [user, congregation]);
+
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
@@ -144,7 +188,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
   
   useEffect(() => {
-    if (loading) return;
+    if (loading || initialSyncing) return;
   
     const isAuthPage = ['/', '/cadastro', '/recuperar-senha', '/nova-congregacao'].some(p => p === pathname);
     const isAuthActionPage = pathname?.startsWith('/auth/action');
@@ -179,12 +223,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
         break;
     }
   
-  }, [user, loading, pathname, router]);
+  }, [user, loading, initialSyncing, pathname, router]);
 
-  const value = { user, congregation, loading, logout, updateUser };
+  const value = { user, congregation, loading: loading || initialSyncing, logout, updateUser, initialSyncing };
 
-  if (loading) {
-    return <LoadingScreen />;
+  if (loading || initialSyncing) {
+    return <LoadingScreen isSyncing={initialSyncing} />;
   }
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
