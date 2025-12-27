@@ -30,6 +30,7 @@ import { format } from "date-fns";
 import { SettingsMenu } from "../components/SettingsMenu";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { FontSizeModal } from "@/components/FontSizeModal";
+import ServiceWorkerRegistrar from '../components/ServiceWorkerRegistrar';
 
 
 const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React.SVGProps<SVGSVGElement>) => {
@@ -404,6 +405,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
       <div className="flex h-screen bg-background">
+          <ServiceWorkerRegistrar />
           <InstallPwaModal />
           
           <Sidebar 
