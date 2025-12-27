@@ -229,8 +229,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   // Mostra a tela de loading apenas se os dados essenciais ainda não foram carregados.
   // A sincronização em segundo plano não deve mais bloquear a UI.
-  if (loading) {
+  if (loading && !initialSyncing) {
     return <LoadingScreen isSyncing={false} />;
+  }
+
+  // Se a sincronização inicial estiver acontecendo, mostramos uma tela específica
+  if (initialSyncing) {
+      return <LoadingScreen isSyncing={true} />;
   }
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
