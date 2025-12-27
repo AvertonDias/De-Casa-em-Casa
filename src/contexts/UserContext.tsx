@@ -62,11 +62,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const handleOnline = () => enableNetwork(db);
-    const handleOffline = () => disableNetwork(db);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       unsubscribeAll();
       setLoading(true);
@@ -152,8 +147,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return () => {
       unsubscribeAuth();
       unsubscribeAll();
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
     };
   }, []);
   
