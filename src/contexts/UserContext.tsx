@@ -3,18 +3,14 @@
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, serverTimestamp, enableNetwork, disableNetwork, Timestamp, getDoc, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp, Timestamp, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, app } from '@/lib/firebase';
 import type { AppUser, Congregation } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader } from 'lucide-react';
 import { subMonths } from 'date-fns';
-import { getDatabase, ref, onDisconnect, set, onValue } from 'firebase/database';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { useModal } from './ModalContext';
 
-
-const rtdb = getDatabase(app);
 
 interface UserContextType {
   user: AppUser | null;
@@ -43,11 +39,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async (redirectPath: string = '/') => {
-    if (user) {
-        const userStatusRTDBRef = ref(rtdb, `/status/${user.uid}`);
-        // Remove o status do RTDB ao deslogar
-        await set(userStatusRTDBRef, null).catch(e => console.error("Falha ao limpar status no RTDB ao sair:", e));
-    }
     await signOut(auth).catch(e => console.error("Falha no signOut do Auth:", e));
     
     setUser(null);

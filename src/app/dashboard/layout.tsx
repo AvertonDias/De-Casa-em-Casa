@@ -21,7 +21,6 @@ import { FeedbackModal } from "@/components/FeedbackModal";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
 import withAuth from "@/components/withAuth";
-import { usePresence } from "@/hooks/usePresence";
 import { EditProfileModal } from "@/components/EditProfileModal"; // Importar o modal de perfil
 import { EditCongregationModal } from "@/components/EditCongregationModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal"; // IMPORTAR O NOVO MODAL
@@ -275,7 +274,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
-  usePresence();
   useAndroidBack({
     enabled: isSidebarOpen,
     onClose: () => setSidebarOpen(false),
