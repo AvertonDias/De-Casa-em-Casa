@@ -21,7 +21,7 @@ interface EditTerritoryModalProps {
 export default function EditTerritoryModal({ territory, isOpen, onClose, onSave, onReset, onDelete }: EditTerritoryModalProps) {
   const { user } = useUser();
   const isAdmin = user?.role === 'Administrador';
-  const canManage = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios';
+  const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios';
   const { toast } = useToast();
 
   const [number, setNumber] = useState('');
@@ -177,7 +177,7 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
             </div>
           )}
 
-          {canManage && (
+          {(user?.role === 'Administrador' || user?.role === 'Servo de Territórios') && (
               <div className="border-t border-red-500/30 pt-4 mt-4">
                 <h3 className="text-red-400 font-semibold flex items-center mb-2"><AlertCircle className="mr-2"/>Ações de Risco</h3>
                 <div className={`grid ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
