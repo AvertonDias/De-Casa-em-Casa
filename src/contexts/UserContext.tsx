@@ -1,3 +1,4 @@
+
 "use client";
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
@@ -44,7 +45,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const logout = async (redirectPath: string = '/') => {
     if (user) {
         const userStatusRTDBRef = ref(rtdb, `/status/${user.uid}`);
-        await set(userStatusRTDBRef, null).catch(e => console.error("Falha ao limpar status no RTDB:", e));
+        // Remove o status do RTDB ao deslogar
+        await set(userStatusRTDBRef, null).catch(e => console.error("Falha ao limpar status no RTDB ao sair:", e));
     }
     await signOut(auth).catch(e => console.error("Falha no signOut do Auth:", e));
     
