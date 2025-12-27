@@ -76,4 +76,3 @@ if (typeof window !== 'undefined') {
 
 // Exporta tudo para ser usado em outras partes do aplicativo
 export { app, auth, db, storage, functions, messaging, rtdb };
-
