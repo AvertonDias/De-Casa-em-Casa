@@ -319,33 +319,28 @@ export const mirrorUserStatus = onValueWritten(
 
     try {
         const userDoc = await userDocRef.get();
-        if (!userDoc.exists)
-            return null; // Usuário não existe no Firestore
+        if (!userDoc.exists) return null; // Usuário não existe no Firestore
 
-        if (!eventStatus || eventStatus.state === "offline") {
-            // Apenas atualiza se o status atual for 'online'
-            if (userDoc.data()?.isOnline === true) {
-                await userDocRef.update({
-                    isOnline: false,
-                    lastSeen: admin.firestore.FieldValue.serverTimestamp(),
-                });
-            }
-        } else if (eventStatus.state === "online") {
-            // Apenas atualiza se o status atual for 'offline' ou indefinido
-             if (userDoc.data()?.isOnline !== true) {
-                await userDocRef.update({
-                    isOnline: true,
-                    lastSeen: admin.firestore.FieldValue.serverTimestamp(),
-                });
-            }
+        const updateData: { isOnline: boolean, lastSeen: admin.firestore.FieldValue } = {
+            isOnline: false,
+            lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        if (eventStatus && eventStatus.state === "online") {
+            updateData.isOnline = true;
         }
+
+        // Sempre atualiza o documento do Firestore se o usuário existir.
+        // Isso garante que lastSeen seja atualizado mesmo se o estado isOnline não mudar.
+        await userDocRef.update(updateData);
+        
     } catch (err: any) {
-        if (err.code !== 5) { // 5 = NOT_FOUND, ignora se o doc do usuário foi deletado
-            logger.error(`[Presence Mirror] Falha para ${uid}:`, err);
+        // Ignora o erro se o documento do usuário não for encontrado (código 5)
+        // Isso pode acontecer se o usuário for excluído enquanto o listener de presença ainda estiver ativo.
+        if (err.code !== 5) { 
+            logger.error(`[Presence Mirror] Falha para o UID ${uid}:`, err);
         }
     }
     return null;
   }
 );
-
-    
