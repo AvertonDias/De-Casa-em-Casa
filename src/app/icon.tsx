@@ -1,6 +1,4 @@
 import { ImageResponse } from 'next/og'
-import path from 'path';
-import { readFileSync } from 'fs';
 
 // Route segment config
 export const runtime = 'edge'
@@ -14,9 +12,9 @@ export const contentType = 'image/png'
 
 // Image generation
 export default async function Icon() {
-  // Lê a imagem diretamente do sistema de arquivos na pasta public
-  const imagePath = path.join(process.cwd(), 'public', 'images', 'Logo_v3.png');
-  const imageData = readFileSync(imagePath);
+  // Busca a imagem da pasta public usando fetch
+  const imageResponse = await fetch(new URL('/images/Logo_v3.png', 'https://de-casa-em-casa.vercel.app'));
+  const imageData = await imageResponse.arrayBuffer();
 
   return new ImageResponse(
     (
