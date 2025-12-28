@@ -28,9 +28,9 @@ export default function UserManagement() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Ajudante de Servo de Territórios' | 'Publicador'>('all');
+  const [roleFilter, setRoleFilter] = useState<AppUser['role'] | 'all'>('all');
   const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive_month'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'rejeitado' | 'bloqueado'>('all');
+  const [statusFilter, setStatusFilter] = useState<AppUser['status'] | 'all'>('all');
 
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -73,16 +73,7 @@ export default function UserManagement() {
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where("congregationId", "==", currentUser.congregationId));
       const unsubUsers = onSnapshot(q, (snapshot) => {
-        const oneMonthAgo = subMonths(new Date(), 1);
-        const usersData = snapshot.docs.map(docSnap => {
-            const data = docSnap.data();
-            let status = data.status;
-            // Lógica para status 'inativo' automático, mas apenas se o status atual for 'ativo'
-            if (status === 'ativo' && data.lastSeen && data.lastSeen.toDate() < oneMonthAgo) {
-                status = 'inativo';
-            }
-            return { uid: docSnap.id, ...data, status } as AppUser
-        });
+        const usersData = snapshot.docs.map(docSnap => ({ uid: docSnap.id, ...docSnap.data() } as AppUser));
         setUsers(usersData);
         setLoading(false);
       }, (error) => {
@@ -101,12 +92,6 @@ export default function UserManagement() {
   const handleUserUpdate = async (userId: string, dataToUpdate: Partial<AppUser>) => {
     if (!currentUser) return;
     
-    // Se o status estiver sendo mudado para 'inativo', reverta para 'ativo'
-    // pois 'inativo' é um status visual, não um estado a ser salvo.
-    if(dataToUpdate.status === 'inativo') {
-      dataToUpdate.status = 'ativo';
-    }
-
     if (currentUser.role === 'Dirigente' && dataToUpdate.status && !['ativo', 'rejeitado'].includes(dataToUpdate.status)) {
         toast({ title: "Permissão Negada", description: "Você só pode aprovar ou rejeitar usuários pendentes.", variant: "destructive" });
         return;
@@ -153,6 +138,8 @@ export default function UserManagement() {
             ativo: users.filter(u => u.status === 'ativo').length,
             pendente: users.filter(u => u.status === 'pendente').length,
             inativo: users.filter(u => u.status === 'inativo').length,
+            rejeitado: users.filter(u => u.status === 'rejeitado').length,
+            bloqueado: users.filter(u => u.status === 'bloqueado').length,
         },
         presence: {
             online: users.filter(u => u.isOnline === true).length,
@@ -310,6 +297,8 @@ export default function UserManagement() {
                                 <FilterButton label="Ativo" value="ativo" count={filterCounts.status.ativo} currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Pendente" value="pendente" count={filterCounts.status.pendente} currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Inativo" value="inativo" count={filterCounts.status.inativo} currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                <FilterButton label="Rejeitado" value="rejeitado" count={filterCounts.status.rejeitado} currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                <FilterButton label="Bloqueado" value="bloqueado" count={filterCounts.status.bloqueado} currentFilter={statusFilter} setFilter={setStatusFilter} />
                             </div>
                         </div>
                         
@@ -412,4 +401,3 @@ export default function UserManagement() {
   );
 }
 
-    
