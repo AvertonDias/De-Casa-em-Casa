@@ -95,7 +95,7 @@ function AguardandoAprovacaoPage() {
                     <h1 className="text-2xl font-bold mt-4">Solicitação Recebida!</h1>
                     <p className="text-muted-foreground mt-2">
                         Olá, <span className="font-semibold text-foreground">{user?.name}</span>!
-                        Sua solicitação de acesso para a congregação <span className="font-semibold text-foreground">{user?.congregationName || '...'}</span> foi enviada.
+                        Sua solicitação de acesso para a congregação <span className="font-semibold text-foreground">{congregation?.name || '...'}</span> foi enviada.
                     </p>
                 </div>
 
