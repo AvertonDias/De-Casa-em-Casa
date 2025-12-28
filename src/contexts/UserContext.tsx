@@ -134,14 +134,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
         }
 
         const rawData = userDoc.data();
-        let appStatus = rawData?.status;
-        const oneMonthAgo = subMonths(new Date(), 1);
-        if (appStatus === 'ativo' && rawData?.lastSeen && rawData.lastSeen.toDate() < oneMonthAgo) {
-          appStatus = 'inativo';
-        }
         
         const appUser = { 
-          uid: firebaseUser.uid, ...rawData, status: appStatus,
+          uid: firebaseUser.uid, ...rawData,
           name: rawData?.name || firebaseUser.displayName, email: rawData?.email || firebaseUser.email,
         } as AppUser;
 

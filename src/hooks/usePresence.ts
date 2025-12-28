@@ -1,73 +1,46 @@
 
 "use client";
 
-import { useEffect, useCallback } from 'react';
-import { useUser } from '@/contexts/UserContext'; 
-import { getDatabase, ref, onValue, onDisconnect, set, serverTimestamp } from 'firebase/database';
-import { app, rtdb } from '@/lib/firebase';
+import { useEffect } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { ref, onValue, onDisconnect, set, serverTimestamp } from 'firebase/database';
+import { auth, rtdb } from '@/lib/firebase';
 
 export const usePresence = () => {
   useEffect(() => {
-    let unsubscribeFromAuth: () => void;
-    let listener: () => void;
-
-    // A função principal que gerencia a presença
     const managePresence = (firebaseUser: User | null) => {
-      // Se não houver usuário, ou se o listener já existir, retorne
-      if (!firebaseUser || listener) {
-        return;
-      }
-
-      // Se o navegador estiver offline, não faça nada.
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        return;
-      }
+      if (!firebaseUser) return;
 
       const userStatusDatabaseRef = ref(rtdb, `/status/${firebaseUser.uid}`);
       const connectedRef = ref(rtdb, '.info/connected');
 
-      // Cria o listener para o status da conexão
-      listener = onValue(connectedRef, (snap) => {
-        if (snap.val() === false) {
-          return;
-        }
-        
-        onDisconnect(userStatusDatabaseRef).set({
-          state: 'offline',
-          last_changed: serverTimestamp(),
-        }).then(() => {
-          set(userStatusDatabaseRef, {
-            state: 'online',
+      const listener = onValue(connectedRef, (snap) => {
+        if (snap.val() === true) {
+          onDisconnect(userStatusDatabaseRef).set({
+            state: 'offline',
             last_changed: serverTimestamp(),
+          }).then(() => {
+            set(userStatusDatabaseRef, {
+              state: 'online',
+              last_changed: serverTimestamp(),
+            });
+          }).catch(err => {
+            console.warn("Falha ao configurar presença on-disconnect:", err);
           });
-        }).catch(err => {
-          console.warn("Falha ao configurar presença on-disconnect:", err);
-        });
+        }
       });
+      
+      // Retorna a função de limpeza para o onValue
+      return listener;
     };
 
-    // Fica ouvindo as mudanças de autenticação
-    unsubscribeFromAuth = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        managePresence(firebaseUser);
-      } else {
-        // Se o usuário deslogar, limpa o listener de presença
-        if (listener) {
-          listener(); // Isso desanexa o onValue
-        }
-      }
-    });
+    const unsubscribeAuth = onAuthStateChanged(auth, managePresence);
 
-    // Função de limpeza para desmontagem do componente
+    // A função de limpeza do useEffect cuidará de tudo
     return () => {
-      if (unsubscribeFromAuth) {
-        unsubscribeFromAuth();
-      }
-      if (listener) {
-        listener();
-      }
+      unsubscribeAuth();
+      // Não é mais necessário chamar a limpeza do listener aqui,
+      // pois a closure do onAuthStateChanged cuidará disso se necessário.
     };
   }, []);
 };

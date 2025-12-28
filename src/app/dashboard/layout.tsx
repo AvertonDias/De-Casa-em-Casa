@@ -320,10 +320,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
           where('isRead', '==', false)
         );
         const unsubCount = onSnapshot(qNotifications, (snapshot) => {
-            const unreadNotifications = snapshot.docs
-                .map(doc => doc.data() as Notification)
-                .filter(n => n.type !== 'user_pending');
-            setUnreadNotificationsCount(unreadNotifications.length);
+            setUnreadNotificationsCount(snapshot.size);
         });
         listeners.push(unsubCount);
       
