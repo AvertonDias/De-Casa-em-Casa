@@ -6,7 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ChevronUp, ChevronsRight, LogIn, Map, Waypoints, Users, PlayCircle, Users2, SunMoon, ShieldCheck, Wifi, BarChart3 } from 'lucide-react';
+import { ChevronUp, ChevronsRight, LogIn, Map, Waypoints, Users, PlayCircle, Users2, SunMoon, ShieldCheck, Wifi, BarChart3, HelpCircle } from 'lucide-react';
 import { VideoModal } from '@/components/VideoModal';
 
 // ========================================================================
@@ -146,6 +146,72 @@ export default function SobrePage() {
               >
                 <p>Admins e Dirigentes podem aprovar novos membros e gerenciar seus perfis de acesso.</p>
               </TutorialSection>
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section id="faq" className="container mx-auto py-20 px-4 md:px-6">
+          <h2 className="text-3xl font-bold text-center mb-12">Perguntas Frequentes</h2>
+          <div className="max-w-4xl mx-auto">
+            <Accordion type="single" collapsible className="w-full space-y-3">
+              
+              <AccordionItem value="item-1" className="bg-card rounded-lg border px-2">
+                <AccordionTrigger className="text-left font-semibold text-lg hover:no-underline">Como faço para me cadastrar se minha congregação já usa o sistema?</AccordionTrigger>
+                <AccordionContent className="pt-2 text-base">
+                  Na tela inicial, clique em "Solicite seu acesso aqui". Preencha seus dados e, o mais importante, insira o número correto da sua congregação. Sua solicitação será enviada para aprovação de um dirigente ou administrador.
+                </AccordionContent>
+              </AccordionItem>
+              
+              <AccordionItem value="item-2" className="bg-card rounded-lg border px-2">
+                <AccordionTrigger className="text-left font-semibold text-lg hover:no-underline">O aplicativo funciona sem internet?</AccordionTrigger>
+                <AccordionContent className="pt-2 text-base">
+                  Sim! O aplicativo foi projetado para funcionar offline. Você pode acessar seus territórios designados, marcar casas e fazer anotações mesmo sem conexão. Assim que você estiver online novamente, suas alterações serão sincronizadas automaticamente com a nuvem.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-3" className="bg-card rounded-lg border px-2">
+                <AccordionTrigger className="text-left font-semibold text-lg hover:no-underline">Quem pode ver os dados e o progresso dos territórios?</AccordionTrigger>
+                <AccordionContent className="pt-2 text-base">
+                  Apenas os membros aprovados da sua congregação podem ver os dados. O progresso de um território (casas feitas, etc.) é visível para todos da congregação em tempo real, promovendo a colaboração. Apenas Administradores e Dirigentes podem ver e gerenciar a lista completa de usuários.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-4" className="bg-card rounded-lg border px-2">
+                <AccordionTrigger className="text-left font-semibold text-lg hover:no-underline">Como a ordem das casas na rua é definida?</AccordionTrigger>
+                <AccordionContent className="pt-2 text-base">
+                  Ao entrar em uma quadra, você pode usar o botão "Reordenar". Isso permite que você arraste e solte as casas na sequência exata do seu percurso, facilitando o trabalho no campo.
+                </AccordionContent>
+              </AccordionItem>
+              
+              <AccordionItem value="item-5" className="bg-card rounded-lg border px-2">
+                <AccordionTrigger className="text-left font-semibold text-lg hover:no-underline">Qual a diferença entre território "Urbano" e "Rural"?</AccordionTrigger>
+                <AccordionContent className="pt-2 text-base">
+                  Territórios <strong>Urbanos</strong> são baseados em quadras e casas/números, onde cada casa é marcada individualmente. Territórios <strong>Rurais</strong> funcionam como um "diário de bordo", onde o trabalho é registrado com uma data e uma observação geral a cada visita, sem uma lista fixa de casas.
+                </AccordionContent>
+              </AccordionItem>
+              
+              <AccordionItem value="item-6" className="bg-card rounded-lg border px-2">
+                <AccordionTrigger className="text-left font-semibold text-lg hover:no-underline">Esqueci minha senha. Como posso recuperá-la?</AccordionTrigger>
+                <AccordionContent className="pt-2 text-base">
+                  Na tela de login, clique em "Esqueceu a senha?". Você precisará inserir o e-mail que usou para se cadastrar. Se o e-mail estiver correto, você receberá um link para criar uma nova senha. Lembre-se de verificar sua caixa de spam!
+                </AccordionContent>
+              </AccordionItem>
+              
+              <AccordionItem value="item-7" className="bg-card rounded-lg border px-2">
+                <AccordionTrigger className="text-left font-semibold text-lg hover:no-underline">O que são os diferentes perfis de usuário (Publicador, Dirigente, Admin)?</AccordionTrigger>
+                <AccordionContent className="pt-2 text-base">
+                  Cada perfil tem permissões diferentes: <br/>• <strong>Publicador:</strong> Pode ver e trabalhar os territórios que lhe são designados. <br/>• <strong>Servo de Territórios:</strong> Pode ver todos os territórios e gerenciar as designações. <br/>• <strong>Dirigente:</strong> Tem as mesmas permissões do Servo de Territórios e também pode aprovar novos usuários. <br/>• <strong>Administrador:</strong> Tem acesso total, incluindo a edição de dados da congregação e a promoção de outros usuários.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-8" className="bg-card rounded-lg border px-2">
+                <AccordionTrigger className="text-left font-semibold text-lg hover:no-underline">Como instalo o aplicativo no meu celular ou computador?</AccordionTrigger>
+                <AccordionContent className="pt-2 text-base">
+                  No menu lateral (ou em Configurações), você encontrará um botão "Instalar App". Se não o vir, seu navegador pode oferecer a opção "Adicionar à Tela de Início" no menu de compartilhamento (iOS/Safari) ou no menu principal do navegador (Chrome/Android). A instalação permite acesso rápido e uma melhor experiência offline.
+                </AccordionContent>
+              </AccordionItem>
+
+            </Accordion>
           </div>
         </section>
         
