@@ -19,7 +19,6 @@ interface UserContextType {
   loading: boolean;
   logout: (redirectPath?: string) => Promise<void>;
   updateUser: (data: Partial<AppUser>) => Promise<void>;
-  initialSyncing: boolean; // Novo estado para o sync inicial
 }
 
 export const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -29,7 +28,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [congregation, setCongregation] = useState<Congregation | null>(null);
   const [loading, setLoading] = useState(true);
-  const [initialSyncing, setInitialSyncing] = useState(false); // Estado para o sync
   const router = useRouter();
   const pathname = usePathname();
   
@@ -61,38 +59,39 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Efeito para pré-carregar todos os dados da congregação
   useEffect(() => {
     const fetchAllData = async () => {
-      if (!user?.congregationId || sessionStorage.getItem(`initialDataFetched_${user.congregationId}`)) {
-        setInitialSyncing(false); // Garante que o estado de syncing seja falso se já foi feito
-        return;
-      }
-      
-      console.log("Iniciando pré-carregamento de dados para uso offline...");
-      setInitialSyncing(true);
-
-      try {
-        const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-        const territoriesSnapshot = await getDocs(territoriesRef);
-
-        for (const territoryDoc of territoriesSnapshot.docs) {
-          // Para cada território, busca suas subcoleções
-          const quadrasRef = collection(territoryDoc.ref, 'quadras');
-          const quadrasSnapshot = await getDocs(quadrasRef);
-
-          for (const quadraDoc of quadrasSnapshot.docs) {
-            // Para cada quadra, busca as casas
-            const casasRef = collection(quadraDoc.ref, 'casas');
-            await getDocs(casasRef); // A simples leitura armazena em cache
-          }
+        if (!user?.congregationId || sessionStorage.getItem(`initialDataFetched_${user.congregationId}`)) {
+            return;
         }
-        
-        sessionStorage.setItem(`initialDataFetched_${user.congregationId}`, 'true');
-        console.log("Pré-carregamento de dados offline concluído com sucesso.");
 
-      } catch (error) {
-        console.error("Erro durante o pré-carregamento de dados offline:", error);
-      } finally {
-        setInitialSyncing(false);
-      }
+        console.log("Iniciando pré-carregamento de dados para uso offline em segundo plano...");
+        
+        try {
+            const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
+            const territoriesSnapshot = await getDocs(territoriesRef);
+
+            const promises: Promise<any>[] = [];
+
+            for (const territoryDoc of territoriesSnapshot.docs) {
+                const quadrasRef = collection(territoryDoc.ref, 'quadras');
+                const quadrasPromise = getDocs(quadrasRef).then(quadrasSnapshot => {
+                    const casasPromises: Promise<any>[] = [];
+                    for (const quadraDoc of quadrasSnapshot.docs) {
+                        const casasRef = collection(quadraDoc.ref, 'casas');
+                        casasPromises.push(getDocs(casasRef));
+                    }
+                    return Promise.all(casasPromises);
+                });
+                promises.push(quadrasPromise);
+            }
+            
+            await Promise.all(promises);
+
+            sessionStorage.setItem(`initialDataFetched_${user.congregationId}`, 'true');
+            console.log("Pré-carregamento de dados offline concluído com sucesso.");
+
+        } catch (error) {
+            console.error("Erro durante o pré-carregamento de dados offline:", error);
+        }
     };
 
     if (user && congregation && !loading) {
@@ -129,7 +128,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
               sessionStorage.removeItem('pendingUserData');
             } catch (error) { logout('/'); }
           } else { logout('/'); }
-          setLoading(false); // **CORREÇÃO:** Finaliza o loading mesmo se o doc não existir inicialmente
+          setLoading(false);
           return;
         }
 
@@ -142,7 +141,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
         if (appUser.status === 'bloqueado' || appUser.status === 'rejeitado') {
             logout('/');
-            setLoading(false); // **CORREÇÃO:** Finaliza o loading
+            setLoading(false);
             return;
         }
 
@@ -172,7 +171,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           });
         } else {
             setCongregation(null);
-            setLoading(false); // **CORREÇÃO:** Finaliza o loading se não houver ID de congregação
+            setLoading(false);
         }
 
       }, (error) => {
@@ -188,7 +187,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
   
   useEffect(() => {
-    if (loading || initialSyncing) return; // Não faz nada se estiver carregando ou sincronizando
+    if (loading) return; 
   
     const isAuthPage = ['/', '/cadastro', '/recuperar-senha', '/nova-congregacao'].some(p => p === pathname);
     const isAuthActionPage = pathname?.startsWith('/auth/action');
@@ -223,16 +222,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
         break;
     }
   
-  }, [user, loading, initialSyncing, pathname, router, logout]);
+  }, [user, loading, pathname, router, logout]);
 
-  const value = { user, congregation, loading, logout, updateUser, initialSyncing };
+  const value = { user, congregation, loading, logout, updateUser };
 
   if (loading) {
-    return <LoadingScreen isSyncing={false} />;
-  }
-
-  if (initialSyncing) {
-      return <LoadingScreen isSyncing={true} />;
+    return <LoadingScreen />;
   }
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

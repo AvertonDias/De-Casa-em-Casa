@@ -3,15 +3,8 @@
 
 import Image from 'next/image';
 
-interface LoadingScreenProps {
-  isSyncing?: boolean;
-}
-
-export function LoadingScreen({ isSyncing = false }: LoadingScreenProps) {
-    const message = isSyncing 
-      ? "Sincronizando dados para uso offline..." 
-      : "Carregando...";
-
+// Simplificamos o componente para não precisar mais da prop 'isSyncing'
+export function LoadingScreen() {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
             <Image
@@ -32,8 +25,7 @@ export function LoadingScreen({ isSyncing = false }: LoadingScreenProps) {
                         }}
                     />
                 </div>
-                <p className="text-center text-sm text-muted-foreground">{message}</p>
-                {isSyncing && <p className="text-center text-xs text-muted-foreground/80">(Isso pode levar alguns instantes no primeiro acesso)</p>}
+                <p className="text-center text-sm text-muted-foreground">Carregando...</p>
             </div>
         </div>
     );
