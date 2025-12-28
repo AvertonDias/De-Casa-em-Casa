@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -112,12 +111,12 @@ export function EditCongregationModal({ isOpen, onOpenChange }: EditCongregation
                   <div>
                       <label className="text-sm font-medium text-muted-foreground">Ao designar um território:</label>
                       <Textarea value={templateAssignment} onChange={e => setTemplateAssignment(e.target.value)} rows={3} className={inputClasses} />
-                      <p className="text-xs text-muted-foreground mt-1">Variáveis: `{{`{{territorio}}`}}`, `{{`{{data}}`}}`</p>
+                      <p className="text-xs text-muted-foreground mt-1">Variáveis: {`{{territorio}}`}, {`{{data}}`}</p>
                   </div>
                   <div>
                       <label className="text-sm font-medium text-muted-foreground">Ao solicitar acesso:</label>
                       <Textarea value={templatePending} onChange={e => setTemplatePending(e.target.value)} rows={4} className={inputClasses} />
-                      <p className="text-xs text-muted-foreground mt-1">Variáveis: `{{`{{nomeUsuario}}`}}`, `{{`{{congregacao}}`}}`</p>
+                      <p className="text-xs text-muted-foreground mt-1">Variáveis: {`{{nomeUsuario}}`}, {`{{congregacao}}`}</p>
                   </div>
               </div>
           </div>
