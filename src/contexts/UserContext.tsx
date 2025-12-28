@@ -10,6 +10,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Loader } from 'lucide-react';
 import { subMonths } from 'date-fns';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { usePresence } from '@/hooks/usePresence';
 
 
 interface UserContextType {
@@ -31,6 +32,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [initialSyncing, setInitialSyncing] = useState(false); // Estado para o sync
   const router = useRouter();
   const pathname = usePathname();
+  
+  usePresence(); // Ativa o sistema de presença para o usuário logado
   
   const listenersRef = useRef<{ [key: string]: () => void }>({});
 
