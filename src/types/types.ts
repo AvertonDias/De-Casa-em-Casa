@@ -82,6 +82,12 @@ export interface Congregation {
 
     globalRuralLinks?: RuralLink[];
 
+    // Novos campos para modelos de mensagem
+    whatsappTemplates?: {
+        assignment: string;
+        pendingApproval: string;
+    };
+
     createdAt?: Timestamp;
     lastUpdate?: Timestamp;
 }

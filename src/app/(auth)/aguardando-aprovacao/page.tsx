@@ -6,9 +6,9 @@ import { useUser } from "@/contexts/UserContext";
 import { Loader, MailCheck, Users, MessageSquare } from "lucide-react";
 import withAuth from "@/components/withAuth";
 import { Button } from '@/components/ui/button';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { AppUser } from '@/types/types';
+import type { AppUser, Congregation } from '@/types/types';
 
 interface Manager {
     uid: string;
@@ -20,19 +20,26 @@ function AguardandoAprovacaoPage() {
     const { user, loading: userLoading, logout } = useUser();
     const [managers, setManagers] = useState<Manager[]>([]);
     const [loadingManagers, setLoadingManagers] = useState(true);
+    const [congregation, setCongregation] = useState<Congregation | null>(null);
 
     useEffect(() => {
         if (user?.congregationId) {
-            const fetchManagers = async () => {
+            const fetchManagersAndCongregation = async () => {
                 setLoadingManagers(true);
                 try {
+                    // Buscar congregação
+                    const congRef = doc(db, 'congregations', user.congregationId);
+                    const congSnap = await getDoc(congRef);
+                    if (congSnap.exists()) {
+                        setCongregation(congSnap.data() as Congregation);
+                    }
+
+                    // Buscar dirigentes e admins
                     const usersRef = collection(db, 'users');
-                    // Consulta para buscar todos os usuários da congregação
                     const q = query(usersRef, where("congregationId", "==", user.congregationId));
                     
                     const querySnapshot = await getDocs(q);
 
-                    // Filtra localmente pelos perfis desejados
                     const fetchedManagers = querySnapshot.docs
                         .map(doc => ({ uid: doc.id, ...doc.data() } as AppUser))
                         .filter(u => u.role === 'Administrador' || u.role === 'Dirigente')
@@ -44,12 +51,12 @@ function AguardandoAprovacaoPage() {
 
                     setManagers(fetchedManagers);
                 } catch (error) {
-                    console.error("Erro ao buscar administradores e dirigentes:", error);
+                    console.error("Erro ao buscar dados:", error);
                 } finally {
                     setLoadingManagers(false);
                 }
             };
-            fetchManagers();
+            fetchManagersAndCongregation();
         } else if (!userLoading) {
             setLoadingManagers(false);
         }
@@ -65,9 +72,17 @@ function AguardandoAprovacaoPage() {
     }
 
     const handleWhatsAppClick = (whatsapp: string | undefined) => {
-        if (!whatsapp) return;
+        if (!whatsapp || !congregation || !user) return;
+        
         const number = whatsapp.replace(/\D/g, '');
-        const message = `Olá, sou ${user?.name}. Acabei de solicitar acesso ao aplicativo De Casa em Casa para a congregação ${user?.congregationName}. Você poderia aprovar meu acesso, por favor?`;
+        
+        const defaultTemplate = "Olá, sou {{nomeUsuario}}. Acabei de solicitar acesso ao aplicativo De Casa em Casa para a congregação {{congregacao}}. Você poderia aprovar meu acesso, por favor?";
+        const template = congregation.whatsappTemplates?.pendingApproval || defaultTemplate;
+        
+        const message = template
+          .replace('{{nomeUsuario}}', user.name)
+          .replace('{{congregacao}}', congregation.name);
+
         const url = `https://wa.me/55${number}?text=${encodeURIComponent(message)}`;
         window.open(url, '_blank');
     };
