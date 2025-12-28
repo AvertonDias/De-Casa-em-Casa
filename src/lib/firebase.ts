@@ -4,9 +4,7 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth, browserLocalPersistence, setPersistence } from "firebase/auth";
 import { 
   getFirestore, 
-  initializeFirestore, 
-  persistentLocalCache, 
-  persistentMultipleTabManager, 
+  enableIndexedDbPersistence,
   type Firestore 
 } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
@@ -35,29 +33,22 @@ if (!getApps().length) {
     app = getApp();
 }
 
-// Inicialização do Firestore com a nova abordagem de persistência
-let db: Firestore;
-try {
-    db = initializeFirestore(app, {
-      cache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager(),
-      }),
-    });
-} catch (e: any) {
-    // Se a inicialização falhar (ex: por já existir), apenas pegamos a instância
-    if (e.code === 'failed-precondition') {
-        console.warn("A persistência do Firestore pode ser limitada porque múltiplas abas estão abertas.");
-    } else if (e.code === 'unimplemented') {
-        console.warn("Este navegador não suporta a persistência offline do Firestore.");
-    }
-    db = getFirestore(app);
-}
-
-
+const db: Firestore = getFirestore(app);
 const auth: Auth = getAuth(app);
 const storage: FirebaseStorage = getStorage(app);
 const functions: Functions = getFunctions(app, 'southamerica-east1');
 const rtdb: Database = getDatabase(app);
+
+// Tenta habilitar a persistência offline
+try {
+  enableIndexedDbPersistence(db);
+} catch (err: any) {
+  if (err.code == 'failed-precondition') {
+    console.warn('A persistência do Firestore falhou. Isso geralmente ocorre porque múltiplas abas estão abertas.');
+  } else if (err.code == 'unimplemented') {
+    console.warn('Este navegador não suporta a persistência offline do Firestore.');
+  }
+}
 
 // Garante a persistência de login mais robusta
 setPersistence(auth, browserLocalPersistence);
