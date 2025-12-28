@@ -126,6 +126,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
               sessionStorage.removeItem('pendingUserData');
             } catch (error) { logout('/'); }
           } else { logout('/'); }
+          setLoading(false); // **CORREÇÃO:** Finaliza o loading mesmo se o doc não existir inicialmente
           return;
         }
 
@@ -143,6 +144,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
         if (appUser.status === 'bloqueado' || appUser.status === 'rejeitado') {
             logout('/');
+            setLoading(false); // **CORREÇÃO:** Finaliza o loading
             return;
         }
 
@@ -172,7 +174,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           });
         } else {
             setCongregation(null);
-            setLoading(false);
+            setLoading(false); // **CORREÇÃO:** Finaliza o loading se não houver ID de congregação
         }
 
       }, (error) => {
