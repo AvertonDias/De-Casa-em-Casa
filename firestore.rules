@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -30,7 +31,7 @@ service cloud.firestore {
     
     function isManager() {
       let userData = getUserData(request.auth.uid);
-      return userData != null && userData.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'];
+      return userData != null && userData.role in ['Administrador', 'Dirigente', 'Servo de Territórios'];
     }
     
     function isDirigenteOrAdmin() {
@@ -40,7 +41,7 @@ service cloud.firestore {
 
     function canManageUsers() {
       let userData = getUserData(request.auth.uid);
-      return userData != null && userData.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'];
+      return userData != null && userData.role in ['Administrador', 'Dirigente', 'Servo de Territórios'];
     }
 
     // --- Coleções ---

@@ -221,7 +221,7 @@ export default function UserManagement() {
     return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
   }
   
-  const canManageUsers = currentUser?.role === 'Administrador' || currentUser?.role === 'Dirigente' || currentUser?.role === 'Servo de Territórios' || currentUser?.role === 'Ajudante de Servo de Territórios';
+  const canManageUsers = currentUser?.role === 'Administrador' || currentUser?.role === 'Dirigente' || currentUser?.role === 'Servo de Territórios';
 
   if (!currentUser || !canManageUsers) {
     return (
@@ -400,4 +400,3 @@ export default function UserManagement() {
     </>
   );
 }
-

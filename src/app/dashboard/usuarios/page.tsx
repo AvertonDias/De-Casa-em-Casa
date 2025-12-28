@@ -1,3 +1,4 @@
+
 "use client";
 
 import UserManagement from '@/components/users/UserManagement';
@@ -8,8 +9,7 @@ import { RestrictedContent } from '@/components/RestrictedContent';
 function UsersPage() {
     const { user } = useUser();
     
-    // Agora Servos e Ajudantes também podem acessar
-    const canAccess = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
+    const canAccess = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios';
 
     if (!canAccess) {
         return (
