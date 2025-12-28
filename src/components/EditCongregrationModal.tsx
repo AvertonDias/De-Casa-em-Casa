@@ -46,6 +46,9 @@ export function EditCongregationModal({ isOpen, onOpenChange }: EditCongregation
               setCongregationNumber(data.number || '');
               setTemplateAssignment(data.whatsappTemplates?.assignment || defaultAssignmentTemplate);
               setTemplatePending(data.whatsappTemplates?.pendingApproval || defaultPendingTemplate);
+            } else {
+              setTemplateAssignment(defaultAssignmentTemplate);
+              setTemplatePending(defaultPendingTemplate);
             }
         });
     }
