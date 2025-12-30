@@ -19,13 +19,6 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Redireciona se o usuário não for admin ou dirigente
-  useEffect(() => {
-    if (!userLoading && user && !['Administrador', 'Dirigente'].includes(user.role)) {
-      router.replace('/dashboard/territorios');
-    }
-  }, [user, userLoading, router]);
-
   useEffect(() => {
     if (!user?.congregationId) {
       if (!userLoading) setLoading(false);
@@ -80,7 +73,7 @@ function DashboardPage() {
     });
   }, [allTerritories]);
 
-  if (userLoading || loading || (user && !['Administrador', 'Dirigente'].includes(user.role))) {
+  if (userLoading || loading) {
     return (
         <div className="flex justify-center items-center h-full">
             <Loader className="animate-spin text-primary" size={32}/>
