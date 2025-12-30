@@ -1,3 +1,4 @@
+
 const CACHE_NAME = 'de-casa-em-casa-cache-v1';
 const FALLBACK_HTML_URL = '/offline.html';
 
@@ -91,7 +92,7 @@ self.addEventListener('fetch', (event) => {
   const destination = request.destination;
 
   if (request.mode === 'navigate') {
-    // É uma navegação de página. Usa Stale-While-Revalidate com fallback
+    // É uma navegação de página. Tenta a rede primeiro, depois o cache, e por último o fallback.
     event.respondWith(
       (async () => {
         try {
@@ -109,7 +110,12 @@ self.addEventListener('fetch', (event) => {
           }
           // Se não estiver no cache, retorna a página de fallback
           console.log('[SW] Cache miss. Retornando fallback offline.');
-          return await caches.match(FALLBACK_HTML_URL);
+          const fallbackResponse = await caches.match(FALLBACK_HTML_URL);
+          if (fallbackResponse) {
+            return fallbackResponse;
+          }
+          // Fallback final se até a página offline falhar
+          return new Response("Você está offline e não foi possível carregar o conteúdo.", { headers: { 'Content-Type': 'text/html' } });
         }
       })()
     );

@@ -56,50 +56,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     await updateDoc(userRef, data);
   };
 
-  // Efeito para pré-carregar todos os dados da congregação
-  useEffect(() => {
-    const fetchAllData = async () => {
-        if (!user?.congregationId || sessionStorage.getItem(`initialDataFetched_${user.congregationId}`)) {
-            return;
-        }
-
-        console.log("Iniciando pré-carregamento de dados para uso offline em segundo plano...");
-        
-        try {
-            const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-            const territoriesSnapshot = await getDocs(territoriesRef);
-
-            const promises: Promise<any>[] = [];
-
-            for (const territoryDoc of territoriesSnapshot.docs) {
-                const quadrasRef = collection(territoryDoc.ref, 'quadras');
-                const quadrasPromise = getDocs(quadrasRef).then(quadrasSnapshot => {
-                    const casasPromises: Promise<any>[] = [];
-                    for (const quadraDoc of quadrasSnapshot.docs) {
-                        const casasRef = collection(quadraDoc.ref, 'casas');
-                        casasPromises.push(getDocs(casasRef));
-                    }
-                    return Promise.all(casasPromises);
-                });
-                promises.push(quadrasPromise);
-            }
-            
-            await Promise.all(promises);
-
-            sessionStorage.setItem(`initialDataFetched_${user.congregationId}`, 'true');
-            console.log("Pré-carregamento de dados offline concluído com sucesso.");
-
-        } catch (error) {
-            console.error("Erro durante o pré-carregamento de dados offline:", error);
-        }
-    };
-
-    if (user && congregation && !loading) {
-      fetchAllData();
-    }
-  }, [user, congregation, loading]);
-
-
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       unsubscribeAll();
