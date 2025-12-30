@@ -2,7 +2,7 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { UserProvider } from '@/contexts/UserContext';
 import { FontSizeProvider } from '@/contexts/FontSizeContext'; // Importar
 import { ModalProvider } from '@/contexts/ModalContext'; // Importar
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Toaster } from "@/components/ui/toaster";
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import "./globals.css";
@@ -19,6 +19,10 @@ export const metadata: Metadata = {
   other: {
     "mobile-web-app-capable": "yes",
   }
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f172a",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode; }) {
