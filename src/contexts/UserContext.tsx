@@ -168,8 +168,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       case 'ativo':
       case 'inativo':
         if (isAuthPage || isWaitingPage) {
-          const isAdminOrManager = user.role === 'Administrador' || user.role === 'Dirigente';
-          const redirectTo = isAdminOrManager ? '/dashboard' : '/dashboard/meus-territorios';
+          const isPublicadorOnly = user.role === 'Publicador';
+          const redirectTo = isPublicadorOnly ? '/dashboard/meus-territorios' : '/dashboard';
           router.replace(redirectTo);
         }
         break;
