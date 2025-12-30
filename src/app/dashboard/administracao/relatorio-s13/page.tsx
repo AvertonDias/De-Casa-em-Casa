@@ -22,7 +22,6 @@ import {
                 import { Button } from "@/components/ui/button";
 import { Capacitor } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
-import { FileOpener } from '@capacitor-community/file-opener';
 import { useToast } from "@/hooks/use-toast";
 
 export default function S13ReportPage() {
@@ -92,7 +91,7 @@ export default function S13ReportPage() {
             const pdfBase64 = await worker.output('datauristring');
             const base64Data = pdfBase64.split(',')[1];
             
-            const result = await Filesystem.writeFile({
+            await Filesystem.writeFile({
                 path: `Relatorio-S13-${typeFilter}-${serviceYear}.pdf`,
                 data: base64Data,
                 directory: Directory.Documents,
@@ -102,12 +101,6 @@ export default function S13ReportPage() {
             toast({
                 title: 'Relatório Salvo!',
                 description: 'O PDF foi salvo na pasta Documentos do seu dispositivo.'
-            });
-
-            // Abrir o PDF salvo
-            await FileOpener.open({
-                filePath: result.uri,
-                contentType: 'application/pdf'
             });
 
         } else {
@@ -313,3 +306,5 @@ export default function S13ReportPage() {
     </>
   );
 }
+
+    

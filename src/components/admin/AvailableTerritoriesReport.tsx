@@ -13,7 +13,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Capacitor } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
-import { FileOpener } from "@capacitor-community/file-opener";
 import { useToast } from "@/hooks/use-toast";
 
 interface AvailableTerritory extends Territory {
@@ -126,7 +125,7 @@ export default function AvailableTerritoriesReport() {
             const pdfBase64 = await worker.output('datauristring');
             const base64Data = pdfBase64.split(',')[1];
             
-            const result = await Filesystem.writeFile({
+            await Filesystem.writeFile({
                 path: `Territorios-Disponiveis-${typeFilter}.pdf`,
                 data: base64Data,
                 directory: Directory.Documents,
@@ -136,11 +135,6 @@ export default function AvailableTerritoriesReport() {
             toast({
                 title: 'Relatório Salvo!',
                 description: 'O PDF foi salvo na pasta Documentos do seu dispositivo.'
-            });
-
-            await FileOpener.open({
-                filePath: result.uri,
-                contentType: 'application/pdf'
             });
 
         } else {
@@ -189,3 +183,5 @@ export default function AvailableTerritoriesReport() {
     </div>
   );
 }
+
+    
