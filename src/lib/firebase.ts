@@ -1,16 +1,16 @@
+
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth, browserLocalPersistence, setPersistence } from "firebase/auth";
 import { 
   initializeFirestore,
-  enableIndexedDbPersistence,
   persistentLocalCache,
   type Firestore 
 } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getFunctions, type Functions } from "firebase/functions";
 import { getMessaging, type Messaging } from "firebase/messaging";
-import { getDatabase, type Database } from "firebase/database";
+import { getDatabase, type Database, enableIndexedDbPersistence as enableRTDBPersistence } from "firebase/database";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -43,6 +43,14 @@ const storage: FirebaseStorage = getStorage(app);
 const functions: Functions = getFunctions(app, 'southamerica-east1');
 const rtdb: Database = getDatabase(app);
 
+// Habilita a persistência para o Realtime Database
+try {
+  enableRTDBPersistence(rtdb);
+} catch (error: any) {
+  if (error.code !== 'failed-precondition') {
+    console.error("Falha ao habilitar a persistência do RTDB:", error);
+  }
+}
 
 // Garante a persistência de login mais robusta
 setPersistence(auth, browserLocalPersistence);
