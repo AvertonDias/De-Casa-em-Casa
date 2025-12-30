@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -27,6 +26,10 @@ function AguardandoAprovacaoPage() {
             const fetchManagersAndCongregation = async () => {
                 setLoadingManagers(true);
                 try {
+                    // Adicionada verificação para garantir que user e congregationId existam.
+                    if (!user || !user.congregationId) {
+                        throw new Error("Usuário ou ID da congregação não encontrado.");
+                    }
                     // Buscar congregação
                     const congRef = doc(db, 'congregations', user.congregationId);
                     const congSnap = await getDoc(congRef);
