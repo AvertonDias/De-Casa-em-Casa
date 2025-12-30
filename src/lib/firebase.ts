@@ -1,10 +1,10 @@
-
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth, browserLocalPersistence, setPersistence } from "firebase/auth";
 import { 
-  getFirestore, 
+  initializeFirestore,
   enableIndexedDbPersistence,
+  persistentLocalCache,
   type Firestore 
 } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
@@ -33,22 +33,16 @@ if (!getApps().length) {
     app = getApp();
 }
 
-const db: Firestore = getFirestore(app);
+// Inicializa o Firestore com a nova API de persistência local
+const db: Firestore = initializeFirestore(app, {
+  localCache: persistentLocalCache({})
+});
+
 const auth: Auth = getAuth(app);
 const storage: FirebaseStorage = getStorage(app);
 const functions: Functions = getFunctions(app, 'southamerica-east1');
 const rtdb: Database = getDatabase(app);
 
-// Tenta habilitar a persistência offline
-try {
-  enableIndexedDbPersistence(db);
-} catch (err: any) {
-  if (err.code == 'failed-precondition') {
-    console.warn('A persistência do Firestore falhou. Isso geralmente ocorre porque múltiplas abas estão abertas.');
-  } else if (err.code == 'unimplemented') {
-    console.warn('Este navegador não suporta a persistência offline do Firestore.');
-  }
-}
 
 // Garante a persistência de login mais robusta
 setPersistence(auth, browserLocalPersistence);
