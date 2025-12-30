@@ -168,7 +168,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       case 'ativo':
       case 'inativo':
         if (isAuthPage || isWaitingPage) {
-          // Apenas o Admin vai para o dashboard principal. Todos os outros vão para a lista de territórios.
           const redirectTo = user.role === 'Administrador' ? '/dashboard' : '/dashboard/territorios';
           router.replace(redirectTo);
         }
