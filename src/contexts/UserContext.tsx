@@ -168,6 +168,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       case 'ativo':
       case 'inativo':
         if (isAuthPage || isWaitingPage) {
+          // Lógica de redirecionamento corrigida
           const redirectTo = user.role === 'Administrador' ? '/dashboard' : '/dashboard/territorios';
           router.replace(redirectTo);
         }

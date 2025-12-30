@@ -10,12 +10,21 @@ import { LandPlot, CheckSquare, HousePlus, Map, Loader, Trees } from 'lucide-rea
 import RecentTerritoryCard from '@/components/dashboard/RecentTerritoryCard'; 
 import { StatCard } from '@/components/StatCard';
 import withAuth from '@/components/withAuth';
+import { useRouter } from 'next/navigation';
 
 function DashboardPage() {
   const { user, loading: userLoading } = useUser();
   const [recentTerritories, setRecentTerritories] = useState<Territory[]>([]);
   const [allTerritories, setAllTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  // Redireciona se o usuário não for admin ou dirigente
+  useEffect(() => {
+    if (!userLoading && user && !['Administrador', 'Dirigente'].includes(user.role)) {
+      router.replace('/dashboard/territorios');
+    }
+  }, [user, userLoading, router]);
 
   useEffect(() => {
     if (!user?.congregationId) {
@@ -71,7 +80,7 @@ function DashboardPage() {
     });
   }, [allTerritories]);
 
-  if (userLoading || loading) {
+  if (userLoading || loading || (user && !['Administrador', 'Dirigente'].includes(user.role))) {
     return (
         <div className="flex justify-center items-center h-full">
             <Loader className="animate-spin text-primary" size={32}/>
