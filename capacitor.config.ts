@@ -4,6 +4,9 @@ const config: CapacitorConfig = {
   appId: 'com.decasaemcasa.app',
   appName: 'De Casa em Casa',
   webDir: 'out',
+  server: {
+    androidScheme: 'https'
+  },
   plugins: {
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"],
