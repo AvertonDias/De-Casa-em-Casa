@@ -20,9 +20,14 @@ import {
                 import { ptBR } from "date-fns/locale";
                 import Link from "next/link";
                 import { Button } from "@/components/ui/button";
+import { Capacitor } from "@capacitor/core";
+import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { FileOpener } from '@capacitor-community/file-opener';
+import { useToast } from "@/hooks/use-toast";
 
 export default function S13ReportPage() {
   const { user } = useUser();
+  const { toast } = useToast();
   const [allTerritories, setAllTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -74,19 +79,48 @@ export default function S13ReportPage() {
     }
 
     try {
-      const html2pdf = (await import("html2pdf.js")).default;
-      await html2pdf()
-        .from(element)
-        .set({
-          margin: [15, 10, 15, 10],
-          filename: `Relatorio-S13-${typeFilter}-${serviceYear}.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        })
-        .save();
-    } catch (err) {
-      console.error("Erro ao gerar PDF:", err);
+        const html2pdf = (await import("html2pdf.js")).default;
+        const worker = html2pdf().from(element).set({
+            margin: [15, 10, 15, 10],
+            filename: `Relatorio-S13-${typeFilter}-${serviceYear}.pdf`,
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        });
+
+        if (Capacitor.isNativePlatform()) {
+            const pdfBase64 = await worker.output('datauristring');
+            const base64Data = pdfBase64.split(',')[1];
+            
+            const result = await Filesystem.writeFile({
+                path: `Relatorio-S13-${typeFilter}-${serviceYear}.pdf`,
+                data: base64Data,
+                directory: Directory.Documents,
+                encoding: Encoding.UTF8,
+            });
+            
+            toast({
+                title: 'Relatório Salvo!',
+                description: 'O PDF foi salvo na pasta Documentos do seu dispositivo.'
+            });
+
+            // Abrir o PDF salvo
+            await FileOpener.open({
+                filePath: result.uri,
+                contentType: 'application/pdf'
+            });
+
+        } else {
+            // Comportamento padrão para web
+            await worker.save();
+        }
+    } catch (err: any) {
+      console.error("Erro ao gerar ou salvar PDF:", err);
+      toast({
+          title: "Erro ao gerar PDF",
+          description: err.message || "Não foi possível salvar o relatório.",
+          variant: "destructive"
+      });
     } finally {
       setIsPrinting(false);
       // Restaurar a escala e posição originais após a impressão
