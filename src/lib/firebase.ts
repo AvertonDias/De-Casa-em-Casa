@@ -10,7 +10,7 @@ import {
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getFunctions, type Functions } from "firebase/functions";
 import { getMessaging, type Messaging } from "firebase/messaging";
-import { getDatabase, type Database, enableIndexedDbPersistence as enableRTDBPersistence } from "firebase/database";
+import { getDatabase, type Database, enablePersistence } from "firebase/database";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -45,7 +45,7 @@ const rtdb: Database = getDatabase(app);
 
 // Habilita a persistência para o Realtime Database
 try {
-  enableRTDBPersistence(rtdb);
+  enablePersistence(rtdb);
 } catch (error: any) {
   if (error.code !== 'failed-precondition') {
     console.error("Falha ao habilitar a persistência do RTDB:", error);
