@@ -314,10 +314,11 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     let listeners: (() => void)[] = [];
   
     if (user?.uid && user.congregationId) {
-        // Listener para contar notificações não lidas
+        // Listener para contar notificações não lidas, EXCLUINDO as de 'user_pending'
         const qNotifications = query(
           collection(db, 'users', user.uid, 'notifications'),
-          where('isRead', '==', false)
+          where('isRead', '==', false),
+          where('type', '!=', 'user_pending')
         );
         const unsubCount = onSnapshot(qNotifications, (snapshot) => {
             setUnreadNotificationsCount(snapshot.size);
