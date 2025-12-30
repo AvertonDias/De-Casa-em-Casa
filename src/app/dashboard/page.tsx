@@ -19,16 +19,6 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Restrição de Acesso
-  useEffect(() => {
-    if (!userLoading && user) {
-      const allowedRoles: AppUser['role'][] = ['Administrador', 'Dirigente'];
-      if (!allowedRoles.includes(user.role)) {
-        router.replace('/dashboard/territorios');
-      }
-    }
-  }, [user, userLoading, router]);
-
   useEffect(() => {
     if (!user?.congregationId) {
       if (!userLoading) setLoading(false);
@@ -83,7 +73,7 @@ function DashboardPage() {
     });
   }, [allTerritories]);
 
-  if (userLoading || loading || (user && !['Administrador', 'Dirigente'].includes(user.role))) {
+  if (userLoading || loading) {
     return (
         <div className="flex justify-center items-center h-full">
             <Loader className="animate-spin text-primary" size={32}/>
