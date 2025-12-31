@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -28,6 +28,9 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const assignmentTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const pendingTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const defaultAssignmentTemplate = "Olá, o território *{{territorio}}* foi designado para você! Devolva até {{data}}. Acesse o app para ver os detalhes.";
   const defaultPendingTemplate = "Olá, sou {{nomeUsuario}}. Acabei de solicitar acesso ao aplicativo De Casa em Casa para a congregação {{congregacao}}. Você poderia aprovar meu acesso, por favor?";
@@ -97,6 +100,25 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
     }
   };
 
+  const handleTagInsert = (tag: string, templateType: 'assignment' | 'pending') => {
+    const textareaRef = templateType === 'assignment' ? assignmentTextareaRef : pendingTextareaRef;
+    const setTemplate = templateType === 'assignment' ? setTemplateAssignment : setTemplatePending;
+
+    if (textareaRef.current) {
+        const { selectionStart, selectionEnd, value } = textareaRef.current;
+        const newText = value.substring(0, selectionStart) + tag + value.substring(selectionEnd);
+        setTemplate(newText);
+
+        // Foca e move o cursor para depois da tag inserida
+        setTimeout(() => {
+            textareaRef.current?.focus();
+            const newCursorPosition = selectionStart + tag.length;
+            textareaRef.current?.setSelectionRange(newCursorPosition, newCursorPosition);
+        }, 0);
+    }
+  };
+
+
   const isDisabled = user?.role !== 'Administrador';
   const hasChanges = 
     congregationName.trim() !== (originalData.name || '').trim() || 
@@ -158,17 +180,17 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                 <div>
                     <div className="flex items-center justify-between">
                       <Label htmlFor="template-assignment" className="text-sm font-medium">Ao designar um território:</Label>
-                      <TagPopover tags={assignmentTags} />
+                      <TagPopover tags={assignmentTags} onTagClick={(tag) => handleTagInsert(tag, 'assignment')} />
                     </div>
-                    <Textarea id="template-assignment" value={templateAssignment} onChange={e => setTemplateAssignment(e.target.value)} rows={3} className="mt-1" disabled={isDisabled}/>
+                    <Textarea ref={assignmentTextareaRef} id="template-assignment" value={templateAssignment} onChange={e => setTemplateAssignment(e.target.value)} rows={3} className="mt-1" disabled={isDisabled}/>
                     <p className="text-xs text-muted-foreground mt-1">Variáveis disponíveis: {`{{territorio}}`}, {`{{data}}`}</p>
                 </div>
                 <div>
                     <div className="flex items-center justify-between">
                       <Label htmlFor="template-pending" className="text-sm font-medium">Ao solicitar acesso (para avisar um admin):</Label>
-                      <TagPopover tags={pendingApprovalTags} />
+                      <TagPopover tags={pendingApprovalTags} onTagClick={(tag) => handleTagInsert(tag, 'pending')} />
                     </div>
-                    <Textarea id="template-pending" value={templatePending} onChange={e => setTemplatePending(e.target.value)} rows={4} className="mt-1" disabled={isDisabled}/>
+                    <Textarea ref={pendingTextareaRef} id="template-pending" value={templatePending} onChange={e => setTemplatePending(e.target.value)} rows={4} className="mt-1" disabled={isDisabled}/>
                     <p className="text-xs text-muted-foreground mt-1">Variáveis disponíveis: {`{{nomeUsuario}}`}, {`{{congregacao}}`}</p>
                 </div>
             </div>

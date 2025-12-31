@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -10,9 +11,10 @@ import { Tag } from "lucide-react";
 
 interface TagPopoverProps {
   tags: { tag: string; description: string }[];
+  onTagClick: (tag: string) => void;
 }
 
-export function TagPopover({ tags }: TagPopoverProps) {
+export function TagPopover({ tags, onTagClick }: TagPopoverProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -26,20 +28,21 @@ export function TagPopover({ tags }: TagPopoverProps) {
           <div className="space-y-2">
             <h4 className="font-medium leading-none">Tags Disponíveis</h4>
             <p className="text-sm text-muted-foreground">
-              Use estas tags no seu template. Elas serão substituídas pelos valores corretos.
+              Clique em uma tag para inseri-la na mensagem.
             </p>
           </div>
           <div className="grid gap-2">
             {tags.map((tagInfo) => (
-              <div
+              <button
                 key={tagInfo.tag}
-                className="grid grid-cols-3 items-center gap-4"
+                onClick={() => onTagClick(tagInfo.tag)}
+                className="grid grid-cols-3 items-center gap-4 text-left p-2 rounded-md hover:bg-accent transition-colors"
               >
                 <code className="text-sm font-semibold">{tagInfo.tag}</code>
                 <p className="col-span-2 text-sm text-muted-foreground">
                   {tagInfo.description}
                 </p>
-              </div>
+              </button>
             ))}
           </div>
         </div>
