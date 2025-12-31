@@ -1,4 +1,3 @@
-
 "use client";
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
@@ -100,8 +99,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
             setLoading(false);
             return;
         }
-
-        setUser(appUser);
         
         if (listenersRef.current.congregation) {
             listenersRef.current.congregation();
@@ -115,18 +112,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
             if (congDoc.exists()) {
               const congData = { id: congDoc.id, ...congDoc.data() } as Congregation;
               setCongregation(congData);
-              setUser(prevUser => prevUser ? {...prevUser, congregationName: congData.name} : null);
+              // Atualiza o nome da congregação no usuário, mantendo o usuário atualizado
+              setUser({ ...appUser, congregationName: congData.name });
             } else {
               setCongregation(null);
+              setUser(appUser); // Garante que o usuário seja definido mesmo sem congregação
             }
             setLoading(false); 
           }, (error) => {
             console.error("Erro no listener de congregação:", error);
             setCongregation(null);
+            setUser(appUser);
             setLoading(false);
           });
         } else {
             setCongregation(null);
+            setUser(appUser);
             setLoading(false);
         }
 

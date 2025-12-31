@@ -88,6 +88,8 @@ export interface Congregation {
         pendingApproval: string;
     };
 
+    defaultAssignmentMonths?: number;
+
     createdAt?: Timestamp;
     lastUpdate?: Timestamp;
 }

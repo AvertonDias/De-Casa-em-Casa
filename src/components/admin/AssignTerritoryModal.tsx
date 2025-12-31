@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
-import { Territory, AppUser } from "@/types/types";
+import { Territory, AppUser, Congregation } from "@/types/types";
 import { X, Search, ChevronsUpDown } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Input } from "../ui/input";
+import { useUser } from "@/contexts/UserContext";
 
 interface AssignTerritoryModalProps {
   isOpen: boolean;
@@ -21,6 +21,7 @@ interface AssignTerritoryModalProps {
 }
 
 export default function AssignTerritoryModal({ isOpen, onClose, onSave, territory, users }: AssignTerritoryModalProps) {
+  const { congregation } = useUser();
   const [selectedUid, setSelectedUid] = useState<string>('');
   const [customName, setCustomName] = useState('');
   const [assignmentDate, setAssignmentDate] = useState('');
@@ -30,13 +31,14 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   
   const isFreeChoice = selectedUid === 'free-choice';
+  const defaultMonths = congregation?.defaultAssignmentMonths || 2;
 
   useEffect(() => {
     if (isOpen) {
       const newAssignmentDate = new Date();
       newAssignmentDate.setMinutes(newAssignmentDate.getMinutes() - newAssignmentDate.getTimezoneOffset());
       const newDueDate = new Date(newAssignmentDate);
-      newDueDate.setMonth(newDueDate.getMonth() + 2);
+      newDueDate.setMonth(newDueDate.getMonth() + defaultMonths);
 
       setAssignmentDate(newAssignmentDate.toISOString().split('T')[0]);
       setDueDate(newDueDate.toISOString().split('T')[0]);
@@ -46,7 +48,7 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
       setError('');
       setUserSearchTerm(''); 
     }
-  }, [isOpen]);
+  }, [isOpen, defaultMonths]);
   
   useEffect(() => {
     if (assignmentDate) {
@@ -54,11 +56,11 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
       baseDate.setMinutes(baseDate.getMinutes() + baseDate.getTimezoneOffset());
       if (!isNaN(baseDate.getTime())) {
           const newDueDate = new Date(baseDate);
-          newDueDate.setMonth(newDueDate.getMonth() + 2);
+          newDueDate.setMonth(newDueDate.getMonth() + defaultMonths);
           setDueDate(newDueDate.toISOString().split('T')[0]);
       }
     }
-  }, [assignmentDate]);
+  }, [assignmentDate, defaultMonths]);
 
 
   const handleDueDateSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -202,21 +204,11 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
             <select 
               onChange={handleDueDateSelect} 
               className="w-full bg-input rounded-md p-2 border border-border text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              value=""
+              defaultValue={String(defaultMonths)}
             >
-              <option value="" disabled>Escolha um período...</option>
-              <option value="1">Em 1 Mês</option>
-              <option value="2">Em 2 Meses (Padrão)</option>
-              <option value="3">Em 3 Meses</option>
-              <option value="4">Em 4 Meses</option>
-              <option value="5">Em 5 Meses</option>
-              <option value="6">Em 6 Meses</option>
-              <option value="7">Em 7 Meses</option>
-              <option value="8">Em 8 Meses</option>
-              <option value="9">Em 9 Meses</option>
-              <option value="10">Em 10 Meses</option>
-              <option value="11">Em 11 Meses</option>
-              <option value="12">Em 1 Ano</option>
+              {[...Array(12).keys()].map(i => (
+                <option key={i + 1} value={i + 1}>Em {i + 1} {i + 1 > 1 ? 'meses' : 'mês'}</option>
+              ))}
             </select>
           </div>
 

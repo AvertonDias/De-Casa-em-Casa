@@ -6,7 +6,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader, Edit, MessageSquare, ArrowRight, RotateCcw } from 'lucide-react';
+import { Loader, Edit, MessageSquare, ArrowRight, RotateCcw, CalendarClock } from 'lucide-react';
 import { Label } from '../ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '../ui/textarea';
@@ -21,6 +21,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
   const [congregationNumber, setCongregationNumber] = useState('');
   const [templateAssignment, setTemplateAssignment] = useState('');
   const [templatePending, setTemplatePending] = useState('');
+  const [defaultAssignmentMonths, setDefaultAssignmentMonths] = useState(2);
   
   const [originalData, setOriginalData] = useState<Partial<Congregation>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -47,6 +48,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
           setCongregationNumber(data.number || '');
           setTemplateAssignment(data.whatsappTemplates?.assignment || defaultAssignmentTemplate);
           setTemplatePending(data.whatsappTemplates?.pendingApproval || defaultPendingTemplate);
+          setDefaultAssignmentMonths(data.defaultAssignmentMonths || 2);
         }
       });
     }
@@ -66,22 +68,21 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
     try {
       if (user.role === 'Administrador') {
         const congRef = doc(db, "congregations", user.congregationId);
-        await updateDoc(congRef, { 
+        const dataToUpdate: Partial<Congregation> = { 
             name: congregationName.trim(), 
             number: congregationNumber.trim(),
+            defaultAssignmentMonths: Number(defaultAssignmentMonths),
             whatsappTemplates: {
                 assignment: templateAssignment,
                 pendingApproval: templatePending,
             }
-        });
+        };
+
+        await updateDoc(congRef, dataToUpdate);
+
         setOriginalData(prev => ({
             ...prev,
-            name: congregationName.trim(),
-            number: congregationNumber.trim(),
-            whatsappTemplates: {
-                assignment: templateAssignment,
-                pendingApproval: templatePending,
-            }
+            ...dataToUpdate
         }));
       } else {
         throw new Error("Você não tem permissão para editar a congregação.");
@@ -125,7 +126,8 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
     congregationName.trim() !== (originalData.name || '').trim() || 
     congregationNumber.trim() !== (originalData.number || '').trim() ||
     templateAssignment !== (originalData.whatsappTemplates?.assignment || defaultAssignmentTemplate) ||
-    templatePending !== (originalData.whatsappTemplates?.pendingApproval || defaultPendingTemplate);
+    templatePending !== (originalData.whatsappTemplates?.pendingApproval || defaultPendingTemplate) ||
+    Number(defaultAssignmentMonths) !== (originalData.defaultAssignmentMonths || 2);
 
   const assignmentTags = [
     { tag: "{{territorio}}", description: "Nome e número do território." },
@@ -173,6 +175,26 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
               />
             </div>
         </div>
+        
+        <div className="border-t border-border pt-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2 mb-3"><CalendarClock/> Designações</h3>
+           <div>
+              <Label htmlFor="defaultAssignmentMonths">Prazo Padrão de Devolução</Label>
+              <Select value={String(defaultAssignmentMonths)} onValueChange={(val) => setDefaultAssignmentMonths(Number(val))} disabled={isDisabled}>
+                  <SelectTrigger id="defaultAssignmentMonths" className="w-full mt-1">
+                      <SelectValue placeholder="Selecione um prazo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {[...Array(12).keys()].map(i => (
+                          <SelectItem key={i + 1} value={String(i + 1)}>
+                              {i + 1} {i + 1 > 1 ? 'meses' : 'mês'}
+                          </SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+               <p className="text-xs text-muted-foreground mt-1">Este será o prazo padrão ao designar um novo território.</p>
+           </div>
+        </div>
 
         <div className="border-t border-border pt-4">
             <h3 className="text-lg font-semibold flex items-center gap-2 mb-3"><MessageSquare/>Modelos de Mensagem do WhatsApp</h3>
@@ -185,7 +207,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                         <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
                       </Button>
                     </div>
-                    <div className="flex items-center gap-2 mb-2">
+                     <div className="flex items-center gap-2 mb-2">
                         <Select onValueChange={setSelectedAssignmentTag} value={selectedAssignmentTag}>
                             <SelectTrigger className="flex-grow">
                                 <SelectValue placeholder="Selecionar tag..." />
