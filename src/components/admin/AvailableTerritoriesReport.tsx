@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
@@ -12,7 +11,7 @@ import { ptBR } from "date-fns/locale";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Capacitor } from "@capacitor/core";
-import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { Directory, Filesystem } from "@capacitor/filesystem";
 import { useToast } from "@/hooks/use-toast";
 
 interface AvailableTerritory extends Territory {
@@ -129,7 +128,6 @@ export default function AvailableTerritoriesReport() {
                 path: `Territorios-Disponiveis-${typeFilter}.pdf`,
                 data: base64Data,
                 directory: Directory.Documents,
-                encoding: Encoding.UTF8,
             });
             
             toast({
@@ -183,5 +181,3 @@ export default function AvailableTerritoriesReport() {
     </div>
   );
 }
-
-    

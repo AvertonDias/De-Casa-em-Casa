@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
@@ -21,7 +20,7 @@ import {
                 import Link from "next/link";
                 import { Button } from "@/components/ui/button";
 import { Capacitor } from "@capacitor/core";
-import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { Directory, Filesystem } from "@capacitor/filesystem";
 import { useToast } from "@/hooks/use-toast";
 
 export default function S13ReportPage() {
@@ -95,7 +94,6 @@ export default function S13ReportPage() {
                 path: `Relatorio-S13-${typeFilter}-${serviceYear}.pdf`,
                 data: base64Data,
                 directory: Directory.Documents,
-                encoding: Encoding.UTF8,
             });
             
             toast({
@@ -306,5 +304,3 @@ export default function S13ReportPage() {
     </>
   );
 }
-
-    
