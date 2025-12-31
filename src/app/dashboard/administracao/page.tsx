@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Loader, BarChart3, BookUser, FileText, ClipboardList } from 'lucide-react';
+import { BarChart3, BookUser, FileText, ClipboardList } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
 import { cn } from '@/lib/utils';
@@ -16,7 +16,7 @@ function AdminPage() {
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState<Tab>('assignment');
   
-  const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios';
+  const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
 
   if (!user || !isManager) {
     return (
