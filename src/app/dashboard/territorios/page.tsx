@@ -25,8 +25,13 @@ import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 // ========================================================================
 
 const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
+  // Proteção para datas offline
+  const dueDate = territory.assignment?.dueDate;
+  const dateObj = dueDate && typeof dueDate.toDate === 'function' ? dueDate.toDate() : new Date();
+  
   const isDesignado = territory.status === 'designado' && territory.assignment;
-  const isOverdue = territory.assignment ? territory.assignment.dueDate.toDate() < new Date() : false;
+  const isOverdue = isDesignado ? dateObj < new Date() : false;
+  
   const totalCasas = territory.stats?.totalHouses || 0;
   const casasFeitas = territory.stats?.housesDone || 0;
   const progresso = territory.progress ? Math.round(territory.progress * 100) : 0;
@@ -56,7 +61,7 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
             </div>
             <div className="flex items-center gap-2">
               <CalendarClock size={16} className="text-muted-foreground"/>
-              <span>Devolver até: {format(territory.assignment.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              <span>Devolver até: {format(dateObj, 'dd/MM/yyyy', { locale: ptBR })}</span>
             </div>
              {isOverdue && (
                 <div className="flex items-center gap-2 font-bold text-red-500">
@@ -108,6 +113,7 @@ function TerritoriosPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const { user, loading: userLoading } = useUser();
+  const [isOffline, setIsOffline] = useState(false);
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
@@ -116,6 +122,22 @@ function TerritoriosPage() {
   const [sortBy, setSortBy] = useState('number');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined') {
+        setIsOffline(!navigator.onLine);
+        const goOnline = () => setIsOffline(false);
+        const goOffline = () => setIsOffline(true);
+
+        window.addEventListener('online', goOnline);
+        window.addEventListener('offline', goOffline);
+
+        return () => {
+            window.removeEventListener('online', goOnline);
+            window.removeEventListener('offline', goOffline);
+        };
+    }
+  }, []);
 
   useEffect(() => {
     if (user?.status === 'ativo' && user.congregationId) {
@@ -148,7 +170,9 @@ function TerritoriosPage() {
         }
         
         if (t.status === 'designado' && t.assignment) {
-            const isOverdue = t.assignment.dueDate.toDate() < new Date();
+            const dueDate = t.assignment.dueDate;
+            const dateObj = dueDate && typeof dueDate.toDate === 'function' ? dueDate.toDate() : new Date();
+            const isOverdue = dateObj < new Date();
             if (statusFilter === 'designado') return !isOverdue;
             if (statusFilter === 'atrasado') return isOverdue;
         }
@@ -227,7 +251,14 @@ function TerritoriosPage() {
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Territórios</h1>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              Territórios
+              {isOffline && (
+                <span className="text-xs bg-yellow-600/20 text-yellow-500 px-2 py-1 rounded-md flex items-center gap-1 border border-yellow-500/20">
+                  <AlertTriangle size={12} /> Offline
+                </span>
+              )}
+            </h1>
             <p className="text-muted-foreground">{user.congregationName || 'Sua Congregação'}</p>
           </div>
 
