@@ -17,11 +17,10 @@ import { Settings, Sun, Moon, Laptop, User, House, CaseUpper } from 'lucide-reac
 interface SettingsMenuProps {
   asButton?: boolean;
   onEditProfileClick: () => void;
-  onEditCongregationClick: () => void;
   onFontSizeClick: () => void;
 }
 
-export function SettingsMenu({ asButton = false, onEditProfileClick, onEditCongregationClick, onFontSizeClick }: SettingsMenuProps) {
+export function SettingsMenu({ asButton = false, onEditProfileClick, onFontSizeClick }: SettingsMenuProps) {
   const { setTheme, resolvedTheme } = useTheme();
   const { user } = useUser();
 
@@ -52,13 +51,6 @@ export function SettingsMenu({ asButton = false, onEditProfileClick, onEditCongr
             <User className="mr-2 h-4 w-4" />
             <span>Editar Perfil</span>
           </DropdownMenuItem>
-          
-          {user?.role === 'Administrador' && (
-            <DropdownMenuItem onClick={onEditCongregationClick}>
-              <House className="mr-2 h-4 w-4" />
-              <span>Editar Congregação</span>
-            </DropdownMenuItem>
-          )}
 
           <DropdownMenuSeparator />
           

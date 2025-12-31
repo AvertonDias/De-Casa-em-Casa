@@ -1,3 +1,4 @@
+
 "use client";
 import { useEffect, useState, type ReactNode, useCallback } from "react";
 import Image from 'next/image';
@@ -21,7 +22,6 @@ import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
 import withAuth from "@/components/withAuth";
 import { EditProfileModal } from "@/components/EditProfileModal"; // Importar o modal de perfil
-import { EditCongregationModal } from "@/components/EditCongregationModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal"; // IMPORTAR O NOVO MODAL
 import { Territory, Notification } from "@/types/types";
 import { Timestamp } from "firebase/firestore";
@@ -79,7 +79,6 @@ function Sidebar({
     pendingUsersCount, 
     unreadNotificationsCount,
     onEditProfileClick,
-    onEditCongregationClick,
     onFontSizeClick,
 }: { 
     isOpen: boolean; 
@@ -87,7 +86,6 @@ function Sidebar({
     pendingUsersCount: number;
     unreadNotificationsCount: number;
     onEditProfileClick: () => void;
-    onEditCongregationClick: () => void;
     onFontSizeClick: () => void;
 }) {
   const pathname = usePathname();
@@ -159,7 +157,6 @@ function Sidebar({
                     <div className="hidden md:block">
                         <SettingsMenu 
                           onEditProfileClick={onEditProfileClick} 
-                          onEditCongregationClick={onEditCongregationClick}
                           onFontSizeClick={onFontSizeClick}
                         />
                     </div>
@@ -270,7 +267,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useUser();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isCongregationModalOpen, setIsCongregationModalOpen] = useState(false);
   const [isFontSizeModalOpen, setIsFontSizeModalOpen] = useState(false);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
@@ -415,7 +411,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
             pendingUsersCount={pendingUsersCount}
             unreadNotificationsCount={unreadNotificationsCount}
             onEditProfileClick={() => setIsProfileModalOpen(true)}
-            onEditCongregationClick={() => setIsCongregationModalOpen(true)}
             onFontSizeClick={() => setIsFontSizeModalOpen(true)}
           />
 
@@ -432,7 +427,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                   <h1 className="text-lg font-bold">De Casa em Casa</h1>
                   <SettingsMenu 
                     onEditProfileClick={() => setIsProfileModalOpen(true)} 
-                    onEditCongregationClick={() => setIsCongregationModalOpen(true)}
                     onFontSizeClick={() => setIsFontSizeModalOpen(true)}
                   /> 
               </header>
@@ -448,7 +442,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
               </main>
           </div>
           <EditProfileModal isOpen={isProfileModalOpen} onOpenChange={setIsProfileModalOpen} />
-          <EditCongregationModal isOpen={isCongregationModalOpen} onOpenChange={setIsCongregationModalOpen} />
           <FontSizeModal isOpen={isFontSizeModalOpen} onOpenChange={setIsFontSizeModalOpen} />
       </div>
   );
