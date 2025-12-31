@@ -59,22 +59,23 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
     const quadrasRef = collection(territoryRef, 'quadras');
 
-    getDoc(territoryRef).then(snap => snap.exists() && setTerritory(snap.data() as Territory));
+    const unsubTerritory = onSnapshot(territoryRef, (snap) => {
+      if (snap.exists()) {
+        setTerritory(snap.data() as Territory);
+      }
+    });
 
     const qQuadras = query(quadrasRef, orderBy('name'));
     const unsubAllQuadras = onSnapshot(qQuadras, (snapshot) => {
         setAllQuadras(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Quadra)));
     });
 
-
-    const quadraPath = `congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`;
-    const quadraRef = doc(db, quadraPath);
-
+    const quadraRef = doc(db, `congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
     const unsubQuadra = onSnapshot(quadraRef, (docSnap) => {
       if (docSnap.exists()) {
         setQuadra(docSnap.data() as Quadra);
       } else {
-        setQuadra(null);
+        setQuadra(null); // Quadra foi deletada
       }
       setLoading(false);
     }, (error) => {
@@ -86,8 +87,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     const q = query(casasRef, orderBy('order'));
     
     const unsubCasas = onSnapshot(q, (casasSnap) => {
-      // Apenas atualize se não estiver no meio de uma reordenação pelo cliente
-      // if (!isReordering) {
         const fetchedCasas = casasSnap.docs.map(docSnap => ({
           id: docSnap.id,
           order: 0,
@@ -95,12 +94,12 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
           ...docSnap.data(),
         })) as Casa[];
         setCasas(fetchedCasas);
-      // }
     }, (error) => {
       console.error("Erro ao ouvir as atualizações das casas:", error);
     });
 
     return () => {
+      unsubTerritory();
       unsubQuadra();
       unsubCasas();
       unsubAllQuadras();
@@ -108,14 +107,8 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   }, [user, userLoading, territoryId, quadraId]);
   
   useEffect(() => {
-    if (!loading && quadra === null) {
-      setTimeout(() => {
-        if (territoryId) {
-            router.push(`/dashboard/territorios/${territoryId}`);
-        } else {
-            router.push('/dashboard/territorios');
-        }
-      }, 2000);
+    if (!loading && quadra === null && territoryId) {
+      router.replace(`/dashboard/territorios/${territoryId}`);
     }
   }, [loading, quadra, router, territoryId]);
 
@@ -537,5 +530,3 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 }
 
 export default withAuth(QuadraDetailPage);
-
-    

@@ -168,15 +168,9 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
     });
     
     const quadrasQuery = query(collection(territoryRef, 'quadras'), orderBy('name', 'asc'));
-    const unsubQuadras = onSnapshot(quadrasQuery, async (snapshot) => { 
+    const unsubQuadras = onSnapshot(quadrasQuery, (snapshot) => { 
         const quadrasData = snapshot.docs.map(qDoc => ({...qDoc.data(), id: qDoc.id} as Quadra));
         setQuadras(quadrasData);
-
-        // Pré-carrega as casas de todas as quadras para uso offline
-        for (const quadra of quadrasData) {
-            const casasRef = collection(territoryRef, 'quadras', quadra.id, 'casas');
-            await getDocs(query(casasRef));
-        }
     });
     
     return () => { unsubTerritory(); unsubHistory(); unsubQuadras(); };
