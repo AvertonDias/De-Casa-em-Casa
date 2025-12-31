@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -20,7 +19,6 @@ type Tab = 'assignment' | 'overview' | 'report' | 'available' | 'settings';
 function AdminPage() {
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState<Tab>('assignment');
-  const [isCongregationModalOpen, setIsCongregationModalOpen] = useState(false);
   
   const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
   const isAdmin = user?.role === 'Administrador';
@@ -63,7 +61,6 @@ function AdminPage() {
             <TabButton tabId="overview" label="Visão Geral" icon={BarChart3} />
             <TabButton tabId="available" label="Disponíveis" icon={ClipboardList} />
             <TabButton tabId="report" label="Relatório S-13" icon={FileText} />
-            {isAdmin && <TabButton tabId="settings" label="Configurações" icon={Settings} />}
           </nav>
         </div>
 
@@ -72,17 +69,8 @@ function AdminPage() {
           {activeTab === 'overview' && <TerritoryCoverageStats />}
           {activeTab === 'available' && <AvailableTerritoriesReport />}
           {activeTab === 'report' && <S13ReportPage />}
-          {activeTab === 'settings' && isAdmin && (
-            <CongregationEditForm onSaveSuccess={() => { /* Pode adicionar uma ação aqui, se necessário */ }} />
-          )}
         </div>
       </div>
-      {isAdmin && (
-        <EditCongregationModal 
-          isOpen={isCongregationModalOpen} 
-          onOpenChange={setIsCongregationModalOpen} 
-        />
-      )}
     </>
   );
 }

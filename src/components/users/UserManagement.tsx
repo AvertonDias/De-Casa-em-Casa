@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -171,7 +170,12 @@ export default function UserManagement() {
       filtered = filtered.filter(user => user.role === roleFilter);
     }
      if (statusFilter !== 'all') {
-      filtered = filtered.filter(user => user.status === statusFilter);
+      filtered = filtered.filter(user => {
+        if (statusFilter === 'inativo') {
+          return user.status === 'ativo' && user.lastSeen && user.lastSeen.toDate() < subMonths(new Date(), 1);
+        }
+        return user.status === statusFilter;
+      });
     }
     
     if (activityFilter !== 'all') {
@@ -221,7 +225,7 @@ export default function UserManagement() {
     return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
   }
   
-  const canManageUsers = currentUser?.role === 'Administrador' || currentUser?.role === 'Dirigente' || currentUser?.role === 'Servo de Territórios';
+  const canManageUsers = currentUser?.role === 'Administrador' || currentUser?.role === 'Dirigente' || currentUser?.role === 'Servo de Territórios' || currentUser?.role === 'Ajudante de Servo de Territórios';
 
   if (!currentUser || !canManageUsers) {
     return (
@@ -296,7 +300,7 @@ export default function UserManagement() {
                                 <FilterButton label="Todos" value="all" count={users.length} currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Ativo" value="ativo" count={filterCounts.status.ativo} currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Pendente" value="pendente" count={filterCounts.status.pendente} currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                <FilterButton label="Inativo" value="inativo" count={filterCounts.status.inativo} currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                <FilterButton label="Inativo (Visual)" value="inativo" count={filterCounts.activity.inactive_month} currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Rejeitado" value="rejeitado" count={filterCounts.status.rejeitado} currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Bloqueado" value="bloqueado" count={filterCounts.status.bloqueado} currentFilter={statusFilter} setFilter={setStatusFilter} />
                             </div>

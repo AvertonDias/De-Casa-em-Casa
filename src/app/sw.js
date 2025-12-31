@@ -1,129 +1,75 @@
-
 const CACHE_NAME = 'de-casa-em-casa-cache-v1';
-const FALLBACK_HTML_URL = '/offline.html';
-
-// Recursos essenciais para o App Shell
-const urlsToCache = [
+const OFFLINE_ASSETS = [
   '/',
-  FALLBACK_HTML_URL,
+  '/index.html',
+  '/manifest.json',
   '/images/Logo_v3.png',
-  // Adicione aqui outros recursos estáticos críticos se houver
+  '/images/icon-192.png',
+  '/images/icon-512.png'
 ];
 
-// Instala o Service Worker e cacheia o App Shell
+// Instalação: Cacheia o "App Shell" imediatamente
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Cache aberto. Cacheando App Shell.');
-      return cache.addAll(urlsToCache);
-    }).catch(err => {
-      console.error('[SW] Falha ao cachear App Shell:', err);
+      console.log('[SW] Cacheando arquivos estáticos');
+      return cache.addAll(OFFLINE_ASSETS);
     })
   );
+  self.skipWaiting();
 });
 
-// Limpa caches antigos na ativação
+// Ativação: Limpa versões antigas do app
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
+    caches.keys().then((keys) => {
       return Promise.all(
-        cacheNames
-          .filter((cacheName) => cacheName !== CACHE_NAME)
-          .map((cacheName) => {
-            console.log('[SW] Deletando cache antigo:', cacheName);
-            return caches.delete(cacheName);
-          })
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
       );
     })
   );
-  return self.clients.claim();
+  self.clients.claim();
 });
 
-
-// Estratégia de cache: Stale-While-Revalidate para requisições de navegação
-const staleWhileRevalidate = async (request) => {
-  const cache = await caches.open(CACHE_NAME);
-  const cachedResponse = await cache.match(request);
-
-  const fetchPromise = fetch(request).then(networkResponse => {
-    cache.put(request, networkResponse.clone());
-    return networkResponse;
-  });
-
-  return cachedResponse || fetchPromise;
-};
-
-// Estratégia de cache: Cache-First para recursos estáticos
-const cacheFirst = async (request) => {
-    const cache = await caches.open(CACHE_NAME);
-    const cachedResponse = await cache.match(request);
-    if (cachedResponse) {
-        return cachedResponse;
-    }
-    try {
-        const networkResponse = await fetch(request);
-        if (networkResponse.ok) {
-            cache.put(request, networkResponse.clone());
-        }
-        return networkResponse;
-    } catch (error) {
-        console.error(`[SW] Falha ao buscar recurso da rede: ${request.url}`, error);
-        // Não retorna nada para que o navegador lide com o erro de imagem/recurso quebrado
-        // em vez do Service Worker quebrar a página inteira.
-        return new Response('', {status: 503, statusText: 'Service Unavailable'});
-    }
-};
-
-
+// Estratégia de busca (Fetch)
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
-  // Ignora requisições que não são GET (ex: POST para a API)
-  if (request.method !== 'GET') {
+  // Ignora chamadas do Firebase (ele tem cache próprio via SDK) e Chrome Extensions
+  if (
+    request.url.includes('firestore.googleapis.com') || 
+    request.url.includes('firebasedatabase.app') ||
+    request.url.startsWith('chrome-extension://')
+  ) {
     return;
   }
-  
-  // Ignora requisições para o Firebase e extensões do Chrome
-  if (request.url.includes('firestore.googleapis.com') || request.url.startsWith('chrome-extension://')) {
-    return;
-  }
-  
-  const destination = request.destination;
 
+  // Estratégia para Navegação (Páginas HTML)
   if (request.mode === 'navigate') {
-    // É uma navegação de página. Tenta a rede primeiro, depois o cache, e por último o fallback.
     event.respondWith(
-      (async () => {
-        try {
-          const networkResponse = await fetch(request);
-          // Se a resposta da rede for bem-sucedida, atualiza o cache
-          const cache = await caches.open(CACHE_NAME);
-          cache.put(request, networkResponse.clone());
-          return networkResponse;
-        } catch (error) {
-          // A rede falhou, tenta o cache
-          console.log('[SW] Rede falhou. Tentando cache para:', request.url);
-          const cachedResponse = await caches.match(request);
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          // Se não estiver no cache, retorna a página de fallback
-          console.log('[SW] Cache miss. Retornando fallback offline.');
-          const fallbackResponse = await caches.match(FALLBACK_HTML_URL);
-          if (fallbackResponse) {
-            return fallbackResponse;
-          }
-          // Fallback final se até a página offline falhar
-          return new Response("Você está offline e não foi possível carregar o conteúdo.", { headers: { 'Content-Type': 'text/html' } });
-        }
-      })()
+      fetch(request).catch(() => {
+        // Se a rede falhar, tenta o cache. Se não houver cache, tenta a rota raiz '/'
+        return caches.match(request).then(response => {
+          return response || caches.match('/');
+        });
+      })
     );
-  } else if (['style', 'script', 'worker', 'font', 'image'].includes(destination)) {
-    // É um recurso estático. Usa Cache-First.
-    event.respondWith(cacheFirst(request));
-  } else {
-    // Para outros tipos de requisição, apenas passa adiante
     return;
   }
+
+  // Estratégia para Recursos (JS, CSS, Imagens) - Stale-While-Revalidate
+  // Serve do cache rápido, mas atualiza o cache em segundo plano se houver rede
+  event.respondWith(
+    caches.match(request).then((cachedResponse) => {
+      const fetchPromise = fetch(request).then((networkResponse) => {
+        if (networkResponse.ok) {
+          const cacheCopy = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, cacheCopy));
+        }
+        return networkResponse;
+      }).catch(() => null); // Falha silenciosa se estiver offline
+
+      return cachedResponse || fetchPromise;
+    })
+  );
 });
