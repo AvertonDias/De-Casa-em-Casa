@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -7,7 +6,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader, Edit, MessageSquare, ArrowRight } from 'lucide-react';
+import { Loader, Edit, MessageSquare, ArrowRight, RotateCcw } from 'lucide-react';
 import { Label } from '../ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '../ui/textarea';
@@ -121,7 +120,6 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
     }
   };
 
-
   const isDisabled = user?.role !== 'Administrador';
   const hasChanges = 
     congregationName.trim() !== (originalData.name || '').trim() || 
@@ -181,7 +179,12 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
             
             <div className="space-y-6">
                 <div>
-                    <Label htmlFor="template-assignment" className="text-sm font-medium">Ao designar um território:</Label>
+                    <div className="flex justify-between items-center mb-1">
+                      <Label htmlFor="template-assignment" className="text-sm font-medium">Ao designar um território:</Label>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setTemplateAssignment(defaultAssignmentTemplate)} disabled={isDisabled} className="text-xs h-auto py-0.5 px-1.5">
+                        <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
+                      </Button>
+                    </div>
                     <Textarea ref={assignmentTextareaRef} id="template-assignment" value={templateAssignment} onChange={e => setTemplateAssignment(e.target.value)} rows={3} className="mt-1" disabled={isDisabled}/>
                     <div className="flex items-center gap-2 mt-2">
                         <Select onValueChange={setSelectedAssignmentTag} value={selectedAssignmentTag}>
@@ -192,13 +195,18 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                                 {assignmentTags.map(t => <SelectItem key={t.tag} value={t.tag}>{t.tag} - {t.description}</SelectItem>)}
                             </SelectContent>
                         </Select>
-                        <Button type="button" size="icon" variant="outline" onClick={() => handleInsertTag('assignment')} disabled={!selectedAssignmentTag}>
+                        <Button type="button" size="icon" variant="outline" onClick={() => handleInsertTag('assignment')} disabled={!selectedAssignmentTag || isDisabled}>
                             <ArrowRight />
                         </Button>
                     </div>
                 </div>
                 <div>
-                    <Label htmlFor="template-pending" className="text-sm font-medium">Ao solicitar acesso (para avisar um admin):</Label>
+                     <div className="flex justify-between items-center mb-1">
+                        <Label htmlFor="template-pending" className="text-sm font-medium">Ao solicitar acesso (para avisar um admin):</Label>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setTemplatePending(defaultPendingTemplate)} disabled={isDisabled} className="text-xs h-auto py-0.5 px-1.5">
+                            <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
+                        </Button>
+                    </div>
                     <Textarea ref={pendingTextareaRef} id="template-pending" value={templatePending} onChange={e => setTemplatePending(e.target.value)} rows={4} className="mt-1" disabled={isDisabled}/>
                     <div className="flex items-center gap-2 mt-2">
                          <Select onValueChange={setSelectedPendingTag} value={selectedPendingTag}>
@@ -209,7 +217,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                                 {pendingApprovalTags.map(t => <SelectItem key={t.tag} value={t.tag}>{t.tag} - {t.description}</SelectItem>)}
                             </SelectContent>
                         </Select>
-                        <Button type="button" size="icon" variant="outline" onClick={() => handleInsertTag('pending')} disabled={!selectedPendingTag}>
+                        <Button type="button" size="icon" variant="outline" onClick={() => handleInsertTag('pending')} disabled={!selectedPendingTag || isDisabled}>
                             <ArrowRight />
                         </Button>
                     </div>
