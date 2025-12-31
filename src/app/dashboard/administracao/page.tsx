@@ -20,8 +20,6 @@ function AdminPage() {
   const [activeTab, setActiveTab] = useState<Tab>('assignment');
   
   const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
-  const isAdmin = user?.role === 'Administrador';
-
 
   if (!user || !isManager) {
     return (
@@ -60,7 +58,7 @@ function AdminPage() {
             <TabButton tabId="overview" label="Visão Geral" icon={BarChart3} />
             <TabButton tabId="available" label="Disponíveis" icon={ClipboardList} />
             <TabButton tabId="report" label="Relatório S-13" icon={FileText} />
-            {isAdmin && <TabButton tabId="settings" label="Configurações" icon={Settings} />}
+            <TabButton tabId="settings" label="Configurações" icon={Settings} />
           </nav>
         </div>
 
@@ -69,7 +67,7 @@ function AdminPage() {
           {activeTab === 'overview' && <TerritoryCoverageStats />}
           {activeTab === 'available' && <AvailableTerritoriesReport />}
           {activeTab === 'report' && <S13ReportPage />}
-          {activeTab === 'settings' && isAdmin && (
+          {activeTab === 'settings' && (
             <div className="max-w-2xl mx-auto">
               <CongregationEditForm onSaveSuccess={() => {}} />
             </div>
