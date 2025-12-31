@@ -185,8 +185,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                         <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
                       </Button>
                     </div>
-                    <Textarea ref={assignmentTextareaRef} id="template-assignment" value={templateAssignment} onChange={e => setTemplateAssignment(e.target.value)} rows={3} className="mt-1" disabled={isDisabled}/>
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-2 mb-2">
                         <Select onValueChange={setSelectedAssignmentTag} value={selectedAssignmentTag}>
                             <SelectTrigger className="flex-grow">
                                 <SelectValue placeholder="Selecionar tag..." />
@@ -199,6 +198,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                             <ArrowRight />
                         </Button>
                     </div>
+                    <Textarea ref={assignmentTextareaRef} id="template-assignment" value={templateAssignment} onChange={e => setTemplateAssignment(e.target.value)} rows={3} className="mt-1" disabled={isDisabled}/>
                 </div>
                 <div>
                      <div className="flex justify-between items-center mb-1">
@@ -207,8 +207,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                             <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
                         </Button>
                     </div>
-                    <Textarea ref={pendingTextareaRef} id="template-pending" value={templatePending} onChange={e => setTemplatePending(e.target.value)} rows={4} className="mt-1" disabled={isDisabled}/>
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-2 mb-2">
                          <Select onValueChange={setSelectedPendingTag} value={selectedPendingTag}>
                             <SelectTrigger className="flex-grow">
                                 <SelectValue placeholder="Selecionar tag..." />
@@ -221,6 +220,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                             <ArrowRight />
                         </Button>
                     </div>
+                    <Textarea ref={pendingTextareaRef} id="template-pending" value={templatePending} onChange={e => setTemplatePending(e.target.value)} rows={4} className="mt-1" disabled={isDisabled}/>
                 </div>
             </div>
         </div>
