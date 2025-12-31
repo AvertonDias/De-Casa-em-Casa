@@ -413,7 +413,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
             onFontSizeClick={() => setIsFontSizeModalOpen(true)}
           />
 
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-y-auto">
               <header className="md:hidden bg-background p-4 text-foreground shadow-md flex justify-between items-center border-b border-border">
                   <div className="relative">
                     <button onClick={() => setSidebarOpen(!isSidebarOpen)} aria-label="Abrir menu">
@@ -434,7 +434,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                     {user.status === 'pendente' && <PendingApprovalBanner />}
                 </div>
               </div>
-              <main className="flex-1 overflow-y-auto">
+              <main className="flex-1">
                 <div className="p-4 md:p-8 pt-4">
                   {children}
                 </div>
