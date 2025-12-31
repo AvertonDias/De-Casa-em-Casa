@@ -232,10 +232,10 @@ function Sidebar({
                     </Button>
                 )}
               <FeedbackModal />
-              <Link href="/sobre" className="w-full block">
+              <Link href="https://aplicativos-ton.vercel.app/de-casa-em-casa" target="_blank" rel="noopener noreferrer" className="w-full block">
                 <Button variant="outline" className="w-full justify-center text-primary border-primary/50 hover:bg-primary/10 hover:text-primary">
                     <Info className="mr-2" size={20} />
-                    Sobre o App
+                    Ajuda e Suporte
                 </Button>
               </Link>
               <Button
@@ -413,7 +413,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
             onFontSizeClick={() => setIsFontSizeModalOpen(true)}
           />
 
-          <div className="flex-1 flex flex-col overflow-y-auto">
+          <div className="flex-1 flex flex-col">
               <header className="md:hidden bg-background p-4 text-foreground shadow-md flex justify-between items-center border-b border-border">
                   <div className="relative">
                     <button onClick={() => setSidebarOpen(!isSidebarOpen)} aria-label="Abrir menu">
@@ -429,12 +429,12 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                     onFontSizeClick={() => setIsFontSizeModalOpen(true)}
                   /> 
               </header>
-              <div className="sticky top-0 z-10 bg-background">
+              <div className="sticky top-0 z-10 bg-background overflow-y-auto">
                 <div className="p-4 md:p-8 pb-0">
                     {user.status === 'pendente' && <PendingApprovalBanner />}
                 </div>
               </div>
-              <main className="flex-1">
+              <main className="flex-1 overflow-y-auto">
                 <div className="p-4 md:p-8 pt-4">
                   {children}
                 </div>
