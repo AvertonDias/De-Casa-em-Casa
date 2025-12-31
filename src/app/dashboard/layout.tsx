@@ -235,7 +235,7 @@ function Sidebar({
               <Link href="https://aplicativos-ton.vercel.app/de-casa-em-casa" target="_blank" rel="noopener noreferrer" className="w-full block">
                 <Button variant="outline" className="w-full justify-center text-primary border-primary/50 hover:bg-primary/10 hover:text-primary">
                     <Info className="mr-2" size={20} />
-                    Ajuda e Suporte
+                    Sobre
                 </Button>
               </Link>
               <Button
@@ -429,7 +429,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                     onFontSizeClick={() => setIsFontSizeModalOpen(true)}
                   /> 
               </header>
-              <div className="sticky top-0 z-10 bg-background overflow-y-auto">
+              <div className="sticky top-0 z-10 bg-background">
                 <div className="p-4 md:p-8 pb-0">
                     {user.status === 'pendente' && <PendingApprovalBanner />}
                 </div>
