@@ -7,13 +7,12 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader, Edit } from 'lucide-react';
+import { Loader, Edit, MessageSquare, ArrowRight } from 'lucide-react';
 import { Label } from '../ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '../ui/textarea';
-import { MessageSquare } from 'lucide-react';
 import type { Congregation } from '@/types/types';
-import { TagPopover } from './TagPopover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess: () => void }) {
   const { user } = useUser();
@@ -25,12 +24,15 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
   const [templatePending, setTemplatePending] = useState('');
   
   const [originalData, setOriginalData] = useState<Partial<Congregation>>({});
-
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   const assignmentTextareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [selectedAssignmentTag, setSelectedAssignmentTag] = useState<string>('');
+  const [selectedPendingTag, setSelectedPendingTag] = useState<string>('');
+
 
   const defaultAssignmentTemplate = "Olá, o território *{{territorio}}* foi designado para você! Devolva até {{data}}. Acesse o app para ver os detalhes.";
   const defaultPendingTemplate = "Olá, sou {{nomeUsuario}}. Acabei de solicitar acesso ao aplicativo De Casa em Casa para a congregação {{congregacao}}. Você poderia aprovar meu acesso, por favor?";
@@ -100,19 +102,20 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
     }
   };
 
-  const handleTagInsert = (tag: string, templateType: 'assignment' | 'pending') => {
-    const textareaRef = templateType === 'assignment' ? assignmentTextareaRef : pendingTextareaRef;
-    const setTemplate = templateType === 'assignment' ? setTemplateAssignment : setTemplatePending;
+  const handleInsertTag = (templateType: 'assignment' | 'pending') => {
+    const isAssignment = templateType === 'assignment';
+    const tagToInsert = isAssignment ? selectedAssignmentTag : selectedPendingTag;
+    const textareaRef = isAssignment ? assignmentTextareaRef : pendingTextareaRef;
+    const setTemplate = isAssignment ? setTemplateAssignment : setTemplatePending;
 
-    if (textareaRef.current) {
+    if (tagToInsert && textareaRef.current) {
         const { selectionStart, selectionEnd, value } = textareaRef.current;
-        const newText = value.substring(0, selectionStart) + tag + value.substring(selectionEnd);
+        const newText = value.substring(0, selectionStart) + tagToInsert + value.substring(selectionEnd);
         setTemplate(newText);
 
-        // Foca e move o cursor para depois da tag inserida
         setTimeout(() => {
             textareaRef.current?.focus();
-            const newCursorPosition = selectionStart + tag.length;
+            const newCursorPosition = selectionStart + tagToInsert.length;
             textareaRef.current?.setSelectionRange(newCursorPosition, newCursorPosition);
         }, 0);
     }
@@ -176,22 +179,40 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
         <div className="border-t border-border pt-4">
             <h3 className="text-lg font-semibold flex items-center gap-2 mb-3"><MessageSquare/>Modelos de Mensagem do WhatsApp</h3>
             
-            <div className="space-y-4">
+            <div className="space-y-6">
                 <div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="template-assignment" className="text-sm font-medium">Ao designar um território:</Label>
-                      <TagPopover tags={assignmentTags} onTagClick={(tag) => handleTagInsert(tag, 'assignment')} />
-                    </div>
+                    <Label htmlFor="template-assignment" className="text-sm font-medium">Ao designar um território:</Label>
                     <Textarea ref={assignmentTextareaRef} id="template-assignment" value={templateAssignment} onChange={e => setTemplateAssignment(e.target.value)} rows={3} className="mt-1" disabled={isDisabled}/>
-                    <p className="text-xs text-muted-foreground mt-1">Variáveis disponíveis: {`{{territorio}}`}, {`{{data}}`}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                        <Select onValueChange={setSelectedAssignmentTag} value={selectedAssignmentTag}>
+                            <SelectTrigger className="flex-grow">
+                                <SelectValue placeholder="Selecionar tag..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {assignmentTags.map(t => <SelectItem key={t.tag} value={t.tag}>{t.tag} - {t.description}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Button type="button" size="icon" variant="outline" onClick={() => handleInsertTag('assignment')} disabled={!selectedAssignmentTag}>
+                            <ArrowRight />
+                        </Button>
+                    </div>
                 </div>
                 <div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="template-pending" className="text-sm font-medium">Ao solicitar acesso (para avisar um admin):</Label>
-                      <TagPopover tags={pendingApprovalTags} onTagClick={(tag) => handleTagInsert(tag, 'pending')} />
-                    </div>
+                    <Label htmlFor="template-pending" className="text-sm font-medium">Ao solicitar acesso (para avisar um admin):</Label>
                     <Textarea ref={pendingTextareaRef} id="template-pending" value={templatePending} onChange={e => setTemplatePending(e.target.value)} rows={4} className="mt-1" disabled={isDisabled}/>
-                    <p className="text-xs text-muted-foreground mt-1">Variáveis disponíveis: {`{{nomeUsuario}}`}, {`{{congregacao}}`}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                         <Select onValueChange={setSelectedPendingTag} value={selectedPendingTag}>
+                            <SelectTrigger className="flex-grow">
+                                <SelectValue placeholder="Selecionar tag..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {pendingApprovalTags.map(t => <SelectItem key={t.tag} value={t.tag}>{t.tag} - {t.description}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Button type="button" size="icon" variant="outline" onClick={() => handleInsertTag('pending')} disabled={!selectedPendingTag}>
+                            <ArrowRight />
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>
