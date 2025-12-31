@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '../ui/textarea';
 import { MessageSquare } from 'lucide-react';
 import type { Congregation } from '@/types/types';
+import { TagPopover } from './TagPopover';
 
 export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess: () => void }) {
   const { user } = useUser();
@@ -103,6 +104,16 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
     templateAssignment !== (originalData.whatsappTemplates?.assignment || defaultAssignmentTemplate) ||
     templatePending !== (originalData.whatsappTemplates?.pendingApproval || defaultPendingTemplate);
 
+  const assignmentTags = [
+    { tag: "{{territorio}}", description: "Nome e número do território." },
+    { tag: "{{data}}", description: "Data de devolução." },
+  ];
+
+  const pendingApprovalTags = [
+    { tag: "{{nomeUsuario}}", description: "Nome do novo usuário." },
+    { tag: "{{congregacao}}", description: "Nome da congregação." },
+  ];
+
   return (
     <div className="bg-card p-6 rounded-lg shadow-md max-w-2xl mx-auto">
       <div className="flex items-center mb-4">
@@ -145,12 +156,18 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
             
             <div className="space-y-4">
                 <div>
-                    <Label htmlFor="template-assignment" className="text-sm font-medium">Ao designar um território:</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="template-assignment" className="text-sm font-medium">Ao designar um território:</Label>
+                      <TagPopover tags={assignmentTags} />
+                    </div>
                     <Textarea id="template-assignment" value={templateAssignment} onChange={e => setTemplateAssignment(e.target.value)} rows={3} className="mt-1" disabled={isDisabled}/>
                     <p className="text-xs text-muted-foreground mt-1">Variáveis disponíveis: {`{{territorio}}`}, {`{{data}}`}</p>
                 </div>
                 <div>
-                    <Label htmlFor="template-pending" className="text-sm font-medium">Ao solicitar acesso (para avisar um admin):</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="template-pending" className="text-sm font-medium">Ao solicitar acesso (para avisar um admin):</Label>
+                      <TagPopover tags={pendingApprovalTags} />
+                    </div>
                     <Textarea id="template-pending" value={templatePending} onChange={e => setTemplatePending(e.target.value)} rows={4} className="mt-1" disabled={isDisabled}/>
                     <p className="text-xs text-muted-foreground mt-1">Variáveis disponíveis: {`{{nomeUsuario}}`}, {`{{congregacao}}`}</p>
                 </div>
