@@ -175,7 +175,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
         <h2 className="text-2xl font-bold">Configurações da Congregação</h2>
       </div>
       <p className="text-muted-foreground mb-6">
-        Edite o nome, número e modelos de mensagem da sua congregação. Apenas administradores podem realizar esta ação.
+        Edite o nome, número e modelos de mensagem da sua congregação.
       </p>
       <form onSubmit={handleUpdate} className="space-y-6">
         <div className='space-y-4'>
@@ -236,7 +236,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                         <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
                       </Button>
                     </div>
-                     <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2">
                         <Select onValueChange={setSelectedAssignmentTag} value={selectedAssignmentTag}>
                             <SelectTrigger className="flex-grow">
                                 <SelectValue placeholder="Selecionar tag..." />
