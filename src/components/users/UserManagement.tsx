@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -13,6 +14,7 @@ import { EditUserByAdminModal } from './EditUserByAdminModal'; // Importar o nov
 import { subDays, subMonths, subHours } from 'date-fns';
 import type { AppUser, Congregation } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
+import { getIdToken } from 'firebase/auth';
 
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
@@ -45,10 +47,11 @@ export default function UserManagement() {
   };
   
   const confirmDeleteUser = useCallback(async () => {
-    if (!userToDelete || !currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
+    if (!userToDelete || !currentUser || !auth.currentUser || currentUser.role !== 'Administrador' || currentUser.uid === userToDelete.uid) return;
     
     setIsConfirmModalOpen(false);
     try {
+        const idToken = await getIdToken(auth.currentUser);
         await deleteUserAccount({ userIdToDelete: userToDelete.uid });
         toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {
