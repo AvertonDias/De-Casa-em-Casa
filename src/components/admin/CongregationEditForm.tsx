@@ -21,6 +21,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
   const [congregationNumber, setCongregationNumber] = useState('');
   const [templateAssignment, setTemplateAssignment] = useState('');
   const [templatePending, setTemplatePending] = useState('');
+  const [templateOverdue, setTemplateOverdue] = useState('');
   const [defaultAssignmentMonths, setDefaultAssignmentMonths] = useState(2);
   
   const [originalData, setOriginalData] = useState<Partial<Congregation>>({});
@@ -29,13 +30,17 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
 
   const assignmentTextareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const overdueTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [selectedAssignmentTag, setSelectedAssignmentTag] = useState<string>('');
   const [selectedPendingTag, setSelectedPendingTag] = useState<string>('');
+  const [selectedOverdueTag, setSelectedOverdueTag] = useState<string>('');
 
 
   const defaultAssignmentTemplate = "Olá, o território *{{territorio}}* foi designado para você! Devolva até {{data}}. Acesse o app para ver os detalhes.";
   const defaultPendingTemplate = "Olá, sou {{nomeUsuario}}. Acabei de solicitar acesso ao aplicativo De Casa em Casa para a congregação {{congregacao}}. Você poderia aprovar meu acesso, por favor?";
+  const defaultOverdueTemplate = "Olá, este é um lembrete de que o território *{{territorio}}* está com a devolução atrasada. Por favor, atualize o quanto antes. Acesse o app: {{link}}";
+
 
   useEffect(() => {
     if (user?.congregationId) {
@@ -48,11 +53,12 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
           setCongregationNumber(data.number || '');
           setTemplateAssignment(data.whatsappTemplates?.assignment || defaultAssignmentTemplate);
           setTemplatePending(data.whatsappTemplates?.pendingApproval || defaultPendingTemplate);
+          setTemplateOverdue(data.whatsappTemplates?.overdueReminder || defaultOverdueTemplate);
           setDefaultAssignmentMonths(data.defaultAssignmentMonths || 2);
         }
       });
     }
-  }, [user?.congregationId, defaultAssignmentTemplate, defaultPendingTemplate]);
+  }, [user?.congregationId, defaultAssignmentTemplate, defaultPendingTemplate, defaultOverdueTemplate]);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +81,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
             whatsappTemplates: {
                 assignment: templateAssignment,
                 pendingApproval: templatePending,
+                overdueReminder: templateOverdue,
             }
         };
 
@@ -102,13 +109,27 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
     }
   };
 
-  const handleInsertTag = (templateType: 'assignment' | 'pending') => {
-    const isAssignment = templateType === 'assignment';
-    const tagToInsert = isAssignment ? selectedAssignmentTag : selectedPendingTag;
-    const textareaRef = isAssignment ? assignmentTextareaRef : pendingTextareaRef;
-    const setTemplate = isAssignment ? setTemplateAssignment : setTemplatePending;
+  const handleInsertTag = (templateType: 'assignment' | 'pending' | 'overdue') => {
+    let tagToInsert = '';
+    let textareaRef: React.RefObject<HTMLTextAreaElement> | null = null;
+    let setTemplate: React.Dispatch<React.SetStateAction<string>> | null = null;
 
-    if (tagToInsert && textareaRef.current) {
+    if (templateType === 'assignment') {
+        tagToInsert = selectedAssignmentTag;
+        textareaRef = assignmentTextareaRef;
+        setTemplate = setTemplateAssignment;
+    } else if (templateType === 'pending') {
+        tagToInsert = selectedPendingTag;
+        textareaRef = pendingTextareaRef;
+        setTemplate = setTemplatePending;
+    } else if (templateType === 'overdue') {
+        tagToInsert = selectedOverdueTag;
+        textareaRef = overdueTextareaRef;
+        setTemplate = setTemplateOverdue;
+    }
+
+
+    if (tagToInsert && textareaRef?.current && setTemplate) {
         const { selectionStart, selectionEnd, value } = textareaRef.current;
         const newText = value.substring(0, selectionStart) + tagToInsert + value.substring(selectionEnd);
         setTemplate(newText);
@@ -127,6 +148,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
     congregationNumber.trim() !== (originalData.number || '').trim() ||
     templateAssignment !== (originalData.whatsappTemplates?.assignment || defaultAssignmentTemplate) ||
     templatePending !== (originalData.whatsappTemplates?.pendingApproval || defaultPendingTemplate) ||
+    templateOverdue !== (originalData.whatsappTemplates?.overdueReminder || defaultOverdueTemplate) ||
     Number(defaultAssignmentMonths) !== (originalData.defaultAssignmentMonths || 2);
 
   const assignmentTags = [
@@ -138,6 +160,13 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
     { tag: "{{nomeUsuario}}", description: "Nome do novo usuário." },
     { tag: "{{congregacao}}", description: "Nome da congregação." },
   ];
+
+  const overdueTags = [
+      { tag: "{{territorio}}", description: "Nome e número do território." },
+      { tag: "{{nomePublicador}}", description: "Nome de quem designou."},
+      { tag: "{{link}}", description: "Link para Meus Territórios." },
+  ];
+
 
   return (
     <div className="bg-card p-6 rounded-lg shadow-md max-w-2xl mx-auto">
@@ -243,6 +272,28 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                         </Button>
                     </div>
                     <Textarea ref={pendingTextareaRef} id="template-pending" value={templatePending} onChange={e => setTemplatePending(e.target.value)} rows={4} className="mt-1" disabled={isDisabled}/>
+                </div>
+                <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <Label htmlFor="template-overdue" className="text-sm font-medium">Ao cobrar um território vencido:</Label>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setTemplateOverdue(defaultOverdueTemplate)} disabled={isDisabled} className="text-xs h-auto py-0.5 px-1.5">
+                        <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
+                      </Button>
+                    </div>
+                     <div className="flex items-center gap-2 mb-2">
+                        <Select onValueChange={setSelectedOverdueTag} value={selectedOverdueTag}>
+                            <SelectTrigger className="flex-grow">
+                                <SelectValue placeholder="Selecionar tag..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {overdueTags.map(t => <SelectItem key={t.tag} value={t.tag}>{t.tag} - {t.description}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Button type="button" size="icon" variant="outline" onClick={() => handleInsertTag('overdue')} disabled={!selectedOverdueTag || isDisabled}>
+                            <ArrowRight />
+                        </Button>
+                    </div>
+                    <Textarea ref={overdueTextareaRef} id="template-overdue" value={templateOverdue} onChange={e => setTemplateOverdue(e.target.value)} rows={3} className="mt-1" disabled={isDisabled}/>
                 </div>
             </div>
         </div>

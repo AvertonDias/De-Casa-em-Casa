@@ -86,6 +86,7 @@ export interface Congregation {
     whatsappTemplates?: {
         assignment: string;
         pendingApproval: string;
+        overdueReminder: string;
     };
 
     defaultAssignmentMonths?: number;

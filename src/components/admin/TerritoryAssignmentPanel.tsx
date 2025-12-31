@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -286,7 +285,15 @@ export default function TerritoryAssignmentPanel() {
 
     try {
         const link = `${window.location.origin}/dashboard/meus-territorios`;
-        const message = `Olá, este é um lembrete de que o território "${territory.name}" está com a devolução pendente, por favor atualize o quanto antes. Acesse aqui: ${link}`;
+        
+        const defaultTemplate = "Olá, este é um lembrete de que o território *{{territorio}}* está com a devolução atrasada. Por favor, atualize o quanto antes. Acesse o app: {{link}}";
+        const template = congregation?.whatsappTemplates?.overdueReminder || defaultTemplate;
+
+        const message = template
+            .replace('{{territorio}}', territory.name)
+            .replace('{{nomePublicador}}', assignedUser.name)
+            .replace('{{link}}', link);
+
         const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
         const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
