@@ -8,7 +8,7 @@ import { db, app } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
-import { Territory, Activity, Quadra, AssignmentHistoryLog } from "@/types/types"; 
+import { Territory, Activity, Quadra, Casa, AssignmentHistoryLog } from "@/types/types"; 
 import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, History } from "lucide-react";
 import Link from 'next/link';
 
@@ -168,9 +168,15 @@ function TerritoryDetailPage({ params }: TerritoryDetailPageProps) {
     });
     
     const quadrasQuery = query(collection(territoryRef, 'quadras'), orderBy('name', 'asc'));
-    const unsubQuadras = onSnapshot(quadrasQuery, (snapshot) => { 
+    const unsubQuadras = onSnapshot(quadrasQuery, async (snapshot) => { 
         const quadrasData = snapshot.docs.map(qDoc => ({...qDoc.data(), id: qDoc.id} as Quadra));
         setQuadras(quadrasData);
+
+        // Pré-carrega as casas de todas as quadras para uso offline
+        for (const quadra of quadrasData) {
+            const casasRef = collection(territoryRef, 'quadras', quadra.id, 'casas');
+            await getDocs(query(casasRef));
+        }
     });
     
     return () => { unsubTerritory(); unsubHistory(); unsubQuadras(); };
