@@ -1,31 +1,15 @@
+
 "use client";
 
 import { useState } from 'react';
-import dynamic from 'next/dynamic';
-import { Loader, BarChart3, BookUser, FileText, SettingsIcon, ClipboardList, Map, Trees } from 'lucide-react';
-import Link from 'next/link';
+import { Loader, BarChart3, BookUser, FileText, ClipboardList } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
 import { cn } from '@/lib/utils';
-import CongregationEditForm from '@/components/admin/CongregationEditForm';
+import TerritoryAssignmentPanel from '@/components/admin/TerritoryAssignmentPanel';
+import TerritoryCoverageStats from '@/components/admin/TerritoryCoverageStats';
+import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesReport';
 import S13ReportPage from './relatorio-s13/page';
-import { Button } from '@/components/ui/button';
-
-// --- Dynamic Imports for each tab ---
-const TerritoryAssignmentPanel = dynamic(
-  () => import('@/components/admin/TerritoryAssignmentPanel').then(mod => mod.default),
-  { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
-);
-
-const TerritoryCoverageStats = dynamic(
-  () => import('@/components/admin/TerritoryCoverageStats').then(mod => mod.default),
-  { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
-);
-
-const AvailableTerritoriesReport = dynamic(
-  () => import('@/components/admin/AvailableTerritoriesReport').then(mod => mod.default),
-  { loading: () => <div className="flex justify-center p-8"><Loader className="animate-spin" /></div> }
-);
 
 type Tab = 'assignment' | 'overview' | 'report' | 'available';
 
