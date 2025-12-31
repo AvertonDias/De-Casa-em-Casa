@@ -31,7 +31,7 @@ export default function UserManagement() {
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [roleFilter, setRoleFilter] = useState<AppUser['role'] | 'all'>('all');
   const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive_month'>('all');
-  const [statusFilter, setStatusFilter] = useState<AppUser['status'] | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<AppUser['status'] | 'all' | 'inativo'>('all');
 
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -51,7 +51,6 @@ export default function UserManagement() {
     
     setIsConfirmModalOpen(false);
     try {
-        const idToken = await getIdToken(auth.currentUser);
         await deleteUserAccount({ userIdToDelete: userToDelete.uid });
         toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {
@@ -139,7 +138,7 @@ export default function UserManagement() {
         status: {
             ativo: users.filter(u => u.status === 'ativo').length,
             pendente: users.filter(u => u.status === 'pendente').length,
-            inativo: users.filter(u => u.status === 'inativo').length,
+            inativo: users.filter(u => u.status === 'ativo' && u.lastSeen && u.lastSeen.toDate() < oneMonthAgo).length,
             rejeitado: users.filter(u => u.status === 'rejeitado').length,
             bloqueado: users.filter(u => u.status === 'bloqueado').length,
         },

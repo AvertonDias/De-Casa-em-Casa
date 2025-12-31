@@ -191,7 +191,6 @@ export const resetPasswordWithTokenV2 = createHttpsFunction(async (req, res) => 
 });
 
 export const deleteUserAccountV2 = https.onCall(async (request) => {
-    // A verificação do token de autenticação é feita automaticamente pelo onCall
     if (!request.auth || !request.auth.token) {
         throw new https.HttpsError('unauthenticated', 'Ação não autorizada. O usuário não está autenticado.');
     }
