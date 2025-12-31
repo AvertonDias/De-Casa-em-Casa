@@ -206,7 +206,7 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
               className="w-full bg-input rounded-md p-2 border border-border text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               defaultValue={String(defaultMonths)}
             >
-              {[...Array(12).keys()].map(i => (
+              {Array.from(Array(12).keys()).map(i => (
                 <option key={i + 1} value={i + 1}>Em {i + 1} {i + 1 > 1 ? 'meses' : 'mês'}</option>
               ))}
             </select>
