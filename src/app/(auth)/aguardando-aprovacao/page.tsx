@@ -84,7 +84,7 @@ function AguardandoAprovacaoPage() {
         
         const message = template
           .replace('{{nomeUsuario}}', user.name)
-          .replace('{{congregacao}}', congregation.name);
+          .replace('{{congregacao}}', congregation.name || '');
 
         const url = `https://wa.me/55${number}?text=${encodeURIComponent(message)}`;
         window.open(url, '_blank');
