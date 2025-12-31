@@ -214,7 +214,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                       <SelectValue placeholder="Selecione um prazo..." />
                   </SelectTrigger>
                   <SelectContent>
-                      {[...Array(12).keys()].map(i => (
+                      {Array.from(Array(12).keys()).map(i => (
                           <SelectItem key={i + 1} value={String(i + 1)}>
                               {i + 1} {i + 1 > 1 ? 'meses' : 'mês'}
                           </SelectItem>
