@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -9,8 +10,6 @@ import TerritoryAssignmentPanel from '@/components/admin/TerritoryAssignmentPane
 import TerritoryCoverageStats from '@/components/admin/TerritoryCoverageStats';
 import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesReport';
 import S13ReportPage from './relatorio-s13/page';
-import { Button } from '@/components/ui/button';
-import { EditCongregationModal } from '@/components/EditCongregationModal';
 import CongregationEditForm from '@/components/admin/CongregationEditForm';
 
 
@@ -61,6 +60,7 @@ function AdminPage() {
             <TabButton tabId="overview" label="Visão Geral" icon={BarChart3} />
             <TabButton tabId="available" label="Disponíveis" icon={ClipboardList} />
             <TabButton tabId="report" label="Relatório S-13" icon={FileText} />
+            {isAdmin && <TabButton tabId="settings" label="Configurações" icon={Settings} />}
           </nav>
         </div>
 
@@ -69,6 +69,11 @@ function AdminPage() {
           {activeTab === 'overview' && <TerritoryCoverageStats />}
           {activeTab === 'available' && <AvailableTerritoriesReport />}
           {activeTab === 'report' && <S13ReportPage />}
+          {activeTab === 'settings' && isAdmin && (
+            <div className="max-w-2xl mx-auto">
+              <CongregationEditForm onSaveSuccess={() => {}} />
+            </div>
+          )}
         </div>
       </div>
     </>
