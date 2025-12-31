@@ -12,8 +12,10 @@ import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesR
 import S13ReportPage from './relatorio-s13/page';
 import { Button } from '@/components/ui/button';
 import { EditCongregationModal } from '@/components/EditCongregationModal';
+import CongregationEditForm from '@/components/admin/CongregationEditForm';
 
-type Tab = 'assignment' | 'overview' | 'report' | 'available';
+
+type Tab = 'assignment' | 'overview' | 'report' | 'available' | 'settings';
 
 function AdminPage() {
   const { user } = useUser();
@@ -21,6 +23,8 @@ function AdminPage() {
   const [isCongregationModalOpen, setIsCongregationModalOpen] = useState(false);
   
   const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
+  const isAdmin = user?.role === 'Administrador';
+
 
   if (!user || !isManager) {
     return (
@@ -59,13 +63,8 @@ function AdminPage() {
             <TabButton tabId="overview" label="Visão Geral" icon={BarChart3} />
             <TabButton tabId="available" label="Disponíveis" icon={ClipboardList} />
             <TabButton tabId="report" label="Relatório S-13" icon={FileText} />
+            {isAdmin && <TabButton tabId="settings" label="Configurações" icon={Settings} />}
           </nav>
-          {user.role === 'Administrador' && (
-            <Button variant="ghost" size="icon" onClick={() => setIsCongregationModalOpen(true)}>
-              <Settings className="h-5 w-5" />
-              <span className="sr-only">Configurações da Congregação</span>
-            </Button>
-          )}
         </div>
 
         <div className="mt-6">
@@ -73,9 +72,12 @@ function AdminPage() {
           {activeTab === 'overview' && <TerritoryCoverageStats />}
           {activeTab === 'available' && <AvailableTerritoriesReport />}
           {activeTab === 'report' && <S13ReportPage />}
+          {activeTab === 'settings' && isAdmin && (
+            <CongregationEditForm onSaveSuccess={() => { /* Pode adicionar uma ação aqui, se necessário */ }} />
+          )}
         </div>
       </div>
-      {user.role === 'Administrador' && (
+      {isAdmin && (
         <EditCongregationModal 
           isOpen={isCongregationModalOpen} 
           onOpenChange={setIsCongregationModalOpen} 
