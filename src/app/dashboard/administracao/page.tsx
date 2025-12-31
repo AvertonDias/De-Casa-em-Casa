@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useState } from 'react';
-import { BarChart3, BookUser, FileText, ClipboardList } from 'lucide-react';
+import { BarChart3, BookUser, FileText, ClipboardList, Settings } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
 import { cn } from '@/lib/utils';
@@ -9,12 +10,15 @@ import TerritoryAssignmentPanel from '@/components/admin/TerritoryAssignmentPane
 import TerritoryCoverageStats from '@/components/admin/TerritoryCoverageStats';
 import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesReport';
 import S13ReportPage from './relatorio-s13/page';
+import { Button } from '@/components/ui/button';
+import { EditCongregationModal } from '@/components/EditCongregationModal';
 
 type Tab = 'assignment' | 'overview' | 'report' | 'available';
 
 function AdminPage() {
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState<Tab>('assignment');
+  const [isCongregationModalOpen, setIsCongregationModalOpen] = useState(false);
   
   const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
 
@@ -42,28 +46,42 @@ function AdminPage() {
   );
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Administração</h1>
-        <p className="text-muted-foreground">Ferramentas para gerenciar e analisar os territórios.</p>
-      </div>
+    <>
+      <div className="p-4 md:p-6 lg:p-8 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Administração</h1>
+          <p className="text-muted-foreground">Ferramentas para gerenciar e analisar os territórios.</p>
+        </div>
 
-      <div className="border-b border-border">
-        <nav className="-mb-px flex space-x-4 overflow-x-auto" aria-label="Tabs">
-          <TabButton tabId="assignment" label="Designar Territórios" icon={BookUser} />
-          <TabButton tabId="overview" label="Visão Geral" icon={BarChart3} />
-           <TabButton tabId="available" label="Disponíveis" icon={ClipboardList} />
-          <TabButton tabId="report" label="Relatório S-13" icon={FileText} />
-        </nav>
-      </div>
+        <div className="border-b border-border flex justify-between items-center">
+          <nav className="-mb-px flex space-x-4 overflow-x-auto" aria-label="Tabs">
+            <TabButton tabId="assignment" label="Designar Territórios" icon={BookUser} />
+            <TabButton tabId="overview" label="Visão Geral" icon={BarChart3} />
+            <TabButton tabId="available" label="Disponíveis" icon={ClipboardList} />
+            <TabButton tabId="report" label="Relatório S-13" icon={FileText} />
+          </nav>
+          {user.role === 'Administrador' && (
+            <Button variant="ghost" size="icon" onClick={() => setIsCongregationModalOpen(true)}>
+              <Settings className="h-5 w-5" />
+              <span className="sr-only">Configurações da Congregação</span>
+            </Button>
+          )}
+        </div>
 
-      <div className="mt-6">
-        {activeTab === 'overview' && <TerritoryCoverageStats />}
-        {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
-        {activeTab === 'available' && <AvailableTerritoriesReport />}
-        {activeTab === 'report' && <S13ReportPage />}
+        <div className="mt-6">
+          {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
+          {activeTab === 'overview' && <TerritoryCoverageStats />}
+          {activeTab === 'available' && <AvailableTerritoriesReport />}
+          {activeTab === 'report' && <S13ReportPage />}
+        </div>
       </div>
-    </div>
+      {user.role === 'Administrador' && (
+        <EditCongregationModal 
+          isOpen={isCongregationModalOpen} 
+          onOpenChange={setIsCongregationModalOpen} 
+        />
+      )}
+    </>
   );
 }
 
