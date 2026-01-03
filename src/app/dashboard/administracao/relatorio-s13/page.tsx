@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
@@ -163,89 +164,91 @@ export default function S13ReportPage() {
       <h1 className="text-xl font-bold text-center uppercase mb-4">
         REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO ({typeFilter === "urban" ? "URBANO" : "RURAL"})
       </h1>
-      <div className="flex justify-between items-center my-4 text-sm">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center my-4 text-sm gap-2">
         <div className="flex items-center">
-          <label className="font-semibold">Ano de Serviço:</label>
+          <label className="font-semibold whitespace-nowrap">Ano de Serviço:</label>
           <span className="ml-2 px-4 flex-grow min-w-[60px] text-center">
             <u>{serviceYear}</u>
           </span>
         </div>
         <div className="flex items-center">
-          <span className="font-semibold">Congregação:</span>
+          <span className="font-semibold whitespace-nowrap">Congregação:</span>
           <span className="ml-2 px-4 flex-grow min-w-[150px] text-center">
             <u>{user?.congregationName || "..."}</u>
           </span>
         </div>
       </div>
-      <table className="w-full text-xs border-collapse">
-        <thead>
-          <tr className="text-center font-semibold">
-            <th rowSpan={2} className="border border-black p-1" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Terr.</th>
-            {Array(4).fill(null).map((_, i) => (
-              <th key={i} colSpan={2} className="border border-black p-1" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Designado a</th>
-            ))}
-          </tr>
-          <tr className="text-center font-semibold">
-            {Array(4).fill(null).map((_, i) => (
-              <React.Fragment key={i}>
-                <th className="border border-black p-1" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Designação</th>
-                <th className="border border-black p-1" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Conclusão</th>
-              </React.Fragment>
-            ))}
-          </tr>
-        </thead>
-        {loading ? (
-          <tbody>
-            <tr>
-              <td colSpan={9} className="text-center p-4">Carregando dados...</td>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs border-collapse min-w-[700px]">
+          <thead>
+            <tr className="text-center font-semibold">
+              <th rowSpan={2} className="border border-black p-1" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Terr.</th>
+              {Array(4).fill(null).map((_, i) => (
+                <th key={i} colSpan={2} className="border border-black p-1" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Designado a</th>
+              ))}
             </tr>
-          </tbody>
-        ) : (
-          filteredTerritories.map((t, index) => {
-            const allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
-            if (t.status === "designado" && t.assignment) {
-              allAssignments.push({
-                name: t.assignment.name,
-                assignedAt: t.assignment.assignedAt,
-              });
-            }
-            const display = Array(4).fill(null).map((_, i) => allAssignments[i] || null);
-            const isEven = index % 2 === 0;
-            const bgColor = isEven ? '#e5e7eb' : 'transparent';
-            
-            const cellStyle: React.CSSProperties = {
-                textAlign: 'center',
-                verticalAlign: 'middle',
-                backgroundColor: bgColor,
-            };
+            <tr className="text-center font-semibold">
+              {Array(4).fill(null).map((_, i) => (
+                <React.Fragment key={i}>
+                  <th className="border border-black p-1" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Designação</th>
+                  <th className="border border-black p-1" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Conclusão</th>
+                </React.Fragment>
+              ))}
+            </tr>
+          </thead>
+          {loading ? (
+            <tbody>
+              <tr>
+                <td colSpan={9} className="text-center p-4">Carregando dados...</td>
+              </tr>
+            </tbody>
+          ) : (
+            filteredTerritories.map((t, index) => {
+              const allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
+              if (t.status === "designado" && t.assignment) {
+                allAssignments.push({
+                  name: t.assignment.name,
+                  assignedAt: t.assignment.assignedAt,
+                });
+              }
+              const display = Array(4).fill(null).map((_, i) => allAssignments[i] || null);
+              const isEven = index % 2 === 0;
+              const bgColor = isEven ? '#e5e7eb' : 'transparent';
+              
+              const cellStyle: React.CSSProperties = {
+                  textAlign: 'center',
+                  verticalAlign: 'middle',
+                  backgroundColor: bgColor,
+              };
 
-            return (
-              <tbody key={t.id} className="print-avoid-break">
-                <tr>
-                  <td rowSpan={2} className="border border-black py-2" style={cellStyle}>{t.number}</td>
-                  {display.map((a, i) => (
-                    <td key={i} colSpan={2} className="border border-black py-2" style={cellStyle}>
-                      {a?.name || ""}
-                    </td>
-                  ))}
-                </tr>
-                <tr>
-                  {display.map((a, i) => (
-                    <React.Fragment key={i}>
-                      <td className="border border-black py-2" style={cellStyle}>
-                        {a?.assignedAt ? format(a.assignedAt.toDate(), "dd/MM/yy") : ""}
+              return (
+                <tbody key={t.id} className="print-avoid-break">
+                  <tr>
+                    <td rowSpan={2} className="border border-black py-2" style={cellStyle}>{t.number}</td>
+                    {display.map((a, i) => (
+                      <td key={i} colSpan={2} className="border border-black py-2" style={cellStyle}>
+                        {a?.name || ""}
                       </td>
-                      <td className="border border-black py-2" style={cellStyle}>
-                        {a?.completedAt ? format(a.completedAt.toDate(), "dd/MM/yy") : ""}
-                      </td>
-                    </React.Fragment>
-                  ))}
-                </tr>
-              </tbody>
-            );
-          })
-        )}
-      </table>
+                    ))}
+                  </tr>
+                  <tr>
+                    {display.map((a, i) => (
+                      <React.Fragment key={i}>
+                        <td className="border border-black py-2" style={cellStyle}>
+                          {a?.assignedAt ? format(a.assignedAt.toDate(), "dd/MM/yy") : ""}
+                        </td>
+                        <td className="border border-black py-2" style={cellStyle}>
+                          {a?.completedAt ? format(a.completedAt.toDate(), "dd/MM/yy") : ""}
+                        </td>
+                      </React.Fragment>
+                    ))}
+                  </tr>
+                </tbody>
+              );
+            })
+          )}
+        </table>
+      </div>
     </>
   );
 
@@ -271,6 +274,8 @@ export default function S13ReportPage() {
           </Button>
         </div>
       </div>
+      
+      {/* Contêiner de visualização para desktop/touch com overflow */}
       <div 
         className="p-4 flex justify-center bg-muted print-hidden w-full overflow-hidden touch-none"
         onMouseDown={handleDragStart}
@@ -296,6 +301,8 @@ export default function S13ReportPage() {
           </div>
         </div>
       </div>
+
+      {/* Conteúdo otimizado para impressão (geração do PDF) */}
       <div className="hidden print-block">
         <div className="text-black bg-white">
           <ReportContent inPdf={true} />
