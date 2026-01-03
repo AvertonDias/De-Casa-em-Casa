@@ -45,14 +45,14 @@ function AdminPage() {
   );
 
   return (
-    <>
-      <div className="p-4 md:p-6 lg:p-8 space-y-6">
+    <div className="flex flex-col h-full">
+      <div className="p-4 md:p-6 lg:p-8 pb-0">
         <div>
           <h1 className="text-3xl font-bold">Administração</h1>
           <p className="text-muted-foreground">Ferramentas para gerenciar e analisar os territórios.</p>
         </div>
 
-        <div className="border-b border-border flex justify-between items-center">
+        <div className="border-b border-border mt-4">
           <nav className="-mb-px flex space-x-4 overflow-x-auto" aria-label="Tabs">
             <TabButton tabId="assignment" label="Designar Territórios" icon={BookUser} />
             <TabButton tabId="overview" label="Visão Geral" icon={BarChart3} />
@@ -63,20 +63,22 @@ function AdminPage() {
             )}
           </nav>
         </div>
+      </div>
 
+      <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 pb-8">
         <div className="mt-6">
           {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
           {activeTab === 'overview' && <TerritoryCoverageStats />}
           {activeTab === 'available' && <AvailableTerritoriesReport />}
           {activeTab === 'report' && <S13ReportPage />}
-          {activeTab === 'settings' && (
+          {activeTab === 'settings' && isAdmin && (
             <div className="max-w-2xl mx-auto">
                <CongregationEditForm onSaveSuccess={() => {}} />
             </div>
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

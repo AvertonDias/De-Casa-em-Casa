@@ -18,13 +18,14 @@ import type { Territory, AppUser, AssignmentHistoryLog } from '@/types/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '../ui/button';
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   label: string;
   value: string;
   currentFilter: string;
   setFilter: (value: any) => void;
-  Icon: React.ElementType;
+  Icon?: React.ElementType;
 }) => (
   <button
     onClick={() => setFilter(value)}
@@ -34,7 +35,7 @@ const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
       : 'bg-input hover:bg-white/5'
     }`}
   >
-    <Icon size={16} className="mr-2"/>
+    {Icon && <Icon size={16} className="mr-2"/>}
     {label}
   </button>
 );
@@ -347,37 +348,39 @@ export default function TerritoryAssignmentPanel() {
       <div className="bg-card p-4 sm:p-6 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold mb-4">Designar Territórios</h2>
 
-        <div className="flex flex-col sm:flex-row gap-2 mb-4 p-2 bg-input/40 rounded-lg">
-          <FilterButton label="Todos" value="all" currentFilter={typeFilter} setFilter={setTypeFilter} Icon={LayoutList} />
-          <FilterButton label="Urbanos" value="urban" currentFilter={typeFilter} setFilter={setTypeFilter} Icon={Map} />
-          <FilterButton label="Rurais" value="rural" currentFilter={typeFilter} setFilter={setTypeFilter} Icon={Trees} />
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-4 mb-4">
-          <div className="relative flex-grow">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-            <input 
-              type="text" 
-              placeholder="Buscar por nome ou número..." 
-              value={searchTerm} 
-              onChange={e => setSearchTerm(e.target.value)} 
-              className="w-full bg-input rounded-md p-2 pl-10 pr-10 border border-border"
-            />
-             {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')} 
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X size={20} />
-              </button>
-            )}
-          </div>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="bg-input rounded-md p-2 border border-border">
-            <option value="all">Todos os status</option>
-            <option value="disponivel">Disponível</option>
-            <option value="designado">Designado</option>
-            <option value="atrasado">Atrasado</option>
-          </select>
+        <div className="flex flex-col gap-4 mb-4">
+            <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/50 rounded-lg">
+                <FilterButton label="Todos" value="all" currentFilter={typeFilter} setFilter={setTypeFilter} />
+                <FilterButton label="Urbanos" value="urban" currentFilter={typeFilter} setFilter={setTypeFilter} />
+                <FilterButton label="Rurais" value="rural" currentFilter={typeFilter} setFilter={setTypeFilter} />
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-grow">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+                <input 
+                  type="text" 
+                  placeholder="Buscar por nome ou número..." 
+                  value={searchTerm} 
+                  onChange={e => setSearchTerm(e.target.value)} 
+                  className="w-full bg-input rounded-md p-2 pl-10 pr-10 border border-border"
+                />
+                 {searchTerm && (
+                  <button 
+                    onClick={() => setSearchTerm('')} 
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X size={20} />
+                  </button>
+                )}
+              </div>
+              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="bg-input rounded-md p-2 border border-border">
+                <option value="all">Todos os status</option>
+                <option value="disponivel">Disponível</option>
+                <option value="designado">Designado</option>
+                <option value="atrasado">Atrasado</option>
+              </select>
+            </div>
         </div>
         
         <div className="border border-border rounded-lg">
