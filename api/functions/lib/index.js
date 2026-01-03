@@ -1,4 +1,3 @@
-
 "use strict";
 // src/functions/src/index.ts
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -17,13 +16,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -197,43 +206,46 @@ exports.resetPasswordWithTokenV2 = createHttpsFunction(async (req, res) => {
     }
 });
 exports.deleteUserAccountV2 = v2_1.https.onCall(async (request) => {
-    var _a;
-    // A verificação do token de autenticação é feita automaticamente pelo onCall
+    // 1. Em onCall, o contexto de autenticação já vem verificado
     if (!request.auth) {
-        throw new v2_1.https.HttpsError('unauthenticated', 'Ação não autorizada.');
+        throw new v2_1.https.HttpsError('unauthenticated', 'Ação não autorizada. Faça login novamente.');
     }
     const callingUserUid = request.auth.uid;
-    const { userIdToDelete } = request.data;
-    if (!userIdToDelete) {
-        throw new v2_1.https.HttpsError('invalid-argument', 'ID do usuário a ser deletado é obrigatório.');
-    }
     try {
+        // 2. Os dados vêm de `request.data`
+        const { userIdToDelete } = request.data;
+        if (!userIdToDelete) {
+            throw new v2_1.https.HttpsError('invalid-argument', 'ID do usuário a ser deletado é obrigatório.');
+        }
         const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-        if (!callingUserSnap.exists) {
+        const callingUserData = callingUserSnap.data();
+        if (!callingUserData) {
             throw new v2_1.https.HttpsError('not-found', 'Usuário requisitante não encontrado.');
         }
-        const isCallingUserAdmin = ((_a = callingUserSnap.data()) === null || _a === void 0 ? void 0 : _a.role) === "Administrador";
+        const isCallingUserAdmin = callingUserData.role === "Administrador";
         const isSelfDelete = callingUserUid === userIdToDelete;
         const isAdminDeletingOther = isCallingUserAdmin && !isSelfDelete;
-        if (!isSelfDelete && !isAdminDeletingOther) {
-            throw new v2_1.https.HttpsError('permission-denied', 'Sem permissão para esta ação.');
-        }
         if (isCallingUserAdmin && isSelfDelete) {
             throw new v2_1.https.HttpsError('permission-denied', 'Admin não pode se autoexcluir por esta função.');
+        }
+        if (!isSelfDelete && !isAdminDeletingOther) {
+            throw new v2_1.https.HttpsError('permission-denied', 'Sem permissão para esta ação.');
         }
         await firebase_admin_1.default.auth().deleteUser(userIdToDelete);
         const userDocRef = db.collection("users").doc(userIdToDelete);
         if ((await userDocRef.get()).exists) {
             await userDocRef.delete();
         }
+        // 3. Retorna um objeto de sucesso
         return { success: true };
     }
     catch (error) {
         v2_1.logger.error("Erro ao excluir usuário:", error);
         if (error instanceof v2_1.https.HttpsError) {
-            throw error; // Re-throw HttpsError
+            throw error; // Re-lança erros HttpsError para o cliente
         }
-        throw new v2_1.https.HttpsError('internal', error.message || "Falha na exclusão.");
+        // Para outros erros (ex: user-not-found no deleteUser), lança um erro genérico
+        throw new v2_1.https.HttpsError("internal", error.message || "Falha na exclusão.");
     }
 });
 // ========================================================================
@@ -306,5 +318,3 @@ exports.mirrorUserStatus = (0, database_1.onValueWritten)({
     return null;
 });
 //# sourceMappingURL=index.js.map
-
-    
