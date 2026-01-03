@@ -23,22 +23,21 @@ const ReportContent = ({ territories, congregationName, type }: { territories: A
         <h1 className="text-lg md:text-xl font-bold uppercase">Territórios {type === 'urban' ? 'Urbanos' : 'Rurais'} Disponíveis</h1>
         <p className="text-sm font-semibold whitespace-nowrap">{congregationName || "..."}</p>
       </div>
-      {/* --- MELHORIA: Tabela envolvida em div para rolagem horizontal em telas pequenas --- */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[500px]">
+        <table className="w-full text-left border-collapse">
           <thead>
             <tr className="text-sm">
-              <th className="border-b-2 border-black p-2 font-bold">Número</th>
-              <th className="border-b-2 border-black p-2 font-bold">Última conclusão</th>
-              <th className="border-b-2 border-black p-2"></th>
+              <th className="border-b-2 border-black p-2 font-bold">Território</th>
+              <th className="border-b-2 border-black p-2 font-bold text-right">Última conclusão</th>
             </tr>
           </thead>
           <tbody>
             {territories.map((t) => (
               <tr key={t.id} className="border-b border-gray-300 text-sm">
-                <td className="p-2">{t.number}-{t.name}</td>
-                <td className="p-2 whitespace-nowrap">{t.lastCompletionDate ? format(t.lastCompletionDate, "dd/MM/yyyy") : 'Nunca trabalhado'}</td>
-                <td className="p-2"></td>
+                <td className="p-2 align-top">
+                    <span className="font-semibold">{t.number}</span> - {t.name}
+                </td>
+                <td className="p-2 whitespace-nowrap text-right align-top">{t.lastCompletionDate ? format(t.lastCompletionDate, "dd/MM/yyyy") : 'Nunca trabalhado'}</td>
               </tr>
             ))}
           </tbody>
@@ -133,7 +132,6 @@ export default function AvailableTerritoriesReport() {
 
   return (
     <div>
-      {/* --- CORREÇÃO: Cabeçalho responsivo --- */}
       <div className="flex flex-col sm:flex-row justify-between items-center mb-4 print-hidden gap-4">
         <div className="w-full sm:w-auto flex justify-center gap-2">
             <Button onClick={() => setTypeFilter("urban")} variant={typeFilter === 'urban' ? 'default' : 'outline'} className="flex-1 sm:flex-none">
@@ -148,11 +146,7 @@ export default function AvailableTerritoriesReport() {
         </Button>
       </div>
 
-      {/* --- CORREÇÃO PRINCIPAL: Container responsivo --- */}
-      <div className={cn(
-          "bg-white p-4 sm:p-6 shadow-lg rounded-lg",
-          "w-full max-w-full" // Garante que em telas de celular ele ocupe 100% da largura
-      )}>
+      <div className="bg-white p-4 sm:p-6 shadow-lg rounded-lg w-full max-w-full">
         {loading ? (
            <div className="flex items-center justify-center h-48"><Loader className="animate-spin" /></div>
         ) : (
