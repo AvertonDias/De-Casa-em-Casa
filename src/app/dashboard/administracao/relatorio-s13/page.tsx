@@ -159,7 +159,7 @@ export default function S13ReportPage() {
   };
 
 
-  const ReportContent = ({ inPdf = false }: { inPdf?: boolean }) => (
+  const ReportHeader = () => (
     <>
       <h1 className="text-xl font-bold text-center uppercase mb-4">
         REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO ({typeFilter === "urban" ? "URBANO" : "RURAL"})
@@ -178,6 +178,12 @@ export default function S13ReportPage() {
           </span>
         </div>
       </div>
+    </>
+  );
+
+  const ReportForPrint = ({ inPdf = false }: { inPdf?: boolean }) => (
+    <>
+      <ReportHeader />
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse min-w-[700px]">
           <thead>
@@ -252,6 +258,41 @@ export default function S13ReportPage() {
     </>
   );
 
+  const ReportForMobile = () => (
+    <div className="bg-card p-4 rounded-lg">
+      <ReportHeader />
+      <div className="space-y-4">
+        {loading ? (
+          <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" /></div>
+        ) : (
+          filteredTerritories.map(t => {
+            const allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
+            if (t.status === "designado" && t.assignment) {
+              allAssignments.push({
+                name: t.assignment.name,
+                assignedAt: t.assignment.assignedAt,
+              });
+            }
+            return (
+              <div key={t.id} className="border border-border rounded-lg p-4">
+                <h3 className="font-bold text-lg mb-2">Território {t.number}</h3>
+                {allAssignments.length > 0 ? allAssignments.slice(0, 4).map((a, i) => (
+                  <div key={i} className="text-sm border-t border-border mt-2 pt-2">
+                    <p><span className="font-semibold">Designado a:</span> {a.name || "N/A"}</p>
+                    <p><span className="font-semibold">Data:</span> {a.assignedAt ? format(a.assignedAt.toDate(), "dd/MM/yy") : "N/A"}</p>
+                    <p><span className="font-semibold">Conclusão:</span> {a.completedAt ? format(a.completedAt.toDate(), "dd/MM/yy") : "..."}</p>
+                  </div>
+                )) : (
+                  <p className="text-sm text-muted-foreground">Nenhuma designação registrada.</p>
+                )}
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <>
       <div className="p-4 bg-card print-hidden">
@@ -264,48 +305,50 @@ export default function S13ReportPage() {
               <Trees size={14} className="mr-1" /> Rurais
             </Button>
           </div>
-          <div className="flex gap-2 items-center">
-            <Button variant="outline" size="icon" onClick={() => setScale(s => Math.min(s + 0.1, 2))}><ZoomIn size={16}/></Button>
-            <Button variant="outline" size="icon" onClick={() => setScale(s => Math.max(s - 0.1, 0.5))}><ZoomOut size={16}/></Button>
-            <Button variant="outline" size="icon" onClick={resetZoomAndPosition}><RotateCcw size={16}/></Button>
-          </div>
           <Button onClick={handlePrint} disabled={isPrinting} className="w-full sm:w-auto justify-center">
             {isPrinting ? <Loader className="animate-spin mr-2" /> : <Printer size={16} className="mr-2" />} Salvar PDF
           </Button>
         </div>
       </div>
       
-      {/* Contêiner de visualização para desktop/touch com overflow */}
-      <div 
-        className="p-4 flex justify-center bg-muted print-hidden w-full overflow-hidden touch-none"
-        onMouseDown={handleDragStart}
-        onMouseMove={handleDragMove}
-        onMouseUp={handleDragEnd}
-        onMouseLeave={handleDragEnd}
-        onTouchStart={handleDragStart}
-        onTouchMove={handleDragMove}
-        onTouchEnd={handleDragEnd}
-      >
-        <div
-          className="bg-white p-4 shadow-lg origin-top"
-          style={{ 
-            width: "210mm",
-            minHeight: "297mm",
-            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-            cursor: isDragging ? 'grabbing' : 'grab',
-            transition: isDragging ? 'none' : 'transform 0.1s ease-out'
-          }}
+      {/* Visualização para Desktop */}
+      <div className="hidden md:block">
+        <div 
+          className="p-4 flex justify-center bg-muted print-hidden w-full overflow-hidden touch-none"
+          onMouseDown={handleDragStart}
+          onMouseMove={handleDragMove}
+          onMouseUp={handleDragEnd}
+          onMouseLeave={handleDragEnd}
+          onTouchStart={handleDragStart}
+          onTouchMove={handleDragMove}
+          onTouchEnd={handleDragEnd}
         >
-          <div id="pdf-area-s13" className="text-black bg-white">
-            <ReportContent />
+          <div
+            className="bg-white p-4 shadow-lg origin-top"
+            style={{ 
+              width: "210mm",
+              minHeight: "297mm",
+              transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+              cursor: isDragging ? 'grabbing' : 'grab',
+              transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+            }}
+          >
+            <div id="pdf-area-s13" className="text-black bg-white">
+              <ReportForPrint />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Conteúdo otimizado para impressão (geração do PDF) */}
+      {/* Visualização para Mobile */}
+      <div className="md:hidden p-4">
+        <ReportForMobile />
+      </div>
+
+      {/* Conteúdo otimizado para impressão (usado pelo html2pdf) */}
       <div className="hidden print-block">
         <div className="text-black bg-white">
-          <ReportContent inPdf={true} />
+          <ReportForPrint inPdf={true} />
         </div>
       </div>
     </>
