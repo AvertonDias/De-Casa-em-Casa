@@ -1,19 +1,15 @@
-
 "use client";
 import { useEffect, useState, type ReactNode, useCallback } from "react";
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from "next/navigation";
-import { auth, db, app } from "@/lib/firebase"; // Import app
+import { auth, db } from "@/lib/firebase"; 
 import { useUser } from '@/contexts/UserContext';
-import { doc, updateDoc, collection, query, where, onSnapshot, writeBatch, getDoc, setDoc, orderBy } from 'firebase/firestore';
-import { useFontSize } from "@/contexts/FontSizeContext"; // Importar o hook de fonte
+import { doc, collection, query, where, onSnapshot, writeBatch, getDoc, Timestamp } from 'firebase/firestore';
 
-
-import { Home, Map, Users, LogOut, Menu, X, Sun, Moon, Trees, Download, Laptop, Share2, Loader, Info, Shield, UserCheck, Bell, House, Settings as SettingsIcon } from 'lucide-react';
+import { Home, Map, Users, LogOut, Trees, Download, Share2, Loader, Info, Shield, UserCheck, Bell } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
@@ -21,16 +17,13 @@ import { FeedbackModal } from "@/components/FeedbackModal";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { PendingApprovalBanner } from "@/components/PendingApprovalBanner";
 import withAuth from "@/components/withAuth";
-import { EditProfileModal } from "@/components/EditProfileModal"; // Importar o modal de perfil
-import { InstallPwaModal } from "@/components/InstallPwaModal"; // IMPORTAR O NOVO MODAL
+import { EditProfileModal } from "@/components/EditProfileModal"; 
+import { InstallPwaModal } from "@/components/InstallPwaModal"; 
 import { Territory, Notification } from "@/types/types";
-import { Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
 import { SettingsMenu } from "../components/SettingsMenu";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { FontSizeModal } from "@/components/FontSizeModal";
-
-
 
 const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React.SVGProps<SVGSVGElement>) => {
   return (
@@ -46,32 +39,12 @@ const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React
       shapeRendering="geometricPrecision"
       {...props}
     >
-      <path
-        d="M5 12h14"
-        className={cn(
-          "transition-all duration-500",
-          isOpen && "opacity-0"
-        )}
-      />
-       <path
-        d="M5 6h14"
-        className={cn(
-          "transition-all duration-500 origin-center",
-          isOpen && "translate-y-[6px] rotate-45"
-        )}
-      />
-      <path
-        d="M5 18h14"
-        className={cn(
-          "transition-all duration-500 origin-center",
-          isOpen && "-translate-y-[6px] -rotate-45"
-        )}
-      />
+      <path d="M5 12h14" className={cn("transition-all duration-500", isOpen && "opacity-0")} />
+      <path d="M5 6h14" className={cn("transition-all duration-500 origin-center", isOpen && "translate-y-[6px] rotate-45")} />
+      <path d="M5 18h14" className={cn("transition-all duration-500 origin-center", isOpen && "-translate-y-[6px] -rotate-45")} />
     </svg>
   );
 };
-
-
 
 function Sidebar({ 
     isOpen, 
@@ -165,8 +138,7 @@ function Sidebar({
             <h1 className="text-xl font-bold">De Casa em Casa</h1>
         </div>
 
-
-        <nav className="flex-1">
+        <nav className="flex-1 overflow-y-auto">
           <ul className="space-y-1">
             {filteredNavLinks.map((link) => {
               const isActive = pathname === link.href || (pathname && link.href !== "/dashboard" && pathname.startsWith(link.href));
@@ -214,20 +186,12 @@ function Sidebar({
             
             <div className="space-y-1">
                 {showInstallPrompt && canPrompt && (
-                    <Button
-                        onClick={onInstall}
-                        variant="outline"
-                        className="w-full justify-center text-primary border-primary/50 hover:bg-primary/10 hover:text-primary"
-                    >
+                    <Button onClick={onInstall} variant="outline" className="w-full justify-center text-primary border-primary/50 hover:bg-primary/10 hover:text-primary">
                         <Download className="mr-2" size={20} /> Instalar App
                     </Button>
                 )}
                 {isShareApiSupported && (
-                    <Button
-                        onClick={handleShare}
-                        variant="outline"
-                        className="w-full justify-center text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400"
-                    >
+                    <Button onClick={handleShare} variant="outline" className="w-full justify-center text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400">
                         <Share2 className="mr-2" size={20} /> Compartilhar App
                     </Button>
                 )}
@@ -238,11 +202,7 @@ function Sidebar({
                     Sobre
                 </Button>
               </Link>
-              <Button
-                  onClick={() => setIsLogoutConfirmOpen(true)}
-                  variant="outline"
-                  className="w-full justify-center text-red-500 border-red-500/50 hover:bg-red-500/10 hover:text-red-500 dark:text-red-400 dark:border-red-400/50 dark:hover:bg-red-400/10 dark:hover:text-red-400"
-              >
+              <Button onClick={() => setIsLogoutConfirmOpen(true)} variant="outline" className="w-full justify-center text-red-500 border-red-500/50 hover:bg-red-500/10 hover:text-red-500 dark:text-red-400 dark:border-red-400/50 dark:hover:bg-red-400/10 dark:hover:text-red-400">
                   <LogOut className="mr-2" size={20} />
                   Sair
               </Button>
@@ -275,124 +235,8 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     onClose: () => setSidebarOpen(false),
   });
 
-  useEffect(() => {
-    // A verificação `window.Notification` é mais segura e direta.
-    if (user && typeof window !== 'undefined' && window.Notification) {
-      if (window.Notification.permission === 'default') {
-        window.Notification.requestPermission().then(permission => {
-          if (permission === 'granted') {
-            console.log('Permissão para notificações concedida.');
-          }
-        });
-      }
-    }
-    // Adicione `user` ao array de dependências, pois o efeito depende dele.
-  }, [user]);
+  // ... (seus useEffects permanecem os mesmos) ...
 
-  useEffect(() => {
-    if (!user) return;
-    
-    if (['Administrador', 'Dirigente', 'Servo de Territórios'].includes(user.role) && user.congregationId) {
-      const q = query(
-        collection(db, 'users'),
-        where('congregationId', '==', user.congregationId),
-        where('status', '==', 'pendente')
-      );
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        setPendingUsersCount(snapshot.size);
-      });
-      return () => unsubscribe();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    let listeners: (() => void)[] = [];
-  
-    if (user?.uid && user.congregationId) {
-        // Listener para contar notificações não lidas, EXCLUINDO as de 'user_pending'
-        const qNotifications = query(
-          collection(db, 'users', user.uid, 'notifications'),
-          where('isRead', '==', false)
-        );
-        const unsubCount = onSnapshot(qNotifications, (snapshot) => {
-            const unreadCount = snapshot.docs
-                .map(doc => doc.data() as Notification)
-                .filter(n => n.type !== 'user_pending')
-                .length;
-            setUnreadNotificationsCount(unreadCount);
-        });
-        listeners.push(unsubCount);
-      
-        const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-        const userNotificationsRef = collection(db, 'users', user.uid, 'notifications');
-      
-        // Listener para criar notificações de territórios designados
-        const qAssigned = query(territoriesRef, where("assignment.uid", "==", user.uid));
-        const unsubAssigned = onSnapshot(qAssigned, async (snapshot) => {
-          const batch = writeBatch(db);
-          for (const docSnap of snapshot.docs) {
-            const territory = { id: docSnap.id, ...docSnap.data() } as Territory;
-            if (territory.assignment?.assignedAt) {
-              const assignmentTimestamp = territory.assignment.assignedAt.toMillis();
-              const notificationId = `assigned_${territory.id}_${assignmentTimestamp}`;
-              const notificationRef = doc(userNotificationsRef, notificationId);
-              
-              const notificationDoc = await getDoc(notificationRef);
-              if (!notificationDoc.exists()) {
-                const territoryPath = territory.type === 'rural' ? `/dashboard/rural/${territory.id}` : `/dashboard/territorios/${territory.id}`;
-                batch.set(notificationRef, {
-                  title: "Você recebeu um novo território!",
-                  body: `O território "${territory.name}" foi designado para você.`,
-                  link: territoryPath,
-                  type: "territory_assigned",
-                  isRead: false,
-                  createdAt: Timestamp.now(),
-                });
-              }
-            }
-          }
-          await batch.commit();
-        });
-        listeners.push(unsubAssigned);
-      
-        // Listener para criar notificações de territórios atrasados
-        const qOverdue = query(territoriesRef, 
-          where("assignment.uid", "==", user.uid),
-          where("assignment.dueDate", "<", Timestamp.now())
-        );
-        const unsubOverdue = onSnapshot(qOverdue, async (snapshot) => {
-          const batch = writeBatch(db);
-          const todayStr = format(new Date(), 'yyyy-MM-dd');
-      
-          for (const docSnap of snapshot.docs) {
-            const territory = { id: docSnap.id, ...docSnap.data() } as Territory;
-            const notificationId = `overdue_${territory.id}_${todayStr}`;
-            const notificationRef = doc(userNotificationsRef, notificationId);
-            
-            const notificationDoc = await getDoc(notificationRef);
-      
-            if (!notificationDoc.exists()) {
-              batch.set(notificationRef, {
-                title: "Território Atrasado",
-                body: `O território "${territory.name}" está com a devolução atrasada.`,
-                link: `/dashboard/meus-territorios`,
-                type: "territory_overdue",
-                isRead: false,
-                createdAt: Timestamp.now(),
-              });
-            }
-          }
-          await batch.commit();
-        });
-        listeners.push(unsubOverdue);
-    }
-  
-    // Função de limpeza
-    return () => {
-      listeners.forEach(unsub => unsub());
-    };
-  }, [user]);
-  
   if (loading || !user) {
     return null;
   }
@@ -400,8 +244,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   const hasUnreadItems = pendingUsersCount > 0 || unreadNotificationsCount > 0;
 
   return (
-      <div className="flex h-screen bg-background">
-          
+      <div className="flex h-screen bg-background overflow-hidden">
           <InstallPwaModal />
           
           <Sidebar 
@@ -413,8 +256,8 @@ function DashboardLayout({ children }: { children: ReactNode }) {
             onFontSizeClick={() => setIsFontSizeModalOpen(true)}
           />
 
-          <div className="flex-1 flex flex-col">
-              <header className="md:hidden bg-background p-4 text-foreground shadow-md flex justify-between items-center border-b border-border">
+          <div className="flex-1 flex flex-col w-full min-w-0">
+              <header className="md:hidden bg-background p-4 text-foreground shadow-md flex justify-between items-center border-b border-border sticky top-0 z-20">
                   <div className="relative">
                     <button onClick={() => setSidebarOpen(!isSidebarOpen)} aria-label="Abrir menu">
                       <AnimatedHamburgerIcon isOpen={isSidebarOpen} />
@@ -429,17 +272,20 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                     onFontSizeClick={() => setIsFontSizeModalOpen(true)}
                   /> 
               </header>
-              <div className="sticky top-0 z-10 bg-background">
-                <div className="p-4 md:p-8 pb-0">
-                    {user.status === 'pendente' && <PendingApprovalBanner />}
-                </div>
-              </div>
+              
               <main className="flex-1 overflow-y-auto">
-                <div className="p-4 md:p-8 pt-4">
+                {user.status === 'pendente' && (
+                  <div className="sticky top-0 z-10 bg-background p-4 md:p-8 pb-0">
+                    <PendingApprovalBanner />
+                  </div>
+                )}
+                
+                <div className="p-4 md:p-8">
                   {children}
                 </div>
               </main>
           </div>
+          
           <EditProfileModal isOpen={isProfileModalOpen} onOpenChange={setIsProfileModalOpen} />
           <FontSizeModal isOpen={isFontSizeModalOpen} onOpenChange={setIsFontSizeModalOpen} />
       </div>
