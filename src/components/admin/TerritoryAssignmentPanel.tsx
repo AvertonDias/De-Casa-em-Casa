@@ -383,13 +383,7 @@ export default function TerritoryAssignmentPanel() {
             </div>
         </div>
         
-        <div className="border border-border rounded-lg">
-          <div className="grid-cols-12 px-4 py-2 font-semibold text-muted-foreground hidden sm:grid border-b border-border">
-            <div className="col-span-4 text-left">Território</div>
-            <div className="col-span-2 text-left">Status</div>
-            <div className="col-span-4 text-left">Designado a</div>
-            <div className="col-span-2 text-right">Ações</div>
-          </div>
+        <div className="border border-border rounded-lg overflow-hidden">
           <Accordion type="single" collapsible className="w-full">
             {filteredTerritories.map(t => {
                 const isDesignado = t.status === 'designado' && t.assignment;
