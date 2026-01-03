@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -253,7 +254,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                 </div>
                 <div>
                      <div className="flex justify-between items-center mb-1">
-                        <Label htmlFor="template-pending" className="text-sm font-medium">Ao solicitar acesso (para avisar um admin):</Label>
+                        <Label htmlFor="template-pending" className="text-sm font-medium">Ao solicitar acesso (para avisar um Dirigente):</Label>
                         <Button type="button" variant="ghost" size="sm" onClick={() => setTemplatePending(defaultPendingTemplate)} disabled={isDisabled} className="text-xs h-auto py-0.5 px-1.5">
                             <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
                         </Button>
