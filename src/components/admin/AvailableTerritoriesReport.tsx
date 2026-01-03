@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -68,9 +69,10 @@ export default function AvailableTerritoriesReport() {
         const history = data.assignmentHistory || [];
         const lastCompletion = history.sort((a, b) => b.completedAt.toMillis() - a.completedAt.toMillis())[0];
         
+        // Correção: `doc.id` tem prioridade sobre qualquer `id` que possa vir de `data`.
         return {
-          id: doc.id,
           ...data,
+          id: doc.id,
           lastCompletionDate: lastCompletion ? lastCompletion.completedAt.toDate() : null
         } as AvailableTerritory;
       });
