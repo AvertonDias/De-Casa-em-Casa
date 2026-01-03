@@ -11,7 +11,6 @@ import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesR
 import S13ReportPage from './relatorio-s13/page';
 import CongregationEditForm from '@/components/admin/CongregationEditForm';
 
-
 type Tab = 'assignment' | 'overview' | 'report' | 'available' | 'settings';
 
 function AdminPage() {
@@ -34,39 +33,45 @@ function AdminPage() {
     <button
       onClick={() => setActiveTab(tabId)}
       className={cn(
-        "whitespace-nowrap px-3 py-2 text-sm font-semibold transition-colors flex items-center gap-2",
+        "whitespace-nowrap rounded-t-md px-3 sm:px-4 py-2 text-sm font-semibold transition-colors flex items-center gap-2",
         activeTab === tabId
-          ? 'text-primary border-b-2 border-primary'
-          : 'text-muted-foreground hover:text-foreground'
+          ? 'bg-background text-primary border-b-2 border-primary'
+          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
       )}
     >
       <Icon size={16} /> {label}
     </button>
   );
 
+  // --- CORREÇÃO: Variável para identificar abas largas ---
+  const isWideTab = activeTab === 'report' || activeTab === 'available';
+
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-4 md:p-6 lg:p-8 pb-0">
+    <>
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Administração</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Administração</h1>
           <p className="text-muted-foreground">Ferramentas para gerenciar e analisar os territórios.</p>
         </div>
 
-        <div className="border-b border-border mt-4">
-          <nav className="-mb-px flex space-x-4 overflow-x-auto" aria-label="Tabs">
-            <TabButton tabId="assignment" label="Designar Territórios" icon={BookUser} />
+        <div className="border-b border-border">
+          <nav className="-mb-px flex flex-wrap gap-x-2 sm:gap-x-4" aria-label="Tabs">
+            <TabButton tabId="assignment" label="Designar" icon={BookUser} />
             <TabButton tabId="overview" label="Visão Geral" icon={BarChart3} />
             <TabButton tabId="available" label="Disponíveis" icon={ClipboardList} />
-            <TabButton tabId="report" label="Relatório S-13" icon={FileText} />
+            <TabButton tabId="report" label="S-13" icon={FileText} />
             {isAdmin && (
               <TabButton tabId="settings" label="Configurações" icon={Settings} />
             )}
           </nav>
         </div>
-      </div>
 
-      <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 pb-8">
-        <div className="mt-6">
+        {/* --- CORREÇÃO PRINCIPAL: Adicionado `overflow-x-auto` --- */}
+        {/* Usamos `cn` para aplicar a rolagem apenas nas abas que precisam */}
+        <div className={cn(
+          "mt-6",
+          isWideTab && "overflow-x-auto"
+        )}>
           {activeTab === 'assignment' && <TerritoryAssignmentPanel />}
           {activeTab === 'overview' && <TerritoryCoverageStats />}
           {activeTab === 'available' && <AvailableTerritoriesReport />}
@@ -78,7 +83,7 @@ function AdminPage() {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
