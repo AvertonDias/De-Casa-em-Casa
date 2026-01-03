@@ -31,7 +31,7 @@ function NotificacoesPage() {
     const q = query(
       notificationsRef, 
       orderBy('createdAt', 'desc'), 
-      limit(50)
+      limit(30)
     );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
