@@ -51,25 +51,9 @@ export default function UserManagement() {
     
     setIsConfirmModalOpen(false);
     try {
-        const idToken = await getIdToken(auth.currentUser);
-        const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/deleteUserAccountV2', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${idToken}`,
-            },
-            body: JSON.stringify({ data: { userIdToDelete: userToDelete.uid } }),
-        });
-
-        const result = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(result.error?.message || result.message || 'Erro desconhecido na função.');
-        }
-
+        await deleteUserAccount({ userIdToDelete: userToDelete.uid });
         toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {
-        console.error("Erro ao deletar usuário:", error);
         toast({ title: "Erro", description: error.message || "Falha ao excluir usuário.", variant: "destructive"});
     } finally {
         setUserToDelete(null);
@@ -422,4 +406,3 @@ export default function UserManagement() {
   );
 }
 
-    

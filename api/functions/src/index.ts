@@ -191,49 +191,55 @@ export const resetPasswordWithTokenV2 = createHttpsFunction(async (req, res) => 
 });
 
 export const deleteUserAccountV2 = https.onCall(async (request) => {
-    if (!request.auth || !request.auth.token) {
-        throw new https.HttpsError('unauthenticated', 'Ação não autorizada. O usuário não está autenticado.');
+    // 1. Em onCall, o contexto de autenticação já vem verificado
+    if (!request.auth) {
+        throw new https.HttpsError('unauthenticated', 'Ação não autorizada. Faça login novamente.');
     }
-    
     const callingUserUid = request.auth.uid;
-    const { userIdToDelete } = request.data;
-
-    if (!userIdToDelete) {
-        throw new https.HttpsError('invalid-argument', 'ID do usuário a ser deletado é obrigatório.');
-    }
 
     try {
+        // 2. Os dados vêm de `request.data`
+        const { userIdToDelete } = request.data;
+        if (!userIdToDelete) {
+            throw new https.HttpsError('invalid-argument', 'ID do usuário a ser deletado é obrigatório.');
+        }
+
         const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-        if (!callingUserSnap.exists) {
+        const callingUserData = callingUserSnap.data();
+        
+        if (!callingUserData) {
             throw new https.HttpsError('not-found', 'Usuário requisitante não encontrado.');
         }
-        
-        const isCallingUserAdmin = callingUserSnap.data()?.role === "Administrador";
+
+        const isCallingUserAdmin = callingUserData.role === "Administrador";
         const isSelfDelete = callingUserUid === userIdToDelete;
         const isAdminDeletingOther = isCallingUserAdmin && !isSelfDelete;
-
-        if (!isSelfDelete && !isAdminDeletingOther) {
-            throw new https.HttpsError('permission-denied', 'Sem permissão para esta ação.');
-        }
 
         if (isCallingUserAdmin && isSelfDelete) {
             throw new https.HttpsError('permission-denied', 'Admin não pode se autoexcluir por esta função.');
         }
+        
+        if (!isSelfDelete && !isAdminDeletingOther) {
+             throw new https.HttpsError('permission-denied', 'Sem permissão para esta ação.');
+        }
 
         await admin.auth().deleteUser(userIdToDelete);
+        
         const userDocRef = db.collection("users").doc(userIdToDelete);
         if ((await userDocRef.get()).exists) {
             await userDocRef.delete();
         }
-
+        
+        // 3. Retorna um objeto de sucesso
         return { success: true };
 
     } catch (error: any) {
         logger.error("Erro ao excluir usuário:", error);
         if (error instanceof https.HttpsError) {
-            throw error; // Re-throw HttpsError
+            throw error; // Re-lança erros HttpsError para o cliente
         }
-        throw new https.HttpsError('internal', error.message || "Falha na exclusão.");
+        // Para outros erros (ex: user-not-found no deleteUser), lança um erro genérico
+        throw new https.HttpsError("internal", error.message || "Falha na exclusão.");
     }
 });
 
