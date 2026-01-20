@@ -82,18 +82,8 @@ function Sidebar({
     setIsLogoutConfirmOpen(false);
   }, []);
   
-  const handleShare = async () => {
-    if (navigator.share) {
-        try {
-            await navigator.share({
-                title: 'De Casa em Casa',
-                text: 'Conheça o aplicativo para gerenciamento de territórios!',
-                url: window.location.origin
-            });
-        } catch (error) {
-            console.error('Erro ao compartilhar:', error);
-        }
-    }
+  const handleShare = () => {
+    window.open('https://aplicativos-ton.vercel.app/de-casa-em-casa', '_blank');
   };
 
   const navLinks = [
@@ -192,26 +182,26 @@ function Sidebar({
                     </Button>
                 )}
                 {isShareApiSupported && (
-                    <Button onClick={handleShare} variant="outline" className="w-full justify-center text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400">
-                        <Share2 className="mr-2" size={20} /> Compartilhar App
-                    </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button onClick={handleShare} variant="outline" className="w-full justify-center text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400">
+                            <Share2 className="mr-2" size={20} /> Compartilhar App
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Na página que abrir, clique em "Abrir App".</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
               <FeedbackModal />
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Link href="https://aplicativos-ton.vercel.app/de-casa-em-casa" target="_blank" rel="noopener noreferrer" className="w-full block">
-                      <Button variant="outline" className="w-full justify-center text-primary border-primary/50 hover:bg-primary/10 hover:text-primary">
-                          <Info className="mr-2" size={20} />
-                          Sobre
-                      </Button>
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Na página que abrir, clique em "Abrir App".</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Link href="/sobre" className="w-full block">
+                <Button variant="outline" className="w-full justify-center text-primary border-primary/50 hover:bg-primary/10 hover:text-primary">
+                    <Info className="mr-2" size={20} />
+                    Sobre
+                </Button>
+              </Link>
               <Button onClick={() => setIsLogoutConfirmOpen(true)} variant="outline" className="w-full justify-center text-red-500 border-red-500/50 hover:bg-red-500/10 hover:text-red-500 dark:text-red-400 dark:border-red-400/50 dark:hover:bg-red-400/10 dark:hover:text-red-400">
                   <LogOut className="mr-2" size={20} />
                   Sair
