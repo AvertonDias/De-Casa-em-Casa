@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, deleteField, arrayUnion, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, deleteField, arrayUnion, Timestamp, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { Territory } from '@/types/types';
 import { Map, Clock, CheckCircle, Loader, AlertTriangle, ArrowDownUp } from 'lucide-react';
 import { format } from 'date-fns';
@@ -33,10 +32,46 @@ function MyTerritoriesPage() {
     const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
     const q = query(territoriesRef, where("assignment.uid", "==", user.uid));
     
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
       setAssignedTerritories(data);
       setLoading(false);
+
+      // Check for overdue territories and create notifications
+      if (!user?.uid) return;
+
+      const overdueChecks = data.map(async (t) => {
+        const isOverdue = t.assignment && t.assignment.dueDate.toDate() < new Date();
+        if (isOverdue) {
+          const notificationsRef = collection(db, `users/${user.uid}/notifications`);
+          
+          const territoryLink = t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`;
+          
+          const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+          const qNotif = query(
+            notificationsRef,
+            where("type", "==", "territory_overdue"),
+            where("link", "==", territoryLink),
+            where("createdAt", ">", Timestamp.fromDate(twentyFourHoursAgo))
+          );
+
+          const existingNotifs = await getDocs(qNotif);
+
+          if (existingNotifs.empty) {
+            await addDoc(notificationsRef, {
+              title: "Território Atrasado",
+              body: `O território "${t.number} - ${t.name}" está com a devolução atrasada.`,
+              link: territoryLink,
+              type: 'territory_overdue',
+              isRead: false,
+              createdAt: serverTimestamp()
+            });
+          }
+        }
+      });
+      
+      await Promise.all(overdueChecks);
     });
     return () => unsubscribe();
   }, [user]);
