@@ -235,7 +235,25 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     onClose: () => setSidebarOpen(false),
   });
 
-  // ... (seus useEffects permanecem os mesmos) ...
+  useEffect(() => {
+    if (!user?.congregationId || !['Administrador', 'Dirigente'].includes(user.role)) return;
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('congregationId', '==', user.congregationId), where('status', '==', 'pendente'));
+    const unsub = onSnapshot(q, (snapshot) => {
+        setPendingUsersCount(snapshot.size);
+    });
+    return () => unsub();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const notifRef = collection(db, `users/${user.uid}/notifications`);
+    const q = query(notifRef, where('isRead', '==', false));
+    const unsub = onSnapshot(q, (snapshot) => {
+        setUnreadNotificationsCount(snapshot.size);
+    });
+    return () => unsub();
+  }, [user]);
 
   if (loading || !user) {
     return null;
@@ -293,3 +311,5 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 }
 
 export default withAuth(DashboardLayout);
+
+    
