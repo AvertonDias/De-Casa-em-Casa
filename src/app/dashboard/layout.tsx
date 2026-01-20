@@ -83,25 +83,44 @@ function Sidebar({
       text: 'Conheça o sistema para gerenciamento de territórios. Na página que abrir, clique em "Abrir App".',
       url: 'https://aplicativos-ton.vercel.app/de-casa-em-casa',
     };
-    try {
-      if (typeof navigator !== 'undefined' && navigator.share) {
+    
+    let shared = false;
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
         await navigator.share(shareData);
-      } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        shared = true;
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error("Erro na API de compartilhamento:", err);
+        }
+      }
+    }
+
+    if (!shared && typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
         await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
         toast({
           title: "Link Copiado!",
-          description: "A mensagem e o link foram copiados para a área de transferência.",
+          description: "A mensagem e o link de convite foram copiados para a área de transferência.",
         });
-      } else {
-        window.open(shareData.url, '_blank');
+        shared = true;
+      } catch (err) {
+        console.error("Erro ao copiar para a área de transferência:", err);
       }
-    } catch (err) {
-      console.error("Erro ao compartilhar ou copiar:", err);
-      toast({
-        title: "Erro",
-        description: "Não foi possível compartilhar ou copiar o link.",
-        variant: "destructive"
-      });
+    }
+    
+    if (!shared) {
+       try {
+         window.open(shareData.url, '_blank');
+       } catch (err) {
+         console.error("Erro ao abrir nova aba:", err);
+          toast({
+            title: "Erro",
+            description: "Não foi possível compartilhar ou copiar o link.",
+            variant: "destructive",
+          });
+       }
     }
   };
 
