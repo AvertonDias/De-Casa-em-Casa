@@ -83,12 +83,11 @@ export default function TerritoryAssignmentPanel() {
   useEffect(() => {
     if (!currentUser?.congregationId) return;
     const usersRef = collection(db, 'users');
-    const q = query(
-        usersRef, 
-        where('congregationId', '==', currentUser.congregationId)
-    );
+    const q = query(usersRef, where('congregationId', '==', currentUser.congregationId));
+    
     const unsub = onSnapshot(q, (snapshot) => {
       const usersData = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser));
+      // Ordenação agora é feita no cliente
       usersData.sort((a, b) => a.name.localeCompare(b.name));
       setUsers(usersData);
     }, (error) => {
@@ -148,11 +147,11 @@ export default function TerritoryAssignmentPanel() {
             const currentTerritory = territories.find(t => t.id === territoryId);
             const formattedDueDate = format(assignmentData.dueDate.toDate(), 'dd/MM/yyyy');
             
-            const defaultTemplate = "Olá, o território *{{territorio}}* foi designado para você! Devolva até {{data}}. Acesse o app para ver os detalhes.";
+            const defaultTemplate = "Olá, o território *[Território]* foi designado para você! Devolva até [Data de Devolução]. Acesse o app para ver os detalhes.";
             const template = congregation?.whatsappTemplates?.assignment || defaultTemplate;
             const message = template
-                .replace('{{territorio}}', `${currentTerritory?.number} - ${currentTerritory?.name}`)
-                .replace('{{data}}', formattedDueDate);
+                .replace('[Território]', `${currentTerritory?.number} - ${currentTerritory?.name}`)
+                .replace('[Data de Devolução]', formattedDueDate);
 
             const whatsappNumber = userForWhatsapp.whatsapp.replace(/\D/g, '');
             const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
@@ -303,13 +302,13 @@ export default function TerritoryAssignmentPanel() {
     try {
         const link = `${window.location.origin}/dashboard/meus-territorios`;
         
-        const defaultTemplate = "Olá, este é um lembrete de que o território *{{territorio}}* está com a devolução atrasada. Por favor, atualize o quanto antes. Acesse o app: {{link}}";
+        const defaultTemplate = "Olá, este é um lembrete de que o território *[Território]* está com a devolução atrasada. Por favor, atualize o quanto antes. Acesse o app: [Link]";
         const template = congregation?.whatsappTemplates?.overdueReminder || defaultTemplate;
 
         const message = template
-            .replace('{{territorio}}', territory.name)
-            .replace('{{nomePublicador}}', assignedUser.name)
-            .replace('{{link}}', link);
+            .replace('[Território]', territory.name)
+            .replace('[Nome do Publicador]', assignedUser.name)
+            .replace('[Link]', link);
 
         const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
         const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;

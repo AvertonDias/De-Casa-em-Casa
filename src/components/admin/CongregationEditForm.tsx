@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -33,9 +32,9 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
   const pendingTextareaRef = useRef<HTMLTextAreaElement>(null);
   const overdueTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const defaultAssignmentTemplate = "Olá, o território *{{territorio}}* foi designado para você! Devolva até {{data}}. Acesse o app para ver os detalhes.";
-  const defaultPendingTemplate = "Olá, sou {{nomeUsuario}}. Acabei de solicitar acesso ao aplicativo De Casa em Casa para a congregação {{congregacao}}. Você poderia aprovar meu acesso, por favor?";
-  const defaultOverdueTemplate = "Olá, este é um lembrete de que o território *{{territorio}}* está com a devolução atrasada. Por favor, atualize o quanto antes. Acesse o app: {{link}}";
+  const defaultPendingTemplate = "Olá, sou [Nome do Usuário]. Acabei de solicitar acesso ao aplicativo De Casa em Casa para a congregação [Nome da Congregação]. Você poderia aprovar meu acesso, por favor?";
+  const defaultAssignmentTemplate = "Olá, o território *[Território]* foi designado para você! Devolva até [Data de Devolução]. Acesse o app para ver os detalhes.";
+  const defaultOverdueTemplate = "Olá, este é um lembrete de que o território *[Território]* está com a devolução atrasada. Por favor, atualize o quanto antes. Acesse o app: [Link]";
 
 
   useEffect(() => {
@@ -47,8 +46,8 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
           setOriginalData(data);
           setCongregationName(data.name || '');
           setCongregationNumber(data.number || '');
-          setTemplateAssignment(data.whatsappTemplates?.assignment || defaultAssignmentTemplate);
           setTemplatePending(data.whatsappTemplates?.pendingApproval || defaultPendingTemplate);
+          setTemplateAssignment(data.whatsappTemplates?.assignment || defaultAssignmentTemplate);
           setTemplateOverdue(data.whatsappTemplates?.overdueReminder || defaultOverdueTemplate);
           setDefaultAssignmentMonths(data.defaultAssignmentMonths || 2);
         }
@@ -75,8 +74,8 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
             number: congregationNumber.trim(),
             defaultAssignmentMonths: Number(defaultAssignmentMonths),
             whatsappTemplates: {
-                assignment: templateAssignment,
                 pendingApproval: templatePending,
+                assignment: templateAssignment,
                 overdueReminder: templateOverdue,
             }
         };
@@ -133,25 +132,25 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
   const hasChanges = 
     congregationName.trim() !== (originalData.name || '').trim() || 
     congregationNumber.trim() !== (originalData.number || '').trim() ||
-    templateAssignment !== (originalData.whatsappTemplates?.assignment || defaultAssignmentTemplate) ||
     templatePending !== (originalData.whatsappTemplates?.pendingApproval || defaultPendingTemplate) ||
+    templateAssignment !== (originalData.whatsappTemplates?.assignment || defaultAssignmentTemplate) ||
     templateOverdue !== (originalData.whatsappTemplates?.overdueReminder || defaultOverdueTemplate) ||
     Number(defaultAssignmentMonths) !== (originalData.defaultAssignmentMonths || 2);
 
-  const assignmentTags = [
-    { tag: "{{territorio}}", label: "Território" },
-    { tag: "{{data}}", label: "Data de Devolução" },
-  ];
-
   const pendingApprovalTags = [
-    { tag: "{{nomeUsuario}}", label: "Nome do Usuário" },
-    { tag: "{{congregacao}}", label: "Nome da Congregação" },
+    { tag: "[Nome do Usuário]", label: "Nome do Usuário" },
+    { tag: "[Nome da Congregação]", label: "Nome da Congregação" },
+  ];
+  
+  const assignmentTags = [
+    { tag: "[Território]", label: "Território" },
+    { tag: "[Data de Devolução]", label: "Data de Devolução" },
   ];
 
   const overdueTags = [
-      { tag: "{{territorio}}", label: "Território" },
-      { tag: "{{nomePublicador}}", label: "Nome do Publicador"},
-      { tag: "{{link}}", label: "Link" },
+      { tag: "[Território]", label: "Território" },
+      { tag: "[Nome do Publicador]", label: "Nome do Publicador"},
+      { tag: "[Link]", label: "Link" },
   ];
 
 
@@ -213,12 +212,12 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
         </div>
 
         <div className="border-t border-border pt-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2 mb-3"><MessageSquare/>Modelos de Mensagem do WhatsApp</h3>
+            <h3 className="text-xl font-bold flex items-center gap-2 mb-3"><MessageSquare/>Modelos de Mensagem do WhatsApp</h3>
             
             <div className="space-y-6">
                 <div>
                      <div className="flex justify-between items-center mb-1">
-                        <Label htmlFor="template-pending" className="text-sm font-semibold text-foreground">Ao solicitar acesso (para avisar um Dirigente):</Label>
+                        <Label htmlFor="template-pending" className="text-md font-bold text-foreground">Ao solicitar acesso (para avisar um Dirigente):</Label>
                         <Button type="button" variant="ghost" size="sm" onClick={() => setTemplatePending(defaultPendingTemplate)} disabled={isDisabled} className="text-xs h-auto py-0.5 px-1.5">
                             <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
                         </Button>
@@ -245,7 +244,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                 </div>
                 <div>
                     <div className="flex justify-between items-center mb-1">
-                      <Label htmlFor="template-assignment" className="text-sm font-semibold text-foreground">Ao designar um território:</Label>
+                      <Label htmlFor="template-assignment" className="text-md font-bold text-foreground">Ao designar um território:</Label>
                       <Button type="button" variant="ghost" size="sm" onClick={() => setTemplateAssignment(defaultAssignmentTemplate)} disabled={isDisabled} className="text-xs h-auto py-0.5 px-1.5">
                         <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
                       </Button>
@@ -272,7 +271,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                 </div>
                 <div>
                     <div className="flex justify-between items-center mb-1">
-                      <Label htmlFor="template-overdue" className="text-sm font-semibold text-foreground">Ao cobrar um território vencido:</Label>
+                      <Label htmlFor="template-overdue" className="text-md font-bold text-foreground">Ao cobrar um território vencido:</Label>
                       <Button type="button" variant="ghost" size="sm" onClick={() => setTemplateOverdue(defaultOverdueTemplate)} disabled={isDisabled} className="text-xs h-auto py-0.5 px-1.5">
                         <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
                       </Button>

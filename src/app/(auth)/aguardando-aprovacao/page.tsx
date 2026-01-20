@@ -79,12 +79,12 @@ function AguardandoAprovacaoPage() {
         
         const number = whatsapp.replace(/\D/g, '');
         
-        const defaultTemplate = "Olá, sou {{nomeUsuario}}. Acabei de solicitar acesso ao aplicativo De Casa em Casa para a congregação {{congregacao}}. Você poderia aprovar meu acesso, por favor?";
+        const defaultTemplate = "Olá, sou [Nome do Usuário]. Acabei de solicitar acesso ao aplicativo De Casa em Casa para a congregação [Nome da Congregação]. Você poderia aprovar meu acesso, por favor?";
         const template = congregation.whatsappTemplates?.pendingApproval || defaultTemplate;
         
         const message = template
-          .replace('{{nomeUsuario}}', user.name)
-          .replace('{{congregacao}}', congregation.name || '');
+          .replace('[Nome do Usuário]', user.name)
+          .replace('[Nome da Congregação]', congregation.name || '');
 
         const url = `https://wa.me/55${number}?text=${encodeURIComponent(message)}`;
         window.open(url, '_blank');
