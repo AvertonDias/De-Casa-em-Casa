@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -34,7 +33,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
   const overdueTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const defaultPendingTemplate = "Olá, sou [Nome do Usuário]. Acabei de solicitar acesso ao aplicativo De Casa em Casa para a congregação [Nome da Congregação]. Você poderia aprovar meu acesso, por favor?";
-  const defaultAssignmentTemplate = "Olá, o território *[Território]* foi designado para você! Devolva até [Data de Devolução]. Acesse o app para ver os detalhes. Acesse o app: [Link]";
+  const defaultAssignmentTemplate = "Olá, o território *[Território]* foi designado para você! Devolva até [Data de Devolução]. Acesse o app para ver os detalhes: [Link]";
   const defaultOverdueTemplate = "Olá, este é um lembrete de que o território *[Território]* está com a devolução atrasada. Por favor, atualize o quanto antes. Acesse o app: [Link]";
 
 

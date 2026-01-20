@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -149,12 +148,12 @@ export default function TerritoryAssignmentPanel() {
             const formattedDueDate = format(assignmentData.dueDate.toDate(), 'dd/MM/yyyy');
             const link = `${window.location.origin}/dashboard/meus-territorios`;
             
-            const defaultTemplate = "Olá, o território *[Território]* foi designado para você! Devolva até [Data de Devolução]. Acesse o app para ver os detalhes. Acesse o app: [Link]";
+            const defaultTemplate = "Olá, o território *[Território]* foi designado para você! Devolva até [Data de Devolução]. Acesse o app para ver os detalhes: [Link]";
             const template = congregation?.whatsappTemplates?.assignment || defaultTemplate;
             const message = template
-                .replace('[Território]', `${currentTerritory?.number} - ${currentTerritory?.name}`)
-                .replace('[Data de Devolução]', formattedDueDate)
-                .replace('[Link]', link);
+                .replace(/\[Território\]/g, `${currentTerritory?.number} - ${currentTerritory?.name}`)
+                .replace(/\[Data de Devolução\]/g, formattedDueDate)
+                .replace(/\[Link\]/g, link);
 
             const whatsappNumber = userForWhatsapp.whatsapp.replace(/\D/g, '');
             const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
@@ -309,9 +308,9 @@ export default function TerritoryAssignmentPanel() {
         const template = congregation?.whatsappTemplates?.overdueReminder || defaultTemplate;
 
         const message = template
-            .replace('[Território]', territory.name)
-            .replace('[Nome do Publicador]', assignedUser.name)
-            .replace('[Link]', link);
+            .replace(/\[Território\]/g, territory.name)
+            .replace(/\[Nome do Publicador\]/g, assignedUser.name)
+            .replace(/\[Link\]/g, link);
 
         const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
         const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
