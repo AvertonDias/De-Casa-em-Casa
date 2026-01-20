@@ -85,11 +85,12 @@ export default function TerritoryAssignmentPanel() {
     const usersRef = collection(db, 'users');
     const q = query(
         usersRef, 
-        where('congregationId', '==', currentUser.congregationId),
-        orderBy('name')
+        where('congregationId', '==', currentUser.congregationId)
     );
     const unsub = onSnapshot(q, (snapshot) => {
-      setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser)));
+      const usersData = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser));
+      usersData.sort((a, b) => a.name.localeCompare(b.name));
+      setUsers(usersData);
     }, (error) => {
       console.error("Erro ao buscar usuários:", error); 
       toast({
