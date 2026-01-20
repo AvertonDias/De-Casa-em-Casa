@@ -24,6 +24,7 @@ import { format } from "date-fns";
 import { SettingsMenu } from "../components/SettingsMenu";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { FontSizeModal } from "@/components/FontSizeModal";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React.SVGProps<SVGSVGElement>) => {
   return (
@@ -196,12 +197,21 @@ function Sidebar({
                     </Button>
                 )}
               <FeedbackModal />
-              <Link href="https://aplicativos-ton.vercel.app/de-casa-em-casa" target="_blank" rel="noopener noreferrer" className="w-full block">
-                <Button variant="outline" className="w-full justify-center text-primary border-primary/50 hover:bg-primary/10 hover:text-primary">
-                    <Info className="mr-2" size={20} />
-                    Sobre
-                </Button>
-              </Link>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link href="https://aplicativos-ton.vercel.app/de-casa-em-casa" target="_blank" rel="noopener noreferrer" className="w-full block">
+                      <Button variant="outline" className="w-full justify-center text-primary border-primary/50 hover:bg-primary/10 hover:text-primary">
+                          <Info className="mr-2" size={20} />
+                          Sobre
+                      </Button>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Na página que abrir, clique em "Abrir App".</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <Button onClick={() => setIsLogoutConfirmOpen(true)} variant="outline" className="w-full justify-center text-red-500 border-red-500/50 hover:bg-red-500/10 hover:text-red-500 dark:text-red-400 dark:border-red-400/50 dark:hover:bg-red-400/10 dark:hover:text-red-400">
                   <LogOut className="mr-2" size={20} />
                   Sair
