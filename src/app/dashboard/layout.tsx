@@ -25,6 +25,7 @@ import { SettingsMenu } from "../components/SettingsMenu";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { FontSizeModal } from "@/components/FontSizeModal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
 
 const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React.SVGProps<SVGSVGElement>) => {
   return (
@@ -65,15 +66,9 @@ function Sidebar({
   const pathname = usePathname();
   const { user, logout } = useUser();
   const { canPrompt, showInstallPrompt, onInstall } = usePWAInstall();
-  const [isShareApiSupported, setIsShareApiSupported] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    if (typeof navigator !== 'undefined' && 'share' in navigator) {
-      setIsShareApiSupported(true);
-    }
-  }, []);
-    
   const handleLogoutConfirm = useCallback(async () => {
     await logout();
   }, [logout]);
@@ -89,15 +84,24 @@ function Sidebar({
       url: 'https://aplicativos-ton.vercel.app/de-casa-em-casa',
     };
     try {
-      if (navigator.share) {
+      if (typeof navigator !== 'undefined' && navigator.share) {
         await navigator.share(shareData);
+      } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
+        toast({
+          title: "Link Copiado!",
+          description: "A mensagem e o link foram copiados para a área de transferência.",
+        });
       } else {
-        // Fallback para desktops ou navegadores sem suporte
         window.open(shareData.url, '_blank');
       }
     } catch (err) {
-      console.error("Erro ao compartilhar:", err);
-      // Fallback em caso de erro na API (ex: usuário cancelou o compartilhamento)
+      console.error("Erro ao compartilhar ou copiar:", err);
+      toast({
+        title: "Erro",
+        description: "Não foi possível compartilhar ou copiar o link.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -196,11 +200,9 @@ function Sidebar({
                         <Download className="mr-2" size={20} /> Instalar App
                     </Button>
                 )}
-                {isShareApiSupported && (
-                  <Button onClick={handleShare} variant="outline" className="w-full justify-center text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400">
-                      <Share2 className="mr-2" size={20} /> Compartilhar App
-                  </Button>
-                )}
+                <Button onClick={handleShare} variant="outline" className="w-full justify-center text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400">
+                    <Share2 className="mr-2" size={20} /> Compartilhar App
+                </Button>
               <FeedbackModal />
               <Link href="/sobre" className="w-full block">
                 <Button variant="outline" className="w-full justify-center text-primary border-primary/50 hover:bg-primary/10 hover:text-primary">
