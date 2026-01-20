@@ -106,6 +106,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
             setCongregation(null);
         }
         
+        if (listenersRef.current.overdueListener) {
+            listenersRef.current.overdueListener();
+            delete listenersRef.current.overdueListener;
+        }
+        
         if (appUser.congregationId) {
           const congRef = doc(db, 'congregations', appUser.congregationId);
           listenersRef.current.congregation = onSnapshot(congRef, (congDoc) => {
