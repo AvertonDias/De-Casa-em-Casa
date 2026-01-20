@@ -248,7 +248,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user?.uid) return;
     const notifRef = collection(db, `users/${user.uid}/notifications`);
-    const q = query(notifRef, where('isRead', '==', false), where('type', '!=', 'user_pending'));
+    const q = query(notifRef, where('isRead', '==', false), where('type', 'in', ['territory_assigned', 'territory_overdue', 'announcement', 'territory_returned', 'territory_available']));
     const unsub = onSnapshot(q, (snapshot) => {
         setUnreadNotificationsCount(snapshot.size);
     });
