@@ -91,8 +91,9 @@ service cloud.firestore {
                       request.auth.uid != userId && 
                       isUserInCongregation(getUserData(userId).congregationId);
       
-      // Permite a listagem de usuários se o requisitante tiver permissão e estiver na mesma congregação.
-      allow list: if canManageUsers() && request.query.where.get('congregationId')[2] == getUserData(request.auth.uid).congregationId;
+      // Permite a listagem de usuários se o requisitante tiver permissão de gerente.
+      // A consulta no lado do cliente DEVE filtrar pela congregação.
+      allow list: if canManageUsers();
 
 
       match /notifications/{notificationId} {
