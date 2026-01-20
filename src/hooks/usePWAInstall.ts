@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -37,10 +38,9 @@ export const usePWAInstall = () => {
       }
     };
 
-    const isMobileDevice = detectUserAgent().isMobile;
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     
-    if (isMobileDevice && !isStandalone) {
+    if (!isStandalone) {
       window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     }
     
