@@ -49,16 +49,22 @@ function MyTerritoriesPage() {
           
           const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
+          // Altered query to avoid composite index
           const qNotif = query(
             notificationsRef,
-            where("type", "==", "territory_overdue"),
-            where("link", "==", territoryLink),
-            where("createdAt", ">", Timestamp.fromDate(twentyFourHoursAgo))
+            where("link", "==", territoryLink)
           );
 
-          const existingNotifs = await getDocs(qNotif);
+          const existingNotifsSnapshot = await getDocs(qNotif);
+          
+          const recentOverdueNotificationExists = existingNotifsSnapshot.docs.some(doc => {
+            const data = doc.data();
+            return data.type === 'territory_overdue' &&
+                   data.createdAt &&
+                   data.createdAt.toDate() > twentyFourHoursAgo;
+          });
 
-          if (existingNotifs.empty) {
+          if (!recentOverdueNotificationExists) {
             await addDoc(notificationsRef, {
               title: "Território Atrasado",
               body: `O território "${t.number} - ${t.name}" está com a devolução atrasada.`,
