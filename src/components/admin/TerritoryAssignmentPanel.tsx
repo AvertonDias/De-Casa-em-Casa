@@ -4,7 +4,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, MessageCircle, History, Loader, X } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -127,6 +127,21 @@ export default function TerritoryAssignmentPanel() {
     try {
         await updateDoc(territoryRef, { status: 'designado', assignment: assignmentData });
         
+        const assignedUserId = assignedUser.uid;
+        if (!assignedUserId.startsWith('custom_')) {
+            const notificationRef = collection(db, `users/${assignedUserId}/notifications`);
+            const currentTerritory = territories.find(t => t.id === territoryId);
+            
+            await addDoc(notificationRef, {
+                title: "Você recebeu um novo território!",
+                body: `O território "${currentTerritory?.number} - ${currentTerritory?.name}" foi designado para você.`,
+                link: `/dashboard/meus-territorios`,
+                type: 'territory_assigned',
+                isRead: false,
+                createdAt: serverTimestamp()
+            });
+        }
+        
         const userForWhatsapp = users.find(u => u.uid === assignedUser.uid);
         if (userForWhatsapp?.whatsapp && !assignedUser.uid.startsWith('custom_')) {
             const currentTerritory = territories.find(t => t.id === territoryId);
@@ -139,7 +154,7 @@ export default function TerritoryAssignmentPanel() {
                 .replace('{{data}}', formattedDueDate);
 
             const whatsappNumber = userForWhatsapp.whatsapp.replace(/\D/g, '');
-            const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
+            const whatsappUrl = `https.wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
             window.open(whatsappUrl, '_blank');
         }
 
@@ -296,7 +311,7 @@ export default function TerritoryAssignmentPanel() {
             .replace('{{link}}', link);
 
         const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
-        const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
+        const whatsappUrl = `https.wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
         
         toast({
