@@ -36,48 +36,6 @@ function MyTerritoriesPage() {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
       setAssignedTerritories(data);
       setLoading(false);
-
-      // Check for overdue territories and create notifications
-      if (!user?.uid) return;
-
-      const overdueChecks = data.map(async (t) => {
-        const isOverdue = t.assignment && t.assignment.dueDate.toDate() < new Date();
-        if (isOverdue) {
-          const notificationsRef = collection(db, `users/${user.uid}/notifications`);
-          
-          const territoryLink = t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`;
-          
-          const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-          // Altered query to avoid composite index
-          const qNotif = query(
-            notificationsRef,
-            where("link", "==", territoryLink)
-          );
-
-          const existingNotifsSnapshot = await getDocs(qNotif);
-          
-          const recentOverdueNotificationExists = existingNotifsSnapshot.docs.some(doc => {
-            const data = doc.data();
-            return data.type === 'territory_overdue' &&
-                   data.createdAt &&
-                   data.createdAt.toDate() > twentyFourHoursAgo;
-          });
-
-          if (!recentOverdueNotificationExists) {
-            await addDoc(notificationsRef, {
-              title: "Território Atrasado",
-              body: `O território "${t.number} - ${t.name}" está com a devolução atrasada.`,
-              link: territoryLink,
-              type: 'territory_overdue',
-              isRead: false,
-              createdAt: serverTimestamp()
-            });
-          }
-        }
-      });
-      
-      await Promise.all(overdueChecks);
     });
     return () => unsubscribe();
   }, [user]);

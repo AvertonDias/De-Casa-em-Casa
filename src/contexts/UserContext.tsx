@@ -2,9 +2,9 @@
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, serverTimestamp, Timestamp, getDoc, setDoc, collection, query, getDocs } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp, Timestamp, getDoc, setDoc, collection, query, getDocs, addDoc, where } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import type { AppUser, Congregation } from '@/types/types';
+import type { AppUser, Congregation, Territory } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader } from 'lucide-react';
 import { subMonths } from 'date-fns';
@@ -125,6 +125,50 @@ export function UserProvider({ children }: { children: ReactNode }) {
             setUser(appUser);
             setLoading(false);
           });
+
+          // Lógica para verificar territórios atrasados
+          const assignedTerritoriesQuery = query(
+              collection(db, 'congregations', appUser.congregationId, 'territories'),
+              where("assignment.uid", "==", appUser.uid)
+          );
+          
+          listenersRef.current.overdueListener = onSnapshot(assignedTerritoriesQuery, (snapshot) => {
+              snapshot.docs.forEach(async (territoryDoc) => {
+                  const territory = { id: territoryDoc.id, ...territoryDoc.data() } as Territory;
+                  
+                  const isOverdue = territory.assignment && territory.assignment.dueDate.toDate() < new Date();
+
+                  if (isOverdue) {
+                      const notificationsRef = collection(db, `users/${appUser.uid}/notifications`);
+                      const territoryLink = territory.type === 'rural' ? `/dashboard/rural/${territory.id}` : `/dashboard/territorios/${territory.id}`;
+                      
+                      // Evita spam de notificações verificando se já existe uma recente
+                      const qNotif = query(notificationsRef, where("link", "==", territoryLink));
+                      const existingNotifsSnapshot = await getDocs(qNotif);
+                      
+                      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                      
+                      const recentOverdueNotificationExists = existingNotifsSnapshot.docs.some(doc => {
+                          const data = doc.data();
+                          return data.type === 'territory_overdue' &&
+                                 data.createdAt &&
+                                 data.createdAt.toDate() > twentyFourHoursAgo;
+                      });
+
+                      if (!recentOverdueNotificationExists) {
+                          await addDoc(notificationsRef, {
+                              title: "Território Atrasado",
+                              body: `O território "${territory.number} - ${territory.name}" está com a devolução atrasada.`,
+                              link: territoryLink,
+                              type: 'territory_overdue',
+                              isRead: false,
+                              createdAt: serverTimestamp()
+                          });
+                      }
+                  }
+              });
+          });
+
         } else {
             setCongregation(null);
             setUser(appUser);
