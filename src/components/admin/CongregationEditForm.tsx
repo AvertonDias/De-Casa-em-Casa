@@ -218,7 +218,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
             <div className="space-y-6">
                 <div>
                      <div className="flex justify-between items-center mb-1">
-                        <Label htmlFor="template-pending" className="text-sm font-medium">Ao solicitar acesso (para avisar um Dirigente):</Label>
+                        <Label htmlFor="template-pending" className="text-sm font-semibold text-foreground">Ao solicitar acesso (para avisar um Dirigente):</Label>
                         <Button type="button" variant="ghost" size="sm" onClick={() => setTemplatePending(defaultPendingTemplate)} disabled={isDisabled} className="text-xs h-auto py-0.5 px-1.5">
                             <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
                         </Button>
@@ -245,7 +245,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                 </div>
                 <div>
                     <div className="flex justify-between items-center mb-1">
-                      <Label htmlFor="template-assignment" className="text-sm font-medium">Ao designar um território:</Label>
+                      <Label htmlFor="template-assignment" className="text-sm font-semibold text-foreground">Ao designar um território:</Label>
                       <Button type="button" variant="ghost" size="sm" onClick={() => setTemplateAssignment(defaultAssignmentTemplate)} disabled={isDisabled} className="text-xs h-auto py-0.5 px-1.5">
                         <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
                       </Button>
@@ -272,7 +272,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                 </div>
                 <div>
                     <div className="flex justify-between items-center mb-1">
-                      <Label htmlFor="template-overdue" className="text-sm font-medium">Ao cobrar um território vencido:</Label>
+                      <Label htmlFor="template-overdue" className="text-sm font-semibold text-foreground">Ao cobrar um território vencido:</Label>
                       <Button type="button" variant="ghost" size="sm" onClick={() => setTemplateOverdue(defaultOverdueTemplate)} disabled={isDisabled} className="text-xs h-auto py-0.5 px-1.5">
                         <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
                       </Button>
