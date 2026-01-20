@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -7,7 +6,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader, Edit, MessageSquare, ArrowRight, RotateCcw, CalendarClock } from 'lucide-react';
+import { Loader, Edit, MessageSquare, RotateCcw, CalendarClock } from 'lucide-react';
 import { Label } from '../ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '../ui/textarea';
@@ -32,11 +31,6 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
   const assignmentTextareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingTextareaRef = useRef<HTMLTextAreaElement>(null);
   const overdueTextareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const [selectedAssignmentTag, setSelectedAssignmentTag] = useState<string>('');
-  const [selectedPendingTag, setSelectedPendingTag] = useState<string>('');
-  const [selectedOverdueTag, setSelectedOverdueTag] = useState<string>('');
-
 
   const defaultAssignmentTemplate = "Olá, o território *{{territorio}}* foi designado para você! Devolva até {{data}}. Acesse o app para ver os detalhes.";
   const defaultPendingTemplate = "Olá, sou {{nomeUsuario}}. Acabei de solicitar acesso ao aplicativo De Casa em Casa para a congregação {{congregacao}}. Você poderia aprovar meu acesso, por favor?";
@@ -110,38 +104,29 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
     }
   };
 
-  const handleInsertTag = (templateType: 'assignment' | 'pending' | 'overdue') => {
-    let tagToInsert = '';
-    let textareaRef: React.RefObject<HTMLTextAreaElement> | null = null;
-    let setTemplate: React.Dispatch<React.SetStateAction<string>> | null = null;
+  const handleInsertTag = (
+    tagToInsert: string,
+    textareaRef: React.RefObject<HTMLTextAreaElement>,
+    setTemplate: React.Dispatch<React.SetStateAction<string>>
+  ) => {
+    if (!textareaRef.current) return;
 
-    if (templateType === 'assignment') {
-        tagToInsert = selectedAssignmentTag;
-        textareaRef = assignmentTextareaRef;
-        setTemplate = setTemplateAssignment;
-    } else if (templateType === 'pending') {
-        tagToInsert = selectedPendingTag;
-        textareaRef = pendingTextareaRef;
-        setTemplate = setTemplatePending;
-    } else if (templateType === 'overdue') {
-        tagToInsert = selectedOverdueTag;
-        textareaRef = overdueTextareaRef;
-        setTemplate = setTemplateOverdue;
-    }
+    const { selectionStart, selectionEnd, value } = textareaRef.current;
+    const newText =
+      value.substring(0, selectionStart) +
+      tagToInsert +
+      value.substring(selectionEnd);
+    setTemplate(newText);
 
-
-    if (tagToInsert && textareaRef?.current && setTemplate) {
-        const { selectionStart, selectionEnd, value } = textareaRef.current;
-        const newText = value.substring(0, selectionStart) + tagToInsert + value.substring(selectionEnd);
-        setTemplate(newText);
-
-        setTimeout(() => {
-            textareaRef.current?.focus();
-            const newCursorPosition = selectionStart + tagToInsert.length;
-            textareaRef.current?.setSelectionRange(newCursorPosition, newCursorPosition);
-        }, 0);
-    }
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        const newCursorPosition = selectionStart + tagToInsert.length;
+        textareaRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+      }
+    }, 0);
   };
+
 
   const isDisabled = user?.role !== 'Administrador';
   const hasChanges = 
@@ -153,19 +138,19 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
     Number(defaultAssignmentMonths) !== (originalData.defaultAssignmentMonths || 2);
 
   const assignmentTags = [
-    { tag: "{{territorio}}", description: "Nome e número do território." },
-    { tag: "{{data}}", description: "Data de devolução." },
+    { tag: "{{territorio}}", label: "Território" },
+    { tag: "{{data}}", label: "Data de Devolução" },
   ];
 
   const pendingApprovalTags = [
-    { tag: "{{nomeUsuario}}", description: "Nome do novo usuário." },
-    { tag: "{{congregacao}}", description: "Nome da congregação." },
+    { tag: "{{nomeUsuario}}", label: "Nome do Usuário" },
+    { tag: "{{congregacao}}", label: "Nome da Congregação" },
   ];
 
   const overdueTags = [
-      { tag: "{{territorio}}", description: "Nome e número do território." },
-      { tag: "{{nomePublicador}}", description: "Nome de quem designou."},
-      { tag: "{{link}}", description: "Link para Meus Territórios." },
+      { tag: "{{territorio}}", label: "Território" },
+      { tag: "{{nomePublicador}}", label: "Nome do Publicador"},
+      { tag: "{{link}}", label: "Link" },
   ];
 
 
@@ -237,20 +222,25 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                         <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
                       </Button>
                     </div>
-                    <div className="flex items-center gap-2 mb-2">
-                        <Select onValueChange={setSelectedAssignmentTag} value={selectedAssignmentTag}>
-                            <SelectTrigger className="flex-grow">
-                                <SelectValue placeholder="Selecionar tag..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {assignmentTags.map(t => <SelectItem key={t.tag} value={t.tag}>{t.tag} - {t.description}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <Button type="button" size="icon" variant="outline" onClick={() => handleInsertTag('assignment')} disabled={!selectedAssignmentTag || isDisabled}>
-                            <ArrowRight />
-                        </Button>
-                    </div>
                     <Textarea ref={assignmentTextareaRef} id="template-assignment" value={templateAssignment} onChange={e => setTemplateAssignment(e.target.value)} rows={3} className="mt-1" disabled={isDisabled}/>
+                    <div className="mt-2">
+                        <p className="text-xs text-muted-foreground mb-1">Tags disponíveis (clique para adicionar):</p>
+                        <div className="flex flex-wrap gap-2">
+                            {assignmentTags.map(t => (
+                                <Button
+                                    key={t.tag}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-auto px-2 py-1 text-xs"
+                                    onClick={() => handleInsertTag(t.tag, assignmentTextareaRef, setTemplateAssignment)}
+                                    disabled={isDisabled}
+                                >
+                                    {t.label}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
                 <div>
                      <div className="flex justify-between items-center mb-1">
@@ -259,20 +249,25 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                             <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
                         </Button>
                     </div>
-                    <div className="flex items-center gap-2 mb-2">
-                         <Select onValueChange={setSelectedPendingTag} value={selectedPendingTag}>
-                            <SelectTrigger className="flex-grow">
-                                <SelectValue placeholder="Selecionar tag..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {pendingApprovalTags.map(t => <SelectItem key={t.tag} value={t.tag}>{t.tag} - {t.description}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <Button type="button" size="icon" variant="outline" onClick={() => handleInsertTag('pending')} disabled={!selectedPendingTag || isDisabled}>
-                            <ArrowRight />
-                        </Button>
-                    </div>
                     <Textarea ref={pendingTextareaRef} id="template-pending" value={templatePending} onChange={e => setTemplatePending(e.target.value)} rows={4} className="mt-1" disabled={isDisabled}/>
+                    <div className="mt-2">
+                        <p className="text-xs text-muted-foreground mb-1">Tags disponíveis (clique para adicionar):</p>
+                        <div className="flex flex-wrap gap-2">
+                            {pendingApprovalTags.map(t => (
+                                <Button
+                                    key={t.tag}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-auto px-2 py-1 text-xs"
+                                    onClick={() => handleInsertTag(t.tag, pendingTextareaRef, setTemplatePending)}
+                                    disabled={isDisabled}
+                                >
+                                    {t.label}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <div className="flex justify-between items-center mb-1">
@@ -281,20 +276,25 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                         <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
                       </Button>
                     </div>
-                     <div className="flex items-center gap-2 mb-2">
-                        <Select onValueChange={setSelectedOverdueTag} value={selectedOverdueTag}>
-                            <SelectTrigger className="flex-grow">
-                                <SelectValue placeholder="Selecionar tag..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {overdueTags.map(t => <SelectItem key={t.tag} value={t.tag}>{t.tag} - {t.description}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <Button type="button" size="icon" variant="outline" onClick={() => handleInsertTag('overdue')} disabled={!selectedOverdueTag || isDisabled}>
-                            <ArrowRight />
-                        </Button>
-                    </div>
                     <Textarea ref={overdueTextareaRef} id="template-overdue" value={templateOverdue} onChange={e => setTemplateOverdue(e.target.value)} rows={3} className="mt-1" disabled={isDisabled}/>
+                    <div className="mt-2">
+                        <p className="text-xs text-muted-foreground mb-1">Tags disponíveis (clique para adicionar):</p>
+                        <div className="flex flex-wrap gap-2">
+                            {overdueTags.map(t => (
+                                <Button
+                                    key={t.tag}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-auto px-2 py-1 text-xs"
+                                    onClick={() => handleInsertTag(t.tag, overdueTextareaRef, setTemplateOverdue)}
+                                    disabled={isDisabled}
+                                >
+                                    {t.label}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
