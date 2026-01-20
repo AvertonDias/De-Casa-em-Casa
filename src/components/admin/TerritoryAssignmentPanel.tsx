@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Fragment } from 'react';
@@ -146,12 +147,14 @@ export default function TerritoryAssignmentPanel() {
         if (userForWhatsapp?.whatsapp && !assignedUser.uid.startsWith('custom_')) {
             const currentTerritory = territories.find(t => t.id === territoryId);
             const formattedDueDate = format(assignmentData.dueDate.toDate(), 'dd/MM/yyyy');
+            const link = `${window.location.origin}/dashboard/meus-territorios`;
             
-            const defaultTemplate = "Olá, o território *[Território]* foi designado para você! Devolva até [Data de Devolução]. Acesse o app para ver os detalhes.";
+            const defaultTemplate = "Olá, o território *[Território]* foi designado para você! Devolva até [Data de Devolução]. Acesse o app para ver os detalhes. Acesse o app: [Link]";
             const template = congregation?.whatsappTemplates?.assignment || defaultTemplate;
             const message = template
                 .replace('[Território]', `${currentTerritory?.number} - ${currentTerritory?.name}`)
-                .replace('[Data de Devolução]', formattedDueDate);
+                .replace('[Data de Devolução]', formattedDueDate)
+                .replace('[Link]', link);
 
             const whatsappNumber = userForWhatsapp.whatsapp.replace(/\D/g, '');
             const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
