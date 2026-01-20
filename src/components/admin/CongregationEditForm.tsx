@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -216,33 +217,6 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
             
             <div className="space-y-6">
                 <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <Label htmlFor="template-assignment" className="text-sm font-medium">Ao designar um território:</Label>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => setTemplateAssignment(defaultAssignmentTemplate)} disabled={isDisabled} className="text-xs h-auto py-0.5 px-1.5">
-                        <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
-                      </Button>
-                    </div>
-                    <Textarea ref={assignmentTextareaRef} id="template-assignment" value={templateAssignment} onChange={e => setTemplateAssignment(e.target.value)} rows={3} className="mt-1" disabled={isDisabled}/>
-                    <div className="mt-2">
-                        <p className="text-xs text-muted-foreground mb-1">Tags disponíveis (clique para adicionar):</p>
-                        <div className="flex flex-wrap gap-2">
-                            {assignmentTags.map(t => (
-                                <Button
-                                    key={t.tag}
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-auto px-2 py-1 text-xs"
-                                    onClick={() => handleInsertTag(t.tag, assignmentTextareaRef, setTemplateAssignment)}
-                                    disabled={isDisabled}
-                                >
-                                    {t.label}
-                                </Button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-                <div>
                      <div className="flex justify-between items-center mb-1">
                         <Label htmlFor="template-pending" className="text-sm font-medium">Ao solicitar acesso (para avisar um Dirigente):</Label>
                         <Button type="button" variant="ghost" size="sm" onClick={() => setTemplatePending(defaultPendingTemplate)} disabled={isDisabled} className="text-xs h-auto py-0.5 px-1.5">
@@ -261,6 +235,33 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
                                     size="sm"
                                     className="h-auto px-2 py-1 text-xs"
                                     onClick={() => handleInsertTag(t.tag, pendingTextareaRef, setTemplatePending)}
+                                    disabled={isDisabled}
+                                >
+                                    {t.label}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <Label htmlFor="template-assignment" className="text-sm font-medium">Ao designar um território:</Label>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setTemplateAssignment(defaultAssignmentTemplate)} disabled={isDisabled} className="text-xs h-auto py-0.5 px-1.5">
+                        <RotateCcw className="mr-1" size={12}/> Restaurar Padrão
+                      </Button>
+                    </div>
+                    <Textarea ref={assignmentTextareaRef} id="template-assignment" value={templateAssignment} onChange={e => setTemplateAssignment(e.target.value)} rows={3} className="mt-1" disabled={isDisabled}/>
+                    <div className="mt-2">
+                        <p className="text-xs text-muted-foreground mb-1">Tags disponíveis (clique para adicionar):</p>
+                        <div className="flex flex-wrap gap-2">
+                            {assignmentTags.map(t => (
+                                <Button
+                                    key={t.tag}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-auto px-2 py-1 text-xs"
+                                    onClick={() => handleInsertTag(t.tag, assignmentTextareaRef, setTemplateAssignment)}
                                     disabled={isDisabled}
                                 >
                                     {t.label}
