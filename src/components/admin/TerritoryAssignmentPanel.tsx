@@ -155,7 +155,7 @@ export default function TerritoryAssignmentPanel() {
                 .replace('{{data}}', formattedDueDate);
 
             const whatsappNumber = userForWhatsapp.whatsapp.replace(/\D/g, '');
-            const whatsappUrl = `https.wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
+            const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
             window.open(whatsappUrl, '_blank');
         }
 
@@ -312,7 +312,7 @@ export default function TerritoryAssignmentPanel() {
             .replace('{{link}}', link);
 
         const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
-        const whatsappUrl = `https.wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
+        const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
         
         toast({
