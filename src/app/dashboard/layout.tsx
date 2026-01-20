@@ -82,8 +82,23 @@ function Sidebar({
     setIsLogoutConfirmOpen(false);
   }, []);
   
-  const handleShare = () => {
-    window.open('https://aplicativos-ton.vercel.app/de-casa-em-casa', '_blank');
+  const handleShare = async () => {
+    const shareData = {
+      title: 'De Casa em Casa',
+      text: 'Conheça o sistema para gerenciamento de territórios. Na página que abrir, clique em "Abrir App".',
+      url: 'https://aplicativos-ton.vercel.app/de-casa-em-casa',
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback para desktops ou navegadores sem suporte
+        window.open(shareData.url, '_blank');
+      }
+    } catch (err) {
+      console.error("Erro ao compartilhar:", err);
+      // Fallback em caso de erro na API (ex: usuário cancelou o compartilhamento)
+    }
   };
 
   const navLinks = [
@@ -182,18 +197,9 @@ function Sidebar({
                     </Button>
                 )}
                 {isShareApiSupported && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button onClick={handleShare} variant="outline" className="w-full justify-center text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400">
-                            <Share2 className="mr-2" size={20} /> Compartilhar App
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Na página que abrir, clique em "Abrir App".</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Button onClick={handleShare} variant="outline" className="w-full justify-center text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400">
+                      <Share2 className="mr-2" size={20} /> Compartilhar App
+                  </Button>
                 )}
               <FeedbackModal />
               <Link href="/sobre" className="w-full block">
