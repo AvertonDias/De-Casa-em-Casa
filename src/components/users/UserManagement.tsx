@@ -301,7 +301,7 @@ export default function UserManagement() {
                                 <FilterButton label="Todos" value="all" count={users.length} currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Ativo" value="ativo" count={filterCounts.status.ativo} currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Pendente" value="pendente" count={filterCounts.status.pendente} currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                <FilterButton label="Inativo (Visual)" value="inativo" count={filterCounts.activity.inactive_month} currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                <FilterButton label="Inativo" value="inativo" count={filterCounts.activity.inactive_month} currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Rejeitado" value="rejeitado" count={filterCounts.status.rejeitado} currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Bloqueado" value="bloqueado" count={filterCounts.status.bloqueado} currentFilter={statusFilter} setFilter={setStatusFilter} />
                             </div>
@@ -406,3 +406,6 @@ export default function UserManagement() {
   );
 }
 
+
+
+    
