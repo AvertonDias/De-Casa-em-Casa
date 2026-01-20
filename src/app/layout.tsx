@@ -1,11 +1,19 @@
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { UserProvider } from '@/contexts/UserContext';
-import { FontSizeProvider } from '@/contexts/FontSizeContext'; // Importar
-import { ModalProvider } from '@/contexts/ModalContext'; // Importar
+import { FontSizeProvider } from '@/contexts/FontSizeContext';
+import { ModalProvider } from '@/contexts/ModalContext';
 import type { Metadata, Viewport } from "next";
 import { Toaster } from "@/components/ui/toaster";
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { PT_Sans } from 'next/font/google'; // Importar a fonte
 import "./globals.css";
+
+// Configurar a fonte
+const ptSans = PT_Sans({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-pt-sans', // Definir uma variável CSS
+});
 
 export const metadata: Metadata = {
   title: "De Casa em Casa",
@@ -27,15 +35,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode; }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Casa em Casa" />
-      </head>
+    <html lang="pt-BR" className={ptSans.variable} suppressHydrationWarning>
+      {/* O <head> foi removido. As meta tags estão no objeto 'metadata' e a fonte é injetada pelo Next.js */}
       <body className="font-body antialiased">
         <UserProvider>
           <ThemeProvider 

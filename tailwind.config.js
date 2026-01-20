@@ -1,4 +1,7 @@
 /** @type {import('tailwindcss').Config} */
+import defaultTheme from 'tailwindcss/defaultTheme';
+import tailwindcssAnimate from 'tailwindcss-animate';
+
 
 const config = {
   darkMode: ["class"],
@@ -17,8 +20,8 @@ const config = {
     },
     extend: {
       fontFamily: {
-        body: ['PT Sans', 'sans-serif'],
-        headline: ['PT Sans', 'sans-serif'],
+        body: ['var(--font-pt-sans)', ...defaultTheme.fontFamily.sans],
+        headline: ['var(--font-pt-sans)', ...defaultTheme.fontFamily.sans],
         code: ['monospace'],
       },
       colors: {
@@ -88,7 +91,7 @@ const config = {
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [tailwindcssAnimate],
 };
 
 export default config;
