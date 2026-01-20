@@ -58,9 +58,9 @@ export function InstallPwaModal() {
                 className="rounded-2xl"
             />
           </div>
-          <DialogTitle className="text-center text-2xl font-bold mt-4">Instale o Aplicativo</DialogTitle>
+          <DialogTitle className="text-center text-2xl font-bold mt-4">Instale o App na Tela de Início</DialogTitle>
           <DialogDescription className="text-center text-base pt-2">
-            Tenha a melhor experiência! Instale o "De Casa em Casa" no seu dispositivo para acesso rápido, notificações e uso offline.
+            Para uma experiência mais rápida, com acesso offline e notificações, adicione o 'De Casa em Casa' à sua tela inicial. É leve e não ocupa espaço como um app tradicional.
           </DialogDescription>
         </DialogHeader>
 
