@@ -72,12 +72,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
       listenersRef.current.user = onSnapshot(userRef, async (userDoc) => {
         if (!userDoc.exists()) {
-            // This case should ideally not happen for a new user if the signup flow works correctly.
-            // It might happen if an admin deletes the user doc but not the auth user.
-            // Logging out is a safe way to handle this inconsistent state.
-            console.warn(`User document for UID ${firebaseUser.uid} not found. Logging out.`);
-            logout('/');
-            setLoading(false);
+            console.warn(`User document for UID ${firebaseUser.uid} not found. Waiting for document creation...`);
+            // Não faz logout imediato, espera a criação do doc que pode estar em andamento.
+            // A tela de loading continuará sendo exibida.
             return;
         }
 

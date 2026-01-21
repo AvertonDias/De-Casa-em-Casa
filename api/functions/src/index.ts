@@ -5,6 +5,8 @@ import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
 import * as crypto from "crypto";
+import cors from "cors";
+
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -12,261 +14,327 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
+// CORREÇÃO: corsHandler definitivo para permitir o cabeçalho de instância do Firebase
+const corsHandler = cors({
+    origin: true, // Permite qualquer origem. Para produção, restrinja a domínios específicos.
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "firebase-instance-id-token" // Essencial para chamadas do SDK do cliente
+    ],
+});
+
 // ========================================================================
-//   HTTPS onCall Functions
+//   HTTPS onRequest Functions (with CORS)
 // ========================================================================
 
-export const getCongregationIdByNumberV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
-    try {
-        const { congregationNumber } = request.data;
-        if (!congregationNumber) {
-            throw new https.HttpsError("invalid-argument", "O número da congregação é obrigatório.");
+export const getCongregationIdByNumberV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
         }
+        try {
+            const { congregationNumber } = req.body.data;
+            if (!congregationNumber) {
+                res.status(400).json({ error: { message: "O número da congregação é obrigatório." } });
+                return;
+            }
 
-        const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).limit(1).get();
-        if (congQuery.empty) {
-            throw new https.HttpsError("not-found", "Congregação não encontrada.");
+            const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).limit(1).get();
+            if (congQuery.empty) {
+                res.status(404).json({ error: { message: "Congregação não encontrada." } });
+                return;
+            }
+
+            const congregationId = congQuery.docs[0].id;
+            res.status(200).json({ data: { success: true, congregationId } });
+
+        } catch (error) {
+            logger.error("Erro em getCongregationIdByNumberV2:", error);
+            res.status(500).json({ error: { message: "Erro interno do servidor." } });
         }
-
-        const congregationId = congQuery.docs[0].id;
-        return { success: true, congregationId };
-
-    } catch (error: any) {
-        logger.error("Erro em getCongregationIdByNumberV2:", error);
-        if (error instanceof https.HttpsError) {
-          throw error;
-        }
-        throw new https.HttpsError("internal", "Erro interno do servidor.");
-    }
+    });
 });
 
-export const createCongregationAndAdminV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
-    try {
-        const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = request.data;
-
-        if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
-            throw new https.HttpsError("invalid-argument", "Todos os campos são obrigatórios.");
+export const createCongregationAndAdminV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
         }
+        try {
+            const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.body.data;
 
-        const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).get();
-        if (!congQuery.empty) {
-            throw new https.HttpsError("already-exists", "Uma congregação com este número já existe.");
+            if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
+                res.status(400).json({ error: { message: "Todos os campos são obrigatórios." } });
+                return;
+            }
+
+            const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).get();
+            if (!congQuery.empty) {
+                res.status(409).json({ error: { message: "Uma congregação com este número já existe." } });
+                return;
+            }
+
+            const newUser = await admin.auth().createUser({ email: adminEmail, password: adminPassword, displayName: adminName });
+
+            const batch = db.batch();
+            const newCongregationRef = db.collection("congregations").doc();
+            batch.set(newCongregationRef, {
+                name: congregationName,
+                number: congregationNumber,
+                territoryCount: 0,
+                ruralTerritoryCount: 0,
+                totalQuadras: 0,
+                totalHouses: 0,
+                totalHousesDone: 0,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            const userDocRef = db.collection("users").doc(newUser.uid);
+            batch.set(userDocRef, {
+                name: adminName,
+                email: adminEmail,
+                whatsapp: whatsapp,
+                congregationId: newCongregationRef.id,
+                role: "Administrador",
+                status: "ativo",
+            });
+
+            await batch.commit();
+            res.status(200).json({ data: { success: true, userId: newUser.uid, message: "Congregação criada com sucesso!" } });
+
+        } catch (error: any) {
+            logger.error("Erro em createCongregationAndAdmin:", error);
+             if (error.code === 'auth/email-already-exists') {
+                res.status(409).json({ error: { message: "Este e-mail já está em uso." } });
+            } else {
+                res.status(500).json({ error: { message: error.message || "Erro interno no servidor" } });
+            }
         }
-
-        const newUser = await admin.auth().createUser({ email: adminEmail, password: adminPassword, displayName: adminName });
-
-        const batch = db.batch();
-        const newCongregationRef = db.collection("congregations").doc();
-        batch.set(newCongregationRef, {
-            name: congregationName,
-            number: congregationNumber,
-            territoryCount: 0,
-            ruralTerritoryCount: 0,
-            totalQuadras: 0,
-            totalHouses: 0,
-            totalHousesDone: 0,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        const userDocRef = db.collection("users").doc(newUser.uid);
-        batch.set(userDocRef, {
-            name: adminName,
-            email: adminEmail,
-            whatsapp: whatsapp,
-            congregationId: newCongregationRef.id,
-            role: "Administrador",
-            status: "ativo",
-        });
-
-        await batch.commit();
-        return { success: true, userId: newUser.uid, message: "Congregação criada com sucesso!" };
-
-    } catch (error: any) {
-        logger.error("Erro em createCongregationAndAdmin:", error);
-        if (error.code === 'auth/email-already-exists') {
-            throw new https.HttpsError("already-exists", "Este e-mail já está em uso.");
-        }
-        if (error instanceof https.HttpsError) {
-          throw error;
-        }
-        throw new https.HttpsError("internal", error.message || "Erro interno no servidor");
-    }
-});
-
-export const notifyOnNewUserV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
-    try {
-        const { newUserName, congregationId } = request.data;
-        if (!newUserName || !congregationId) {
-            throw new https.HttpsError("invalid-argument", "Dados insuficientes para notificação.");
-        }
-        // Lógica de notificação pode ser adicionada aqui no futuro.
-        return { success: true, message: "Processo de notificação concluído (sem criar notificação no DB)." };
-
-    } catch (error: any) {
-        logger.error("Erro no processo de notificação de novo usuário:", error);
-        if (error instanceof https.HttpsError) {
-          throw error;
-        }
-        throw new https.HttpsError("internal", "Falha no processo de notificação.");
-    }
+    });
 });
 
 
-export const requestPasswordResetV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
-    try {
-        const { email } = request.data;
-        if (!email) {
-            throw new https.HttpsError("invalid-argument", 'O e-mail é obrigatório.');
+export const notifyOnNewUserV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
         }
+        try {
+            const { newUserName, congregationId } = req.body.data;
+            if (!newUserName || !congregationId) {
+                res.status(400).json({ error: { message: "Dados insuficientes para notificação." } });
+                return;
+            }
+            // Lógica de notificação pode ser adicionada aqui no futuro.
+            res.status(200).json({ data: { success: true, message: "Processo de notificação concluído (sem criar notificação no DB)." } });
 
-        const user = await admin.auth().getUserByEmail(email);
-        const token = crypto.randomUUID();
-        const expires = Date.now() + 3600 * 1000; // 1 hora
-
-        await db.collection("resetTokens").doc(token).set({
-            uid: user.uid,
-            expires: admin.firestore.Timestamp.fromMillis(expires),
-        });
-        return { success: true, token };
-
-    } catch (error: any) {
-        if (error.code === "auth/user-not-found") {
-            return { success: true, token: null, message: "Se o e-mail existir, um link será enviado." };
-        } else {
-            logger.error("Erro ao gerar token de redefinição:", error);
-            throw new https.HttpsError("internal", "Erro ao iniciar o processo de redefinição.");
+        } catch (error: any) {
+            logger.error("Erro no processo de notificação de novo usuário:", error);
+            res.status(500).json({ error: { message: "Falha no processo de notificação." } });
         }
-    }
+    });
+});
+
+export const requestPasswordResetV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
+        }
+        try {
+            const { email } = req.body.data;
+            if (!email) {
+                res.status(400).json({ error: { message: 'O e-mail é obrigatório.' } });
+                return;
+            }
+
+            const user = await admin.auth().getUserByEmail(email);
+            const token = crypto.randomUUID();
+            const expires = Date.now() + 3600 * 1000; // 1 hora
+
+            await db.collection("resetTokens").doc(token).set({
+                uid: user.uid,
+                expires: admin.firestore.Timestamp.fromMillis(expires),
+            });
+            res.status(200).json({ data: { success: true, token } });
+
+        } catch (error: any) {
+            if (error.code === "auth/user-not-found") {
+                // Não vaze a informação se o usuário existe ou não.
+                res.status(200).json({ data: { success: true, token: null, message: "Se o e-mail existir, um link será enviado." } });
+            } else {
+                logger.error("Erro ao gerar token de redefinição:", error);
+                res.status(500).json({ error: { message: "Erro ao iniciar o processo de redefinição." } });
+            }
+        }
+    });
 });
 
 
-export const resetPasswordWithTokenV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
-    try {
-        const { token, newPassword } = request.data;
-        if (!token || !newPassword) {
-            throw new https.HttpsError("invalid-argument", "Token e nova senha são obrigatórios.");
+export const resetPasswordWithTokenV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
         }
+        try {
+            const { token, newPassword } = req.body.data;
+            if (!token || !newPassword) {
+                res.status(400).json({ error: { message: "Token e nova senha são obrigatórios." } });
+                return;
+            }
 
-        const tokenRef = db.collection("resetTokens").doc(token);
-        const tokenDoc = await tokenRef.get();
+            const tokenRef = db.collection("resetTokens").doc(token);
+            const tokenDoc = await tokenRef.get();
 
-        if (!tokenDoc.exists) {
-            throw new https.HttpsError("not-found", "Token inválido ou já utilizado.");
-        }
-        if (tokenDoc.data()?.expires.toMillis() < Date.now()) {
+            if (!tokenDoc.exists) {
+                res.status(404).json({ error: { message: "Token inválido ou já utilizado." } });
+                return;
+            }
+            if (tokenDoc.data()?.expires.toMillis() < Date.now()) {
+                await tokenRef.delete();
+                res.status(410).json({ error: { message: "O token de redefinição expirou." } });
+                return;
+            }
+
+            const uid = tokenDoc.data()?.uid;
+            await admin.auth().updateUser(uid, { password: newPassword });
             await tokenRef.delete();
-            throw new https.HttpsError("deadline-exceeded", "O token de redefinição expirou.");
-        }
+            res.status(200).json({ data: { success: true } });
 
-        const uid = tokenDoc.data()?.uid;
-        await admin.auth().updateUser(uid, { password: newPassword });
-        await tokenRef.delete();
-        return { success: true };
-
-    } catch (error: any) {
-        logger.error("Erro ao redefinir senha com token:", error);
-        if (error instanceof https.HttpsError) {
-          throw error;
+        } catch (error: any) {
+            logger.error("Erro ao redefinir senha com token:", error);
+            res.status(500).json({ error: { message: "Falha ao atualizar a senha." } });
         }
-        throw new https.HttpsError("internal", "Falha ao atualizar a senha.");
-    }
+    });
 });
 
-export const completeUserProfileV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
-    if (!request.auth) {
-        throw new https.HttpsError("unauthenticated", "Ação não autorizada. Token ausente.");
-    }
-
-    try {
-        const uid = request.auth.uid;
-        const name = request.auth.token.name || 'Nome não encontrado';
-        const email = request.auth.token.email;
-
-        const { congregationId, whatsapp } = request.data;
-
-        if (!congregationId || !whatsapp || !email) {
-            throw new https.HttpsError("invalid-argument", "Dados insuficientes para criar o perfil.");
+export const completeUserProfileV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
         }
+        try {
+            const idToken = req.headers.authorization?.split('Bearer ')[1];
+            if (!idToken) {
+                res.status(401).json({ error: { message: "Ação não autorizada. Token ausente." } });
+                return;
+            }
+            const decodedToken = await admin.auth().verifyIdToken(idToken);
+            
+            const uid = decodedToken.uid;
+            const name = decodedToken.name || 'Nome não encontrado';
+            const email = decodedToken.email;
 
-        const userDocRef = db.collection("users").doc(uid);
-        const userDoc = await userDocRef.get();
+            const { congregationId, whatsapp } = req.body.data;
+            
+            if (!congregationId || !whatsapp || !email) {
+                res.status(400).json({ error: { message: "Dados insuficientes para criar o perfil." } });
+                return;
+            }
 
-        if (userDoc.exists) {
-            return { success: true, message: "Perfil já existe." };
+            const userDocRef = db.collection("users").doc(uid);
+            const userDoc = await userDocRef.get();
+            if(userDoc.exists){
+                 res.status(200).json({ data: { success: true, message: "Perfil já existe." } });
+                 return;
+            }
+            
+            await userDocRef.set({
+                name: name,
+                email: email,
+                whatsapp: whatsapp,
+                congregationId: congregationId,
+                role: "Publicador",
+                status: "pendente",
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                lastSeen: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            res.status(200).json({ data: { success: true, message: "Perfil de usuário criado com sucesso." } });
+
+        } catch (error: any) {
+            logger.error(`Erro ao completar perfil:`, error);
+            if(error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error') {
+                 res.status(401).json({ error: { message: "Token de autenticação inválido ou expirado." } });
+            } else {
+                 res.status(500).json({ error: { message: error.message || "Falha ao criar perfil de usuário." } });
+            }
         }
-
-        await userDocRef.set({
-            name: name,
-            email: email,
-            whatsapp: whatsapp,
-            congregationId: congregationId,
-            role: "Publicador",
-            status: "pendente",
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            lastSeen: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        return { success: true, message: "Perfil de usuário criado com sucesso." };
-
-    } catch (error: any) {
-        logger.error(`Erro ao completar perfil:`, error);
-        if (error instanceof https.HttpsError) {
-          throw error;
-        }
-        throw new https.HttpsError("internal", error.message || "Falha ao criar perfil de usuário.");
-    }
+    });
 });
 
-export const deleteUserAccountV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
-    if (!request.auth) {
-        throw new https.HttpsError("unauthenticated", "Ação não autorizada. Token ausente.");
-    }
-    
-    try {
-        const callingUserUid = request.auth.uid;
-        
-        const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-        const callingUserData = callingUserSnap.data();
-
-        if (!callingUserData) {
-            throw new https.HttpsError("not-found", 'Usuário requisitante não encontrado.');
+export const deleteUserAccountV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
         }
-        
-        const { userIdToDelete } = request.data;
-        if (!userIdToDelete) {
-            throw new https.HttpsError("invalid-argument", 'ID do usuário a ser deletado é obrigatório.');
+        try {
+            const idToken = req.headers.authorization?.split('Bearer ')[1];
+            if (!idToken) {
+                res.status(401).json({ error: { message: "Ação não autorizada. Token ausente." } });
+                return;
+            }
+            const decodedToken = await admin.auth().verifyIdToken(idToken);
+            
+            const callingUserUid = decodedToken.uid;
+            
+            const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
+            const callingUserData = callingUserSnap.data();
+
+            if (!callingUserData) {
+                res.status(404).json({ error: { message: 'Usuário requisitante não encontrado.' } });
+                return;
+            }
+            
+            const { userIdToDelete } = req.body.data;
+            if (!userIdToDelete) {
+                res.status(400).json({ error: { message: 'ID do usuário a ser deletado é obrigatório.' } });
+                return;
+            }
+
+            const isCallingUserAdmin = callingUserData.role === "Administrador";
+            const isSelfDelete = callingUserUid === userIdToDelete;
+            const isAdminDeletingOther = isCallingUserAdmin && !isSelfDelete;
+
+            if (isCallingUserAdmin && isSelfDelete) {
+                res.status(403).json({ error: { message: 'Admin não pode se autoexcluir por esta função.' } });
+                return;
+            }
+
+            if (!isSelfDelete && !isAdminDeletingOther) {
+                res.status(403).json({ error: { message: 'Sem permissão para esta ação.' } });
+                return;
+            }
+
+            await admin.auth().deleteUser(userIdToDelete);
+
+            const userDocRef = db.collection("users").doc(userIdToDelete);
+            if ((await userDocRef.get()).exists) {
+                await userDocRef.delete();
+            }
+
+            res.status(200).json({ data: { success: true } });
+
+        } catch (error: any) {
+            logger.error("Erro ao excluir usuário:", error);
+            if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error') {
+                res.status(401).json({ error: { message: "Token de autenticação inválido ou expirado." } });
+            } else {
+                res.status(500).json({ error: { message: error.message || "Falha na exclusão." } });
+            }
         }
-
-        const isCallingUserAdmin = callingUserData.role === "Administrador";
-        const isSelfDelete = callingUserUid === userIdToDelete;
-        const isAdminDeletingOther = isCallingUserAdmin && !isSelfDelete;
-
-        if (isCallingUserAdmin && isSelfDelete) {
-            throw new https.HttpsError("permission-denied", 'Admin não pode se autoexcluir por esta função.');
-        }
-
-        if (!isSelfDelete && !isAdminDeletingOther) {
-            throw new https.HttpsError("permission-denied", 'Sem permissão para esta ação.');
-        }
-
-        await admin.auth().deleteUser(userIdToDelete);
-
-        const userDocRef = db.collection("users").doc(userIdToDelete);
-        if ((await userDocRef.get()).exists) {
-            await userDocRef.delete();
-        }
-
-        return { success: true };
-
-    } catch (error: any) {
-        logger.error("Erro ao excluir usuário:", error);
-        if (error instanceof https.HttpsError) {
-          throw error;
-        }
-        throw new https.HttpsError("internal", error.message || "Falha na exclusão.");
-    }
+    });
 });
+
 
 // ========================================================================
 //   GATILHOS FIRESTORE
