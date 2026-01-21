@@ -38,7 +38,7 @@ Este documento detalha o que cada tipo de usuário (perfil) pode fazer dentro do
 | Criar um novo território | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Editar dados de um território (nome, mapa, cartão) | ❌ | ❌ | ❌ | ✅ | ✅ |
 | Excluir um território permanentemente | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Limpar o progresso de um território (resetar) | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Limpar o progresso de um território (resetar) | ❌ | ❌ | ✅ | ❌ | ✅ |
 | Adicionar/Editar/Excluir quadras e casas | ✅️ | ✅️ | ✅ | ✅ | ✅ |
 | | | | | | |
 | **ADMINISTRAÇÃO (`/administracao`)** | | | | | |

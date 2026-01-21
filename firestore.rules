@@ -84,17 +84,17 @@ service cloud.firestore {
                 allow update: if isUserInCongregation(congId) && (
                     // Admin pode editar tudo
                     isAdmin() ||
-                    // Dirigente: pode editar dados, gerenciar e resetar, mas não o histórico de atribuição
-                    (isDirigente() && !('assignmentHistory' in request.resource.data.diff(resource.data).affectedKeys())) ||
-                    // Servo de Território: pode gerenciar e resetar o progresso
+                    // Dirigente pode fazer quase tudo, exceto exclusão de território (regra acima) ou edição manual de histórico (controlado na UI)
+                    isDirigente() ||
+                    // Servo de Território: pode gerenciar atribuições e estrutura
                     (isServoTerritorios() && request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['status', 'assignment', 'stats', 'progress', 'lastUpdate', 'lastWorkedAt'])) ||
-                    // Ajudante: apenas gerencia atribuição (designar/devolver)
+                        .hasOnly(['status', 'assignment', 'stats', 'progress', 'lastUpdate', 'lastWorkedAt', 'quadraCount', 'assignmentHistory'])) ||
+                    // Ajudante: pode gerenciar atribuições e estrutura
                     (isAjudanteServo() && request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['status', 'assignment', 'lastUpdate', 'lastWorkedAt'])) ||
-                    // Publicador (e outros): podem atualizar o progresso (ação de marcar casa)
+                        .hasOnly(['status', 'assignment', 'lastUpdate', 'lastWorkedAt', 'quadraCount', 'assignmentHistory'])) ||
+                    // Publicador (e outros): podem atualizar o progresso e a estrutura (casas/quadras)
                     (request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['stats', 'progress', 'lastUpdate', 'lastWorkedAt']))
+                        .hasOnly(['stats', 'progress', 'lastUpdate', 'lastWorkedAt', 'quadraCount']))
                 );
 
                 // Subcoleções
