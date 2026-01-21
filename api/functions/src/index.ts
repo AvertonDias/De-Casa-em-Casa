@@ -51,6 +51,26 @@ function createHttpsFunction(handler: (req: Request, res: Response) => Promise<a
     });
 }
 
+export const getCongregationIdByNumberV2 = createHttpsFunction(async (req, res) => {
+    const { congregationNumber } = req.body;
+    if (!congregationNumber) {
+        return res.status(400).json({ success: false, error: "O número da congregação é obrigatório." });
+    }
+
+    try {
+        const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).limit(1).get();
+        if (congQuery.empty) {
+            return res.status(404).json({ success: false, error: "Congregação não encontrada." });
+        }
+        const congregationId = congQuery.docs[0].id;
+        return res.status(200).json({ success: true, congregationId });
+
+    } catch (error) {
+        logger.error("Erro ao buscar congregação por número:", error);
+        return res.status(500).json({ success: false, error: "Erro interno no servidor." });
+    }
+});
+
 export const createCongregationAndAdminV2 = createHttpsFunction(async (req, res) => {
     const {
       adminName,

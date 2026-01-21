@@ -52,14 +52,21 @@ export default function SignUpPage() {
     setError(null);
     
     try {
-      const congregationsRef = collection(db, 'congregations');
-      const q = query(congregationsRef, where("number", "==", congregationNumber.trim()));
-      const querySnapshot = await getDocs(q);
+        const response = await fetch(
+            'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/getCongregationIdByNumberV2',
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ congregationNumber: congregationNumber.trim() }),
+            }
+        );
+        const result = await response.json();
 
-      if (querySnapshot.empty) {
-        throw new Error("Número da congregação inválido ou não encontrado.");
-      }
-      const congregationId = querySnapshot.docs[0].id;
+        if (!response.ok) {
+            throw new Error(result.error || "Número da congregação inválido ou não encontrado.");
+        }
+        
+        const congregationId = result.congregationId;
       
       // O UserContext agora é responsável por criar o documento do usuário ao detectar o novo auth state.
       // O 'UserProvider' tem acesso a esses dados via sessionStorage para completar o perfil.
@@ -94,7 +101,7 @@ export default function SignUpPage() {
     } catch (err: any) {
       sessionStorage.removeItem('pendingUserData'); // Limpa em caso de erro
       console.error("Erro detalhado no cadastro:", err);
-      if (err.message?.includes("Número da congregação")) { setError(err.message); }
+      if (err.message?.includes("Congregação não encontrada")) { setError("Número da congregação inválido ou não encontrado."); }
       else if (err.code === 'auth/email-already-in-use') { 
         setError(
             <>
