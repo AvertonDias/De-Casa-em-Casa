@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -31,10 +30,10 @@ function DashboardPage() {
     const unsubAllTerritories = onSnapshot(territoriesRef, (snapshot) => {
       const territoriesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
       setAllTerritories(territoriesData);
-      if (loading) setLoading(false);
+      setLoading(false);
     }, (error) => {
         console.error("Erro ao buscar todos os territórios: ", error);
-        if (loading) setLoading(false);
+        setLoading(false);
     });
 
     // Listener for recently updated territories
@@ -53,7 +52,7 @@ function DashboardPage() {
       unsubAllTerritories();
       unsubRecentTerritories();
     };
-  }, [user, userLoading, loading]);
+  }, [user, userLoading]);
 
   const stats = useMemo(() => {
     return allTerritories.reduce((acc, territory) => {

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -146,16 +145,16 @@ function TerritoriosPage() {
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
         setTerritories(data);
-        if (loading) setLoading(false);
+        setLoading(false);
       }, (err) => {
         console.error("Error fetching territories:", err);
-        if (loading) setLoading(false);
+        setLoading(false);
       });
       return () => unsubscribe();
     } else if (!userLoading) {
         setLoading(false);
     }
-  }, [user, userLoading, loading]);
+  }, [user, userLoading]);
 
 
   const filteredAndSortedTerritories = useMemo(() => {
