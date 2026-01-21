@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc, runTransaction, getDocs, addDoc, serverTimestamp, Timestamp, where, limit } from 'firebase/firestore';
+import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc, runTransaction, getDocs, addDoc, serverTimestamp, Timestamp, where, limit, DocumentReference } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil, X, GripVertical, ChevronsUpDown } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
@@ -179,6 +179,27 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     const activityHistoryRef = collection(territoryRef, 'activityHistory');
 
     try {
+        const quadraSnap = await getDoc(quadraRef);
+        if (!quadraSnap.exists()) {
+            throw new Error("Quadra não encontrada para a transação.");
+        }
+        const quadraName = quadraSnap.data().name;
+        
+        let logToDeleteRef: DocumentReference | null = null;
+        if (!newStatus) {
+            const logQuery = query(
+                activityHistoryRef,
+                where("type", "==", "work"),
+                where("description", "==", `Casa ${casa.number} (da ${quadraName}) foi feita.`),
+                orderBy("activityDate", "desc"),
+                limit(1)
+            );
+            const logSnapshot = await getDocs(logQuery);
+            if (!logSnapshot.empty) {
+                logToDeleteRef = logSnapshot.docs[0].ref;
+            }
+        }
+
         await runTransaction(db, async (transaction) => {
             const [congDoc, territoryDoc, quadraDoc, casaDoc] = await Promise.all([
                 transaction.get(congRef),
@@ -230,6 +251,8 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                   userId: 'automatic_system_log',
                   userName: user.name,
               });
+            } else if (logToDeleteRef) {
+                transaction.delete(logToDeleteRef);
             }
         });
     } catch (error) {
