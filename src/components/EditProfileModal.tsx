@@ -14,10 +14,9 @@ import { maskPhone } from '@/lib/utils';
 import { sendPasswordResetEmail } from '@/lib/emailService';
 import { httpsCallable } from 'firebase/functions';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
-import { getIdToken } from 'firebase/auth';
-
 
 const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
+const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
@@ -133,23 +132,15 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
 
     try {
-        const response = await fetch(
-            'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordResetV2',
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: user.email }),
-            }
-        );
+        const result = await requestPasswordReset({ email: user.email });
+        const data = result.data as { success: boolean, token?: string | null, error?: string; };
 
-        const result = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(result.error || `Ocorreu um erro: ${response.statusText}`);
+        if (!data.success) {
+            throw new Error(data.error || "Erro desconhecido ao solicitar reset.");
         }
         
-        if (result.token) {
-            const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
+        if (data.token) {
+            const resetLink = `${window.location.origin}/auth/action?token=${data.token}`;
             
             await sendPasswordResetEmail({
                 email: user.email,
@@ -186,22 +177,11 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         const credential = EmailAuthProvider.credential(auth.currentUser.email, passwordForDelete);
         await reauthenticateWithCredential(auth.currentUser, credential);
         
-        const idToken = await getIdToken(auth.currentUser);
-        const response = await fetch(
-            'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/deleteUserAccountV2',
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`,
-                },
-                body: JSON.stringify({ userIdToDelete: user.uid }),
-            }
-        );
+        const result = await deleteUserAccount({ userIdToDelete: user.uid });
+        const data = result.data as { success: boolean; error?: string };
 
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.error || `Ocorreu um erro: ${response.statusText}`);
+        if (!data.success) {
+            throw new Error(data.error || "Ocorreu um erro na exclusão.");
         }
         
         toast({

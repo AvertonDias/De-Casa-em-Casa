@@ -13,7 +13,7 @@ import { auth, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { maskPhone } from '@/lib/utils'; 
 
-const createCongregationAndAdminV2 = httpsCallable(functions, 'createCongregationAndAdminV2');
+const createCongregationAndAdmin = httpsCallable(functions, 'createCongregationAndAdminV2');
 
 export default function NovaCongregacaoPage() {
   const [adminName, setAdminName] = useState('');
@@ -59,21 +59,11 @@ export default function NovaCongregacaoPage() {
     };
 
     try {
-        const response = await fetch(
-            'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/createCongregationAndAdminV2',
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(dataToSend),
-            }
-        );
-
-        const result = await response.json();
+        const result = await createCongregationAndAdmin(dataToSend);
+        const data = result.data as { success: boolean; error?: string; userId?: string; };
         
-        if (!response.ok) {
-            throw new Error(result.error || `Ocorreu um erro: ${response.statusText}`);
+        if (!data.success) {
+            throw new Error(data.error || `Ocorreu um erro desconhecido.`);
         }
         
         toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });

@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { maskPhone } from '@/lib/utils';
 import { httpsCallable } from 'firebase/functions';
 
+const getCongregationIdByNumber = httpsCallable(functions, 'getCongregationIdByNumberV2');
 const notifyOnNewUser = httpsCallable(functions, 'notifyOnNewUserV2');
 
 export default function SignUpPage() {
@@ -52,21 +53,14 @@ export default function SignUpPage() {
     setError(null);
     
     try {
-        const response = await fetch(
-            'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/getCongregationIdByNumberV2',
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ congregationNumber: congregationNumber.trim() }),
-            }
-        );
-        const result = await response.json();
+        const result = await getCongregationIdByNumber({ congregationNumber: congregationNumber.trim() });
+        const data = result.data as { success: boolean, congregationId?: string, error?: string };
 
-        if (!response.ok) {
-            throw new Error(result.error || "Número da congregação inválido ou não encontrado.");
+        if (!data.success || !data.congregationId) {
+            throw new Error(data.error || "Número da congregação inválido ou não encontrado.");
         }
         
-        const congregationId = result.congregationId;
+        const congregationId = data.congregationId;
       
       // O UserContext agora é responsável por criar o documento do usuário ao detectar o novo auth state.
       // O 'UserProvider' tem acesso a esses dados via sessionStorage para completar o perfil.
@@ -81,14 +75,7 @@ export default function SignUpPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName: name.trim() });
       
-      await fetch(
-          'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/notifyOnNewUserV2',
-          {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', },
-              body: JSON.stringify({ newUserName: name.trim(), congregationId }),
-          }
-      );
+      await notifyOnNewUser({ newUserName: name.trim(), congregationId });
       
       toast({
         title: 'Solicitação enviada!',
@@ -101,8 +88,9 @@ export default function SignUpPage() {
     } catch (err: any) {
       sessionStorage.removeItem('pendingUserData'); // Limpa em caso de erro
       console.error("Erro detalhado no cadastro:", err);
-      if (err.message?.includes("Congregação não encontrada")) { setError("Número da congregação inválido ou não encontrado."); }
-      else if (err.code === 'auth/email-already-in-use') { 
+
+      let message = err.message || "Ocorreu um erro desconhecido.";
+      if (err.code === 'auth/email-already-in-use') { 
         setError(
             <>
               Este e-mail já está em uso. 
@@ -111,8 +99,12 @@ export default function SignUpPage() {
               </Link>
             </>
         ); 
+      } else if (message.includes("Congregação não encontrada")) {
+          setError("Número da congregação inválido ou não encontrado.");
       }
-      else { setError("Ocorreu um erro ao criar a conta: " + err.message); }
+      else { 
+          setError("Ocorreu um erro ao criar a conta: " + message); 
+      }
     } finally {
         setLoading(false);
     }

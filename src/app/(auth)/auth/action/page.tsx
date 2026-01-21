@@ -59,19 +59,11 @@ function PasswordResetAction() {
     setStage('verifying');
 
     try {
-      const response = await fetch(
-          'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/resetPasswordWithTokenV2',
-          {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ token, newPassword }),
-          }
-      );
+      const result = await resetPasswordWithToken({ token, newPassword });
+      const data = result.data as { success: boolean; error?: string; };
 
-      const result = await response.json();
-      
-      if (!response.ok) {
-          throw new Error(result.error || `Ocorreu um erro: ${response.statusText}`);
+      if (!data.success) {
+          throw new Error(data.error || `Ocorreu um erro desconhecido.`);
       }
 
       setStage('success');

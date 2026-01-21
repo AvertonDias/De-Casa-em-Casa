@@ -25,23 +25,15 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-        const response = await fetch(
-            'https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/requestPasswordResetV2',
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email }),
-            }
-        );
+        const result = await requestPasswordReset({ email });
+        const data = result.data as { success: boolean; token?: string | null; error?: string; };
 
-        const result = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(result.error || `Ocorreu um erro: ${response.statusText}`);
+        if (!data.success) {
+            throw new Error(data.error || `Ocorreu um erro desconhecido.`);
         }
         
-        if (result.token) {
-            const resetLink = `${window.location.origin}/auth/action?token=${result.token}`;
+        if (data.token) {
+            const resetLink = `${window.location.origin}/auth/action?token=${data.token}`;
             
             await sendPasswordResetEmail({
                 email: email,
