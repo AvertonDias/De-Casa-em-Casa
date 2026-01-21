@@ -84,17 +84,17 @@ service cloud.firestore {
                 allow update: if isUserInCongregation(congId) && (
                     // Admin pode editar tudo
                     isAdmin() ||
-                    // Dirigente pode fazer quase tudo, exceto exclusão de território (regra acima) ou edição manual de histórico (controlado na UI)
+                    // Dirigente pode fazer quase tudo
                     isDirigente() ||
                     // Servo de Território: pode gerenciar atribuições e estrutura
                     (isServoTerritorios() && request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['status', 'assignment', 'stats', 'progress', 'lastUpdate', 'lastWorkedAt', 'quadraCount', 'assignmentHistory'])) ||
+                        .hasAny(['status', 'assignment', 'stats', 'progress', 'lastUpdate', 'lastWorkedAt', 'quadraCount', 'assignmentHistory'])) ||
                     // Ajudante: pode gerenciar atribuições e estrutura
                     (isAjudanteServo() && request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['status', 'assignment', 'lastUpdate', 'lastWorkedAt', 'quadraCount', 'assignmentHistory'])) ||
+                        .hasAny(['status', 'assignment', 'lastUpdate', 'lastWorkedAt', 'quadraCount', 'assignmentHistory'])) ||
                     // Publicador (e outros): podem atualizar o progresso e a estrutura (casas/quadras)
                     (request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['stats', 'progress', 'lastUpdate', 'lastWorkedAt', 'quadraCount']))
+                        .hasAny(['stats', 'progress', 'lastUpdate', 'lastWorkedAt', 'quadraCount']))
                 );
 
                 // Subcoleções
@@ -105,8 +105,8 @@ service cloud.firestore {
                     }
                 }
                 match /activityHistory/{activityId} {
-                    allow create: if isUserInCongregation(congId);
-                    allow read, update, delete: if isUserInCongregation(congId) && canResetProgress();
+                    allow read, create: if isUserInCongregation(congId);
+                    allow update, delete: if isUserInCongregation(congId) && canResetProgress();
                 }
             }
         }
