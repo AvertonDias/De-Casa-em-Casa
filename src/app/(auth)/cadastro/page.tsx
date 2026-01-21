@@ -4,9 +4,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'; 
-import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { functions } from '@/lib/firebase';
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Eye, EyeOff } from 'lucide-react';
@@ -16,6 +15,7 @@ import { httpsCallable } from 'firebase/functions';
 
 const getCongregationIdByNumber = httpsCallable(functions, 'getCongregationIdByNumberV2');
 const notifyOnNewUser = httpsCallable(functions, 'notifyOnNewUserV2');
+const completeUserProfile = httpsCallable(functions, 'completeUserProfileV2');
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -54,10 +54,10 @@ export default function SignUpPage() {
     
     try {
         const result = await getCongregationIdByNumber({ congregationNumber: congregationNumber.trim() });
-        const data = result.data as { success: boolean, congregationId?: string, error?: string };
+        const data = result.data as { success: boolean, congregationId?: string, error?: { message: string } };
 
         if (!data.success || !data.congregationId) {
-            throw new Error(data.error || "Número da congregação inválido ou não encontrado.");
+            throw new Error(data.error?.message || "Número da congregação inválido ou não encontrado.");
         }
         
         const congregationId = data.congregationId;
@@ -66,18 +66,10 @@ export default function SignUpPage() {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName: name.trim() });
         
-        // 2. Directly create the Firestore user document
-        const userDocRef = doc(db, 'users', userCredential.user.uid);
-        await setDoc(userDocRef, {
-            name: name.trim(),
-            whatsapp: whatsapp,
-            congregationId: congregationId,
-            role: "Publicador",
-            status: "pendente",
-            email: email, // Save email in the document as well
-            photoURL: userCredential.user.photoURL,
-            createdAt: serverTimestamp(),
-            lastSeen: serverTimestamp()
+        // 2. Call backend to create Firestore document
+        await completeUserProfile({
+            congregationId,
+            whatsapp,
         });
         
         // 3. Notify admins (optional)
@@ -89,7 +81,7 @@ export default function SignUpPage() {
             variant: 'default',
         });
       
-        // O UserContext irá detectar o usuário logado e redirecioná-lo automaticamente para a página de espera.
+        // The UserContext will detect the logged in user and redirect automatically.
       
     } catch (err: any) {
       console.error("Erro detalhado no cadastro:", err);
@@ -106,10 +98,9 @@ export default function SignUpPage() {
         ); 
       } else if (message.includes("Congregação não encontrada")) {
           setError("Número da congregação inválido ou não encontrado.");
-      } else if (err.code === 'permission-denied') {
-          setError("Erro de permissão. Verifique as regras de segurança do Firestore.");
-      }
-      else { 
+      } else if (err.code === 'functions/internal' || err.code === 'internal') {
+          setError("Ocorreu um erro ao criar o seu perfil no banco de dados. Tente novamente ou contate o suporte.");
+      } else { 
           setError("Ocorreu um erro ao criar a conta: " + message); 
       }
     } finally {

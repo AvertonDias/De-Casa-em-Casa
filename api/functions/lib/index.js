@@ -37,182 +37,199 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.mirrorUserStatus = exports.onDeleteQuadra = exports.onDeleteTerritory = exports.deleteUserAccountV2 = exports.resetPasswordWithTokenV2 = exports.requestPasswordResetV2 = exports.notifyOnNewUserV2 = exports.createCongregationAndAdminV2 = void 0;
+exports.mirrorUserStatus = exports.onDeleteQuadra = exports.onDeleteTerritory = exports.deleteUserAccountV2 = exports.resetPasswordWithTokenV2 = exports.requestPasswordResetV2 = exports.notifyOnNewUserV2 = exports.createCongregationAndAdminV2 = exports.getCongregationIdByNumberV2 = void 0;
 const v2_1 = require("firebase-functions/v2");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const database_1 = require("firebase-functions/v2/database");
 const firebase_admin_1 = __importDefault(require("firebase-admin"));
 const crypto = __importStar(require("crypto"));
 const cors_1 = __importDefault(require("cors"));
-// Crie uma instância do CORS que permite requisições da sua aplicação
-const corsHandler = (0, cors_1.default)({
-    origin: [
-        "https://de-casa-em-casa.web.app",
-        "https://de-casa-em-casa.firebaseapp.com",
-        "https://de-casa-em-casa.vercel.app",
-        /https:\/\/de-casa-em-casa--pr-.*\.web\.app/,
-        /https:\/\/.*\.vercel\.app/,
-        /https:\/\/.*\.cloudworkstations\.dev/,
-        "http://localhost:3000"
-    ]
-});
 if (!firebase_admin_1.default.apps.length) {
     firebase_admin_1.default.initializeApp();
 }
 const db = firebase_admin_1.default.firestore();
 (0, v2_1.setGlobalOptions)({ region: "southamerica-east1" });
+// Initialize CORS handler as per user instructions
+const corsHandler = (0, cors_1.default)({ origin: true });
 // ========================================================================
-//   FUNÇÕES HTTPS (onRequest)
+//   HTTPS onRequest Functions (with CORS)
 // ========================================================================
-// Wrapper para simplificar a aplicação de CORS
-function createHttpsFunction(handler) {
-    return v2_1.https.onRequest(async (req, res) => {
-        // Envolve sua função com o corsHandler
-        corsHandler(req, res, async () => {
-            try {
-                await handler(req, res);
+exports.getCongregationIdByNumberV2 = v2_1.https.onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
+        }
+        try {
+            const { congregationNumber } = req.body.data;
+            if (!congregationNumber) {
+                res.status(400).json({ error: { message: "O número da congregação é obrigatório." } });
+                return;
             }
-            catch (e) {
-                v2_1.logger.error("Function Error:", e);
-                // Garante que uma resposta seja enviada mesmo em caso de erro inesperado
-                if (!res.headersSent) {
-                    res.status(500).json({ success: false, error: "Internal Server Error", message: e.message });
-                }
+            const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).limit(1).get();
+            if (congQuery.empty) {
+                res.status(404).json({ error: { message: "Congregação não encontrada." } });
+                return;
             }
-        });
+            const congregationId = congQuery.docs[0].id;
+            res.status(200).json({ data: { success: true, congregationId } });
+        }
+        catch (error) {
+            v2_1.logger.error("Erro em getCongregationIdByNumberV2:", error);
+            res.status(500).json({ error: { message: "Erro interno do servidor." } });
+        }
     });
-}
-exports.createCongregationAndAdminV2 = createHttpsFunction(async (req, res) => {
-    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp, } = req.body; // <-- DADOS VÊM DIRETAMENTE DO BODY AGORA
-    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
-        return res.status(400).json({ success: false, error: "Todos os campos são obrigatórios." });
-    }
-    try {
-        const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).get();
-        if (!congQuery.empty) {
-            return res.status(409).json({ success: false, error: "Uma congregação com este número já existe." });
-        }
-        const newUser = await firebase_admin_1.default.auth().createUser({
-            email: adminEmail,
-            password: adminPassword,
-            displayName: adminName,
-        });
-        const batch = db.batch();
-        const newCongregationRef = db.collection("congregations").doc();
-        batch.set(newCongregationRef, {
-            name: congregationName,
-            number: congregationNumber,
-            territoryCount: 0,
-            ruralTerritoryCount: 0,
-            totalQuadras: 0,
-            totalHouses: 0,
-            totalHousesDone: 0,
-            createdAt: firebase_admin_1.default.firestore.FieldValue.serverTimestamp(),
-            lastUpdate: firebase_admin_1.default.firestore.FieldValue.serverTimestamp(),
-        });
-        const userDocRef = db.collection("users").doc(newUser.uid);
-        batch.set(userDocRef, {
-            name: adminName,
-            email: adminEmail,
-            whatsapp: whatsapp,
-            congregationId: newCongregationRef.id,
-            role: "Administrador",
-            status: "ativo",
-        });
-        await batch.commit();
-        return res.status(200).json({
-            success: true,
-            userId: newUser.uid,
-            message: "Congregação criada com sucesso!",
-        });
-    }
-    catch (error) {
-        v2_1.logger.error("Erro em createCongregationAndAdmin:", error);
-        if (error.code === "auth/email-already-exists") {
-            return res.status(409).json({ success: false, error: "Este e-mail já está em uso." });
-        }
-        else {
-            return res.status(500).json({ success: false, error: error.message || "Erro interno no servidor" });
-        }
-    }
 });
-exports.notifyOnNewUserV2 = createHttpsFunction(async (req, res) => {
-    const { newUserName, congregationId } = req.body;
-    if (!newUserName || !congregationId) {
-        return res.status(400).json({ success: false, error: "Dados insuficientes para notificação." });
-    }
-    try {
-        return res.status(200).json({ success: true, message: "Processo de notificação concluído (sem criar notificação no DB)." });
-    }
-    catch (error) {
-        v2_1.logger.error("Erro no processo de notificação de novo usuário:", error);
-        return res.status(500).json({ success: false, error: "Falha no processo de notificação." });
-    }
-});
-exports.requestPasswordResetV2 = createHttpsFunction(async (req, res) => {
-    const { email } = req.body;
-    if (!email) {
-        return res.status(400).json({ success: false, error: "O e-mail é obrigatório." });
-    }
-    try {
-        const user = await firebase_admin_1.default.auth().getUserByEmail(email);
-        const token = crypto.randomUUID();
-        const expires = Date.now() + 3600 * 1000; // 1 hora
-        await db.collection("resetTokens").doc(token).set({
-            uid: user.uid,
-            expires: firebase_admin_1.default.firestore.Timestamp.fromMillis(expires),
-        });
-        return res.status(200).json({ success: true, token });
-    }
-    catch (error) {
-        if (error.code === "auth/user-not-found") {
-            // Não vaze a informação se o usuário existe ou não
-            return res.status(200).json({
-                success: true,
-                token: null,
-                message: "Se o e-mail existir, um link será enviado.",
+exports.createCongregationAndAdminV2 = v2_1.https.onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
+        }
+        try {
+            const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = req.body.data;
+            if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
+                res.status(400).json({ error: { message: "Todos os campos são obrigatórios." } });
+                return;
+            }
+            const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).get();
+            if (!congQuery.empty) {
+                res.status(409).json({ error: { message: "Uma congregação com este número já existe." } });
+                return;
+            }
+            const newUser = await firebase_admin_1.default.auth().createUser({ email: adminEmail, password: adminPassword, displayName: adminName });
+            const batch = db.batch();
+            const newCongregationRef = db.collection("congregations").doc();
+            batch.set(newCongregationRef, {
+                name: congregationName,
+                number: congregationNumber,
+                territoryCount: 0,
+                ruralTerritoryCount: 0,
+                totalQuadras: 0,
+                totalHouses: 0,
+                totalHousesDone: 0,
+                createdAt: firebase_admin_1.default.firestore.FieldValue.serverTimestamp(),
+                lastUpdate: firebase_admin_1.default.firestore.FieldValue.serverTimestamp(),
             });
+            const userDocRef = db.collection("users").doc(newUser.uid);
+            batch.set(userDocRef, {
+                name: adminName,
+                email: adminEmail,
+                whatsapp: whatsapp,
+                congregationId: newCongregationRef.id,
+                role: "Administrador",
+                status: "ativo",
+            });
+            await batch.commit();
+            res.status(200).json({ data: { success: true, userId: newUser.uid, message: "Congregação criada com sucesso!" } });
         }
-        else {
-            v2_1.logger.error("Erro ao gerar token de redefinição:", error);
-            return res.status(500).json({ success: false, error: "Erro ao iniciar o processo de redefinição." });
+        catch (error) {
+            v2_1.logger.error("Erro em createCongregationAndAdmin:", error);
+            if (error.code === 'auth/email-already-exists') {
+                res.status(409).json({ error: { message: "Este e-mail já está em uso." } });
+            }
+            else {
+                res.status(500).json({ error: { message: error.message || "Erro interno no servidor" } });
+            }
         }
-    }
+    });
 });
-exports.resetPasswordWithTokenV2 = createHttpsFunction(async (req, res) => {
-    var _a, _b;
-    const { token, newPassword } = req.body;
-    if (!token || !newPassword) {
-        return res.status(400).json({ success: false, error: "Token e nova senha são obrigatórios." });
-    }
-    try {
-        const tokenRef = db.collection("resetTokens").doc(token);
-        const tokenDoc = await tokenRef.get();
-        if (!tokenDoc.exists) {
-            return res.status(404).json({ success: false, error: "Token inválido ou já utilizado." });
+exports.notifyOnNewUserV2 = v2_1.https.onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
         }
-        if (((_a = tokenDoc.data()) === null || _a === void 0 ? void 0 : _a.expires.toMillis()) < Date.now()) {
+        try {
+            const { newUserName, congregationId } = req.body.data;
+            if (!newUserName || !congregationId) {
+                res.status(400).json({ error: { message: "Dados insuficientes para notificação." } });
+                return;
+            }
+            res.status(200).json({ data: { success: true, message: "Processo de notificação concluído (sem criar notificação no DB)." } });
+        }
+        catch (error) {
+            v2_1.logger.error("Erro no processo de notificação de novo usuário:", error);
+            res.status(500).json({ error: { message: "Falha no processo de notificação." } });
+        }
+    });
+});
+exports.requestPasswordResetV2 = v2_1.https.onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, async () => {
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
+        }
+        try {
+            const { email } = req.body.data;
+            if (!email) {
+                res.status(400).json({ error: { message: 'O e-mail é obrigatório.' } });
+                return;
+            }
+            const user = await firebase_admin_1.default.auth().getUserByEmail(email);
+            const token = crypto.randomUUID();
+            const expires = Date.now() + 3600 * 1000; // 1 hora
+            await db.collection("resetTokens").doc(token).set({
+                uid: user.uid,
+                expires: firebase_admin_1.default.firestore.Timestamp.fromMillis(expires),
+            });
+            res.status(200).json({ data: { success: true, token } });
+        }
+        catch (error) {
+            if (error.code === "auth/user-not-found") {
+                res.status(200).json({ data: { success: true, token: null, message: "Se o e-mail existir, um link será enviado." } });
+            }
+            else {
+                v2_1.logger.error("Erro ao gerar token de redefinição:", error);
+                res.status(500).json({ error: { message: "Erro ao iniciar o processo de redefinição." } });
+            }
+        }
+    });
+});
+exports.resetPasswordWithTokenV2 = v2_1.https.onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, async () => {
+        var _a, _b;
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
+        }
+        try {
+            const { token, newPassword } = req.body.data;
+            if (!token || !newPassword) {
+                res.status(400).json({ error: { message: "Token e nova senha são obrigatórios." } });
+                return;
+            }
+            const tokenRef = db.collection("resetTokens").doc(token);
+            const tokenDoc = await tokenRef.get();
+            if (!tokenDoc.exists) {
+                res.status(404).json({ error: { message: "Token inválido ou já utilizado." } });
+                return;
+            }
+            if (((_a = tokenDoc.data()) === null || _a === void 0 ? void 0 : _a.expires.toMillis()) < Date.now()) {
+                await tokenRef.delete();
+                res.status(410).json({ error: { message: "O token de redefinição expirou." } });
+                return;
+            }
+            const uid = (_b = tokenDoc.data()) === null || _b === void 0 ? void 0 : _b.uid;
+            await firebase_admin_1.default.auth().updateUser(uid, { password: newPassword });
             await tokenRef.delete();
-            return res.status(410).json({ success: false, error: "O token de redefinição expirou." });
+            res.status(200).json({ data: { success: true } });
         }
-        const uid = (_b = tokenDoc.data()) === null || _b === void 0 ? void 0 : _b.uid;
-        await firebase_admin_1.default.auth().updateUser(uid, { password: newPassword });
-        await tokenRef.delete();
-        return res.status(200).json({ success: true });
-    }
-    catch (error) {
-        v2_1.logger.error("Erro ao redefinir senha com token:", error);
-        return res.status(500).json({ success: false, error: "Falha ao atualizar a senha." });
-    }
+        catch (error) {
+            v2_1.logger.error("Erro ao redefinir senha com token:", error);
+            res.status(500).json({ error: { message: "Falha ao atualizar a senha." } });
+        }
+    });
 });
+// ========================================================================
+//   FUNÇÕES HTTPS (onCall) - For internal app calls from authenticated users
+// ========================================================================
 exports.deleteUserAccountV2 = v2_1.https.onCall(async (request) => {
-    // 1. Em onCall, o contexto de autenticação já vem verificado
     if (!request.auth) {
         throw new v2_1.https.HttpsError('unauthenticated', 'Ação não autorizada. Faça login novamente.');
     }
     const callingUserUid = request.auth.uid;
     try {
-        // 2. Os dados vêm de `request.data`
         const { userIdToDelete } = request.data;
         if (!userIdToDelete) {
             throw new v2_1.https.HttpsError('invalid-argument', 'ID do usuário a ser deletado é obrigatório.');
@@ -236,7 +253,6 @@ exports.deleteUserAccountV2 = v2_1.https.onCall(async (request) => {
         if ((await userDocRef.get()).exists) {
             await userDocRef.delete();
         }
-        // 3. Retorna um objeto de sucesso
         return { success: true };
     }
     catch (error) {
@@ -244,7 +260,6 @@ exports.deleteUserAccountV2 = v2_1.https.onCall(async (request) => {
         if (error instanceof v2_1.https.HttpsError) {
             throw error; // Re-lança erros HttpsError para o cliente
         }
-        // Para outros erros (ex: user-not-found no deleteUser), lança um erro genérico
         throw new v2_1.https.HttpsError("internal", error.message || "Falha na exclusão.");
     }
 });
@@ -304,13 +319,9 @@ exports.mirrorUserStatus = (0, database_1.onValueWritten)({
         if (eventStatus && eventStatus.state === "online") {
             updateData.isOnline = true;
         }
-        // Sempre atualiza o documento do Firestore se o usuário existir.
-        // Isso garante que lastSeen seja atualizado mesmo se o estado isOnline não mudar.
         await userDocRef.update(updateData);
     }
     catch (err) {
-        // Ignora o erro se o documento do usuário não for encontrado (código 5)
-        // Isso pode acontecer se o usuário for excluído enquanto o listener de presença ainda estiver ativo.
         if (err.code !== 5) {
             v2_1.logger.error(`[Presence Mirror] Falha para o UID ${uid}:`, err);
         }

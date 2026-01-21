@@ -200,6 +200,48 @@ export const resetPasswordWithTokenV2 = https.onRequest({ region: "southamerica-
 // ========================================================================
 //   FUNÇÕES HTTPS (onCall) - For internal app calls from authenticated users
 // ========================================================================
+
+export const completeUserProfileV2 = https.onCall(async (request) => {
+    if (!request.auth) {
+        throw new https.HttpsError('unauthenticated', 'Ação não autorizada. Faça login novamente.');
+    }
+    const uid = request.auth.uid;
+    const { congregationId, whatsapp } = request.data;
+    const name = request.auth.token.name || 'Nome não encontrado';
+    const email = request.auth.token.email;
+
+    if (!congregationId || !whatsapp || !email) {
+        throw new https.HttpsError('invalid-argument', 'Dados insuficientes para criar o perfil.');
+    }
+
+    try {
+        const userDocRef = db.collection("users").doc(uid);
+        const userDoc = await userDocRef.get();
+
+        if (userDoc.exists) {
+            // Document already exists, maybe it's a retry. Just return success.
+            return { success: true, message: "Perfil já existe." };
+        }
+
+        await userDocRef.set({
+            name: name,
+            email: email,
+            whatsapp: whatsapp,
+            congregationId: congregationId,
+            role: "Publicador",
+            status: "pendente",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastSeen: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return { success: true, message: "Perfil de usuário criado com sucesso." };
+
+    } catch (error: any) {
+        logger.error(`Erro ao completar perfil para UID ${uid}:`, error);
+        throw new https.HttpsError("internal", error.message || "Falha ao criar perfil de usuário.");
+    }
+});
+
 export const deleteUserAccountV2 = https.onCall(async (request) => {
     if (!request.auth) {
         throw new https.HttpsError('unauthenticated', 'Ação não autorizada. Faça login novamente.');
