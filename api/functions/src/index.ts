@@ -1,4 +1,3 @@
-
 // src/functions/src/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
@@ -7,21 +6,6 @@ import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
 import * as crypto from "crypto";
 import type { AppUser } from "./types/types"; // Caminho relativo
-import cors from "cors";
-import type { Request, Response } from "express";
-
-// Crie uma instância do CORS que permite requisições da sua aplicação
-const corsHandler = cors({ 
-    origin: [
-        "https://de-casa-em-casa.web.app",
-        "https://de-casa-em-casa.firebaseapp.com",
-        "https://de-casa-em-casa.vercel.app",
-        /https:\/\/de-casa-em-casa--pr-.*\.web\.app/,
-        /https:\/\/.*\.vercel\.app/,
-        /https:\/\/.*\.cloudworkstations\.dev/,
-        "http://localhost:3000"
-    ] 
-});
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -30,48 +14,33 @@ const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   FUNÇÕES HTTPS (onRequest)
+//   FUNÇÕES HTTPS (onCall)
 // ========================================================================
 
-// Wrapper para simplificar a aplicação de CORS
-function createHttpsFunction(handler: (req: Request, res: Response) => Promise<any>) {
-    return https.onRequest(async (req: Request, res: Response) => {
-        // Envolve sua função com o corsHandler
-        corsHandler(req, res, async () => {
-            try {
-                await handler(req, res);
-            } catch (e: any) {
-                logger.error("Function Error:", e);
-                // Garante que uma resposta seja enviada mesmo em caso de erro inesperado
-                if (!res.headersSent) {
-                    res.status(500).json({ success: false, error: "Internal Server Error", message: e.message });
-                }
-            }
-        });
-    });
-}
-
-export const getCongregationIdByNumberV2 = createHttpsFunction(async (req, res) => {
-    const { congregationNumber } = req.body;
+export const getCongregationIdByNumberV2 = https.onCall(async (request) => {
+    const { congregationNumber } = request.data;
     if (!congregationNumber) {
-        return res.status(400).json({ success: false, error: "O número da congregação é obrigatório." });
+        throw new https.HttpsError('invalid-argument', 'O número da congregação é obrigatório.');
     }
 
     try {
         const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).limit(1).get();
         if (congQuery.empty) {
-            return res.status(404).json({ success: false, error: "Congregação não encontrada." });
+            throw new https.HttpsError('not-found', 'Congregação não encontrada.');
         }
         const congregationId = congQuery.docs[0].id;
-        return res.status(200).json({ success: true, congregationId });
+        return { success: true, congregationId };
 
     } catch (error) {
+        if (error instanceof https.HttpsError) {
+            throw error;
+        }
         logger.error("Erro ao buscar congregação por número:", error);
-        return res.status(500).json({ success: false, error: "Erro interno no servidor." });
+        throw new https.HttpsError('internal', 'Erro interno no servidor.');
     }
 });
 
-export const createCongregationAndAdminV2 = createHttpsFunction(async (req, res) => {
+export const createCongregationAndAdminV2 = https.onCall(async (request) => {
     const {
       adminName,
       adminEmail,
@@ -79,16 +48,16 @@ export const createCongregationAndAdminV2 = createHttpsFunction(async (req, res)
       congregationName,
       congregationNumber,
       whatsapp,
-    } = req.body; // <-- DADOS VÊM DIRETAMENTE DO BODY AGORA
+    } = request.data;
 
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
-      return res.status(400).json({ success: false, error: "Todos os campos são obrigatórios." });
+      throw new https.HttpsError('invalid-argument', 'Todos os campos são obrigatórios.');
     }
 
     try {
         const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).get();
         if (!congQuery.empty) {
-            return res.status(409).json({ success: false, error: "Uma congregação com este número já existe." });
+            throw new https.HttpsError('already-exists', 'Uma congregação com este número já existe.');
         }
 
         const newUser = await admin.auth().createUser({
@@ -122,39 +91,41 @@ export const createCongregationAndAdminV2 = createHttpsFunction(async (req, res)
         } as Omit<AppUser, 'uid'>);
 
         await batch.commit();
-        return res.status(200).json({
+        return {
             success: true,
             userId: newUser.uid,
             message: "Congregação criada com sucesso!",
-        });
+        };
 
     } catch (error: any) {
         logger.error("Erro em createCongregationAndAdmin:", error);
-        if (error.code === "auth/email-already-exists") {
-            return res.status(409).json({ success: false, error: "Este e-mail já está em uso." });
-        } else {
-            return res.status(500).json({ success: false, error: error.message || "Erro interno no servidor" });
+        if (error.code === 'auth/email-already-exists') {
+            throw new https.HttpsError('already-exists', 'Este e-mail já está em uso.');
         }
+        if (error instanceof https.HttpsError) {
+          throw error;
+        }
+        throw new https.HttpsError('internal', error.message || "Erro interno no servidor");
     }
 });
 
-export const notifyOnNewUserV2 = createHttpsFunction(async (req, res) => {
-    const { newUserName, congregationId } = req.body;
+export const notifyOnNewUserV2 = https.onCall(async (request) => {
+    const { newUserName, congregationId } = request.data;
     if (!newUserName || !congregationId) {
-        return res.status(400).json({ success: false, error: "Dados insuficientes para notificação." });
+        throw new https.HttpsError('invalid-argument', "Dados insuficientes para notificação.");
     }
     try {
-        return res.status(200).json({ success: true, message: "Processo de notificação concluído (sem criar notificação no DB)." });
+        return { success: true, message: "Processo de notificação concluído (sem criar notificação no DB)." };
     } catch (error: any) {
         logger.error("Erro no processo de notificação de novo usuário:", error);
-        return res.status(500).json({ success: false, error: "Falha no processo de notificação." });
+        throw new https.HttpsError('internal', "Falha no processo de notificação.");
     }
 });
 
-export const requestPasswordResetV2 = createHttpsFunction(async (req, res) => {
-    const { email } = req.body;
+export const requestPasswordResetV2 = https.onCall(async (request) => {
+    const { email } = request.data;
     if (!email) {
-        return res.status(400).json({ success: false, error: "O e-mail é obrigatório." });
+        throw new https.HttpsError('invalid-argument', 'O e-mail é obrigatório.');
     }
 
     try {
@@ -166,26 +137,25 @@ export const requestPasswordResetV2 = createHttpsFunction(async (req, res) => {
             uid: user.uid,
             expires: admin.firestore.Timestamp.fromMillis(expires),
         });
-        return res.status(200).json({ success: true, token });
+        return { success: true, token };
     } catch (error: any) {
         if (error.code === "auth/user-not-found") {
-            // Não vaze a informação se o usuário existe ou não
-            return res.status(200).json({
+            return {
                 success: true,
                 token: null,
                 message: "Se o e-mail existir, um link será enviado.",
-            });
+            };
         } else {
             logger.error("Erro ao gerar token de redefinição:", error);
-            return res.status(500).json({ success: false, error: "Erro ao iniciar o processo de redefinição." });
+            throw new https.HttpsError('internal', "Erro ao iniciar o processo de redefinição.");
         }
     }
 });
 
-export const resetPasswordWithTokenV2 = createHttpsFunction(async (req, res) => {
-    const { token, newPassword } = req.body;
+export const resetPasswordWithTokenV2 = https.onCall(async (request) => {
+    const { token, newPassword } = request.data;
     if (!token || !newPassword) {
-        return res.status(400).json({ success: false, error: "Token e nova senha são obrigatórios." });
+        throw new https.HttpsError('invalid-argument', "Token e nova senha são obrigatórios.");
     }
 
     try {
@@ -193,32 +163,33 @@ export const resetPasswordWithTokenV2 = createHttpsFunction(async (req, res) => 
         const tokenDoc = await tokenRef.get();
 
         if (!tokenDoc.exists) {
-            return res.status(404).json({ success: false, error: "Token inválido ou já utilizado." });
+            throw new https.HttpsError('not-found', "Token inválido ou já utilizado.");
         }
         if (tokenDoc.data()?.expires.toMillis() < Date.now()) {
             await tokenRef.delete();
-            return res.status(410).json({ success: false, error: "O token de redefinição expirou." });
+            throw new https.HttpsError('deadline-exceeded', "O token de redefinição expirou.");
         }
 
         const uid = tokenDoc.data()?.uid;
         await admin.auth().updateUser(uid, { password: newPassword });
         await tokenRef.delete();
-        return res.status(200).json({ success: true });
+        return { success: true };
     } catch (error: any) {
         logger.error("Erro ao redefinir senha com token:", error);
-        return res.status(500).json({ success: false, error: "Falha ao atualizar a senha." });
+        if (error instanceof https.HttpsError) {
+          throw error;
+        }
+        throw new https.HttpsError('internal', "Falha ao atualizar a senha.");
     }
 });
 
 export const deleteUserAccountV2 = https.onCall(async (request) => {
-    // 1. Em onCall, o contexto de autenticação já vem verificado
     if (!request.auth) {
         throw new https.HttpsError('unauthenticated', 'Ação não autorizada. Faça login novamente.');
     }
     const callingUserUid = request.auth.uid;
 
     try {
-        // 2. Os dados vêm de `request.data`
         const { userIdToDelete } = request.data;
         if (!userIdToDelete) {
             throw new https.HttpsError('invalid-argument', 'ID do usuário a ser deletado é obrigatório.');
@@ -250,7 +221,6 @@ export const deleteUserAccountV2 = https.onCall(async (request) => {
             await userDocRef.delete();
         }
         
-        // 3. Retorna um objeto de sucesso
         return { success: true };
 
     } catch (error: any) {
@@ -258,7 +228,6 @@ export const deleteUserAccountV2 = https.onCall(async (request) => {
         if (error instanceof https.HttpsError) {
             throw error; // Re-lança erros HttpsError para o cliente
         }
-        // Para outros erros (ex: user-not-found no deleteUser), lança um erro genérico
         throw new https.HttpsError("internal", error.message || "Falha na exclusão.");
     }
 });
@@ -355,13 +324,9 @@ export const mirrorUserStatus = onValueWritten(
             updateData.isOnline = true;
         }
 
-        // Sempre atualiza o documento do Firestore se o usuário existir.
-        // Isso garante que lastSeen seja atualizado mesmo se o estado isOnline não mudar.
         await userDocRef.update(updateData);
         
     } catch (err: any) {
-        // Ignora o erro se o documento do usuário não for encontrado (código 5)
-        // Isso pode acontecer se o usuário for excluído enquanto o listener de presença ainda estiver ativo.
         if (err.code !== 5) { 
             logger.error(`[Presence Mirror] Falha para o UID ${uid}:`, err);
         }
@@ -369,5 +334,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
-
-    
