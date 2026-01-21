@@ -94,7 +94,7 @@ service cloud.firestore {
                         .hasAny(['status', 'assignment', 'lastUpdate', 'lastWorkedAt', 'quadraCount', 'assignmentHistory'])) ||
                     // Publicador (e outros): podem atualizar o progresso e a estrutura (casas/quadras)
                     (request.resource.data.diff(resource.data).affectedKeys()
-                        .hasAny(['stats', 'progress', 'lastUpdate', 'lastWorkedAt', 'quadraCount']))
+                        .hasAny(['stats', 'progress', 'lastUpdate', 'lastWorkedAt', 'quadraCount', 'assignmentHistory']))
                 );
 
                 // Subcoleções
@@ -106,7 +106,7 @@ service cloud.firestore {
                 }
                 match /activityHistory/{activityId} {
                     allow read, create: if isUserInCongregation(congId);
-                    allow update, delete: if isUserInCongregation(congId) && canResetProgress();
+                    allow update, delete: if isUserInCongregation(congId);
                 }
             }
         }
