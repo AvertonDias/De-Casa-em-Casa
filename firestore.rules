@@ -1,132 +1,151 @@
 rules_version = '2';
 
 service cloud.firestore {
-  match /databases/{database}/documents {
+    match /databases/{database}/documents {
 
-    // --- Funções Auxiliares ---
-    function isAuth() {
-      return request.auth != null;
-    }
+        // --- Funções Auxiliares ---
+        function isAuth() {
+            return request.auth != null;
+        }
 
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
-    }
-    
-    function isUserInCongregation(congId) {
-      let userData = getUserData(request.auth.uid);
-      return userData != null && userData.congregationId == congId;
-    }
+        function getUserData(userId) {
+            return get(/databases/$(database)/documents/users/$(userId)).data;
+        }
+            
+        function isUserInCongregation(congId) {
+            let userData = getUserData(request.auth.uid);
+            return userData != null && userData.congregationId == congId;
+        }
 
-    function isSameCongregationAsRequestingUser(targetUserId) {
-        let currentUserData = getUserData(request.auth.uid);
-        let targetUserData = getUserData(targetUserId);
-        return currentUserData != null && targetUserData != null && currentUserData.congregationId == targetUserData.congregationId;
-    }
-    
-    function isRole(role) {
-      let userData = getUserData(request.auth.uid);
-      return userData != null && userData.role == role;
-    }
-
-    function isDirigenteOrAdmin() {
-      let userRole = getUserData(request.auth.uid).role;
-      return userRole == 'Dirigente' || userRole == 'Administrador';
-    }
-
-    function canDesignateTerritories() {
-      let userRole = getUserData(request.auth.uid).role;
-      return userRole == 'Servo de Territórios' || isDirigenteOrAdmin();
-    }
-
-    function canListUsers() {
-      // Ajudante não pode listar usuários.
-      let userRole = getUserData(request.auth.uid).role;
-      return userRole == 'Servo de Territórios' || userRole == 'Dirigente' || userRole == 'Administrador';
-    }
-
-    // --- Regras da Congregação ---
-    match /congregations/{congId} {
-      allow read: if isUserInCongregation(congId);
-      
-      // Somente Admins podem editar a maioria dos dados da congregação.
-      // Outros usuários só podem atualizar os contadores de progresso através de transações.
-      allow write: if isUserInCongregation(congId) &&
-                     (isRole('Administrador') ||
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalHouses', 'totalHousesDone']));
-
-      // --- Regras dos Territórios ---
-      match /territories/{terrId} {
-        allow read: if isUserInCongregation(congId);
-        allow create, delete: if isRole('Administrador') && isUserInCongregation(congId);
+        function isSameCongregationAsRequestingUser(targetUserId) {
+            let currentUserData = getUserData(request.auth.uid);
+            let targetUserData = getUserData(targetUserId);
+            return currentUserData != null && targetUserData != null && currentUserData.congregationId == targetUserData.congregationId;
+        }
+            
+        function isRole(role) {
+            let userData = getUserData(request.auth.uid);
+            return userData != null && userData.role == role;
+        }
         
-        // Regra de atualização granular para territórios
-        allow update: if isUserInCongregation(congId) && (
-                      // Qualquer usuário autenticado pode atualizar os campos de progresso (ao marcar casa)
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stats', 'progress', 'lastUpdate', 'lastWorkedAt'])
-                      ||
-                      // Servos de território e superiores podem gerenciar designações e limpar progresso
-                      (canDesignateTerritories() && (
-                        request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'assignment', 'assignmentHistory', 'stats', 'progress'])
-                      ))
-                      ||
-                      // Dirigentes e Admins podem editar os dados principais do território
-                      (isDirigenteOrAdmin() && (
-                        request.resource.data.diff(resource.data).hasAny(['name', 'number', 'description', 'mapLink', 'cardUrl', 'links'])
-                      ))
-                    );
-
-        // Regra para subcoleções de territórios
-        match /quadras/{quadraId} {
-          allow read, write: if isUserInCongregation(congId);
-          match /casas/{casaId} {
-            allow read, write: if isUserInCongregation(congId);
-          }
+        function isAdmin() {
+            return isRole('Administrador');
         }
-        match /activityHistory/{activityId} {
-            allow read, write: if isUserInCongregation(congId);
+        
+        function isDirigente() {
+            return isRole('Dirigente');
         }
-      }
+        
+        function isServoTerritorios() {
+            return isRole('Servo de Territórios');
+        }
+        
+        function isAjudanteServo() {
+            return isRole('Ajudante de Servo de Territórios');
+        }
+
+        function isDirigenteOrAdmin() {
+            return isDirigente() || isAdmin();
+        }
+        
+        // Permissão para designar e devolver territórios
+        function canManageAssignments() {
+            return isAjudanteServo() || isServoTerritorios() || isDirigenteOrAdmin();
+        }
+        
+        // Permissão para limpar o progresso do território
+        function canResetProgress() {
+            return isServoTerritorios() || isDirigenteOrAdmin();
+        }
+        
+        // Permissão para aprovar novos usuários
+        function canApproveUsers() {
+            return isServoTerritorios() || isDirigenteOrAdmin();
+        }
+
+        // Permissão para ver a lista de usuários
+        function canListUsers() {
+            return isServoTerritorios() || isDirigenteOrAdmin();
+        }
+        
+        // --- Regras da Congregação ---
+        match /congregations/{congId} {
+            allow read: if isUserInCongregation(congId);
+            allow write: if isUserInCongregation(congId) &&
+                         (isAdmin() ||
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalHouses', 'totalHousesDone']));
+
+            // --- Regras dos Territórios ---
+            match /territories/{terrId} {
+                allow read: if isUserInCongregation(congId);
+                allow create, delete: if isAdmin() && isUserInCongregation(congId);
+                
+                // Regra de atualização granular para territórios
+                allow update: if isUserInCongregation(congId) && (
+                    // Admin pode editar tudo
+                    isAdmin() ||
+                    // Dirigente: pode editar dados, gerenciar e resetar, mas não o histórico de atribuição
+                    (isDirigente() && !('assignmentHistory' in request.resource.data.diff(resource.data).affectedKeys())) ||
+                    // Servo de Território: pode gerenciar e resetar o progresso
+                    (isServoTerritorios() && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['status', 'assignment', 'stats', 'progress', 'lastUpdate', 'lastWorkedAt'])) ||
+                    // Ajudante: apenas gerencia atribuição (designar/devolver)
+                    (isAjudanteServo() && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['status', 'assignment', 'lastUpdate', 'lastWorkedAt'])) ||
+                    // Publicador (e outros): podem atualizar o progresso (ação de marcar casa)
+                    (request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['stats', 'progress', 'lastUpdate', 'lastWorkedAt']))
+                );
+
+                // Subcoleções
+                match /quadras/{quadraId} {
+                    allow read, write: if isUserInCongregation(congId);
+                    match /casas/{casaId} {
+                        allow read, write: if isUserInCongregation(congId);
+                    }
+                }
+                match /activityHistory/{activityId} {
+                    allow create: if isUserInCongregation(congId);
+                    allow read, update, delete: if isUserInCongregation(congId) && canResetProgress();
+                }
+            }
+        }
+
+        // --- Regras de Usuários ---
+        match /users/{userId} {
+            allow create: if request.auth.uid == userId;
+            allow get: if isAuth() && (request.auth.uid == userId || isSameCongregationAsRequestingUser(userId));
+            allow list: if canListUsers();
+
+            // Usuário pode atualizar seu próprio nome e whatsapp
+            allow update: if request.auth.uid == userId && 
+                request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'whatsapp']);
+
+            // Admin pode atualizar qualquer campo de outro usuário
+            allow update: if isAdmin() && isSameCongregationAsRequestingUser(userId);
+                
+            // Servos, Dirigentes e Admins podem aprovar/rejeitar usuários pendentes
+            allow update: if canApproveUsers() && isSameCongregationAsRequestingUser(userId)
+                && resource.data.status == 'pendente'
+                && (request.resource.data.status == 'ativo' || request.resource.data.status == 'rejeitado')
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+
+            allow delete: if isAdmin() && request.auth.uid != userId && isSameCongregationAsRequestingUser(userId);
+
+            match /notifications/{notificationId} {
+                allow read, update, delete: if request.auth.uid == userId;
+                allow create: if request.auth.uid == userId || ( canManageAssignments() && isSameCongregationAsRequestingUser(userId) );
+            }
+        }
+
+        // --- Outras Coleções ---
+        match /feedbacks/{feedbackId} {
+            allow create: if isAuth();
+            allow read, update, delete: if false; 
+        }
+
+        match /resetTokens/{tokenId} {
+            allow read, write: if false;
+        }
     }
-
-    // --- Regras de Usuários ---
-    match /users/{userId} {
-      allow create: if request.auth.uid == userId;
-      allow get: if isAuth() && (request.auth.uid == userId || isSameCongregationAsRequestingUser(userId));
-      allow list: if canListUsers();
-
-      // Usuário pode atualizar seu próprio nome e whatsapp
-      allow update: if request.auth.uid == userId && 
-                      !('role' in request.resource.data) &&
-                      !('status' in request.resource.data) &&
-                      !('congregationId' in request.resource.data);
-
-      // Admin pode atualizar qualquer campo de outro usuário
-      allow update: if isRole('Administrador') && isSameCongregationAsRequestingUser(userId);
-      
-      // Dirigente só pode aprovar/rejeitar usuários pendentes
-      allow update: if isRole('Dirigente') && isSameCongregationAsRequestingUser(userId)
-                    && resource.data.status == 'pendente'
-                    && (request.resource.data.status == 'ativo' || request.resource.data.status == 'rejeitado')
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
-
-      // Admin pode deletar outros usuários
-      allow delete: if isRole('Administrador') && request.auth.uid != userId && isSameCongregationAsRequestingUser(userId);
-
-      match /notifications/{notificationId} {
-        allow read, update, delete: if request.auth.uid == userId;
-        // Qualquer gerente pode criar notificação para outro usuário
-        allow create: if request.auth.uid == userId || ( (isRole('Ajudante de Servo de Territórios') || canDesignateTerritories()) && isSameCongregationAsRequestingUser(userId) );
-      }
-    }
-
-    // --- Outras Coleções ---
-    match /feedbacks/{feedbackId} {
-      allow create: if isAuth();
-      allow read, update, delete: if false; 
-    }
-
-    match /resetTokens/{tokenId} {
-      allow read, write: if false;
-    }
-  }
 }

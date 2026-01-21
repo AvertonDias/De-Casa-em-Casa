@@ -28,7 +28,7 @@ Este documento detalha o que cada tipo de usuário (perfil) pode fazer dentro do
 | **USUÁRIOS (`/usuarios`)** | | | | | |
 | Ver a lista de todos os usuários | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Ver status (Online/Offline) de outros | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Aprovar ou Rejeitar novos usuários | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Aprovar ou Rejeitar novos usuários | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Editar o **perfil** de outros usuários (ex: Publicador para Dirigente) | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Editar o **status** de outros usuários (ex: ativo para bloqueado) | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Excluir a conta de outro usuário | ❌ | ❌ | ❌ | ❌ | ✅ |
@@ -43,8 +43,8 @@ Este documento detalha o que cada tipo de usuário (perfil) pode fazer dentro do
 | | | | | | |
 | **ADMINISTRAÇÃO (`/administracao`)** | | | | | |
 | Acessar a página de Administração | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Designar territórios para publicadores | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Devolver territórios em nome de outros | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Designar territórios para publicadores | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Devolver territórios em nome de outros | ❌ | ✅ | ✅ | ✅ | ✅ |
 | Ver relatórios (Cobertura, Disponíveis, S-13) | ❌ | ✅ | ✅ | ✅ | ✅ |
 | Editar configurações da congregação | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Editar histórico de designação | ❌ | ❌ | ❌ | ❌ | ✅ |
