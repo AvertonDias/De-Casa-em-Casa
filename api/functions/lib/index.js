@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.mirrorUserStatus = exports.onDeleteQuadra = exports.onDeleteTerritory = exports.deleteUserAccountV2 = exports.resetPasswordWithTokenV2 = exports.requestPasswordResetV2 = exports.notifyOnNewUserV2 = exports.createCongregationAndAdminV2 = exports.getCongregationIdByNumberV2 = void 0;
+exports.mirrorUserStatus = exports.onDeleteQuadra = exports.onDeleteTerritory = exports.deleteUserAccountV2 = exports.completeUserProfileV2 = exports.resetPasswordWithTokenV2 = exports.requestPasswordResetV2 = exports.notifyOnNewUserV2 = exports.createCongregationAndAdminV2 = exports.getCongregationIdByNumberV2 = void 0;
 const v2_1 = require("firebase-functions/v2");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const database_1 = require("firebase-functions/v2/database");
@@ -50,7 +50,11 @@ if (!firebase_admin_1.default.apps.length) {
 const db = firebase_admin_1.default.firestore();
 (0, v2_1.setGlobalOptions)({ region: "southamerica-east1" });
 // Initialize CORS handler as per user instructions
-const corsHandler = (0, cors_1.default)({ origin: true });
+const corsHandler = (0, cors_1.default)({
+    origin: true,
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+});
 // ========================================================================
 //   HTTPS onRequest Functions (with CORS)
 // ========================================================================
@@ -221,47 +225,111 @@ exports.resetPasswordWithTokenV2 = v2_1.https.onRequest({ region: "southamerica-
         }
     });
 });
-// ========================================================================
-//   FUNÇÕES HTTPS (onCall) - For internal app calls from authenticated users
-// ========================================================================
-exports.deleteUserAccountV2 = v2_1.https.onCall(async (request) => {
-    if (!request.auth) {
-        throw new v2_1.https.HttpsError('unauthenticated', 'Ação não autorizada. Faça login novamente.');
-    }
-    const callingUserUid = request.auth.uid;
-    try {
-        const { userIdToDelete } = request.data;
-        if (!userIdToDelete) {
-            throw new v2_1.https.HttpsError('invalid-argument', 'ID do usuário a ser deletado é obrigatório.');
+exports.completeUserProfileV2 = v2_1.https.onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, async () => {
+        var _a;
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
         }
-        const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-        const callingUserData = callingUserSnap.data();
-        if (!callingUserData) {
-            throw new v2_1.https.HttpsError('not-found', 'Usuário requisitante não encontrado.');
+        try {
+            const idToken = (_a = req.headers.authorization) === null || _a === void 0 ? void 0 : _a.split('Bearer ')[1];
+            if (!idToken) {
+                res.status(401).json({ error: { message: "Ação não autorizada. Token ausente." } });
+                return;
+            }
+            const decodedToken = await firebase_admin_1.default.auth().verifyIdToken(idToken);
+            const uid = decodedToken.uid;
+            const name = decodedToken.name || 'Nome não encontrado';
+            const email = decodedToken.email;
+            const { congregationId, whatsapp } = req.body.data;
+            if (!congregationId || !whatsapp || !email) {
+                res.status(400).json({ error: { message: "Dados insuficientes para criar o perfil." } });
+                return;
+            }
+            const userDocRef = db.collection("users").doc(uid);
+            const userDoc = await userDocRef.get();
+            if (userDoc.exists) {
+                res.status(200).json({ data: { success: true, message: "Perfil já existe." } });
+                return;
+            }
+            await userDocRef.set({
+                name: name,
+                email: email,
+                whatsapp: whatsapp,
+                congregationId: congregationId,
+                role: "Publicador",
+                status: "pendente",
+                createdAt: firebase_admin_1.default.firestore.FieldValue.serverTimestamp(),
+                lastSeen: firebase_admin_1.default.firestore.FieldValue.serverTimestamp()
+            });
+            res.status(200).json({ data: { success: true, message: "Perfil de usuário criado com sucesso." } });
         }
-        const isCallingUserAdmin = callingUserData.role === "Administrador";
-        const isSelfDelete = callingUserUid === userIdToDelete;
-        const isAdminDeletingOther = isCallingUserAdmin && !isSelfDelete;
-        if (isCallingUserAdmin && isSelfDelete) {
-            throw new v2_1.https.HttpsError('permission-denied', 'Admin não pode se autoexcluir por esta função.');
+        catch (error) {
+            v2_1.logger.error(`Erro ao completar perfil:`, error);
+            if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error') {
+                res.status(401).json({ error: { message: "Token de autenticação inválido ou expirado." } });
+            }
+            else {
+                res.status(500).json({ error: { message: error.message || "Falha ao criar perfil de usuário." } });
+            }
         }
-        if (!isSelfDelete && !isAdminDeletingOther) {
-            throw new v2_1.https.HttpsError('permission-denied', 'Sem permissão para esta ação.');
+    });
+});
+exports.deleteUserAccountV2 = v2_1.https.onRequest({ region: "southamerica-east1" }, (req, res) => {
+    corsHandler(req, res, async () => {
+        var _a;
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
         }
-        await firebase_admin_1.default.auth().deleteUser(userIdToDelete);
-        const userDocRef = db.collection("users").doc(userIdToDelete);
-        if ((await userDocRef.get()).exists) {
-            await userDocRef.delete();
+        try {
+            const idToken = (_a = req.headers.authorization) === null || _a === void 0 ? void 0 : _a.split('Bearer ')[1];
+            if (!idToken) {
+                res.status(401).json({ error: { message: "Ação não autorizada. Token ausente." } });
+                return;
+            }
+            const decodedToken = await firebase_admin_1.default.auth().verifyIdToken(idToken);
+            const callingUserUid = decodedToken.uid;
+            const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
+            const callingUserData = callingUserSnap.data();
+            if (!callingUserData) {
+                res.status(404).json({ error: { message: 'Usuário requisitante não encontrado.' } });
+                return;
+            }
+            const { userIdToDelete } = req.body.data;
+            if (!userIdToDelete) {
+                res.status(400).json({ error: { message: 'ID do usuário a ser deletado é obrigatório.' } });
+                return;
+            }
+            const isCallingUserAdmin = callingUserData.role === "Administrador";
+            const isSelfDelete = callingUserUid === userIdToDelete;
+            const isAdminDeletingOther = isCallingUserAdmin && !isSelfDelete;
+            if (isCallingUserAdmin && isSelfDelete) {
+                res.status(403).json({ error: { message: 'Admin não pode se autoexcluir por esta função.' } });
+                return;
+            }
+            if (!isSelfDelete && !isAdminDeletingOther) {
+                res.status(403).json({ error: { message: 'Sem permissão para esta ação.' } });
+                return;
+            }
+            await firebase_admin_1.default.auth().deleteUser(userIdToDelete);
+            const userDocRef = db.collection("users").doc(userIdToDelete);
+            if ((await userDocRef.get()).exists) {
+                await userDocRef.delete();
+            }
+            res.status(200).json({ data: { success: true } });
         }
-        return { success: true };
-    }
-    catch (error) {
-        v2_1.logger.error("Erro ao excluir usuário:", error);
-        if (error instanceof v2_1.https.HttpsError) {
-            throw error; // Re-lança erros HttpsError para o cliente
+        catch (error) {
+            v2_1.logger.error("Erro ao excluir usuário:", error);
+            if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error') {
+                res.status(401).json({ error: { message: "Token de autenticação inválido ou expirado." } });
+            }
+            else {
+                res.status(500).json({ error: { message: error.message || "Falha na exclusão." } });
+            }
         }
-        throw new v2_1.https.HttpsError("internal", error.message || "Falha na exclusão.");
-    }
+    });
 });
 // ========================================================================
 //   GATILHOS FIRESTORE
