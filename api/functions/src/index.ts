@@ -14,12 +14,17 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
-// Initialize CORS handler as per user instructions
+// CORREÇÃO: corsHandler definitivo para permitir o cabeçalho de instância do Firebase
 const corsHandler = cors({
-  origin: true,
+  origin: true, // Permite qualquer origem. Para produção, restrinja a domínios específicos.
   methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "firebase-instance-id-token"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "firebase-instance-id-token" // Essencial para chamadas do SDK do cliente
+  ],
 });
+
 
 // ========================================================================
 //   HTTPS onRequest Functions (with CORS)
@@ -423,5 +428,3 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
-
-    
