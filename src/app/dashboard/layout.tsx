@@ -91,12 +91,15 @@ function Sidebar({
         await navigator.share(shareData);
         shared = true;
       } catch (err: any) {
+        // Ignora AbortError, mas loga outros erros.
+        // O fallback para clipboard ocorrerá naturalmente.
         if (err.name !== 'AbortError') {
           console.error("Erro na API de compartilhamento:", err);
         }
       }
     }
-
+    
+    // Fallback 1: Tentar copiar para a área de transferência
     if (!shared && typeof navigator !== 'undefined' && navigator.clipboard) {
       try {
         await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
@@ -110,6 +113,7 @@ function Sidebar({
       }
     }
     
+    // Fallback 2: Abrir em nova aba (último recurso)
     if (!shared) {
        try {
          window.open(shareData.url, '_blank');
@@ -223,12 +227,12 @@ function Sidebar({
                     <Share2 className="mr-2" size={20} /> Compartilhar App
                 </Button>
               <FeedbackModal />
-              <Link href="/sobre" className="w-full block">
+              <a href="https://aplicativos-ton.vercel.app/de-casa-em-casa" target="_blank" rel="noopener noreferrer" className="w-full block">
                 <Button variant="outline" className="w-full justify-center text-primary border-primary/50 hover:bg-primary/10 hover:text-primary">
                     <Info className="mr-2" size={20} />
                     Sobre
                 </Button>
-              </Link>
+              </a>
               <Button onClick={() => setIsLogoutConfirmOpen(true)} variant="outline" className="w-full justify-center text-red-500 border-red-500/50 hover:bg-red-500/10 hover:text-red-500 dark:text-red-400 dark:border-red-400/50 dark:hover:bg-red-400/10 dark:hover:text-red-400">
                   <LogOut className="mr-2" size={20} />
                   Sair
