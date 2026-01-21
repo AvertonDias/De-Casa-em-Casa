@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'; 
-import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
+import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { functions } from '@/lib/firebase';
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
@@ -61,32 +61,37 @@ export default function SignUpPage() {
         }
         
         const congregationId = data.congregationId;
-      
-      // O UserContext agora é responsável por criar o documento do usuário ao detectar o novo auth state.
-      // O 'UserProvider' tem acesso a esses dados via sessionStorage para completar o perfil.
-      sessionStorage.setItem('pendingUserData', JSON.stringify({
-        name: name.trim(),
-        whatsapp,
-        congregationId,
-        role: "Publicador",
-        status: "pendente"
-      }));
 
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(userCredential.user, { displayName: name.trim() });
+        // 1. Create the Auth user
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(userCredential.user, { displayName: name.trim() });
+        
+        // 2. Directly create the Firestore user document
+        const userDocRef = doc(db, 'users', userCredential.user.uid);
+        await setDoc(userDocRef, {
+            name: name.trim(),
+            whatsapp: whatsapp,
+            congregationId: congregationId,
+            role: "Publicador",
+            status: "pendente",
+            email: email, // Save email in the document as well
+            photoURL: userCredential.user.photoURL,
+            createdAt: serverTimestamp(),
+            lastSeen: serverTimestamp()
+        });
+        
+        // 3. Notify admins (optional)
+        await notifyOnNewUser({ newUserName: name.trim(), congregationId });
       
-      await notifyOnNewUser({ newUserName: name.trim(), congregationId });
+        toast({
+            title: 'Solicitação enviada!',
+            description: 'Seu acesso agora precisa ser aprovado por um administrador.',
+            variant: 'default',
+        });
       
-      toast({
-        title: 'Solicitação enviada!',
-        description: 'Seu acesso agora precisa ser aprovado por um administrador.',
-        variant: 'default',
-      });
-      
-      // O UserContext irá detectar o usuário logado e redirecioná-lo automaticamente.
+        // O UserContext irá detectar o usuário logado e redirecioná-lo automaticamente para a página de espera.
       
     } catch (err: any) {
-      sessionStorage.removeItem('pendingUserData'); // Limpa em caso de erro
       console.error("Erro detalhado no cadastro:", err);
 
       let message = err.message || "Ocorreu um erro desconhecido.";
@@ -101,6 +106,8 @@ export default function SignUpPage() {
         ); 
       } else if (message.includes("Congregação não encontrada")) {
           setError("Número da congregação inválido ou não encontrado.");
+      } else if (err.code === 'permission-denied') {
+          setError("Erro de permissão. Verifique as regras de segurança do Firestore.");
       }
       else { 
           setError("Ocorreu um erro ao criar a conta: " + message); 

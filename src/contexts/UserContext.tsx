@@ -1,3 +1,4 @@
+
 "use client";
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
@@ -71,20 +72,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
       listenersRef.current.user = onSnapshot(userRef, async (userDoc) => {
         if (!userDoc.exists()) {
-          const pendingDataStr = sessionStorage.getItem('pendingUserData');
-          if (pendingDataStr) {
-            try {
-              const pendingData = JSON.parse(pendingDataStr);
-              await setDoc(userRef, {
-                email: firebaseUser.email, name: firebaseUser.displayName, photoURL: firebaseUser.photoURL,
-                ...pendingData,
-                createdAt: serverTimestamp(), lastSeen: serverTimestamp()
-              });
-              sessionStorage.removeItem('pendingUserData');
-            } catch (error) { logout('/'); }
-          } else { logout('/'); }
-          setLoading(false);
-          return;
+            // This case should ideally not happen for a new user if the signup flow works correctly.
+            // It might happen if an admin deletes the user doc but not the auth user.
+            // Logging out is a safe way to handle this inconsistent state.
+            console.warn(`User document for UID ${firebaseUser.uid} not found. Logging out.`);
+            logout('/');
+            setLoading(false);
+            return;
         }
 
         const rawData = userDoc.data();
