@@ -15,7 +15,6 @@ import { httpsCallable } from 'firebase/functions';
 
 const getCongregationIdByNumber = httpsCallable(functions, 'getCongregationIdByNumberV2');
 const notifyOnNewUser = httpsCallable(functions, 'notifyOnNewUserV2');
-const completeUserProfile = httpsCallable(functions, 'completeUserProfileV2');
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -66,12 +65,29 @@ export default function SignUpPage() {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName: name.trim() });
         
-        // 2. Call backend to create Firestore document
-        await completeUserProfile({
-            congregationId,
-            whatsapp,
+        const user = userCredential.user;
+        const token = await user.getIdToken();
+
+        // 2. Call backend to create Firestore document via fetch to ensure Authorization header is correctly sent
+        const response = await fetch("https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/completeUserProfileV2", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                data: {
+                    congregationId,
+                    whatsapp,
+                }
+            })
         });
         
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({ error: { message: "Erro desconhecido no servidor." } }));
+            throw new Error(errorBody.error?.message || 'Falha ao completar o perfil do usuário.');
+        }
+      
         // 3. Notify admins (optional)
         await notifyOnNewUser({ newUserName: name.trim(), congregationId });
       
