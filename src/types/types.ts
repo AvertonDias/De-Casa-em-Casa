@@ -116,6 +116,7 @@ export interface Casa {
     uid: string;
     name: string;
   };
+  activityLogId?: string; // ID do registro de atividade associado
 }
 
 

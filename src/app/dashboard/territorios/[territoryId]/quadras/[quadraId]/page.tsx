@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc, runTransaction, getDocs, addDoc, serverTimestamp, Timestamp, where, limit, DocumentReference } from 'firebase/firestore';
+import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc, runTransaction, getDocs, addDoc, serverTimestamp, Timestamp, where, limit, DocumentReference, deleteField } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil, X, GripVertical, ChevronsUpDown } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
@@ -179,27 +179,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     const activityHistoryRef = collection(territoryRef, 'activityHistory');
 
     try {
-        const quadraSnap = await getDoc(quadraRef);
-        if (!quadraSnap.exists()) {
-            throw new Error("Quadra não encontrada para a transação.");
-        }
-        const quadraName = quadraSnap.data().name;
-        
-        let logToDeleteRef: DocumentReference | null = null;
-        if (!newStatus) {
-            const logQuery = query(
-                activityHistoryRef,
-                where("type", "==", "work"),
-                where("description", "==", `Casa ${casa.number} (da ${quadraName}) foi feita.`),
-                orderBy("activityDate", "desc"),
-                limit(1)
-            );
-            const logSnapshot = await getDocs(logQuery);
-            if (!logSnapshot.empty) {
-                logToDeleteRef = logSnapshot.docs[0].ref;
-            }
-        }
-
         await runTransaction(db, async (transaction) => {
             const [congDoc, territoryDoc, quadraDoc, casaDoc] = await Promise.all([
                 transaction.get(congRef),
@@ -213,21 +192,17 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             }
 
             const wasDone = casaDoc.data().status === true;
-            if (wasDone === newStatus) return;
+            if (wasDone === newStatus) return; // No change needed
 
             const increment = newStatus ? 1 : -1;
 
+            // --- Update stats ---
             const newQuadraHousesDone = (quadraDoc.data().housesDone || 0) + increment;
             const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + increment;
             const territoryTotalHouses = territoryDoc.data().stats.totalHouses || 0;
             const newTerritoryProgress = territoryTotalHouses > 0 ? newTerritoryHousesDone / territoryTotalHouses : 0;
             const newCongTotalHousesDone = (congDoc.data().totalHousesDone || 0) + increment;
 
-            const casaUpdateData: any = { status: newStatus };
-            if (newStatus) {
-                casaUpdateData.lastWorkedBy = { uid: user.uid, name: user.name };
-            }
-            transaction.update(casaRef, casaUpdateData);
             transaction.update(quadraRef, { housesDone: newQuadraHousesDone });
             
             const territoryUpdateData: any = {
@@ -241,18 +216,37 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             transaction.update(territoryRef, territoryUpdateData);
             
             transaction.update(congRef, { totalHousesDone: newCongTotalHousesDone });
-            
+
+            // --- Handle Casa and Activity Log ---
             if (newStatus) {
-              const newActivityRef = doc(activityHistoryRef);
-              transaction.set(newActivityRef, {
-                  type: "work",
-                  activityDate: Timestamp.now(),
-                  description: `Casa ${casa.number} (da ${quadraDoc.data().name}) foi feita.`,
-                  userId: 'automatic_system_log',
-                  userName: user.name,
-              });
-            } else if (logToDeleteRef) {
-                transaction.delete(logToDeleteRef);
+                // Marking as DONE
+                const newActivityRef = doc(activityHistoryRef);
+                transaction.set(newActivityRef, {
+                    type: "work",
+                    activityDate: Timestamp.now(),
+                    description: `Casa ${casa.number} (da ${quadraDoc.data().name}) foi feita.`,
+                    userId: 'automatic_system_log',
+                    userName: user.name,
+                });
+                
+                transaction.update(casaRef, { 
+                    status: true,
+                    lastWorkedBy: { uid: user.uid, name: user.name },
+                    activityLogId: newActivityRef.id // Store the log ID
+                });
+
+            } else {
+                // Un-marking as NOT DONE
+                const activityLogIdToDelete = casaDoc.data().activityLogId;
+                if (activityLogIdToDelete) {
+                    const logToDeleteRef = doc(activityHistoryRef, activityLogIdToDelete);
+                    transaction.delete(logToDeleteRef);
+                }
+
+                transaction.update(casaRef, {
+                    status: false,
+                    activityLogId: deleteField() // Remove the log ID
+                });
             }
         });
     } catch (error) {
