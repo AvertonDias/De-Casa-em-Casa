@@ -9,10 +9,8 @@ import { Label } from '@/components/ui/label';
 import { KeyRound, MailCheck, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { sendPasswordResetEmail } from '@/lib/emailService';
-import { functions } from '@/lib/firebase';
-import { httpsCallable } from 'firebase/functions';
 
-const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
+const functionUrl = (name: string) => `https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/${name}`;
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -25,12 +23,17 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-        const result = await requestPasswordReset({ email });
-        const data = result.data as { success: boolean; token?: string | null; error?: string; };
-
-        if (!data.success) {
-            throw new Error(data.error || `Ocorreu um erro desconhecido.`);
+        const res = await fetch(functionUrl('requestPasswordResetV2'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: { email } })
+        });
+        const resData = await res.json();
+        
+        if (!res.ok) {
+            throw new Error(resData.error?.message || "Ocorreu um erro desconhecido.");
         }
+        const data = resData.data;
         
         if (data.token) {
             const resetLink = `${window.location.origin}/auth/action?token=${data.token}`;

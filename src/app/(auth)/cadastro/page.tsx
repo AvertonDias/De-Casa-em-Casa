@@ -4,18 +4,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'; 
-import { functions } from '@/lib/firebase';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Eye, EyeOff } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { maskPhone } from '@/lib/utils';
-import { httpsCallable } from 'firebase/functions';
 
-const getCongregationIdByNumber = httpsCallable(functions, 'getCongregationIdByNumberV2');
-const completeUserProfile = httpsCallable(functions, 'completeUserProfileV2');
-const notifyOnNewUser = httpsCallable(functions, 'notifyOnNewUserV2');
+const functionUrl = (name: string) => `https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/${name}`;
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -53,27 +49,47 @@ export default function SignUpPage() {
     setError(null);
     
     try {
-        const result = await getCongregationIdByNumber({ congregationNumber: congregationNumber.trim() });
-        const data = result.data as { success: boolean, congregationId?: string, error?: { message: string } };
-
-        if (!data.success || !data.congregationId) {
-            throw new Error("Número da congregação inválido ou não encontrado.");
-        }
+        const congIdRes = await fetch(functionUrl('getCongregationIdByNumberV2'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: { congregationNumber: congregationNumber.trim() } })
+        });
+        const congIdData = await congIdRes.json();
         
-        const congregationId = data.congregationId;
+        if (!congIdRes.ok || !congIdData.data.success) {
+            throw new Error(congIdData.error?.message || "Número da congregação inválido ou não encontrado.");
+        }
+        const congregationId = congIdData.data.congregationId;
 
         // 1. Criar usuário no Auth
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName: name.trim() });
+        const user = userCredential.user;
 
-        // 2. Forçar a atualização do token para garantir que o backend tenha o contexto de autenticação
-        await userCredential.user.getIdToken(true);
+        // 2. Gera o token JWT do Firebase
+        const token = await user.getIdToken();
         
         // 3. Chamar a função de backend para criar o perfil no Firestore
-        await completeUserProfile({ congregationId, whatsapp });
-      
+        const completeProfileRes = await fetch(functionUrl('completeUserProfileV2'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ data: { congregationId, whatsapp } })
+        });
+
+        if (!completeProfileRes.ok) {
+            const errorData = await completeProfileRes.json();
+            throw new Error(errorData.error?.message || 'Falha ao criar perfil de usuário.');
+        }
+
         // 4. Notificar administradores (opcional)
-        await notifyOnNewUser({ newUserName: name.trim(), congregationId });
+        await fetch(functionUrl('notifyOnNewUserV2'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: { newUserName: name.trim(), congregationId } })
+        });
       
         toast({
             title: 'Solicitação enviada!',
@@ -81,22 +97,13 @@ export default function SignUpPage() {
             variant: 'default',
         });
       
-        // O UserContext cuidará do redirecionamento após detectar o novo usuário.
-      
     } catch (err: any) {
       console.error("Erro detalhado no cadastro:", err);
 
       let message = err.message || "Ocorreu um erro desconhecido.";
       if (err.code === 'auth/email-already-in-use') { 
-        setError(
-            <>
-              Este e-mail já está em uso. 
-              <Link href="/recuperar-senha" className="font-bold underline ml-1">
-                 Esqueceu a senha?
-              </Link>
-            </>
-        ); 
-      } else if (message.includes("Congregação não encontrada")) {
+        setError(<>Este e-mail já está em uso. <Link href="/recuperar-senha" className="font-bold underline ml-1">Esqueceu a senha?</Link></>); 
+      } else if (message.includes("congregationNumber") || message.includes("Congregação não encontrada")) {
           setError("Número da congregação inválido ou não encontrado.");
       } else if (err.code === 'functions/internal' || err.code === 'internal') {
           setError("Ocorreu um erro ao criar o seu perfil no banco de dados. Tente novamente ou contate o suporte.");

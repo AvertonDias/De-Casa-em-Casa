@@ -3,9 +3,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, auth, app } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Loader, Search, SlidersHorizontal, ChevronUp, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
@@ -16,9 +15,7 @@ import type { AppUser, Congregation } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 import { getIdToken } from 'firebase/auth';
 
-const functions = getFunctions(app, 'southamerica-east1');
-const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
-
+const functionUrl = (name: string) => `https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/${name}`;
 
 export default function UserManagement() {
   const { user: currentUser, loading: userLoading, congregation } = useUser(); 
@@ -51,7 +48,20 @@ export default function UserManagement() {
     
     setIsConfirmModalOpen(false);
     try {
-        await deleteUserAccount({ userIdToDelete: userToDelete.uid });
+        const token = await auth.currentUser.getIdToken();
+        const res = await fetch(functionUrl('deleteUserAccountV2'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ data: { userIdToDelete: userToDelete.uid } })
+        });
+        if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error?.message || 'Falha ao excluir usuário.');
+        }
+
         toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {
         toast({ title: "Erro", description: error.message || "Falha ao excluir usuário.", variant: "destructive"});
@@ -405,7 +415,3 @@ export default function UserManagement() {
     </>
   );
 }
-
-
-
-    

@@ -11,10 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader, KeyRound, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { functions } from '@/lib/firebase';
-import { httpsCallable } from 'firebase/functions';
 
-const resetPasswordWithToken = httpsCallable(functions, 'resetPasswordWithTokenV2');
+const functionUrl = (name: string) => `https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/${name}`;
 
 function PasswordResetAction() {
   const searchParams = useSearchParams();
@@ -59,11 +57,15 @@ function PasswordResetAction() {
     setStage('verifying');
 
     try {
-      const result = await resetPasswordWithToken({ token, newPassword });
-      const data = result.data as { success: boolean; error?: string; };
+      const res = await fetch(functionUrl('resetPasswordWithTokenV2'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { token, newPassword } })
+      });
+      const resData = await res.json();
 
-      if (!data.success) {
-          throw new Error(data.error || `Ocorreu um erro desconhecido.`);
+      if (!res.ok) {
+          throw new Error(resData.error?.message || `Ocorreu um erro desconhecido.`);
       }
 
       setStage('success');

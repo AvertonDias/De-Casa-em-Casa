@@ -9,11 +9,10 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Loader, Eye, EyeOff } from "lucide-react"; 
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, functions } from '@/lib/firebase';
-import { httpsCallable } from 'firebase/functions';
+import { auth } from '@/lib/firebase';
 import { maskPhone } from '@/lib/utils'; 
 
-const createCongregationAndAdmin = httpsCallable(functions, 'createCongregationAndAdminV2');
+const functionUrl = (name: string) => `https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/${name}`;
 
 export default function NovaCongregacaoPage() {
   const [adminName, setAdminName] = useState('');
@@ -59,11 +58,15 @@ export default function NovaCongregacaoPage() {
     };
 
     try {
-        const result = await createCongregationAndAdmin(dataToSend);
-        const data = result.data as { success: boolean; error?: string; userId?: string; };
+        const res = await fetch(functionUrl('createCongregationAndAdminV2'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: dataToSend })
+        });
+        const result = await res.json();
         
-        if (!data.success) {
-            throw new Error(data.error || `Ocorreu um erro desconhecido.`);
+        if (!res.ok) {
+            throw new Error(result.error?.message || `Ocorreu um erro desconhecido.`);
         }
         
         toast({ title: "Congregação Criada!", description: "Fazendo login automaticamente...", });
