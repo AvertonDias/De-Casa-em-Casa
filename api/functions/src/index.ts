@@ -18,7 +18,7 @@ setGlobalOptions({ region: "southamerica-east1" });
 const corsHandler = cors({
   origin: true,
   methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "firebase-instance-id-token"],
 });
 
 // ========================================================================
@@ -423,3 +423,5 @@ export const mirrorUserStatus = onValueWritten(
     return null;
   }
 );
+
+    
