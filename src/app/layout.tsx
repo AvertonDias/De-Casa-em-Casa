@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { PT_Sans } from 'next/font/google'; // Importar a fonte
 import "./globals.css";
+import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
 
 // Configurar a fonte
 const ptSans = PT_Sans({
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode; })
           >
             <ModalProvider>
               <FontSizeProvider>
+                <ServiceWorkerRegistrar />
                 {children}
                 <Toaster />
               </FontSizeProvider>
