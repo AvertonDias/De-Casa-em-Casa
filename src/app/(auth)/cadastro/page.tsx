@@ -4,14 +4,18 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'; 
-import { auth } from '@/lib/firebase';
+import { auth, functions } from '@/lib/firebase';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Eye, EyeOff } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { maskPhone } from '@/lib/utils';
+import { httpsCallable } from 'firebase/functions';
 
-const functionUrl = (name: string) => `https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/${name}`;
+const getCongregationIdByNumber = httpsCallable(functions, 'getCongregationIdByNumberV2');
+const completeUserProfile = httpsCallable(functions, 'completeUserProfileV2');
+const notifyOnNewUser = httpsCallable(functions, 'notifyOnNewUserV2');
+
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -49,47 +53,30 @@ export default function SignUpPage() {
     setError(null);
     
     try {
-        const congIdRes = await fetch(functionUrl('getCongregationIdByNumberV2'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: { congregationNumber: congregationNumber.trim() } })
-        });
-        const congIdData = await congIdRes.json();
-        
-        if (!congIdRes.ok || !congIdData.data.success) {
+        const congIdRes: any = await getCongregationIdByNumber({ congregationNumber: congregationNumber.trim() });
+        const congIdData = congIdRes.data;
+
+        if (!congIdData.success) {
             throw new Error(congIdData.error?.message || "Número da congregação inválido ou não encontrado.");
         }
-        const congregationId = congIdData.data.congregationId;
+        const congregationId = congIdData.congregationId;
 
         // 1. Criar usuário no Auth
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName: name.trim() });
-        const user = userCredential.user;
-
-        // 2. Gera o token JWT do Firebase
-        const token = await user.getIdToken();
         
-        // 3. Chamar a função de backend para criar o perfil no Firestore
-        const completeProfileRes = await fetch(functionUrl('completeUserProfileV2'), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ data: { congregationId, whatsapp } })
+        // Força a atualização do token para garantir que as claims (como displayName) estejam presentes
+        await userCredential.user.getIdToken(true);
+        
+        // 2. Chamar a função de backend para criar o perfil no Firestore
+        await completeUserProfile({
+            congregationId,
+            whatsapp,
+            name: name.trim(), // Enviando o nome para o backend
         });
 
-        if (!completeProfileRes.ok) {
-            const errorData = await completeProfileRes.json();
-            throw new Error(errorData.error?.message || 'Falha ao criar perfil de usuário.');
-        }
-
-        // 4. Notificar administradores (opcional)
-        await fetch(functionUrl('notifyOnNewUserV2'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: { newUserName: name.trim(), congregationId } })
-        });
+        // 3. Notificar administradores (opcional)
+        await notifyOnNewUser({ newUserName: name.trim(), congregationId });
       
         toast({
             title: 'Solicitação enviada!',
@@ -105,7 +92,7 @@ export default function SignUpPage() {
         setError(<>Este e-mail já está em uso. <Link href="/recuperar-senha" className="font-bold underline ml-1">Esqueceu a senha?</Link></>); 
       } else if (message.includes("congregationNumber") || message.includes("Congregação não encontrada")) {
           setError("Número da congregação inválido ou não encontrado.");
-      } else if (err.code === 'functions/internal' || err.code === 'internal') {
+      } else if (err.code?.includes('functions/internal') || err.code?.includes('internal')) {
           setError("Ocorreu um erro ao criar o seu perfil no banco de dados. Tente novamente ou contate o suporte.");
       } else { 
           setError("Ocorreu um erro ao criar a conta: " + message); 
