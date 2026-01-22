@@ -126,12 +126,8 @@ export const notifyOnNewUserV2 = https.onRequest({ region: "southamerica-east1" 
             return;
         }
         try {
-            const { newUserName, congregationId } = req.body.data;
-            if (!newUserName || !congregationId) {
-                res.status(400).json({ error: { message: "Dados insuficientes para notificação." } });
-                return;
-            }
             // Lógica de notificação pode ser adicionada aqui no futuro.
+            logger.info("notifyOnNewUserV2 foi chamada com sucesso (ação pulada). Body:", req.body);
             res.status(200).json({ data: { success: true, message: "Processo de notificação concluído (sem criar notificação no DB)." } });
 
         } catch (error: any) {

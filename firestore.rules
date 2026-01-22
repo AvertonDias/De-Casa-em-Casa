@@ -115,7 +115,8 @@ service cloud.firestore {
         match /users/{userId} {
             allow create: if request.auth.uid == userId;
             allow get: if isAuth() && (request.auth.uid == userId || isSameCongregationAsRequestingUser(userId));
-            allow list: if canListUsers();
+            // Permite a um usuário logado listar os usuários da sua própria congregação
+            allow list: if isAuth();
 
             // Usuário pode atualizar seu próprio nome e whatsapp
             allow update: if request.auth.uid == userId && 
