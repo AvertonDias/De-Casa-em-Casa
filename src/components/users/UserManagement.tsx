@@ -27,7 +27,7 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [roleFilter, setRoleFilter] = useState<AppUser['role'] | 'all'>('all');
-  const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive_month'>('all');
+  const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_daily' | 'active_weekly'>('all');
   const [statusFilter, setStatusFilter] = useState<AppUser['status'] | 'all' | 'inativo'>('all');
 
 
@@ -140,6 +140,7 @@ export default function UserManagement() {
   
   const filterCounts = useMemo(() => {
     const oneHourAgo = subHours(new Date(), 1);
+    const oneDayAgo = subHours(new Date(), 24);
     const oneWeekAgo = subDays(new Date(), 7);
     const oneMonthAgo = subMonths(new Date(), 1);
 
@@ -164,8 +165,8 @@ export default function UserManagement() {
         },
         activity: {
             active_hourly: users.filter(u => u.lastSeen && u.lastSeen.toDate() > oneHourAgo).length,
+            active_daily: users.filter(u => u.lastSeen && u.lastSeen.toDate() > oneDayAgo).length,
             active_weekly: users.filter(u => u.lastSeen && u.lastSeen.toDate() > oneWeekAgo).length,
-            inactive_month: users.filter(u => u.status === 'ativo' && (!u.lastSeen || u.lastSeen.toDate() < oneMonthAgo)).length,
         }
     };
   }, [users]);
@@ -194,12 +195,12 @@ export default function UserManagement() {
         if (activityFilter === 'active_hourly') {
             const oneHourAgo = subHours(now, 1);
             filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneHourAgo);
+        } else if (activityFilter === 'active_daily') {
+            const oneDayAgo = subHours(now, 24);
+            filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneDayAgo);
         } else if (activityFilter === 'active_weekly') {
             const oneWeekAgo = subDays(now, 7);
             filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneWeekAgo);
-        } else if (activityFilter === 'inactive_month') {
-            const oneMonthAgo = subMonths(now, 1);
-            filtered = filtered.filter(u => u.status === 'ativo' && (!u.lastSeen || u.lastSeen.toDate() < oneMonthAgo));
         }
     }
 
@@ -311,7 +312,7 @@ export default function UserManagement() {
                                 <FilterButton label="Todos" value="all" count={users.length} currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Ativo" value="ativo" count={filterCounts.status.ativo} currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Pendente" value="pendente" count={filterCounts.status.pendente} currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                <FilterButton label="Inativo" value="inativo" count={filterCounts.activity.inactive_month} currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                <FilterButton label="Inativo" value="inativo" count={filterCounts.status.inativo} currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Rejeitado" value="rejeitado" count={filterCounts.status.rejeitado} currentFilter={statusFilter} setFilter={setStatusFilter} />
                                 <FilterButton label="Bloqueado" value="bloqueado" count={filterCounts.status.bloqueado} currentFilter={statusFilter} setFilter={setStatusFilter} />
                             </div>
@@ -342,9 +343,9 @@ export default function UserManagement() {
                             <p className="font-semibold mb-2">Atividade Recente (Visto por último)</p>
                             <div className="flex flex-wrap gap-2">
                                 <FilterButton label="Todos" value="all" count={users.length} currentFilter={activityFilter} setFilter={setActivityFilter} />
-                                <FilterButton label="Ativos na Última Hora" value="active_hourly" count={filterCounts.activity.active_hourly} currentFilter={activityFilter} setFilter={setActivityFilter} />
-                                <FilterButton label="Ativos na Semana" value="active_weekly" count={filterCounts.activity.active_weekly} currentFilter={activityFilter} setFilter={setActivityFilter} />
-                                <FilterButton label="Ausentes há um Mês" value="inactive_month" count={filterCounts.activity.inactive_month} currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                <FilterButton label="Última Hora" value="active_hourly" count={filterCounts.activity.active_hourly} currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                <FilterButton label="Últimas 24h" value="active_daily" count={filterCounts.activity.active_daily} currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                <FilterButton label="Última Semana" value="active_weekly" count={filterCounts.activity.active_weekly} currentFilter={activityFilter} setFilter={setActivityFilter} />
                             </div>
                         </div>
                     </div>
