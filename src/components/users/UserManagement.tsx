@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -144,11 +143,15 @@ export default function UserManagement() {
     const oneWeekAgo = subDays(new Date(), 7);
     const oneMonthAgo = subMonths(new Date(), 1);
 
+    const inactiveUsersCount = users.filter(u => u.status === 'ativo' && u.lastSeen && u.lastSeen.toDate() < oneMonthAgo).length;
+    const allActiveUsersCount = users.filter(u => u.status === 'ativo').length;
+
+
     return {
         status: {
-            ativo: users.filter(u => u.status === 'ativo').length,
+            ativo: allActiveUsersCount - inactiveUsersCount,
             pendente: users.filter(u => u.status === 'pendente').length,
-            inativo: users.filter(u => u.status === 'ativo' && u.lastSeen && u.lastSeen.toDate() < oneMonthAgo).length,
+            inativo: inactiveUsersCount,
             rejeitado: users.filter(u => u.status === 'rejeitado').length,
             bloqueado: users.filter(u => u.status === 'bloqueado').length,
         },
@@ -182,12 +185,18 @@ export default function UserManagement() {
       filtered = filtered.filter(user => user.role === roleFilter);
     }
      if (statusFilter !== 'all') {
-      filtered = filtered.filter(user => {
-        if (statusFilter === 'inativo') {
-          return user.status === 'ativo' && user.lastSeen && user.lastSeen.toDate() < subMonths(new Date(), 1);
-        }
-        return user.status === statusFilter;
-      });
+        const oneMonthAgo = subMonths(new Date(), 1);
+        filtered = filtered.filter(user => {
+            const isInactive = user.status === 'ativo' && user.lastSeen && user.lastSeen.toDate() < oneMonthAgo;
+            
+            if (statusFilter === 'inativo') {
+                return isInactive;
+            }
+            if (statusFilter === 'ativo') {
+                return user.status === 'ativo' && !isInactive;
+            }
+            return user.status === statusFilter;
+        });
     }
     
     if (activityFilter !== 'all') {
@@ -416,3 +425,5 @@ export default function UserManagement() {
     </>
   );
 }
+
+    
