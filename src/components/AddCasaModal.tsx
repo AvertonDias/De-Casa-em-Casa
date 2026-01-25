@@ -4,8 +4,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Plus, X } from 'lucide-react';
-import { addDoc, collection, doc, runTransaction, serverTimestamp, getDocs } from 'firebase/firestore';
+import { addDoc, collection, doc, runTransaction, serverTimestamp, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useUser } from '@/contexts/UserContext';
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,7 @@ interface AddCasaModalProps {
 }
 
 export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationId }: AddCasaModalProps) {
+  const { user } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   const [number, setNumber] = useState('');
   const [observations, setObservations] = useState('');
@@ -49,8 +51,8 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
     setIsLoading(true);
     setError('');
     
-    if (!congregationId) {
-      setError("ID da congregação não encontrado. Ação bloqueada.");
+    if (!congregationId || !user) {
+      setError("ID da congregação ou dados do usuário não encontrados. Ação bloqueada.");
       setIsLoading(false);
       return;
     }
@@ -80,17 +82,36 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
             }
             
             const order = casasSnapshot.size;
-            const newCasaRef = doc(casasRef); // Cria referência para a nova casa
+            const newCasaRef = doc(casasRef); 
 
-            transaction.set(newCasaRef, {
+            const casaData: any = {
                 number: number.toUpperCase(),
                 observations, 
                 status, 
                 createdAt: serverTimestamp(),
                 order
-            });
+            };
 
-            // Update Quadra
+            // If house is marked as done on creation, create an activity log
+            if (status) {
+                const activityHistoryRef = collection(territoryRef, 'activityHistory');
+                const newActivityRef = doc(activityHistoryRef);
+                transaction.set(newActivityRef, {
+                    type: "work",
+                    activityDate: Timestamp.now(),
+                    description: `Casa ${number.toUpperCase()} (da ${quadraDoc.data().name}) foi feita ao ser adicionada.`,
+                    userId: 'automatic_system_log',
+                    userName: user.name,
+                    createdAt: serverTimestamp(),
+                });
+                
+                casaData.lastWorkedBy = { uid: user.uid, name: user.name };
+                casaData.activityLogId = newActivityRef.id;
+            }
+
+            transaction.set(newCasaRef, casaData);
+
+            // Update Quadra stats
             const newQuadraTotalHouses = (quadraDoc.data().totalHouses || 0) + 1;
             const newQuadraHousesDone = (quadraDoc.data().housesDone || 0) + (status ? 1 : 0);
             transaction.update(quadraRef, {
@@ -98,17 +119,22 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
                 housesDone: newQuadraHousesDone
             });
 
-            // Update Territory
+            // Update Territory stats
             const newTerritoryTotalHouses = (territoryDoc.data().stats.totalHouses || 0) + 1;
             const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + (status ? 1 : 0);
             const newProgress = newTerritoryTotalHouses > 0 ? newTerritoryHousesDone / newTerritoryTotalHouses : 0;
-            transaction.update(territoryRef, {
+            const territoryUpdateData: any = {
                 "stats.totalHouses": newTerritoryTotalHouses,
                 "stats.housesDone": newTerritoryHousesDone,
-                progress: newProgress
-            });
+                progress: newProgress,
+                lastUpdate: serverTimestamp()
+            };
+            if (status) {
+                territoryUpdateData.lastWorkedAt = serverTimestamp();
+            }
+            transaction.update(territoryRef, territoryUpdateData);
             
-            // Update Congregation (A CORREÇÃO)
+            // Update Congregation stats
             const newCongTotalHouses = (congDoc.data().totalHouses || 0) + 1;
             const newCongTotalHousesDone = (congDoc.data().totalHousesDone || 0) + (status ? 1 : 0);
             transaction.update(congRef, {
