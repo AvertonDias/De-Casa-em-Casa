@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -33,9 +32,9 @@ export default function ForgotPasswordPage() {
         if (!res.ok) {
             throw new Error(resData.error?.message || "Ocorreu um erro desconhecido.");
         }
-        const data = resData.data;
+        const data = resData.result;
         
-        if (data.token) {
+        if (data?.token) {
             const resetLink = `${window.location.origin}/auth/action?token=${data.token}`;
             
             await sendPasswordResetEmail({
