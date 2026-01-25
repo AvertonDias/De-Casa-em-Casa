@@ -11,22 +11,25 @@ export const size = {
 export const contentType = 'image/png'
 
 // Image generation
-export default async function Icon() {
-  // Busca a imagem da pasta public usando fetch
-  const imageResponse = await fetch(new URL('/images/Logo_v3.png', 'https://de-casa-em-casa.vercel.app'));
-  const imageData = await imageResponse.arrayBuffer();
-
+export default function Icon() {
   return new ImageResponse(
     (
-      <img
-        src={imageData as any}
-        width="32"
-        height="32"
-        alt="Favicon"
+      <div
         style={{
+          fontSize: 22,
+          background: '#8E44AD',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
           borderRadius: '4px',
+          fontWeight: 'bold',
         }}
-      />
+      >
+        D
+      </div>
     ),
     {
       ...size,
