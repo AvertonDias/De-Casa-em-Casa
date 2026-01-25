@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth, browserLocalPersistence, setPersistence } from "firebase/auth";
+import { getAuth, type Auth, browserLocalPersistence, setPersistence, GoogleAuthProvider } from "firebase/auth";
 import { 
   initializeFirestore,
   persistentLocalCache,
@@ -49,4 +49,4 @@ if (typeof window !== 'undefined') {
     }
 }
 
-export { app, auth, db, storage, functions, messaging, rtdb };
+export { app, auth, db, storage, functions, messaging, rtdb, GoogleAuthProvider };

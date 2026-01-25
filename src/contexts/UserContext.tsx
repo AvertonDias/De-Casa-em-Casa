@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
@@ -72,10 +73,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
       listenersRef.current.user = onSnapshot(userRef, async (userDoc) => {
         if (!userDoc.exists()) {
-            console.warn(`User document for UID ${firebaseUser.uid} not found. Waiting for document creation...`);
-            // Não faz logout imediato, espera a criação do doc que pode estar em andamento.
-            // A tela de loading continuará sendo exibida.
-            return;
+          // Usuário do Auth existe mas não tem perfil no Firestore.
+          // Isso acontece com novos cadastros (Google ou Email) antes do perfil ser completo.
+          const partialUser: AppUser = {
+              uid: firebaseUser.uid,
+              name: firebaseUser.displayName || 'Novo Usuário',
+              email: firebaseUser.email!,
+              // O resto dos campos ficará undefined, sinalizando perfil incompleto.
+          } as AppUser;
+          setUser(partialUser);
+          setCongregation(null);
+          setLoading(false);
+          // A lógica de redirecionamento no final do UserContext cuidará de mandá-lo para a página correta.
+          return;
         }
 
         const rawData = userDoc.data();
@@ -189,15 +199,26 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const isAuthPage = ['/', '/cadastro', '/recuperar-senha', '/nova-congregacao'].some(p => p === pathname);
     const isAuthActionPage = pathname?.startsWith('/auth/action');
     const isWaitingPage = pathname === '/aguardando-aprovacao';
+    const isCompleteProfilePage = pathname === '/completar-perfil';
     const isAboutPage = pathname === '/sobre';
   
     if (!user) {
-      if (!isAuthPage && !isAuthActionPage && !isAboutPage) {
+      if (!isAuthPage && !isAuthActionPage && !isAboutPage && !isCompleteProfilePage) {
         router.replace('/');
       }
       return;
     }
   
+    // Se o usuário está autenticado mas não tem perfil no Firestore (congregationId está ausente),
+    // ele DEVE completar o perfil.
+    if (!user.congregationId) {
+        if (!isCompleteProfilePage) {
+            router.replace('/completar-perfil');
+        }
+        return; // Impede outras regras de redirecionamento de serem executadas
+    }
+  
+    // Se o usuário tem um perfil, a lógica normal se aplica
     switch (user.status) {
       case 'pendente':
         if (!isWaitingPage) router.replace('/aguardando-aprovacao');
@@ -208,8 +229,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         break;
       case 'ativo':
       case 'inativo':
-        if (isAuthPage || isWaitingPage) {
-          // Lógica de redirecionamento corrigida
+        if (isAuthPage || isWaitingPage || isCompleteProfilePage) {
           const redirectTo = user.role === 'Administrador' ? '/dashboard' : '/dashboard/territorios';
           router.replace(redirectTo);
         }
@@ -223,7 +243,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const value = { user, congregation, loading, logout, updateUser };
 
-  if (loading) {
+  if (loading && !user) {
     return <LoadingScreen />;
   }
 
