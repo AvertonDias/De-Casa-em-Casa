@@ -110,8 +110,10 @@ export default function SignUpPage() {
         await signInWithPopup(auth, provider);
         // O UserContext cuidará do redirecionamento
     } catch (error: any) {
+      if (error.code !== 'auth/popup-closed-by-user') {
         console.error("Erro no cadastro com Google:", error);
         setError("Não foi possível cadastrar com o Google.");
+      }
     } finally {
         setGoogleLoading(false);
     }

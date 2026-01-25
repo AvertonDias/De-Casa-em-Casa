@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -57,8 +55,10 @@ export default function UniversalLoginPage() {
         await signInWithPopup(auth, provider);
         // O UserContext cuidará do redirecionamento
     } catch (error: any) {
+      if (error.code !== 'auth/popup-closed-by-user') {
         console.error("Erro no login com Google:", error);
         setError("Não foi possível fazer login com o Google.");
+      }
     } finally {
         setGoogleLoading(false);
     }
