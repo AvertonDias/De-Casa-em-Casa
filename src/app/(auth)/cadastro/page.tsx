@@ -107,6 +107,9 @@ export default function SignUpPage() {
     setGoogleLoading(true);
     try {
         const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({
+          prompt: 'select_account'
+        });
         await signInWithPopup(auth, provider);
         // O UserContext cuidará do redirecionamento
     } catch (error: any) {

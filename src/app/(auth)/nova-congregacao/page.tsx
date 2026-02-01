@@ -86,6 +86,9 @@ export default function NovaCongregacaoPage() {
     setGoogleLoading(true);
     try {
         const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({
+          prompt: 'select_account'
+        });
         await signInWithPopup(auth, provider);
         // O UserContext cuidará do redirecionamento para completar o perfil.
     } catch (error: any) {
