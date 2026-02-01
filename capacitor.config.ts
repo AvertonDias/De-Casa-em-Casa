@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.decasaemcasa.app',
-  appName: 'De Casa em Casa',
+  appName: 'Casa em Casa',
   webDir: 'out', // Verifique se sua pasta de build se chama 'out' (Next.js) ou 'dist' (Vite/React)
   bundledWebRuntime: false,
   server: {
