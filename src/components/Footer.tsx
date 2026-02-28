@@ -3,7 +3,7 @@
 import { ExternalLink, MessageCircle } from 'lucide-react';
 
 export function Footer() {
-  const whatsappMessage = encodeURIComponent("Olá! Gostaria de tirar uma dúvida sobre o aplicativo Casa em Casa.");
+  const whatsappMessage = encodeURIComponent("Olá! Gostaria de tirar uma dúvida sobre o aplicativo De Casa em Casa.");
   const whatsappUrl = `https://wa.me/5535991210466?text=${whatsappMessage}`;
 
   return (
