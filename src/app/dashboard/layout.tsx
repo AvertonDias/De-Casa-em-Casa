@@ -26,6 +26,7 @@ import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { FontSizeModal } from "@/components/FontSizeModal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
+import { Footer } from "@/components/Footer";
 
 const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React.SVGProps<SVGSVGElement>) => {
   return (
@@ -79,7 +80,7 @@ function Sidebar({
   
   const handleShare = async () => {
     const shareData = {
-      title: 'De Casa em Casa',
+      title: 'Casa em Casa',
       text: 'Conheça o sistema para gerenciamento de territórios. Na página que abrir, clique em "Abrir App".',
       url: 'https://aplicativos-ton.vercel.app/de-casa-em-casa',
     };
@@ -168,7 +169,7 @@ function Sidebar({
                     <button onClick={onClose} className="md:hidden p-1 rounded-full"><AnimatedHamburgerIcon isOpen={isOpen} /></button>
                 </div>
             </div>
-            <h1 className="text-xl font-bold">De Casa em Casa</h1>
+            <h1 className="text-xl font-bold">Casa em Casa</h1>
         </div>
 
         <nav className="flex-1 overflow-y-auto">
@@ -315,23 +316,26 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                       <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-destructive rounded-full animate-indicator-pulse"></span>
                     )}
                   </div>
-                  <h1 className="text-lg font-bold">De Casa em Casa</h1>
+                  <h1 className="text-lg font-bold">Casa em Casa</h1>
                   <SettingsMenu 
                     onEditProfileClick={() => setIsProfileModalOpen(true)} 
                     onFontSizeClick={() => setIsFontSizeModalOpen(true)}
                   /> 
               </header>
               
-              <main className="flex-1 overflow-y-auto">
-                {user.status === 'pendente' && (
-                  <div className="sticky top-0 z-10 bg-background p-4 md:p-8 pb-0">
-                    <PendingApprovalBanner />
+              <main className="flex-1 flex flex-col overflow-y-auto">
+                <div className="flex-1">
+                  {user.status === 'pendente' && (
+                    <div className="sticky top-0 z-10 bg-background p-4 md:p-8 pb-0">
+                      <PendingApprovalBanner />
+                    </div>
+                  )}
+                  
+                  <div className="p-4 md:p-8">
+                    {children}
                   </div>
-                )}
-                
-                <div className="p-4 md:p-8">
-                  {children}
                 </div>
+                <Footer />
               </main>
           </div>
           

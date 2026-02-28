@@ -1,4 +1,3 @@
-
 // src/app/auth/action/page.tsx
 "use client";
 
@@ -11,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader, KeyRound, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Footer } from '@/components/Footer';
 
 const functionUrl = (name: string) => `https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/${name}`;
 
@@ -106,7 +106,7 @@ function PasswordResetAction() {
             <div className="text-center space-y-2">
               <KeyRound className="mx-auto h-12 w-12 text-primary" />
               <h1 className="text-3xl font-bold">Definir Nova Senha</h1>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Crie uma nova senha para sua conta.
               </p>
             </div>
@@ -160,10 +160,13 @@ function PasswordResetAction() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
-        {renderContent()}
+    <div className="flex flex-col min-h-screen bg-background">
+      <div className="flex-grow flex items-center justify-center p-4">
+        <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
+          {renderContent()}
+        </div>
       </div>
+      <Footer />
     </div>
   );
 }
@@ -172,11 +175,14 @@ function PasswordResetAction() {
 export default function PasswordResetActionPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg text-center">
-            <Loader className="mx-auto h-12 w-12 text-primary animate-spin" />
-            <p className="mt-4 text-muted-foreground">Carregando...</p>
+      <div className="flex flex-col min-h-screen bg-background">
+        <div className="flex-grow flex items-center justify-center p-4">
+          <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg text-center">
+              <Loader className="mx-auto h-12 w-12 text-primary animate-spin" />
+              <p className="mt-4 text-muted-foreground">Carregando...</p>
+          </div>
         </div>
+        <Footer />
       </div>
     }>
       <PasswordResetAction />

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { AppUser, Congregation } from '@/types/types';
+import { Footer } from '@/components/Footer';
 
 interface Manager {
     uid: string;
@@ -67,7 +68,7 @@ function AguardandoAprovacaoPage() {
 
     if (userLoading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
+            <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground text-center p-4">
                 <Loader className="animate-spin text-primary" size={48} />
                 <p className="mt-4">Carregando seus dados...</p>
             </div>
@@ -79,7 +80,7 @@ function AguardandoAprovacaoPage() {
         
         const number = whatsapp.replace(/\D/g, '');
         
-        const defaultTemplate = "Olá, sou [Nome do Usuário]. Acabei de solicitar acesso ao aplicativo De Casa em Casa para a congregação [Nome da Congregação]. Você poderia aprovar meu acesso, por favor?";
+        const defaultTemplate = "Olá, sou [Nome do Usuário]. Acabei de solicitar acesso ao aplicativo Casa em Casa para a congregação [Nome da Congregação]. Você poderia aprovar meu acesso, por favor?";
         const template = congregation.whatsappTemplates?.pendingApproval || defaultTemplate;
         
         const message = template
@@ -91,60 +92,63 @@ function AguardandoAprovacaoPage() {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-background p-4">
-            <div className="w-full max-w-lg p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
-                <div className="text-center">
-                    <MailCheck size={64} className="mx-auto text-primary" />
-                    <h1 className="text-2xl font-bold mt-4">Solicitação Recebida!</h1>
-                    <p className="text-muted-foreground mt-2">
-                        Olá, <span className="font-semibold text-foreground">{user?.name}</span>!
-                        Sua solicitação de acesso para a congregação <span className="font-semibold text-foreground">{congregation?.name || '...'}</span> foi enviada.
-                    </p>
-                </div>
-
-                <div className="pt-4 border-t border-border">
-                    <h2 className="text-center text-lg font-semibold flex items-center justify-center gap-2">
-                        <Users size={20} />
-                        Avise um dos Dirigentes abaixo
-                    </h2>
-                    
-                    {loadingManagers ? (
-                         <div className="pt-4 text-center">
-                            <Loader className="animate-spin mx-auto text-primary" />
-                            <p className="text-sm text-muted-foreground mt-2">Buscando contatos...</p>
-                        </div>
-                    ) : managers.length > 0 ? (
-                        <div className="space-y-2 mt-4">
-                            {managers.map((manager) => (
-                                <div key={manager.uid} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
-                                    <span className="font-medium">{manager.name}</span>
-                                    {manager.whatsapp ? (
-                                        <Button size="sm" variant="ghost" onClick={() => handleWhatsAppClick(manager.whatsapp)} className="text-green-500 hover:text-green-600 hover:bg-green-500/10">
-                                            <MessageSquare size={16} className="mr-2" /> WhatsApp
-                                        </Button>
-                                    ) : (
-                                        <span className="text-xs text-muted-foreground">Sem contato</span>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-center text-sm text-muted-foreground mt-4">
-                            Nenhum contato de dirigente encontrado para esta congregação. Por favor, aguarde a aprovação.
+        <div className="flex flex-col min-h-screen bg-background">
+            <div className="flex-grow flex items-center justify-center p-4">
+                <div className="w-full max-w-lg p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
+                    <div className="text-center">
+                        <MailCheck size={64} className="mx-auto text-primary" />
+                        <h1 className="text-2xl font-bold mt-4">Solicitação Recebida!</h1>
+                        <p className="text-muted-foreground mt-2">
+                            Olá, <span className="font-semibold text-foreground">{user?.name}</span>!
+                            Sua solicitação de acesso para a congregação <span className="font-semibold text-foreground">{congregation?.name || '...'}</span> foi enviada.
                         </p>
-                    )}
-                </div>
+                    </div>
 
-                <div className="pt-4 border-t border-border">
-                    <Button
-                        onClick={() => logout()}
-                        variant="destructive"
-                        className="w-full"
-                    >
-                        Sair
-                    </Button>
+                    <div className="pt-4 border-t border-border">
+                        <h2 className="text-center text-lg font-semibold flex items-center justify-center gap-2">
+                            <Users size={20} />
+                            Avise um dos Dirigentes abaixo
+                        </h2>
+                        
+                        {loadingManagers ? (
+                            <div className="pt-4 text-center">
+                                <Loader className="animate-spin mx-auto text-primary" />
+                                <p className="text-sm text-muted-foreground mt-2">Buscando contatos...</p>
+                            </div>
+                        ) : managers.length > 0 ? (
+                            <div className="space-y-2 mt-4">
+                                {managers.map((manager) => (
+                                    <div key={manager.uid} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+                                        <span className="font-medium">{manager.name}</span>
+                                        {manager.whatsapp ? (
+                                            <Button size="sm" variant="ghost" onClick={() => handleWhatsAppClick(manager.whatsapp)} className="text-green-500 hover:text-green-600 hover:bg-green-500/10">
+                                                <MessageSquare size={16} className="mr-2" /> WhatsApp
+                                            </Button>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">Sem contato</span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-center text-sm text-muted-foreground mt-4">
+                                Nenhum contato de dirigente encontrado para esta congregação. Por favor, aguarde a aprovação.
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="pt-4 border-t border-border">
+                        <Button
+                            onClick={() => logout()}
+                            variant="destructive"
+                            className="w-full"
+                        >
+                            Sair
+                        </Button>
+                    </div>
                 </div>
             </div>
+            <Footer />
         </div>
     );
 }
