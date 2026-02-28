@@ -3,6 +3,9 @@
 import { ExternalLink, MessageCircle } from 'lucide-react';
 
 export function Footer() {
+  const whatsappMessage = encodeURIComponent("Olá! Gostaria de tirar uma dúvida sobre o aplicativo Casa em Casa.");
+  const whatsappUrl = `https://wa.me/5535991210466?text=${whatsappMessage}`;
+
   return (
     <footer className="w-full py-6 px-4 border-t border-border/40 mt-auto bg-background/50 backdrop-blur-sm">
       <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 text-xs sm:text-sm text-muted-foreground text-center">
@@ -16,7 +19,7 @@ export function Footer() {
           Conheça meus aplicativos
         </a>
         <a 
-          href="https://wa.me/5535991210466" 
+          href={whatsappUrl} 
           target="_blank" 
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 hover:text-green-500 transition-colors group"
