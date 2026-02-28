@@ -13,7 +13,7 @@ export function Footer() {
           className="flex items-center gap-1.5 hover:text-primary transition-colors group"
         >
           <ExternalLink size={14} className="group-hover:scale-110 transition-transform" />
-          Conheça mais aplicativos
+          Conheça meus aplicativos
         </a>
         <a 
           href="https://wa.me/5535991210466" 
@@ -22,7 +22,7 @@ export function Footer() {
           className="flex items-center gap-1.5 hover:text-green-500 transition-colors group"
         >
           <MessageCircle size={14} className="group-hover:scale-110 transition-transform text-green-500" />
-          Suporte: (35) 99121-0466
+          Suporte
         </a>
       </div>
     </footer>
