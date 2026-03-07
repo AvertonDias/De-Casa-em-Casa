@@ -66,6 +66,7 @@ export default function UserManagement() {
     }
   }, [currentUser]);
 
+  // Lógica central de processamento de usuários, presença e status inativo
   const usersWithPresence = useMemo(() => {
     const now = new Date();
     const oneMonthAgo = subMonths(now, 1);
@@ -75,21 +76,21 @@ export default function UserManagement() {
         const isOnline = presence?.state === 'online';
         
         let effectiveLastSeenDate: Date | null = null;
-        if (u.lastSeen && typeof u.lastSeen.toDate === 'function') {
+        
+        // 1. Prioridade: Status Online (Visto agora)
+        if (isOnline) {
+            effectiveLastSeenDate = now;
+        } 
+        // 2. Segunda prioridade: Última mudança de status no RTDB (mais preciso)
+        else if (presence?.last_changed) {
+            effectiveLastSeenDate = new Date(presence.last_changed);
+        }
+        // 3. Terceira prioridade: Dado salvo no Firestore (histórico)
+        else if (u.lastSeen && typeof u.lastSeen.toDate === 'function') {
             effectiveLastSeenDate = u.lastSeen.toDate();
         }
 
-        if (presence?.last_changed) {
-            const presenceDate = new Date(presence.last_changed);
-            if (!effectiveLastSeenDate || presenceDate > effectiveLastSeenDate) {
-                effectiveLastSeenDate = presenceDate;
-            }
-        }
-
-        if (isOnline) {
-            effectiveLastSeenDate = now;
-        }
-
+        // Determina se deve exibir como "Inativo" (mais de 1 mês sem aparecer)
         let status = u.status;
         if (status === 'ativo' && effectiveLastSeenDate && effectiveLastSeenDate < oneMonthAgo) {
             status = 'inativo';
@@ -99,11 +100,13 @@ export default function UserManagement() {
             ...u, 
             isOnline, 
             status,
-            lastSeen: effectiveLastSeenDate ? { toDate: () => effectiveLastSeenDate } : u.lastSeen 
+            // Sobrescreve o lastSeen para o cálculo de filtros e exibição
+            effectiveLastSeen: effectiveLastSeenDate 
         };
     });
   }, [users, presenceData]);
 
+  // Calcula os contadores dos filtros com base nos dados processados
   const filterCounts = useMemo(() => {
     const counts = {
       status: { all: 0, ativo: 0, pendente: 0, inativo: 0, rejeitado: 0, bloqueado: 0 },
@@ -111,27 +114,32 @@ export default function UserManagement() {
       role: { all: 0, Administrador: 0, Dirigente: 0, 'Servo de Territórios': 0, 'Ajudante de Servo de Territórios': 0, Publicador: 0 },
       activity: { all: 0, active_hourly: 0, active_daily: 0, active_weekly: 0, inactive_month: 0 }
     };
+    
     const now = new Date();
     const oneHourAgo = subHours(now, 1);
     const oneDayAgo = subHours(now, 24);
     const oneWeekAgo = subDays(now, 7);
 
     usersWithPresence.forEach(u => {
+      // Contagem por Status
       counts.status.all++;
       if (u.status in counts.status) counts.status[u.status as keyof typeof counts.status.ativo]++;
       
+      // Contagem por Presença
       counts.presence.all++;
       if (u.isOnline) counts.presence.online++; else counts.presence.offline++;
       
+      // Contagem por Cargo
       counts.role.all++;
       if (u.role in counts.role) counts.role[u.role as keyof typeof counts.role.Publicador]++;
       
+      // Contagem por Atividade Recente
       counts.activity.all++;
-      const lastSeenDate = u.lastSeen?.toDate ? u.lastSeen.toDate() : null;
-      if (lastSeenDate) {
-        if (lastSeenDate > oneHourAgo) counts.activity.active_hourly++;
-        if (lastSeenDate > oneDayAgo) counts.activity.active_daily++;
-        if (lastSeenDate > oneWeekAgo) counts.activity.active_weekly++;
+      const lastSeen = u.effectiveLastSeen;
+      if (lastSeen) {
+        if (lastSeen > oneHourAgo) counts.activity.active_hourly++;
+        if (lastSeen > oneDayAgo) counts.activity.active_daily++;
+        if (lastSeen > oneWeekAgo) counts.activity.active_weekly++;
       }
       if (u.status === 'inativo') counts.activity.inactive_month++;
     });
@@ -164,7 +172,6 @@ export default function UserManagement() {
     try {
       toast({ title: "Iniciando Exclusão", description: "Removendo conta e registros do servidor..." });
       
-      // Obter Token de Identidade para chamada HTTPS manual (bypass CORS SDK)
       const idToken = await auth.currentUser.getIdToken();
       
       const response = await fetch(`https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/deleteUserAccountV2`, {
@@ -194,15 +201,14 @@ export default function UserManagement() {
       toast({
         variant: "destructive",
         title: "Atenção: Falha na Exclusão Total",
-        description: e.message || "Não foi possível remover o e-mail via servidor (CORS/Network).",
+        description: e.message || "Não foi possível remover o e-mail via servidor.",
       });
 
-      // Fallback: Remover do Firestore pelo menos para que suma da lista da congregação
       const userRef = doc(db, 'users', userId);
       deleteDoc(userRef).then(() => {
           toast({ 
               title: "Registro Local Removido", 
-              description: "O perfil foi removido da congregação. A autenticação pode precisar de remoção manual no console." 
+              description: "O perfil foi removido da congregação. A conta de e-mail pode precisar de remoção manual." 
           });
       }).catch(async (error) => {
           if (error.code === 'permission-denied') {
@@ -230,11 +236,11 @@ export default function UserManagement() {
         const matchesStatus = statusFilter === 'all' || u.status === statusFilter;
         
         let matchesActivity = true;
-        const lastSeenDate = u.lastSeen?.toDate ? u.lastSeen.toDate() : null;
+        const lastSeen = u.effectiveLastSeen;
         if (activityFilter !== 'all') {
-            if (activityFilter === 'active_hourly') matchesActivity = !!lastSeenDate && lastSeenDate > oneHourAgo;
-            else if (activityFilter === 'active_daily') matchesActivity = !!lastSeenDate && lastSeenDate > oneDayAgo;
-            else if (activityFilter === 'active_weekly') matchesActivity = !!lastSeenDate && lastSeenDate > oneWeekAgo;
+            if (activityFilter === 'active_hourly') matchesActivity = !!lastSeen && lastSeen > oneHourAgo;
+            else if (activityFilter === 'active_daily') matchesActivity = !!lastSeen && lastSeen > oneDayAgo;
+            else if (activityFilter === 'active_weekly') matchesActivity = !!lastSeen && lastSeen > oneWeekAgo;
             else if (activityFilter === 'inactive_month') matchesActivity = u.status === 'inativo';
         }
 
@@ -244,10 +250,13 @@ export default function UserManagement() {
     });
     
     return filtered.sort((a, b) => {
+      // 1. Você sempre em primeiro
       if (a.uid === currentUser?.uid) return -1;
       if (b.uid === currentUser?.uid) return 1;
+      // 2. Pendentes em destaque
       if (a.status === 'pendente' && b.status !== 'pendente') return -1;
       if (a.status !== 'pendente' && b.status === 'pendente') return 1;
+      // 3. Ordem alfabética
       return a.name.localeCompare(b.name);
     });
   }, [usersWithPresence, presenceFilter, roleFilter, statusFilter, activityFilter, searchTerm, currentUser]);
@@ -389,7 +398,11 @@ export default function UserManagement() {
             filteredAndSortedUsers.map(u => (
               <UserListItem 
                 key={u.uid} 
-                user={u} 
+                user={{
+                    ...u,
+                    // Passa o lastSeen processado para exibição no ListItem
+                    lastSeen: u.effectiveLastSeen ? { toDate: () => u.effectiveLastSeen } : u.lastSeen
+                }} 
                 currentUser={currentUser!} 
                 onUpdate={handleUserUpdate} 
                 onEdit={(user) => { setUserToEdit(user); setIsEditModalOpen(true); }} 

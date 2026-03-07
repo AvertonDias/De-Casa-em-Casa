@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { AppUser } from '@/types/types';
@@ -7,8 +8,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useMemo } from 'react';
-import { subMonths } from 'date-fns';
 
 export const UserListItem = ({ 
     user, 
@@ -33,14 +32,7 @@ export const UserListItem = ({
   const handleDelete = () => onDelete(user.uid, user.name);
   const handleEdit = () => onEdit(user);
 
-  const displayStatus = useMemo(() => {
-    if (user.status === 'ativo' && user.lastSeen && user.lastSeen.toDate() < subMonths(new Date(), 1)) {
-        return 'inativo';
-    }
-    return user.status;
-  }, [user.status, user.lastSeen]);
-
-  const getStatusClass = (status: AppUser['status'] | 'inativo') => {
+  const getStatusClass = (status: AppUser['status']) => {
     switch (status) {
       case 'ativo': return 'bg-green-500 text-white';
       case 'pendente': return 'bg-yellow-500 text-black';
@@ -89,8 +81,8 @@ export const UserListItem = ({
       
       <div className="flex items-center justify-end gap-3 shrink-0">
         <div className="flex items-center justify-end gap-3 shrink-0">
-          <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusClass(displayStatus)}`}>
-              {displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)}
+          <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusClass(user.status)}`}>
+              {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
           </span>
           <span className={`px-3 py-1 text-xs font-medium rounded-full ${getRoleClass(user.role)}`}>{user.role}</span>
         </div>
