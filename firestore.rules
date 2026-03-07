@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -14,6 +13,11 @@ service cloud.firestore {
         function isUserInCongregation(congId) { 
             let userData = getUserData(request.auth.uid); 
             return userData != null && userData.congregationId == congId; 
+        }
+        
+        function isAtivo() {
+            let userData = getUserData(request.auth.uid);
+            return userData != null && userData.status == 'ativo';
         }
         
         function isRole(role) { 
@@ -38,15 +42,20 @@ service cloud.firestore {
             allow update, delete: if isUserInCongregation(congId) && isAdmin();
 
             match /territories/{terrId} {
-                allow read: if isUserInCongregation(congId);
+                // Só permite leitura se estiver na congregação E for ativo OU tiver cargo de gerência
+                allow read: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers());
                 allow create, delete: if isUserInCongregation(congId) && (isAdmin() || isServoTerritorios());
-                allow update: if isUserInCongregation(congId);
+                allow update: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers());
 
                 match /quadras/{quadraId} {
-                    allow read, write: if isUserInCongregation(congId);
-                    match /casas/{casaId} { allow read, write: if isUserInCongregation(congId); }
+                    allow read, write: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers());
+                    match /casas/{casaId} { 
+                        allow read, write: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers()); 
+                    }
                 }
-                match /activityHistory/{activityId} { allow read, write: if isUserInCongregation(congId); }
+                match /activityHistory/{activityId} { 
+                    allow read, write: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers()); 
+                }
             }
         }
 

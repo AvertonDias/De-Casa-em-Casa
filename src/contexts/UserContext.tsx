@@ -141,64 +141,68 @@ export function UserProvider({ children }: { children: ReactNode }) {
               }
             );
 
-            const territoryCollectionPath = `congregations/${appUser.congregationId}/territories`;
-            const assignedTerritoriesQuery = query(
-                collection(db, territoryCollectionPath),
-                where("assignment.uid", "==", appUser.uid)
-            );
-            
-            listenersRef.current.overdueListener = onSnapshot(assignedTerritoriesQuery, 
-              (snapshot) => {
-                snapshot.docs.forEach(async (territoryDoc) => {
-                    const territory = { id: territoryDoc.id, ...territoryDoc.data() } as Territory;
-                    const isOverdue = territory.assignment && territory.assignment.dueDate.toDate() < new Date();
+            // IMPORTANTE: Só monitora territórios atrasados se o usuário já estiver ATIVO
+            // Isso evita erros de permissão para usuários pendentes.
+            if (appUser.status === 'ativo') {
+                const territoryCollectionPath = `congregations/${appUser.congregationId}/territories`;
+                const assignedTerritoriesQuery = query(
+                    collection(db, territoryCollectionPath),
+                    where("assignment.uid", "==", appUser.uid)
+                );
+                
+                listenersRef.current.overdueListener = onSnapshot(assignedTerritoriesQuery, 
+                  (snapshot) => {
+                    snapshot.docs.forEach(async (territoryDoc) => {
+                        const territory = { id: territoryDoc.id, ...territoryDoc.data() } as Territory;
+                        const isOverdue = territory.assignment && territory.assignment.dueDate.toDate() < new Date();
 
-                    if (isOverdue) {
-                        const notificationsRef = collection(db, `users/${appUser.uid}/notifications`);
-                        const territoryLink = territory.type === 'rural' ? `/dashboard/rural/${territory.id}` : `/dashboard/territorios/${territory.id}`;
-                        
-                        const qNotif = query(notificationsRef, where("link", "==", territoryLink));
-                        const existingNotifsSnapshot = await getDocs(qNotif);
-                        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-                        
-                        const recentOverdueNotificationExists = existingNotifsSnapshot.docs.some(doc => {
-                            const data = doc.data();
-                            return data.type === 'territory_overdue' &&
-                                   data.createdAt &&
-                                   data.createdAt.toDate() > twentyFourHoursAgo;
-                        });
-
-                        if (!recentOverdueNotificationExists) {
-                            addDoc(notificationsRef, {
-                                title: "Território Atrasado",
-                                body: `O território "${territory.number} - ${territory.name}" está com a devolução atrasada.`,
-                                link: territoryLink,
-                                type: 'territory_overdue',
-                                isRead: false,
-                                createdAt: serverTimestamp()
-                            }).catch(async (notifErr) => {
-                                if (notifErr.code === 'permission-denied') {
-                                    const permissionError = new FirestorePermissionError({
-                                        path: `users/${appUser.uid}/notifications`,
-                                        operation: 'create',
-                                    } satisfies SecurityRuleContext);
-                                    errorEmitter.emit('permission-error', permissionError);
-                                }
+                        if (isOverdue) {
+                            const notificationsRef = collection(db, `users/${appUser.uid}/notifications`);
+                            const territoryLink = territory.type === 'rural' ? `/dashboard/rural/${territory.id}` : `/dashboard/territorios/${territory.id}`;
+                            
+                            const qNotif = query(notificationsRef, where("link", "==", territoryLink));
+                            const existingNotifsSnapshot = await getDocs(qNotif);
+                            const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                            
+                            const recentOverdueNotificationExists = existingNotifsSnapshot.docs.some(doc => {
+                                const data = doc.data();
+                                return data.type === 'territory_overdue' &&
+                                       data.createdAt &&
+                                       data.createdAt.toDate() > twentyFourHoursAgo;
                             });
+
+                            if (!recentOverdueNotificationExists) {
+                                addDoc(notificationsRef, {
+                                    title: "Território Atrasado",
+                                    body: `O território "${territory.number} - ${territory.name}" está com a devolução atrasada.`,
+                                    link: territoryLink,
+                                    type: 'territory_overdue',
+                                    isRead: false,
+                                    createdAt: serverTimestamp()
+                                }).catch(async (notifErr) => {
+                                    if (notifErr.code === 'permission-denied') {
+                                        const permissionError = new FirestorePermissionError({
+                                            path: `users/${appUser.uid}/notifications`,
+                                            operation: 'create',
+                                        } satisfies SecurityRuleContext);
+                                        errorEmitter.emit('permission-error', permissionError);
+                                    }
+                                });
+                            }
                         }
+                    });
+                  },
+                  async (error) => {
+                    if (error.code === 'permission-denied') {
+                        const permissionError = new FirestorePermissionError({
+                            path: territoryCollectionPath,
+                            operation: 'list',
+                        } satisfies SecurityRuleContext);
+                        errorEmitter.emit('permission-error', permissionError);
                     }
-                });
-              },
-              async (error) => {
-                if (error.code === 'permission-denied') {
-                    const permissionError = new FirestorePermissionError({
-                        path: territoryCollectionPath,
-                        operation: 'list',
-                    } satisfies SecurityRuleContext);
-                    errorEmitter.emit('permission-error', permissionError);
-                }
-              }
-            );
+                  }
+                );
+            }
 
           } else {
               setCongregation(null);
