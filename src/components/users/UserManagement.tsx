@@ -106,11 +106,11 @@ export default function UserManagement() {
     const now = new Date();
     usersWithPresence.forEach(u => {
       counts.status.all++;
-      if (u.status in counts.status) counts.status[u.status as keyof typeof counts.status.all]++;
+      if (u.status in counts.status) counts.status[u.status as keyof typeof counts.status.ativo]++;
       counts.presence.all++;
       if (u.isOnline) counts.presence.online++; else counts.presence.offline++;
       counts.role.all++;
-      if (u.role in counts.role) counts.role[u.role as keyof typeof counts.role.all]++;
+      if (u.role in counts.role) counts.role[u.role as keyof typeof counts.role.Publicador]++;
       
       counts.activity.all++;
       const lastSeenDate = u.lastSeen?.toDate ? u.lastSeen.toDate() : null;
@@ -125,7 +125,7 @@ export default function UserManagement() {
   }, [usersWithPresence]);
 
   const handleUserUpdate = async (userId: string, dataToUpdate: Partial<AppUser>) => {
-    if (!currentUser || currentUser.role !== 'Administrador' && currentUser.role !== 'Dirigente') return;
+    if (!currentUser || (currentUser.role !== 'Administrador' && currentUser.role !== 'Dirigente')) return;
     const userRef = doc(db, 'users', userId);
     updateDoc(userRef, dataToUpdate as any).then(() => {
         toast({ title: "Sucesso", description: "Usuário atualizado." });
@@ -146,7 +146,7 @@ export default function UserManagement() {
     setIsConfirmModalOpen(false);
     
     const userRef = doc(db, 'users', userToRemove.uid);
-    const updateData = { 
+    const dataToUpdate = { 
         status: 'bloqueado' as const, 
         congregationId: null 
     };
@@ -161,7 +161,7 @@ export default function UserManagement() {
             const permissionError = new FirestorePermissionError({
                 path: userRef.path,
                 operation: 'update',
-                requestResourceData: updateData,
+                requestResourceData: dataToUpdate,
             });
             errorEmitter.emit('permission-error', permissionError);
         }
@@ -190,15 +190,10 @@ export default function UserManagement() {
     });
     
     return filtered.sort((a, b) => {
-      // 1. O usuário atual ("Você") sempre fica em primeiro lugar absoluto
       if (a.uid === currentUser?.uid) return -1;
       if (b.uid === currentUser?.uid) return 1;
-
-      // 2. Solicitações pendentes ficam em segundo lugar
       if (a.status === 'pendente' && b.status !== 'pendente') return -1;
       if (a.status !== 'pendente' && b.status === 'pendente') return 1;
-
-      // 3. Ordem alfabética para os demais casos
       return a.name.localeCompare(b.name);
     });
   }, [usersWithPresence, presenceFilter, roleFilter, statusFilter, activityFilter, searchTerm, currentUser]);
@@ -254,56 +249,63 @@ export default function UserManagement() {
         </div>
       </div>
 
-      <div className="bg-card p-6 rounded-xl border border-border/40 shadow-sm mx-4 md:mx-0">
-        <div className="flex items-center gap-2 mb-6 text-muted-foreground">
-          <SlidersHorizontal size={20} />
-          <span className="font-semibold text-foreground">Filtros</span>
-        </div>
+      <div className="mx-4 md:mx-0">
+        <Accordion type="single" collapsible defaultValue="filters" className="w-full bg-card rounded-xl border border-border/40 shadow-sm overflow-hidden">
+          <AccordionItem value="filters" className="border-b-0">
+            <AccordionTrigger className="flex items-center gap-2 px-6 py-4 text-muted-foreground hover:no-underline hover:bg-white/5 transition-all">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal size={20} />
+                <span className="font-semibold text-foreground">Filtros</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-6 pt-0 border-t border-border/10">
+              <div className="space-y-6 pt-6">
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Status da Conta</p>
+                  <div className="flex flex-wrap gap-2">
+                    <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.all} />
+                    <FilterButton label="Ativo" value="ativo" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.ativo} />
+                    <FilterButton label="Pendente" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.pendente} />
+                    <FilterButton label="Inativo" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.inativo} />
+                    <FilterButton label="Rejeitado" value="rejeitado" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.rejeitado} />
+                    <FilterButton label="Bloqueado" value="bloqueado" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.bloqueado} />
+                  </div>
+                </div>
 
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Status da Conta</p>
-            <div className="flex flex-wrap gap-2">
-              <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.all} />
-              <FilterButton label="Ativo" value="ativo" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.ativo} />
-              <FilterButton label="Pendente" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.pendente} />
-              <FilterButton label="Inativo" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.inativo} />
-              <FilterButton label="Rejeitado" value="rejeitado" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.rejeitado} />
-              <FilterButton label="Bloqueado" value="bloqueado" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.bloqueado} />
-            </div>
-          </div>
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Status de Presença</p>
+                  <div className="flex flex-wrap gap-2">
+                    <FilterButton label="Todos" value="all" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.all} />
+                    <FilterButton label="Online" value="online" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.online} />
+                    <FilterButton label="Offline" value="offline" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.offline} />
+                  </div>
+                </div>
 
-          <div className="space-y-3">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Status de Presença</p>
-            <div className="flex flex-wrap gap-2">
-              <FilterButton label="Todos" value="all" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.all} />
-              <FilterButton label="Online" value="online" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.online} />
-              <FilterButton label="Offline" value="offline" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.offline} />
-            </div>
-          </div>
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Perfil de Usuário</p>
+                  <div className="flex flex-wrap gap-2">
+                    <FilterButton label="Todos" value="all" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.all} />
+                    <FilterButton label="Admin" value="Administrador" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Administrador} />
+                    <FilterButton label="Dirigente" value="Dirigente" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Dirigente} />
+                    <FilterButton label="S. de Terr." value="Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role['Servo de Territórios']} />
+                    <FilterButton label="Ajudante" value="Ajudante de Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role['Ajudante de Servo de Territórios']} />
+                    <FilterButton label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Publicador} />
+                  </div>
+                </div>
 
-          <div className="space-y-3">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Perfil de Usuário</p>
-            <div className="flex flex-wrap gap-2">
-              <FilterButton label="Todos" value="all" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.all} />
-              <FilterButton label="Admin" value="Administrador" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Administrador} />
-              <FilterButton label="Dirigente" value="Dirigente" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Dirigente} />
-              <FilterButton label="S. de Terr." value="Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role['Servo de Territórios']} />
-              <FilterButton label="Ajudante" value="Ajudante de Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role['Ajudante de Servo de Territórios']} />
-              <FilterButton label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Publicador} />
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Atividade Recente (Visto por último)</p>
-            <div className="flex flex-wrap gap-2">
-              <FilterButton label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.all} />
-              <FilterButton label="Última Hora" value="active_hourly" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_hourly} />
-              <FilterButton label="Últimas 24h" value="active_daily" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_daily} />
-              <FilterButton label="Última Semana" value="active_weekly" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_weekly} />
-            </div>
-          </div>
-        </div>
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Atividade Recente (Visto por último)</p>
+                  <div className="flex flex-wrap gap-2">
+                    <FilterButton label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.all} />
+                    <FilterButton label="Última Hora" value="active_hourly" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_hourly} />
+                    <FilterButton label="Últimas 24h" value="active_daily" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_daily} />
+                    <FilterButton label="Última Semana" value="active_weekly" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_weekly} />
+                  </div>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </div>
 
       <div className="relative px-4 md:px-0">
