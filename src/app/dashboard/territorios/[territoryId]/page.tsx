@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory, Activity, Quadra, AssignmentHistoryLog } from "@/types/types"; 
-import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, History } from "lucide-react";
+import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, History, Loader } from "lucide-react";
 import Link from 'next/link';
 
 import ActivityHistory from '@/components/ActivityHistory';
@@ -24,6 +24,7 @@ import AddEditAssignmentLogModal from "@/components/admin/AddEditAssignmentLogMo
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { GoogleMapEmbed } from "@/components/GoogleMapEmbed";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 const ProgressSection = ({ territory }: { territory: Territory }) => {
     const totalHouses = territory.stats?.totalHouses || 0;
