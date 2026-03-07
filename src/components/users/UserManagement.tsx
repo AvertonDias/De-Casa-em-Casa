@@ -3,9 +3,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, auth, rtdb } from '@/lib/firebase';
+import { db, auth, rtdb, app } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { ref, onValue } from 'firebase/database';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Loader, Search, SlidersHorizontal, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
@@ -17,6 +18,10 @@ import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
+
+// Configuração da função Callable
+const functions = getFunctions(app, 'southamerica-east1');
+const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
 
 export default function UserManagement() {
   const { user: currentUser, loading: userLoading } = useUser(); 
@@ -158,40 +163,26 @@ export default function UserManagement() {
     setIsConfirmModalOpen(false);
     
     try {
-      toast({ title: "Processando Exclusão", description: "Aguarde a resposta do servidor..." });
+      toast({ title: "Processando Exclusão", description: "Removendo acesso e dados permanentemente..." });
       
-      const idToken = await auth.currentUser.getIdToken();
-      
-      // Chamada direta via HTTPS para ignorar políticas restritivas do SDK em desenvolvimento
-      const response = await fetch(`https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/deleteUserAccountV2`, {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${idToken}`
-          },
-          body: JSON.stringify({ data: { userIdToDelete: userId } })
-      });
+      // Chamada via SDK Callable (resolve automaticamente CORS e preflight)
+      const result = await deleteUserAccount({ userIdToDelete: userId });
+      const data = result.data as any;
 
-      if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error?.message || `Erro do servidor (Status: ${response.status})`);
-      }
-
-      const result = await response.json();
-
-      if (result.data?.success) {
+      if (data?.success) {
         toast({ 
             title: "Usuário Excluído", 
-            description: result.data.message || "A conta e os dados foram removidos permanentemente." 
+            description: data.message || "A conta e os dados foram removidos com sucesso." 
         });
       }
     } catch (e: any) {
       console.error("Erro na exclusão remota:", e);
       
+      // Se o erro for de preflight/CORS no Callable, é uma falha de ambiente, mas o Callable é o mais resiliente.
       toast({
         variant: "destructive",
-        title: "Falha na Exclusão do E-mail",
-        description: "Não foi possível remover a conta no Firebase Auth. O registro local no banco de dados será mantido para evitar inconsistência.",
+        title: "Falha na Exclusão",
+        description: e.message || "Ocorreu um erro ao tentar excluir a conta via servidor.",
       });
     } finally {
         setUserToDelete(null);

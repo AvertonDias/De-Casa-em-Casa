@@ -15,31 +15,23 @@ const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   HTTPS onRequest Functions (CORS nativo do v2)
+//   HTTPS onCall Functions (Recomendado para evitar erros de CORS)
 // ========================================================================
 
-export const deleteUserAccountV2 = https.onRequest({ 
-  region: "southamerica-east1",
-  cors: true // Habilita CORS nativamente no v2 (mais robusto para pré-verificações OPTIONS)
-}, async (req, res) => {
+export const deleteUserAccountV2 = https.onCall({ 
+  region: "southamerica-east1"
+}, async (request) => {
     try {
-      // 1. Verificar Autenticação Manual (Token enviado no header Authorization)
-      const idToken = req.headers.authorization?.split('Bearer ')[1];
-      if (!idToken) {
-        res.status(401).json({ error: { message: "Ação não autorizada. Token ausente." } });
-        return;
+      // 1. Verificar Autenticação Automática
+      if (!request.auth) {
+        throw new https.HttpsError("unauthenticated", "Ação não autorizada. Faça login novamente.");
       }
 
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const callingUserUid = decodedToken.uid;
-
-      // Suporta dados enviados via SDK ou fetch direto
-      const data = req.body?.data || req.body;
-      const { userIdToDelete } = data;
+      const callingUserUid = request.auth.uid;
+      const { userIdToDelete } = request.data;
 
       if (!userIdToDelete) {
-        res.status(400).json({ error: { message: "ID do usuário a ser deletado é obrigatório." } });
-        return;
+        throw new https.HttpsError("invalid-argument", "ID do usuário a ser deletado é obrigatório.");
       }
 
       // 2. Verificar permissões de Administrador no Firestore
@@ -47,14 +39,12 @@ export const deleteUserAccountV2 = https.onRequest({
       const callingUserData = callingUserSnap.data();
 
       if (!callingUserData || callingUserData.role !== "Administrador") {
-        res.status(403).json({ error: { message: "Apenas administradores podem excluir usuários permanentemente." } });
-        return;
+        throw new https.HttpsError("permission-denied", "Apenas administradores podem excluir usuários permanentemente.");
       }
 
       // 3. Impedir auto-exclusão
       if (callingUserUid === userIdToDelete) {
-        res.status(403).json({ error: { message: "Um administrador não pode excluir a própria conta através desta ferramenta." } });
-        return;
+        throw new https.HttpsError("permission-denied", "Um administrador não pode excluir a própria conta através desta ferramenta.");
       }
 
       // 4. Executar Exclusão no Auth
@@ -73,13 +63,19 @@ export const deleteUserAccountV2 = https.onRequest({
       await userDocRef.delete();
       logger.info(`Dados do usuário ${userIdToDelete} removidos do Firestore.`);
 
-      res.status(200).json({ data: { success: true, message: "Usuário e dados excluídos com sucesso." } });
+      return { success: true, message: "Usuário e dados excluídos com sucesso." };
 
     } catch (error: any) {
       logger.error("Erro em deleteUserAccountV2:", error);
-      res.status(500).json({ error: { message: error.message || "Erro interno no servidor" } });
+      // Repassa o erro de forma que o SDK do cliente entenda
+      if (error instanceof https.HttpsError) throw error;
+      throw new https.HttpsError("internal", error.message || "Erro interno no servidor");
     }
 });
+
+// ========================================================================
+//   HTTPS onRequest Functions (Com suporte nativo a CORS v2)
+// ========================================================================
 
 export const getCongregationIdByNumberV2 = https.onRequest({ region: "southamerica-east1", cors: true }, async (req, res) => {
     try {
@@ -195,7 +191,7 @@ export const completeUserProfileV2 = https.onRequest({ region: "southamerica-eas
 
     } catch (error: any) {
       logger.error(`Erro ao completar perfil:`, error);
-      if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error') {
+      if (error.code === 'auth/id-token-expired' || error.code === 'auth/id-token-expired') {
         res.status(401).json({ error: { message: "Token de autenticação inválido ou expirado." } });
       } else {
         res.status(500).json({ error: { message: error.message || "Falha ao criar perfil de usuário." } });
