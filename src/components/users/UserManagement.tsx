@@ -66,7 +66,6 @@ export default function UserManagement() {
     }
   }, [currentUser]);
 
-  // Lógica central de processamento de usuários, presença e status inativo
   const usersWithPresence = useMemo(() => {
     const now = new Date();
     const oneMonthAgo = subMonths(now, 1);
@@ -76,27 +75,19 @@ export default function UserManagement() {
         const isOnline = presence?.state === 'online';
         
         let effectiveLastSeenDate: Date | null = null;
-        
-        // 1. Base: Dado salvo no Firestore (histórico oficial no banco)
         if (u.lastSeen && typeof u.lastSeen.toDate === 'function') {
             effectiveLastSeenDate = u.lastSeen.toDate();
         }
-
-        // 2. Override: Sinal de rede (RTDB). Mais rápido para detectar entradas/saídas recentes.
         if (presence?.last_changed) {
             const rtdbDate = new Date(presence.last_changed);
-            // Só usa o dado do sinal de rede se ele for mais recente que o do banco fixo
             if (!effectiveLastSeenDate || rtdbDate > effectiveLastSeenDate) {
                 effectiveLastSeenDate = rtdbDate;
             }
         }
-
-        // 3. Override Final: Se está online AGORA, a data de atividade é AGORA
         if (isOnline) {
             effectiveLastSeenDate = now;
         }
 
-        // Determina se deve exibir como "Inativo" (mais de 1 mês sem aparecer)
         let status = u.status;
         if (status === 'ativo' && effectiveLastSeenDate && effectiveLastSeenDate < oneMonthAgo) {
             status = 'inativo';
@@ -111,7 +102,6 @@ export default function UserManagement() {
     });
   }, [users, presenceData]);
 
-  // Calcula os contadores dos filtros com base nos dados processados
   const filterCounts = useMemo(() => {
     const counts = {
       status: { all: 0, ativo: 0, pendente: 0, inativo: 0, rejeitado: 0, bloqueado: 0 },
@@ -126,19 +116,12 @@ export default function UserManagement() {
     const oneWeekAgo = subDays(now, 7);
 
     usersWithPresence.forEach(u => {
-      // Contagem por Status
       counts.status.all++;
       if (u.status in counts.status) counts.status[u.status as keyof typeof counts.status.ativo]++;
-      
-      // Contagem por Presença
       counts.presence.all++;
       if (u.isOnline) counts.presence.online++; else counts.presence.offline++;
-      
-      // Contagem por Cargo
       counts.role.all++;
       if (u.role in counts.role) counts.role[u.role as keyof typeof counts.role.Publicador]++;
-      
-      // Contagem por Atividade Recente
       counts.activity.all++;
       const lastSeen = u.effectiveLastSeen;
       if (lastSeen) {
@@ -175,10 +158,11 @@ export default function UserManagement() {
     setIsConfirmModalOpen(false);
     
     try {
-      toast({ title: "Iniciando Exclusão", description: "Removendo conta e registros do servidor..." });
+      toast({ title: "Processando Exclusão", description: "Aguarde a resposta do servidor..." });
       
       const idToken = await auth.currentUser.getIdToken();
       
+      // Chamada direta via HTTPS para ignorar políticas restritivas do SDK em desenvolvimento
       const response = await fetch(`https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/deleteUserAccountV2`, {
           method: 'POST',
           headers: {
@@ -188,11 +172,12 @@ export default function UserManagement() {
           body: JSON.stringify({ data: { userIdToDelete: userId } })
       });
 
-      const result = await response.json();
-
       if (!response.ok) {
-          throw new Error(result.error?.message || "Falha na comunicação com o servidor.");
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error?.message || `Erro do servidor (Status: ${response.status})`);
       }
+
+      const result = await response.json();
 
       if (result.data?.success) {
         toast({ 
@@ -201,28 +186,12 @@ export default function UserManagement() {
         });
       }
     } catch (e: any) {
-      console.error("Erro completo ao excluir via servidor:", e);
+      console.error("Erro na exclusão remota:", e);
       
       toast({
         variant: "destructive",
-        title: "Atenção: Falha na Exclusão Total",
-        description: e.message || "Não foi possível remover o e-mail via servidor.",
-      });
-
-      const userRef = doc(db, 'users', userId);
-      deleteDoc(userRef).then(() => {
-          toast({ 
-              title: "Registro Local Removido", 
-              description: "O perfil foi removido da congregação. A conta de e-mail pode precisar de remoção manual." 
-          });
-      }).catch(async (error) => {
-          if (error.code === 'permission-denied') {
-              const permissionError = new FirestorePermissionError({
-                  path: userRef.path,
-                  operation: 'delete',
-              });
-              errorEmitter.emit('permission-error', permissionError);
-          }
+        title: "Falha na Exclusão do E-mail",
+        description: "Não foi possível remover a conta no Firebase Auth. O registro local no banco de dados será mantido para evitar inconsistência.",
       });
     } finally {
         setUserToDelete(null);

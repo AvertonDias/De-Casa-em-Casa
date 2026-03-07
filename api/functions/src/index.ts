@@ -5,38 +5,25 @@ import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
 import * as crypto from "crypto";
-import cors from "cors";
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 const db = admin.firestore();
+
+// Configuração Global para a região correta
 setGlobalOptions({ region: "southamerica-east1" });
 
-const corsHandler = cors({
-  origin: true,
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "firebase-instance-id-token",
-  ],
-});
-
-
 // ========================================================================
-//   HTTPS onRequest Functions (CORS Robust)
+//   HTTPS onRequest Functions (CORS nativo do v2)
 // ========================================================================
 
-export const deleteUserAccountV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method === 'OPTIONS') {
-      res.status(204).send('');
-      return;
-    }
-
+export const deleteUserAccountV2 = https.onRequest({ 
+  region: "southamerica-east1",
+  cors: true // Habilita CORS nativamente no v2 (mais robusto para pré-verificações OPTIONS)
+}, async (req, res) => {
     try {
-      // 1. Verificar Autenticação Manual
+      // 1. Verificar Autenticação Manual (Token enviado no header Authorization)
       const idToken = req.headers.authorization?.split('Bearer ')[1];
       if (!idToken) {
         res.status(401).json({ error: { message: "Ação não autorizada. Token ausente." } });
@@ -46,6 +33,7 @@ export const deleteUserAccountV2 = https.onRequest({ region: "southamerica-east1
       const decodedToken = await admin.auth().verifyIdToken(idToken);
       const callingUserUid = decodedToken.uid;
 
+      // Suporta dados enviados via SDK ou fetch direto
       const data = req.body?.data || req.body;
       const { userIdToDelete } = data;
 
@@ -91,15 +79,9 @@ export const deleteUserAccountV2 = https.onRequest({ region: "southamerica-east1
       logger.error("Erro em deleteUserAccountV2:", error);
       res.status(500).json({ error: { message: error.message || "Erro interno no servidor" } });
     }
-  });
 });
 
-export const getCongregationIdByNumberV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method === 'OPTIONS') {
-      res.status(204).send('');
-      return;
-    }
+export const getCongregationIdByNumberV2 = https.onRequest({ region: "southamerica-east1", cors: true }, async (req, res) => {
     try {
       const data = req.body?.data || req.body;
       const { congregationNumber } = data;
@@ -118,15 +100,9 @@ export const getCongregationIdByNumberV2 = https.onRequest({ region: "southameri
       logger.error("Erro em getCongregationIdByNumberV2:", error);
       res.status(500).json({ error: { message: "Erro interno do servidor." } });
     }
-  });
 });
 
-export const createCongregationAndAdminV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method === 'OPTIONS') {
-      res.status(204).send('');
-      return;
-    }
+export const createCongregationAndAdminV2 = https.onRequest({ region: "southamerica-east1", cors: true }, async (req, res) => {
     try {
       const data = req.body?.data || req.body;
       const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = data;
@@ -174,15 +150,9 @@ export const createCongregationAndAdminV2 = https.onRequest({ region: "southamer
         res.status(500).json({ error: { message: error.message || "Erro interno no servidor" } });
       }
     }
-  });
 });
 
-export const completeUserProfileV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method === 'OPTIONS') {
-      res.status(204).send('');
-      return;
-    }
+export const completeUserProfileV2 = https.onRequest({ region: "southamerica-east1", cors: true }, async (req, res) => {
     try {
       const idToken = req.headers.authorization?.split('Bearer ')[1];
       if (!idToken) {
@@ -231,22 +201,14 @@ export const completeUserProfileV2 = https.onRequest({ region: "southamerica-eas
         res.status(500).json({ error: { message: error.message || "Falha ao criar perfil de usuário." } });
       }
     }
-  });
 });
 
-export const notifyOnNewUserV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
-  corsHandler(req, res, async () => {
+export const notifyOnNewUserV2 = https.onRequest({ region: "southamerica-east1", cors: true }, async (req, res) => {
     logger.info("notifyOnNewUserV2 chamada com:", req.body);
     res.status(200).json({ data: { success: true, message: "Notificação processada (simulação)." } });
-  });
 });
 
-export const requestPasswordResetV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method === 'OPTIONS') {
-      res.status(204).send('');
-      return;
-    }
+export const requestPasswordResetV2 = https.onRequest({ region: "southamerica-east1", cors: true }, async (req, res) => {
     try {
       const data = req.body?.data || req.body;
       const { email } = data;
@@ -271,15 +233,9 @@ export const requestPasswordResetV2 = https.onRequest({ region: "southamerica-ea
         res.status(500).json({ error: { message: "Erro ao iniciar o processo de redefinição." } });
       }
     }
-  });
 });
 
-export const resetPasswordWithTokenV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method === 'OPTIONS') {
-      res.status(204).send('');
-      return;
-    }
+export const resetPasswordWithTokenV2 = https.onRequest({ region: "southamerica-east1", cors: true }, async (req, res) => {
     try {
       const data = req.body?.data || req.body;
       const { token, newPassword } = data;
@@ -309,7 +265,6 @@ export const resetPasswordWithTokenV2 = https.onRequest({ region: "southamerica-
       logger.error("Erro ao redefinir senha com token:", error);
       res.status(500).json({ error: { message: "Falha ao atualizar a senha." } });
     }
-  });
 });
 
 
