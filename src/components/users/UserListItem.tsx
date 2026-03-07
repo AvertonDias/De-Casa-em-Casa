@@ -1,9 +1,8 @@
-
 "use client";
 
 import type { AppUser } from '@/types/types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Check, Trash2, XCircle, Edit, User, UserX } from 'lucide-react';
+import { MoreVertical, Check, Trash2, XCircle, Edit, User } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -123,7 +122,7 @@ export const UserListItem = ({
                       <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={handleDelete} className="text-red-500 dark:text-red-400 focus:bg-red-500 text-white">
-                          <UserX className="mr-2 h-4 w-4"/>Remover Acesso
+                          <Trash2 className="mr-2 h-4 w-4"/>Excluir (Permanente)
                         </DropdownMenuItem>
                       </>
                     )}

@@ -264,7 +264,7 @@ export default function UserManagement() {
       </div>
 
       <div className="mx-4 md:mx-0">
-        <Accordion type="single" collapsible defaultValue="filters" className="w-full bg-card rounded-xl border border-border/40 shadow-sm overflow-hidden">
+        <Accordion type="single" collapsible className="w-full bg-card rounded-xl border border-border/40 shadow-sm overflow-hidden">
           <AccordionItem value="filters" className="border-b-0">
             <AccordionTrigger className="flex items-center gap-2 px-6 py-4 text-muted-foreground hover:no-underline hover:bg-white/5 transition-all">
               <div className="flex items-center gap-2">
