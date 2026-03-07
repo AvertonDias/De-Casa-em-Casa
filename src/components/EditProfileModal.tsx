@@ -1,13 +1,14 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { reauthenticateWithCredential, EmailAuthProvider, updateProfile, sendPasswordResetEmail, deleteUser } from 'firebase/auth';
+import { reauthenticateWithCredential, EmailAuthProvider, updateProfile, sendPasswordResetEmail, deleteUser, GoogleAuthProvider, reauthenticateWithPopup } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Eye, EyeOff, Trash2, KeyRound, Loader } from 'lucide-react';
+import { Eye, EyeOff, Trash2, KeyRound, Loader, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
@@ -36,6 +37,8 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
 
   const nameInputRef = useRef<HTMLInputElement>(null);
   const whatsappInputRef = useRef<HTMLInputElement>(null);
+
+  const isGoogleUser = auth.currentUser?.providerData.some(p => p.providerId === 'google.com');
 
   useEffect(() => {
     if (user && isOpen) {
@@ -127,7 +130,6 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
 
     try {
-        // Usando o método padrão e gratuito do Firebase Auth
         await sendPasswordResetEmail(auth, auth.currentUser.email);
         setPasswordResetSuccess(
             `Link enviado para ${auth.currentUser.email}. Se não o encontrar, verifique sua caixa de SPAM.`
@@ -145,25 +147,28 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   };
 
   const confirmSelfDelete = async () => {
-    if (!user || !auth.currentUser?.email || !passwordForDelete) {
-      setError("Senha é necessária para exclusão.");
-      return;
-    }
+    if (!user || !auth.currentUser?.email) return;
     
     setLoading(true);
     setError(null);
     
     try {
         const currentUser = auth.currentUser;
-        const credential = EmailAuthProvider.credential(currentUser.email!, passwordForDelete);
         
-        // Reautenticação é obrigatória para excluir a própria conta no Firebase
-        await reauthenticateWithCredential(currentUser, credential);
+        if (isGoogleUser) {
+            const provider = new GoogleAuthProvider();
+            await reauthenticateWithPopup(currentUser, provider);
+        } else {
+            if (!passwordForDelete) {
+                setError("Senha é necessária para exclusão.");
+                setLoading(false);
+                return;
+            }
+            const credential = EmailAuthProvider.credential(currentUser.email!, passwordForDelete);
+            await reauthenticateWithCredential(currentUser, credential);
+        }
         
-        // 1. Excluir o documento do Firestore
         await deleteDoc(doc(db, 'users', user.uid));
-        
-        // 2. Excluir o usuário do Auth (Plano Spark)
         await deleteUser(currentUser);
         
         toast({
@@ -171,13 +176,14 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
           description: "Sua conta foi removida com sucesso.",
         });
         
-        // O logout manual não é estritamente necessário pois deleteUser encerra a sessão
         onOpenChange(false);
 
     } catch (error: any) {
          console.error("Erro na autoexclusão:", error);
          if (error.code?.includes('auth/invalid-credential') || error.code?.includes('auth/wrong-password')) {
              setError("Senha incorreta. A exclusão foi cancelada.");
+         } else if (error.code?.includes('auth/popup-closed-by-user')) {
+             setError("A autenticação com Google foi cancelada.");
          } else {
             setError(error.message || "Ocorreu um erro ao tentar excluir a conta.");
          }
@@ -199,12 +205,17 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         <DialogHeader className="p-6 pb-4">
           <DialogTitle>Editar Perfil</DialogTitle>
           <DialogDescription>
-            Altere seu nome e WhatsApp. Para alterar sua senha, use o botão de redefinição por e-mail.
+            Altere seu nome e WhatsApp. {isGoogleUser && "Como você entrou com o Google, use a redefinição abaixo para criar uma senha própria."}
           </DialogDescription>
           {user?.email && (
-            <p className="text-sm text-muted-foreground pt-2">
-              E-mail: <span className="font-semibold text-foreground">{user.email}</span>
-            </p>
+            <div className="mt-2 flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  E-mail: <span className="font-semibold text-foreground">{user.email}</span>
+                </p>
+                {isGoogleUser && (
+                    <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-bold">CONTA GOOGLE</span>
+                )}
+            </div>
           )}
         </DialogHeader>
         
@@ -244,6 +255,12 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
               </div>
               
               <div className="pt-2 border-t border-border">
+                <div className="mb-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                    <p className="text-xs text-blue-400 flex items-start gap-2">
+                        <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                        <span>Se você quiser entrar usando apenas e-mail e senha (sem o Google), clique abaixo para <b>criar sua senha pela primeira vez</b>.</span>
+                    </p>
+                </div>
                 <Button 
                   type="button"
                   variant="outline" 
@@ -252,7 +269,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                   className="w-full text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400"
                 >
                   {passwordResetLoading ? <Loader className="animate-spin mr-2" /> : <KeyRound className="mr-2" size={16} />}
-                  Enviar Link para Redefinir Senha
+                  {isGoogleUser ? "Criar Senha / Redefinir" : "Redefinir Minha Senha"}
                 </Button>
                 {passwordResetSuccess && (
                   <p className="text-sm text-green-600 dark:text-green-400 font-semibold text-center mt-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
@@ -298,30 +315,39 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
               
               {showDeleteConfirm && (
                 <div className="mt-2 p-4 bg-destructive/10 rounded-lg border border-destructive/20 space-y-3">
-                  <p className="text-sm font-semibold">Para confirmar a exclusão, digite sua senha atual.</p>
-                  <div className="relative">
-                    <Input 
-                      id="password-for-delete"
-                      type={showPassword ? 'text' : 'password'}
-                      autoComplete="current-password"
-                      value={passwordForDelete}
-                      onChange={(e) => setPasswordForDelete(e.target.value)}
-                      placeholder="Digite sua senha para confirmar"
-                      autoFocus
-                    />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
-                        {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
-                    </button>
-                  </div>
+                  <p className="text-sm font-semibold">
+                    {isGoogleUser 
+                        ? "Como você usa o Google, pediremos para você confirmar sua conta Google novamente."
+                        : "Para confirmar a exclusão, digite sua senha atual."
+                    }
+                  </p>
+                  
+                  {!isGoogleUser && (
+                    <div className="relative">
+                        <Input 
+                        id="password-for-delete"
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete="current-password"
+                        value={passwordForDelete}
+                        onChange={(e) => setPasswordForDelete(e.target.value)}
+                        placeholder="Digite sua senha para confirmar"
+                        autoFocus
+                        />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
+                            {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                        </button>
+                    </div>
+                  )}
+
                   <div className="flex gap-2 justify-end">
                       <Button variant="secondary" size="sm" onClick={() => setShowDeleteConfirm(false)}>Cancelar</Button>
                       <Button
                         variant="destructive"
                         size="sm"
                         onClick={confirmSelfDelete}
-                        disabled={loading || passwordForDelete.length < 6}
+                        disabled={loading || (!isGoogleUser && passwordForDelete.length < 6)}
                       >
-                         {loading ? <Loader className="animate-spin" /> : 'Confirmar Exclusão'}
+                         {loading ? <Loader className="animate-spin" /> : (isGoogleUser ? 'Confirmar via Google' : 'Confirmar Exclusão')}
                       </Button>
                   </div>
                 </div>
