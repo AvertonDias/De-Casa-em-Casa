@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -11,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Trash2, Loader } from 'lucide-react';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 
 interface EditCasaModalProps {
@@ -57,26 +57,31 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
       return;
     }
 
-    try {
-      const casaRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
-      await updateDoc(casaRef, {
-        number: formData.number.toUpperCase(),
-        observations: formData.observations,
-      });
-
+    const casaRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
+    
+    updateDoc(casaRef, {
+      number: formData.number.toUpperCase(),
+      observations: formData.observations,
+    }).then(() => {
       onClose();
       onCasaUpdated();
-    } catch (err) {
-      setError("Falha ao atualizar.");
-    } finally {
+    }).catch(async (serverError) => {
+      const permissionError = new FirestorePermissionError({
+        path: casaRef.path,
+        operation: 'update',
+        requestResourceData: { number: formData.number.toUpperCase(), observations: formData.observations },
+      } satisfies SecurityRuleContext);
+      errorEmitter.emit('permission-error', permissionError);
+    }).finally(() => {
       setIsLoading(false);
-    }
+    });
   };
   
   const handleRequestDelete = () => {
     if (!casa) return;
+    const congRef = doc(db, 'congregations', congregationId);
+
     runTransaction(db, async (transaction) => {
-      const congRef = doc(db, 'congregations', congregationId);
       const congDoc = await transaction.get(congRef);
       if (!congDoc.exists()) {
         throw "Documento da congregação não encontrado!";
@@ -88,8 +93,12 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
     }).then(() => {
         onDeleteRequest(casa);
         onClose();
-    }).catch((error) => {
-        console.error("Erro na transação de exclusão:", error);
+    }).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: congRef.path,
+            operation: 'update',
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
     });
   };
 

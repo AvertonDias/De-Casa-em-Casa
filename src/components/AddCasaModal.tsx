@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
@@ -20,6 +18,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 interface AddCasaModalProps {
   territoryId: string;
@@ -63,95 +63,95 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
         return;
     }
 
-    try {
-        const congRef = doc(db, 'congregations', congregationId);
-        const territoryRef = doc(congRef, 'territories', territoryId);
-        const quadraRef = doc(territoryRef, 'quadras', quadraId);
-        const casasRef = collection(quadraRef, 'casas');
+    const congRef = doc(db, 'congregations', congregationId);
+    const territoryRef = doc(congRef, 'territories', territoryId);
+    const quadraRef = doc(territoryRef, 'quadras', quadraId);
+    const casasRef = collection(quadraRef, 'casas');
 
-        await runTransaction(db, async (transaction) => {
-            const [quadraDoc, territoryDoc, congDoc, casasSnapshot] = await Promise.all([
-                transaction.get(quadraRef),
-                transaction.get(territoryRef),
-                transaction.get(congRef),
-                getDocs(casasRef),
-            ]);
+    runTransaction(db, async (transaction) => {
+        const [quadraDoc, territoryDoc, congDoc, casasSnapshot] = await Promise.all([
+            transaction.get(quadraRef),
+            transaction.get(territoryRef),
+            transaction.get(congRef),
+            getDocs(casasRef),
+        ]);
 
-            if (!quadraDoc.exists() || !territoryDoc.exists() || !congDoc.exists()) {
-                throw new Error("Quadra, Território ou Congregação não encontrado.");
-            }
-            
-            const order = casasSnapshot.size;
-            const newCasaRef = doc(casasRef); 
+        if (!quadraDoc.exists() || !territoryDoc.exists() || !congDoc.exists()) {
+            throw new Error("Quadra, Território ou Congregação não encontrado.");
+        }
+        
+        const order = casasSnapshot.size;
+        const newCasaRef = doc(casasRef); 
 
-            const casaData: any = {
-                number: number.toUpperCase(),
-                observations, 
-                status, 
+        const casaData: any = {
+            number: number.toUpperCase(),
+            observations, 
+            status, 
+            createdAt: serverTimestamp(),
+            order
+        };
+
+        // If house is marked as done on creation, create an activity log
+        if (status) {
+            const activityHistoryRef = collection(territoryRef, 'activityHistory');
+            const newActivityRef = doc(activityHistoryRef);
+            transaction.set(newActivityRef, {
+                type: "work",
+                activityDate: Timestamp.now(),
+                description: `Casa ${number.toUpperCase()} (da ${quadraDoc.data().name}) foi feita ao ser adicionada.`,
+                userId: 'automatic_system_log',
+                userName: user.name,
                 createdAt: serverTimestamp(),
-                order
-            };
-
-            // If house is marked as done on creation, create an activity log
-            if (status) {
-                const activityHistoryRef = collection(territoryRef, 'activityHistory');
-                const newActivityRef = doc(activityHistoryRef);
-                transaction.set(newActivityRef, {
-                    type: "work",
-                    activityDate: Timestamp.now(),
-                    description: `Casa ${number.toUpperCase()} (da ${quadraDoc.data().name}) foi feita ao ser adicionada.`,
-                    userId: 'automatic_system_log',
-                    userName: user.name,
-                    createdAt: serverTimestamp(),
-                });
-                
-                casaData.lastWorkedBy = { uid: user.uid, name: user.name };
-                casaData.activityLogId = newActivityRef.id;
-            }
-
-            transaction.set(newCasaRef, casaData);
-
-            // Update Quadra stats
-            const newQuadraTotalHouses = (quadraDoc.data().totalHouses || 0) + 1;
-            const newQuadraHousesDone = (quadraDoc.data().housesDone || 0) + (status ? 1 : 0);
-            transaction.update(quadraRef, {
-                totalHouses: newQuadraTotalHouses,
-                housesDone: newQuadraHousesDone
             });
-
-            // Update Territory stats
-            const newTerritoryTotalHouses = (territoryDoc.data().stats.totalHouses || 0) + 1;
-            const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + (status ? 1 : 0);
-            const newProgress = newTerritoryTotalHouses > 0 ? newTerritoryHousesDone / newTerritoryTotalHouses : 0;
-            const territoryUpdateData: any = {
-                "stats.totalHouses": newTerritoryTotalHouses,
-                "stats.housesDone": newTerritoryHousesDone,
-                progress: newProgress,
-                lastUpdate: serverTimestamp()
-            };
-            if (status) {
-                territoryUpdateData.lastWorkedAt = serverTimestamp();
-            }
-            transaction.update(territoryRef, territoryUpdateData);
             
-            // Update Congregation stats
-            const newCongTotalHouses = (congDoc.data().totalHouses || 0) + 1;
-            const newCongTotalHousesDone = (congDoc.data().totalHousesDone || 0) + (status ? 1 : 0);
-            transaction.update(congRef, {
-                totalHouses: newCongTotalHouses,
-                totalHousesDone: newCongTotalHousesDone
-            });
+            casaData.lastWorkedBy = { uid: user.uid, name: user.name };
+            casaData.activityLogId = newActivityRef.id;
+        }
+
+        transaction.set(newCasaRef, casaData);
+
+        // Update Quadra stats
+        const newQuadraTotalHouses = (quadraDoc.data().totalHouses || 0) + 1;
+        const newQuadraHousesDone = (quadraDoc.data().housesDone || 0) + (status ? 1 : 0);
+        transaction.update(quadraRef, {
+            totalHouses: newQuadraTotalHouses,
+            housesDone: newQuadraHousesDone
         });
 
-      setIsOpen(false);
-      onCasaAdded();
+        // Update Territory stats
+        const newTerritoryTotalHouses = (territoryDoc.data().stats.totalHouses || 0) + 1;
+        const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + (status ? 1 : 0);
+        const newProgress = newTerritoryTotalHouses > 0 ? newTerritoryHousesDone / newTerritoryTotalHouses : 0;
+        const territoryUpdateData: any = {
+            "stats.totalHouses": newTerritoryTotalHouses,
+            "stats.housesDone": newTerritoryHousesDone,
+            progress: newProgress,
+            lastUpdate: serverTimestamp()
+        };
+        if (status) {
+            territoryUpdateData.lastWorkedAt = serverTimestamp();
+        }
+        transaction.update(territoryRef, territoryUpdateData);
+        
+        // Update Congregation stats
+        const newCongTotalHouses = (congDoc.data().totalHouses || 0) + 1;
+        const newCongTotalHousesDone = (congDoc.data().totalHousesDone || 0) + (status ? 1 : 0);
+        transaction.update(congRef, {
+            totalHouses: newCongTotalHouses,
+            totalHousesDone: newCongTotalHousesDone
+        });
+    }).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: quadraRef.path,
+            operation: 'create',
+            requestResourceData: { number, status },
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+    });
 
-    } catch (err) {
-      console.error("Erro ao adicionar casa:", err);
-      setError("Falha ao adicionar casa.");
-    } finally {
-        setIsLoading(false);
-    }
+    setIsOpen(false);
+    onCasaAdded();
+    setIsLoading(false);
   };
 
   const onOpenChange = (open: boolean) => {

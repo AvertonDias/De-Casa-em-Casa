@@ -38,8 +38,11 @@ service cloud.firestore {
             // Somente usuários autenticados podem criar uma congregação
             allow create: if isAuth();
             
-            // Somente o Administrador da própria congregação pode atualizar ou excluir
-            allow update, delete: if isUserInCongregation(congId) && isAdmin();
+            // Permitir que membros ativos atualizem para que contadores globais funcionem
+            allow update: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers());
+            
+            // Somente o Administrador da própria congregação pode excluir
+            allow delete: if isUserInCongregation(congId) && isAdmin();
 
             match /territories/{terrId} {
                 // Só permite leitura se estiver na congregação E for ativo OU tiver cargo de gerência

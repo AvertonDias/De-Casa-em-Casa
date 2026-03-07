@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
@@ -16,6 +14,8 @@ import withAuth from '@/components/withAuth';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { format as formatDate } from 'date-fns';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 
 interface QuadraDetailPageProps {
@@ -178,82 +178,85 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     const casaRef = doc(quadraRef, 'casas', casa.id);
     const activityHistoryRef = collection(territoryRef, 'activityHistory');
 
-    try {
-        await runTransaction(db, async (transaction) => {
-            const [congDoc, territoryDoc, quadraDoc, casaDoc] = await Promise.all([
-                transaction.get(congRef),
-                transaction.get(territoryRef),
-                transaction.get(quadraRef),
-                transaction.get(casaRef),
-            ]);
+    runTransaction(db, async (transaction) => {
+        const [congDoc, territoryDoc, quadraDoc, casaDoc] = await Promise.all([
+            transaction.get(congRef),
+            transaction.get(territoryRef),
+            transaction.get(quadraRef),
+            transaction.get(casaRef),
+        ]);
 
-            if (!congDoc.exists() || !territoryDoc.exists() || !quadraDoc.exists() || !casaDoc.exists()) {
-                throw new Error("Um dos documentos necessários não foi encontrado.");
-            }
+        if (!congDoc.exists() || !territoryDoc.exists() || !quadraDoc.exists() || !casaDoc.exists()) {
+            throw new Error("Um dos documentos necessários não foi encontrado.");
+        }
 
-            const wasDone = casaDoc.data().status === true;
-            if (wasDone === newStatus) return; // No change needed
+        const wasDone = casaDoc.data().status === true;
+        if (wasDone === newStatus) return; // No change needed
 
-            const increment = newStatus ? 1 : -1;
+        const increment = newStatus ? 1 : -1;
 
-            // --- Update stats ---
-            const newQuadraHousesDone = (quadraDoc.data().housesDone || 0) + increment;
-            const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + increment;
-            const territoryTotalHouses = territoryDoc.data().stats.totalHouses || 0;
-            const newTerritoryProgress = territoryTotalHouses > 0 ? newTerritoryHousesDone / territoryTotalHouses : 0;
-            const newCongTotalHousesDone = (congDoc.data().totalHousesDone || 0) + increment;
+        // --- Update stats ---
+        const newQuadraHousesDone = (quadraDoc.data().housesDone || 0) + increment;
+        const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + increment;
+        const territoryTotalHouses = territoryDoc.data().stats.totalHouses || 0;
+        const newTerritoryProgress = territoryTotalHouses > 0 ? newTerritoryHousesDone / territoryTotalHouses : 0;
+        const newCongTotalHousesDone = (congDoc.data().totalHousesDone || 0) + increment;
 
-            transaction.update(quadraRef, { housesDone: newQuadraHousesDone });
+        transaction.update(quadraRef, { housesDone: newQuadraHousesDone });
+        
+        const territoryUpdateData: any = {
+            "stats.housesDone": newTerritoryHousesDone,
+            progress: newTerritoryProgress,
+            lastUpdate: serverTimestamp()
+        };
+        if(newStatus){
+            territoryUpdateData.lastWorkedAt = serverTimestamp();
+        }
+        transaction.update(territoryRef, territoryUpdateData);
+        
+        transaction.update(congRef, { totalHousesDone: newCongTotalHousesDone });
+
+        // --- Handle Casa and Activity Log ---
+        if (newStatus) {
+            // Marking as DONE
+            const newActivityRef = doc(activityHistoryRef);
+            transaction.set(newActivityRef, {
+                type: "work",
+                activityDate: Timestamp.now(),
+                description: `Casa ${casa.number} (da ${quadraDoc.data().name}) foi feita.`,
+                userId: 'automatic_system_log',
+                userName: user.name,
+            });
             
-            const territoryUpdateData: any = {
-                "stats.housesDone": newTerritoryHousesDone,
-                progress: newTerritoryProgress,
-                lastUpdate: serverTimestamp()
-            };
-            if(newStatus){
-                territoryUpdateData.lastWorkedAt = serverTimestamp();
+            transaction.update(casaRef, { 
+                status: true,
+                lastWorkedBy: { uid: user.uid, name: user.name },
+                activityLogId: newActivityRef.id // Store the log ID
+            });
+
+        } else {
+            // Un-marking as NOT DONE
+            const activityLogIdToDelete = casaDoc.data().activityLogId;
+            if (activityLogIdToDelete) {
+                const logToDeleteRef = doc(activityHistoryRef, activityLogIdToDelete);
+                transaction.delete(logToDeleteRef);
             }
-            transaction.update(territoryRef, territoryUpdateData);
-            
-            transaction.update(congRef, { totalHousesDone: newCongTotalHousesDone });
 
-            // --- Handle Casa and Activity Log ---
-            if (newStatus) {
-                // Marking as DONE
-                const newActivityRef = doc(activityHistoryRef);
-                transaction.set(newActivityRef, {
-                    type: "work",
-                    activityDate: Timestamp.now(),
-                    description: `Casa ${casa.number} (da ${quadraDoc.data().name}) foi feita.`,
-                    userId: 'automatic_system_log',
-                    userName: user.name,
-                });
-                
-                transaction.update(casaRef, { 
-                    status: true,
-                    lastWorkedBy: { uid: user.uid, name: user.name },
-                    activityLogId: newActivityRef.id // Store the log ID
-                });
+            transaction.update(casaRef, {
+                status: false,
+                activityLogId: deleteField() // Remove the log ID
+            });
+        }
+    }).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: casaRef.path,
+            operation: 'update',
+            requestResourceData: { status: newStatus },
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+    });
 
-            } else {
-                // Un-marking as NOT DONE
-                const activityLogIdToDelete = casaDoc.data().activityLogId;
-                if (activityLogIdToDelete) {
-                    const logToDeleteRef = doc(activityHistoryRef, activityLogIdToDelete);
-                    transaction.delete(logToDeleteRef);
-                }
-
-                transaction.update(casaRef, {
-                    status: false,
-                    activityLogId: deleteField() // Remove the log ID
-                });
-            }
-        });
-    } catch (error) {
-        console.error("Erro na transação ao atualizar status da casa:", error);
-    } finally {
-        setStatusAction(null);
-    }
+    setStatusAction(null);
   };
 
   const handleEditClick = (casa: Casa) => {
@@ -270,58 +273,60 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     if (!casaToDelete || !user?.congregationId || !territoryId || !quadraId) return;
     const congregationId = user.congregationId;
 
-    try {
-        await runTransaction(db, async (transaction) => {
-            const congRef = doc(db, 'congregations', congregationId);
-            const territoryRef = doc(congRef, 'territories', territoryId);
-            const quadraRef = doc(territoryRef, 'quadras', quadraId);
-            const casaRef = doc(quadraRef, 'casas', casaToDelete.id);
-            
-            const [quadraDoc, territoryDoc, casaDoc, congDoc] = await Promise.all([
-                transaction.get(quadraRef),
-                transaction.get(territoryRef),
-                transaction.get(casaRef),
-                transaction.get(congRef)
-            ]);
+    runTransaction(db, async (transaction) => {
+        const congRef = doc(db, 'congregations', congregationId);
+        const territoryRef = doc(congRef, 'territories', territoryId);
+        const quadraRef = doc(territoryRef, 'quadras', quadraId);
+        const casaRef = doc(quadraRef, 'casas', casaToDelete.id);
+        
+        const [quadraDoc, territoryDoc, casaDoc, congDoc] = await Promise.all([
+            transaction.get(quadraRef),
+            transaction.get(territoryRef),
+            transaction.get(casaRef),
+            transaction.get(congRef)
+        ]);
 
-            if (!quadraDoc.exists() || !territoryDoc.exists() || !casaDoc.exists() || !congDoc.exists()) {
-                throw new Error("Documento não encontrado para a transação de exclusão.");
-            }
+        if (!quadraDoc.exists() || !territoryDoc.exists() || !casaDoc.exists() || !congDoc.exists()) {
+            throw new Error("Documento não encontrado para a transação de exclusão.");
+        }
 
-            transaction.delete(casaRef);
-            
-            const wasDone = casaDoc.data().status === true;
-            const quadraTotal = quadraDoc.data().totalHouses || 0;
-            const quadraDone = quadraDoc.data().housesDone || 0;
-            transaction.update(quadraRef, {
-                totalHouses: quadraTotal - 1,
-                housesDone: wasDone ? quadraDone - 1 : quadraDone
-            });
-            
-            const territoryTotal = territoryDoc.data().stats.totalHouses || 0;
-            const territoryDone = territoryDoc.data().stats.housesDone || 0;
-            const newTerritoryTotal = territoryTotal - 1;
-            const newTerritoryDone = wasDone ? territoryDone - 1 : territoryDone;
-            const newProgress = newTerritoryTotal > 0 ? newTerritoryDone / newTerritoryTotal : 0;
-            transaction.update(territoryRef, {
-                "stats.totalHouses": newTerritoryTotal,
-                "stats.housesDone": newTerritoryDone,
-                progress: newProgress
-            });
-
-            const congTotalHouses = congDoc.data().totalHouses || 0;
-            const congTotalHousesDone = congDoc.data().totalHousesDone || 0;
-            transaction.update(congRef, {
-                totalHouses: congTotalHouses - 1,
-                totalHousesDone: wasDone ? congTotalHousesDone - 1 : congTotalHousesDone
-            });
+        transaction.delete(casaRef);
+        
+        const wasDone = casaDoc.data().status === true;
+        const quadraTotal = quadraDoc.data().totalHouses || 0;
+        const quadraDone = quadraDoc.data().housesDone || 0;
+        transaction.update(quadraRef, {
+            totalHouses: quadraTotal - 1,
+            housesDone: wasDone ? quadraDone - 1 : quadraDone
         });
-    } catch(error) {
-        console.error("Erro ao excluir casa e atualizar estatísticas:", error);
-    } finally {
-        setIsConfirmDeleteOpen(false);
-        setCasaToDelete(null);
-    }
+        
+        const territoryTotal = territoryDoc.data().stats.totalHouses || 0;
+        const territoryDone = territoryDoc.data().stats.housesDone || 0;
+        const newTerritoryTotal = territoryTotal - 1;
+        const newTerritoryDone = wasDone ? territoryDone - 1 : territoryDone;
+        const newProgress = newTerritoryTotal > 0 ? newTerritoryDone / newTerritoryTotal : 0;
+        transaction.update(territoryRef, {
+            "stats.totalHouses": newTerritoryTotal,
+            "stats.housesDone": newTerritoryDone,
+            progress: newProgress
+        });
+
+        const congTotalHouses = congDoc.data().totalHouses || 0;
+        const congTotalHousesDone = congDoc.data().totalHousesDone || 0;
+        transaction.update(congRef, {
+            totalHouses: congTotalHouses - 1,
+            totalHousesDone: wasDone ? congTotalHousesDone - 1 : congTotalHousesDone
+        });
+    }).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: `congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}/casas/${casaToDelete.id}`,
+            operation: 'delete',
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+    });
+
+    setIsConfirmDeleteOpen(false);
+    setCasaToDelete(null);
   };
 
   const handleHouseClick = (houseId: string) => {
