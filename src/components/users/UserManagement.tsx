@@ -162,7 +162,7 @@ export default function UserManagement() {
       
       const idToken = await auth.currentUser.getIdToken();
       
-      // Chamada via fetch direto ao endpoint HTTPS para ignorar limitações de CORS do SDK no ambiente de dev
+      // Chamada direta via HTTPS para máxima compatibilidade com CORS no ambiente Cloud Workstations
       const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/deleteUserAccountV2', {
         method: 'POST',
         headers: {
@@ -180,14 +180,15 @@ export default function UserManagement() {
             description: result.data.message || "A conta e os dados foram removidos com sucesso." 
         });
       } else {
-        throw new Error(result.error?.message || "Ocorreu um erro ao processar a exclusão no servidor.");
+        const errorMsg = result.error?.message || "Ocorreu um erro ao processar a exclusão no servidor.";
+        throw new Error(errorMsg);
       }
     } catch (e: any) {
-      console.error("Erro completo na exclusão remota:", e);
+      console.error("Erro na exclusão remota:", e);
       toast({
         variant: "destructive",
         title: "Falha na Exclusão",
-        description: e.message || "Não foi possível se comunicar com o servidor. Tente novamente mais tarde.",
+        description: e.message || "Não foi possível completar a exclusão remota. Verifique sua conexão.",
       });
     } finally {
         setUserToDelete(null);
