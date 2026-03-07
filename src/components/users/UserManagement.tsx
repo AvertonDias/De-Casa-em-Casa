@@ -82,6 +82,12 @@ export default function UserManagement() {
             }
         }
 
+        // CRÍTICO: Se o usuário está online agora, consideramos sua atividade como "Agora"
+        // Isso garante que os contadores de "Última Hora" funcionem mesmo se o sinal de 'last_changed' for antigo
+        if (isOnline) {
+            effectiveLastSeenDate = now;
+        }
+
         let status = u.status;
         if (status === 'ativo' && effectiveLastSeenDate && effectiveLastSeenDate < oneMonthAgo) {
             status = 'inativo';
@@ -104,20 +110,26 @@ export default function UserManagement() {
       activity: { all: 0, active_hourly: 0, active_daily: 0, active_weekly: 0, inactive_month: 0 }
     };
     const now = new Date();
+    const oneHourAgo = subHours(now, 1);
+    const oneDayAgo = subHours(now, 24);
+    const oneWeekAgo = subDays(now, 7);
+
     usersWithPresence.forEach(u => {
       counts.status.all++;
       if (u.status in counts.status) counts.status[u.status as keyof typeof counts.status.ativo]++;
+      
       counts.presence.all++;
       if (u.isOnline) counts.presence.online++; else counts.presence.offline++;
+      
       counts.role.all++;
       if (u.role in counts.role) counts.role[u.role as keyof typeof counts.role.Publicador]++;
       
       counts.activity.all++;
       const lastSeenDate = u.lastSeen?.toDate ? u.lastSeen.toDate() : null;
       if (lastSeenDate) {
-        if (lastSeenDate > subHours(now, 1)) counts.activity.active_hourly++;
-        if (lastSeenDate > subHours(now, 24)) counts.activity.active_daily++;
-        if (lastSeenDate > subDays(now, 7)) counts.activity.active_weekly++;
+        if (lastSeenDate > oneHourAgo) counts.activity.active_hourly++;
+        if (lastSeenDate > oneDayAgo) counts.activity.active_daily++;
+        if (lastSeenDate > oneWeekAgo) counts.activity.active_weekly++;
       }
       if (u.status === 'inativo') counts.activity.inactive_month++;
     });
@@ -169,18 +181,22 @@ export default function UserManagement() {
   };
 
   const filteredAndSortedUsers = useMemo(() => {
+    const now = new Date();
+    const oneHourAgo = subHours(now, 1);
+    const oneDayAgo = subHours(now, 24);
+    const oneWeekAgo = subDays(now, 7);
+
     let filtered = usersWithPresence.filter(u => {
         const matchesPresence = presenceFilter === 'all' || u.isOnline === (presenceFilter === 'online');
         const matchesRole = roleFilter === 'all' || u.role === roleFilter;
         const matchesStatus = statusFilter === 'all' || u.status === statusFilter;
         
         let matchesActivity = true;
-        const now = new Date();
         const lastSeenDate = u.lastSeen?.toDate ? u.lastSeen.toDate() : null;
         if (activityFilter !== 'all') {
-            if (activityFilter === 'active_hourly') matchesActivity = !!lastSeenDate && lastSeenDate > subHours(now, 1);
-            else if (activityFilter === 'active_daily') matchesActivity = !!lastSeenDate && lastSeenDate > subHours(now, 24);
-            else if (activityFilter === 'active_weekly') matchesActivity = !!lastSeenDate && lastSeenDate > subDays(now, 7);
+            if (activityFilter === 'active_hourly') matchesActivity = !!lastSeenDate && lastSeenDate > oneHourAgo;
+            else if (activityFilter === 'active_daily') matchesActivity = !!lastSeenDate && lastSeenDate > oneDayAgo;
+            else if (activityFilter === 'active_weekly') matchesActivity = !!lastSeenDate && lastSeenDate > oneWeekAgo;
             else if (activityFilter === 'inactive_month') matchesActivity = u.status === 'inativo';
         }
 
