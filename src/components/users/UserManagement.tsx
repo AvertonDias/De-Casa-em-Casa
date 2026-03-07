@@ -259,8 +259,13 @@ export default function UserManagement() {
   }
 
   const FilterButton = ({ label, value, currentFilter, setFilter, count }: { label: string, value: string, currentFilter: string, setFilter: (value: any) => void, count?: number}) => (
-    <button onClick={() => setFilter(value)} className={`px-3 py-1 text-sm rounded-full transition-colors ${currentFilter === value ? 'bg-primary text-primary-foreground font-semibold' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'}`}>
-        {label} {count !== undefined && <span className="ml-1 opacity-70 text-[10px]">({count})</span>}
+    <button onClick={() => setFilter(value)} className={`px-3 py-1.5 text-sm rounded-full transition-colors flex items-center gap-2 ${currentFilter === value ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'}`}>
+        {label} 
+        {count !== undefined && (
+          <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${currentFilter === value ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-purple-300'}`}>
+            {count}
+          </span>
+        )}
     </button>
   );
 
