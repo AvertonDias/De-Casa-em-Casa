@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { doc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { type Casa } from '@/types/types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ArrowUp, ArrowDown, GripVertical, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -101,6 +101,7 @@ export function ReorderCasasModal({ isOpen, onClose, casas: initialCasas, territ
         <div className="max-h-[50vh] overflow-y-auto px-6 space-y-2 py-4">
           {localCasas.map((casa, index) => {
             const isSelected = selectedId === casa.id;
+            const hasMoved = casa.id !== initialOrderIds[index];
             
             return (
               <div 
@@ -108,8 +109,11 @@ export function ReorderCasasModal({ isOpen, onClose, casas: initialCasas, territ
                 onClick={() => setSelectedId(casa.id)}
                 className={cn(
                   "flex items-center justify-between p-3 rounded-lg border transition-all duration-200 group cursor-pointer",
+                  // Destaque da linha toda se estiver selecionada e tiver mudado de posição
                   isSelected 
-                    ? "bg-primary/10 border-primary shadow-sm" 
+                    ? (hasMoved 
+                        ? "bg-primary/20 border-primary shadow-md ring-1 ring-primary/20" 
+                        : "bg-primary/10 border-primary/50 shadow-sm")
                     : "bg-muted/30 border-border/50 hover:border-primary/20"
                 )}
               >
