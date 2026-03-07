@@ -8,7 +8,7 @@ import { auth, db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { maskPhone } from '@/lib/utils';
 import { Footer } from '@/components/Footer';
@@ -109,11 +109,11 @@ export default function SignUpPage() {
     try {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
-        // O login com Google redirecionará automaticamente via UserContext
-        // para a página /completar-perfil se o usuário não tiver congregationId no Firestore.
         await signInWithPopup(auth, provider);
     } catch (error: any) {
-      if (error.code !== 'auth/popup-closed-by-user') {
+      if (error.code === 'auth/account-exists-with-different-credential') {
+        setError("Já existe uma conta com este e-mail usando outro método de login (E-mail/Senha). Por favor, faça login com sua senha.");
+      } else if (error.code !== 'auth/popup-closed-by-user') {
         setError("Não foi possível cadastrar com o Google.");
       }
     } finally {
@@ -129,6 +129,14 @@ export default function SignUpPage() {
               <Image src="/images/Logo_v3.png" alt="Logo Casa em Casa" width={80} height={80} className="rounded-lg mb-4" priority />
               <h1 className="text-3xl font-bold text-center">Solicitar Acesso</h1>
           </div>
+
+          {error && (
+              <div className="p-4 bg-destructive/10 text-destructive-foreground border border-destructive/20 rounded-lg flex items-start gap-3">
+                  <AlertTriangle size={20} className="text-destructive mt-0.5" />
+                  <div className="text-sm font-medium">{error}</div>
+              </div>
+          )}
+
           <form onSubmit={handleSignUp} className="space-y-4">
               <input type="text" value={name} onChange={handleInputChange(setName)} placeholder="Nome Completo" required className="w-full px-4 py-2 bg-background border border-input rounded-md" autoComplete="name" />
               <input type="email" value={email} onChange={handleInputChange(setEmail)} placeholder="E-mail" required className="w-full px-4 py-2 bg-background border border-input rounded-md" autoComplete="email" />
@@ -151,7 +159,6 @@ export default function SignUpPage() {
               <input type="tel" value={whatsapp} onChange={handleWhatsappChange(setWhatsapp)} placeholder="Seu WhatsApp (Obrigatório)" required className="w-full px-4 py-2 bg-background border border-input rounded-md" autoComplete="tel" />
               <input type="tel" value={confirmWhatsapp} onChange={handleWhatsappChange(setConfirmWhatsapp)} placeholder="Confirme seu WhatsApp" required className="w-full px-4 py-2 bg-background border border-input rounded-md" autoComplete="tel" />
 
-              {error && <p className="text-destructive text-sm text-center">{error}</p>}
               <button type="submit" disabled={loading || googleLoading || !name || !email || whatsapp.length < 15} className="w-full px-4 py-2 font-semibold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50">
                 {loading ? 'Enviando...' : 'Solicitar Acesso'}
               </button>

@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, fetchSignInMethodsForEmail } from 'firebase/auth';
 import { auth, GoogleAuthProvider } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff, Info, AlertTriangle } from 'lucide-react';
@@ -35,7 +36,6 @@ export default function UniversalLoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // O UserContext irá lidar com o redirecionamento após o login bem-sucedido.
     } catch (err: any) {
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setError("E-mail ou senha inválidos.");
@@ -57,9 +57,10 @@ export default function UniversalLoginPage() {
           prompt: 'select_account'
         });
         await signInWithPopup(auth, provider);
-        // O UserContext cuidará do redirecionamento
     } catch (error: any) {
-      if (error.code !== 'auth/popup-closed-by-user') {
+      if (error.code === 'auth/account-exists-with-different-credential') {
+        setError("Já existe uma conta com este e-mail usando outro método de login (E-mail/Senha). Por favor, entre com seu e-mail e senha primeiro.");
+      } else if (error.code !== 'auth/popup-closed-by-user') {
         console.error("Erro no login com Google:", error);
         setError("Não foi possível fazer login com o Google.");
       }
