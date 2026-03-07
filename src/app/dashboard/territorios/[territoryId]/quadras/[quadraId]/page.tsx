@@ -1,19 +1,19 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { doc, getDoc, collection, query, orderBy, onSnapshot, updateDoc, writeBatch, deleteDoc, runTransaction, getDocs, addDoc, serverTimestamp, Timestamp, where, limit, DocumentReference, deleteField } from 'firebase/firestore';
+import { doc, collection, query, orderBy, onSnapshot, runTransaction, serverTimestamp, Timestamp, deleteField } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Search, ArrowUp, ArrowDown, ArrowLeft, Loader, Pencil, X, GripVertical, ChevronsUpDown } from 'lucide-react';
+import { Search, ArrowLeft, Loader, Pencil, X, ArrowUpDown } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
 import { EditCasaModal } from '@/components/EditCasaModal';
+import { ReorderCasasModal } from '@/components/ReorderCasasModal';
 import { useUser } from '@/contexts/UserContext';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { type Casa, type Quadra, type Territory } from '@/types/types';
 import withAuth from '@/components/withAuth';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { format as formatDate } from 'date-fns';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
@@ -34,18 +34,17 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const [casas, setCasas] = useState<Casa[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isReordering, setIsReordering] = useState(false);
   const router = useRouter();
   
 
   // Estados para modais
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isReorderModalOpen, setIsReorderModalOpen] = useState(false);
   const [selectedCasa, setSelectedCasa] = useState<Casa | null>(null);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [casaToDelete, setCasaToDelete] = useState<Casa | null>(null);
   const [statusAction, setStatusAction] = useState<{ casa: Casa; newStatus: boolean; } | null>(null);
   
-  const [recentlyMovedId, setRecentlyMovedId] = useState<string | null>(null);
   const [highlightedHouseId, setHighlightedHouseId] = useState<string | null>(null);
 
 
@@ -75,7 +74,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
       if (docSnap.exists()) {
         setQuadra(docSnap.data() as Quadra);
       } else {
-        setQuadra(null); // Quadra foi deletada
+        setQuadra(null); 
       }
       setLoading(false);
     }, (error) => {
@@ -128,15 +127,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     }
   }, [highlightedHouseId]);
   
-  useEffect(() => {
-    if (recentlyMovedId) {
-      const timer = setTimeout(() => {
-        setRecentlyMovedId(null);
-      }, 800); // Highlight for 800ms
-      return () => clearTimeout(timer);
-    }
-  }, [recentlyMovedId]);
-
 
   const stats = {
       total: quadra?.totalHouses || 0,
@@ -144,23 +134,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
       pendentes: (quadra?.totalHouses || 0) - (quadra?.housesDone || 0),
       progresso: (quadra?.totalHouses || 0) > 0 ? Math.round(((quadra?.housesDone || 0) / (quadra?.totalHouses || 1)) * 100) : 0,
   }
-
-  const moveHouse = (index: number, direction: 'up' | 'down') => {
-    if (direction === 'up' && index === 0) return;
-    if (direction === 'down' && index === casas.length - 1) return;
-
-    const movedItemId = casas[index].id;
-
-    const newCasas = [...casas];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-
-    // Swap
-    [newCasas[index], newCasas[targetIndex]] = [newCasas[targetIndex], newCasas[index]];
-    
-    setCasas(newCasas);
-    setRecentlyMovedId(movedItemId);
-  };
-  
 
   const handleToggleCheckbox = (casa: Casa) => {
     setStatusAction({ casa, newStatus: !casa.status });
@@ -191,11 +164,10 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         }
 
         const wasDone = casaDoc.data().status === true;
-        if (wasDone === newStatus) return; // No change needed
+        if (wasDone === newStatus) return; 
 
         const increment = newStatus ? 1 : -1;
 
-        // --- Update stats ---
         const newQuadraHousesDone = (quadraDoc.data().housesDone || 0) + increment;
         const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + increment;
         const territoryTotalHouses = territoryDoc.data().stats.totalHouses || 0;
@@ -216,9 +188,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         
         transaction.update(congRef, { totalHousesDone: newCongTotalHousesDone });
 
-        // --- Handle Casa and Activity Log ---
         if (newStatus) {
-            // Marking as DONE
             const newActivityRef = doc(activityHistoryRef);
             transaction.set(newActivityRef, {
                 type: "work",
@@ -231,11 +201,10 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             transaction.update(casaRef, { 
                 status: true,
                 lastWorkedBy: { uid: user.uid, name: user.name },
-                activityLogId: newActivityRef.id // Store the log ID
+                activityLogId: newActivityRef.id 
             });
 
         } else {
-            // Un-marking as NOT DONE
             const activityLogIdToDelete = casaDoc.data().activityLogId;
             if (activityLogIdToDelete) {
                 const logToDeleteRef = doc(activityHistoryRef, activityLogIdToDelete);
@@ -244,7 +213,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 
             transaction.update(casaRef, {
                 status: false,
-                activityLogId: deleteField() // Remove the log ID
+                activityLogId: deleteField() 
             });
         }
     }).catch(async (serverError) => {
@@ -340,31 +309,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     (c.observations && c.observations.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const finishReordering = async () => {
-    if (!user?.congregationId || !territoryId || !quadraId) return;
-    setLoading(true);
-    const congregationId = user.congregationId;
-
-    const batch = writeBatch(db);
-    casas.forEach((casa, index) => {
-      const casaRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
-      batch.update(casaRef, { order: index }); 
-    });
-
-    try {
-      await batch.commit();
-    } catch (error)      {
-      console.error("Falha ao reordenar:", error);
-    } finally {
-      setIsReordering(false);
-      setLoading(false);
-    }
-  };
-
-  const startReordering = () => {
-    setIsReordering(true);
-  };
-
   const currentQuadraIndex = allQuadras.findIndex(q => q.id === quadraId);
   const prevQuadra = currentQuadraIndex > 0 ? allQuadras[currentQuadraIndex - 1] : null;
   const nextQuadra = currentQuadraIndex < allQuadras.length - 1 ? allQuadras[currentQuadraIndex + 1] : null;
@@ -448,57 +392,37 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
               </div>
               <div className="flex gap-2">
                 <AddCasaModal territoryId={territoryId} quadraId={quadraId} congregationId={user.congregationId} onCasaAdded={() => {}} />
-                {isReordering ? (
-                  <Button onClick={finishReordering} className="bg-green-600 hover:bg-green-700">Concluir</Button>
-                ) : (
-                  <Button onClick={startReordering} variant="info">Reordenar</Button>
-                )}
+                <Button onClick={() => setIsReorderModalOpen(true)} variant="info">
+                  <ArrowUpDown className="h-4 w-4 mr-2" />
+                  Reordenar
+                </Button>
               </div>
             </div>
           
             <div className="bg-card rounded-lg shadow-md">
               <ul className="divide-y divide-border">
-                {filteredCasas.map((casa, index) => (
+                {filteredCasas.map((casa) => (
                   <li 
                     key={casa.id}
                     onClick={() => handleHouseClick(casa.id)}
                     data-id={casa.id}
-                    className={`flex items-center p-3 transition-colors duration-300 ${recentlyMovedId === casa.id ? 'bg-primary/20' : ''}`}
+                    className="flex items-center p-3 transition-colors duration-300 hover:bg-muted/30"
                   >
                     
                     <input
                       type="checkbox"
                       checked={casa.status}
                       onChange={() => handleToggleCheckbox(casa)}
-                      className="w-6 h-6 rounded-md border-2 border-primary text-primary focus:ring-primary"
+                      className="w-6 h-6 rounded-md border-2 border-primary text-primary focus:ring-primary cursor-pointer"
                     />
-                    <div className="ml-4 flex-grow">
-                      <p className={`font-bold text-lg ${casa.status ? 'text-muted-foreground' : 'text-foreground'}`}>{casa.number}</p>
+                    <div className="ml-4 flex-grow cursor-pointer">
+                      <p className={`font-bold text-lg ${casa.status ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{casa.number}</p>
                       {casa.observations && <p className="text-sm text-muted-foreground">{casa.observations}</p>}
                     </div>
                     
-                    {!isReordering ? (
-                        <button onClick={(e) => { e.stopPropagation(); handleEditClick(casa); }} className="p-2 rounded-full text-muted-foreground hover:text-foreground">
-                            <Pencil size={18}/>
-                        </button>
-                    ): (
-                      <div className="flex flex-col ml-2">
-                        <button 
-                            onClick={() => moveHouse(index, 'up')} 
-                            disabled={index === 0} 
-                            className="p-1 text-blue-500 hover:text-blue-400 disabled:opacity-30"
-                        >
-                            <ArrowUp size={20} />
-                        </button>
-                        <button 
-                            onClick={() => moveHouse(index, 'down')} 
-                            disabled={index === casas.length - 1} 
-                            className="p-1 text-blue-500 hover:text-blue-400 disabled:opacity-30"
-                        >
-                            <ArrowDown size={20} />
-                        </button>
-                      </div>
-                    )}
+                    <button onClick={(e) => { e.stopPropagation(); handleEditClick(casa); }} className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted">
+                        <Pencil size={18}/>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -516,6 +440,17 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
           congregationId={user.congregationId}
           onCasaUpdated={() => {}}
           onDeleteRequest={handleDeleteRequestFromModal}
+        />
+      )}
+
+      {user.congregationId && (
+        <ReorderCasasModal
+          isOpen={isReorderModalOpen}
+          onClose={() => setIsReorderModalOpen(false)}
+          casas={casas}
+          territoryId={territoryId}
+          quadraId={quadraId}
+          congregationId={user.congregationId}
         />
       )}
 
