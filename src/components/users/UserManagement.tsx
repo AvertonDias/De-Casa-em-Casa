@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db, rtdb } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
@@ -15,6 +15,7 @@ import type { AppUser } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { cn } from '@/lib/utils';
 
 export default function UserManagement() {
   const { user: currentUser, loading: userLoading } = useUser(); 
@@ -27,7 +28,7 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Ajudante de Servo de Territórios' | 'Publicador'>('all');
-  const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive_month'>('all');
+  const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_daily' | 'active_weekly' | 'inactive_month'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'rejeitado' | 'bloqueado'>('all');
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -80,7 +81,7 @@ export default function UserManagement() {
       status: { all: 0, ativo: 0, pendente: 0, inativo: 0, rejeitado: 0, bloqueado: 0 },
       presence: { all: 0, online: 0, offline: 0 },
       role: { all: 0, Administrador: 0, Dirigente: 0, 'Servo de Territórios': 0, 'Ajudante de Servo de Territórios': 0, Publicador: 0 },
-      activity: { all: 0, active_hourly: 0, active_weekly: 0, inactive_month: 0 }
+      activity: { all: 0, active_hourly: 0, active_daily: 0, active_weekly: 0, inactive_month: 0 }
     };
     const now = new Date();
     usersWithPresence.forEach(u => {
@@ -90,10 +91,15 @@ export default function UserManagement() {
       if (u.isOnline) counts.presence.online++; else counts.presence.offline++;
       counts.role.all++;
       if (u.role in counts.role) counts.role[u.role as keyof typeof counts.role.all]++;
+      
       counts.activity.all++;
-      if (u.lastSeen && u.lastSeen.toDate() > subHours(now, 1)) counts.activity.active_hourly++;
-      if (u.lastSeen && u.lastSeen.toDate() > subDays(now, 7)) counts.activity.active_weekly++;
-      if (u.status === 'ativo' && (!u.lastSeen || u.lastSeen.toDate() < subMonths(now, 1))) counts.activity.inactive_month++;
+      const lastSeenDate = u.lastSeen?.toDate ? u.lastSeen.toDate() : null;
+      if (lastSeenDate) {
+        if (lastSeenDate > subHours(now, 1)) counts.activity.active_hourly++;
+        if (lastSeenDate > subHours(now, 24)) counts.activity.active_daily++;
+        if (lastSeenDate > subDays(now, 7)) counts.activity.active_weekly++;
+      }
+      if (u.status === 'inativo') counts.activity.inactive_month++;
     });
     return counts;
   }, [usersWithPresence]);
@@ -143,53 +149,177 @@ export default function UserManagement() {
   };
 
   const filteredAndSortedUsers = useMemo(() => {
-    let filtered = usersWithPresence.filter(u => 
-        (presenceFilter === 'all' || u.isOnline === (presenceFilter === 'online')) &&
-        (roleFilter === 'all' || u.role === roleFilter) &&
-        (statusFilter === 'all' || u.status === statusFilter) &&
-        (!searchTerm || u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email?.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    let filtered = usersWithPresence.filter(u => {
+        const matchesPresence = presenceFilter === 'all' || u.isOnline === (presenceFilter === 'online');
+        const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+        const matchesStatus = statusFilter === 'all' || u.status === statusFilter;
+        
+        let matchesActivity = true;
+        const now = new Date();
+        const lastSeenDate = u.lastSeen?.toDate ? u.lastSeen.toDate() : null;
+        if (activityFilter !== 'all') {
+            if (activityFilter === 'active_hourly') matchesActivity = !!lastSeenDate && lastSeenDate > subHours(now, 1);
+            else if (activityFilter === 'active_daily') matchesActivity = !!lastSeenDate && lastSeenDate > subHours(now, 24);
+            else if (activityFilter === 'active_weekly') matchesActivity = !!lastSeenDate && lastSeenDate > subDays(now, 7);
+            else if (activityFilter === 'inactive_month') matchesActivity = u.status === 'inativo';
+        }
+
+        const matchesSearch = !searchTerm || u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email?.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        return matchesPresence && matchesRole && matchesStatus && matchesActivity && matchesSearch;
+    });
     
     return filtered.sort((a, b) => {
       if (a.status === 'pendente' && b.status !== 'pendente') return -1;
       if (a.status !== 'pendente' && b.status === 'pendente') return 1;
       return a.name.localeCompare(b.name);
     });
-  }, [usersWithPresence, presenceFilter, roleFilter, statusFilter, searchTerm]);
+  }, [usersWithPresence, presenceFilter, roleFilter, statusFilter, activityFilter, searchTerm]);
 
-  const FilterButton = ({ label, value, currentFilter, setFilter, count }: { label: string, value: string, currentFilter: string, setFilter: (value: any) => void, count?: number}) => (
-    <button onClick={() => setFilter(value)} className={`px-3 py-1.5 text-sm rounded-full transition-colors flex items-center gap-2 ${currentFilter === value ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'}`}>
-        {label} {count !== undefined && <span className="bg-white/20 px-1.5 py-0.5 rounded-md text-[10px] font-bold">{count}</span>}
-    </button>
-  );
+  const FilterButton = ({ label, value, currentFilter, setFilter, count }: { label: string, value: string, currentFilter: string, setFilter: (value: any) => void, count?: number}) => {
+    const isActive = currentFilter === value;
+    return (
+      <button 
+        onClick={() => setFilter(value)} 
+        className={cn(
+          "px-4 py-1.5 text-xs rounded-full transition-all flex items-center gap-2 whitespace-nowrap",
+          isActive 
+            ? "bg-primary text-white font-bold shadow-md" 
+            : "bg-[#2f2b3a] text-muted-foreground hover:bg-[#3a354a] border border-border/20"
+        )}
+      >
+        {label} 
+        {count !== undefined && (
+          <span className={cn(
+            "px-2 py-0.5 rounded-full text-[10px] font-bold min-w-[20px] text-center",
+            isActive ? "bg-white text-primary" : "bg-[#4a4458] text-white"
+          )}>
+            {count}
+          </span>
+        )}
+      </button>
+    );
+  };
 
   if (userLoading || loading) return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
 
   return (
-    <div className="space-y-6 p-4">
-      <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4"><div className="bg-blue-500/20 text-blue-400 p-3 rounded-lg"><UsersIcon size={28} /></div><div><p className="text-sm">Total</p><p className="text-2xl font-bold">{filterCounts.status.all}</p></div></div>
-        <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4"><div className="bg-green-500/20 text-green-400 p-3 rounded-lg"><Wifi size={28} /></div><div><p className="text-sm">Online</p><p className="text-2xl font-bold">{filterCounts.presence.online}</p></div></div>
-        <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4"><div className="bg-yellow-500/20 text-yellow-400 p-3 rounded-lg"><Check size={28}/></div><div><p className="text-sm">Pendentes</p><p className="text-2xl font-bold">{filterCounts.status.pendente}</p></div></div>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center px-4 md:px-0">
+        <div>
+          <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
+          <p className="text-muted-foreground">Monitore e gerencie os membros da congregação.</p>
+        </div>
       </div>
 
-      <Accordion type="single" collapsible className="bg-card rounded-lg p-2">
-        <AccordionItem value="filters" className="border-b-0">
-          <AccordionTrigger className="px-4 py-2 hover:no-underline flex gap-3"><SlidersHorizontal size={20} /> Filtros</AccordionTrigger>
-          <AccordionContent className="px-4 pb-4 pt-2 border-t mt-2 space-y-4">
-            <div><p className="font-semibold mb-2">Status</p><div className="flex flex-wrap gap-2">{Object.entries(filterCounts.status).map(([k, v]) => <FilterButton key={k} label={k} value={k} currentFilter={statusFilter} setFilter={setStatusFilter} count={v} />)}</div></div>
-            <div><p className="font-semibold mb-2">Perfil</p><div className="flex flex-wrap gap-2">{Object.entries(filterCounts.role).map(([k, v]) => <FilterButton key={k} label={k} value={k} currentFilter={roleFilter} setFilter={setRoleFilter} count={v} />)}</div></div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4 md:px-0">
+        <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4 border border-border/40">
+          <div className="bg-blue-500/20 text-blue-400 p-3 rounded-lg"><UsersIcon size={28} /></div>
+          <div><p className="text-sm text-muted-foreground">Total de Usuários</p><p className="text-2xl font-bold">{filterCounts.status.all}</p></div>
+        </div>
+        <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4 border border-border/40">
+          <div className="bg-green-500/20 text-green-400 p-3 rounded-lg"><Wifi size={28} /></div>
+          <div><p className="text-sm text-muted-foreground">Online</p><p className="text-2xl font-bold">{filterCounts.presence.online}</p></div>
+        </div>
+        <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4 border border-border/40">
+          <div className="bg-yellow-500/20 text-yellow-400 p-3 rounded-lg"><Check size={28}/></div>
+          <div><p className="text-sm text-muted-foreground">Pendentes</p><p className="text-2xl font-bold">{filterCounts.status.pendente}</p></div>
+        </div>
+      </div>
 
-      <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} /><input type="text" placeholder="Buscar por nome..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-card border rounded-lg" /></div>
+      <div className="bg-card p-6 rounded-xl border border-border/40 shadow-sm mx-4 md:mx-0">
+        <div className="flex items-center gap-2 mb-6 text-muted-foreground">
+          <SlidersHorizontal size={20} />
+          <span className="font-semibold text-foreground">Filtros</span>
+        </div>
+
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Status da Conta</p>
+            <div className="flex flex-wrap gap-2">
+              <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.all} />
+              <FilterButton label="Ativo" value="ativo" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.ativo} />
+              <FilterButton label="Pendente" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.pendente} />
+              <FilterButton label="Inativo" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.inativo} />
+              <FilterButton label="Rejeitado" value="rejeitado" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.rejeitado} />
+              <FilterButton label="Bloqueado" value="bloqueado" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.bloqueado} />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Status de Presença</p>
+            <div className="flex flex-wrap gap-2">
+              <FilterButton label="Todos" value="all" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.all} />
+              <FilterButton label="Online" value="online" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.online} />
+              <FilterButton label="Offline" value="offline" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.offline} />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Perfil de Usuário</p>
+            <div className="flex flex-wrap gap-2">
+              <FilterButton label="Todos" value="all" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.all} />
+              <FilterButton label="Admin" value="Administrador" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Administrador} />
+              <FilterButton label="Dirigente" value="Dirigente" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Dirigente} />
+              <FilterButton label="S. de Terr." value="Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role['Servo de Territórios']} />
+              <FilterButton label="Ajudante" value="Ajudante de Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role['Ajudante de Servo de Territórios']} />
+              <FilterButton label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Publicador} />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Atividade Recente (Visto por último)</p>
+            <div className="flex flex-wrap gap-2">
+              <FilterButton label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.all} />
+              <FilterButton label="Última Hora" value="active_hourly" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_hourly} />
+              <FilterButton label="Últimas 24h" value="active_daily" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_daily} />
+              <FilterButton label="Última Semana" value="active_weekly" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_weekly} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative px-4 md:px-0">
+        <div className="relative group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />
+          <input 
+            type="text" 
+            placeholder="Buscar por nome ou e-mail..." 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+            className="w-full pl-12 pr-12 py-3 bg-card border border-border/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm" 
+          />
+          {searchTerm && (
+            <button 
+              onClick={() => setSearchTerm('')} 
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-full hover:bg-muted"
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
+      </div>
       
-      <div className="bg-card rounded-lg shadow-md divide-y">
-        {filteredAndSortedUsers.map(u => (
-          <UserListItem key={u.uid} user={u} currentUser={currentUser!} onUpdate={handleUserUpdate} onEdit={(user) => { setUserToEdit(user); setIsEditModalOpen(true); }} onDelete={(uid, name) => { setUserToRemove({uid, name}); setIsConfirmModalOpen(true); }} />
-        ))}
+      <div className="bg-card rounded-xl border border-border/40 shadow-md overflow-hidden mx-4 md:mx-0">
+        <ul className="divide-y divide-border/40">
+          {filteredAndSortedUsers.length > 0 ? (
+            filteredAndSortedUsers.map(u => (
+              <UserListItem 
+                key={u.uid} 
+                user={u} 
+                currentUser={currentUser!} 
+                onUpdate={handleUserUpdate} 
+                onEdit={(user) => { setUserToEdit(user); setIsEditModalOpen(true); }} 
+                onDelete={(uid, name) => { setUserToRemove({uid, name}); setIsConfirmModalOpen(true); }} 
+              />
+            ))
+          ) : (
+            <div className="p-12 text-center text-muted-foreground">
+              <UsersIcon className="mx-auto h-12 w-12 opacity-20 mb-4" />
+              <p className="text-lg">Nenhum usuário encontrado com os filtros selecionados.</p>
+            </div>
+          )}
+        </ul>
       </div>
 
       <ConfirmationModal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} onConfirm={confirmRemoveUser} title="Remover Acesso" message={`Tem certeza que deseja remover o acesso de ${userToRemove?.name}? O usuário será bloqueado e desvinculado da congregação.`} confirmText="Sim, Remover Acesso" />
