@@ -1,9 +1,12 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, auth } from '@/lib/firebase';
+import { db, app, auth, rtdb } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { ref, onValue } from 'firebase/database';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Loader, Search, SlidersHorizontal, ChevronUp, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
@@ -14,20 +17,23 @@ import type { AppUser, Congregation } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 import { getIdToken } from 'firebase/auth';
 
-const functionUrl = (name: string) => `https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/${name}`;
+const functions = getFunctions(app, 'southamerica-east1');
+const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
+
 
 export default function UserManagement() {
   const { user: currentUser, loading: userLoading, congregation } = useUser(); 
   const { toast } = useToast();
 
   const [users, setUsers] = useState<AppUser[]>([]);
+  const [presenceData, setPresenceData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
-  const [roleFilter, setRoleFilter] = useState<AppUser['role'] | 'all'>('all');
-  const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_daily' | 'active_weekly'>('all');
-  const [statusFilter, setStatusFilter] = useState<AppUser['status'] | 'all' | 'inativo'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Ajudante de Servo de Territórios' | 'Publicador'>('all');
+  const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_weekly' | 'inactive_month'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'rejeitado' | 'bloqueado'>('all');
 
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -47,20 +53,7 @@ export default function UserManagement() {
     
     setIsConfirmModalOpen(false);
     try {
-        const token = await auth.currentUser.getIdToken();
-        const res = await fetch(functionUrl('deleteUserAccountV2'), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ data: { userIdToDelete: userToDelete.uid } })
-        });
-        if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.error?.message || 'Falha ao excluir usuário.');
-        }
-
+        await deleteUserAccount({ userIdToDelete: userToDelete.uid });
         toast({ title: "Sucesso", description: "Usuário excluído." });
     } catch (error: any) {
         toast({ title: "Erro", description: error.message || "Falha ao excluir usuário.", variant: "destructive"});
@@ -79,6 +72,8 @@ export default function UserManagement() {
   useEffect(() => {
     if (currentUser?.congregationId) {
       setLoading(true);
+      
+      // Listener para dados dos usuários no Firestore
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where("congregationId", "==", currentUser.congregationId));
       const unsubUsers = onSnapshot(q, (snapshot) => {
@@ -90,17 +85,52 @@ export default function UserManagement() {
         setLoading(false);
       });
 
+      // Listener para presença no Realtime Database (não exige conta paga para funcionar assim)
+      const statusRef = ref(rtdb, 'status');
+      const unsubPresence = onValue(statusRef, (snapshot) => {
+        setPresenceData(snapshot.val() || {});
+      });
+
       return () => { 
         unsubUsers(); 
+        unsubPresence();
       };
     } else if (!userLoading) {
       setLoading(false);
     }
   }, [currentUser, userLoading]);
+
+  // Mescla os dados do Firestore com os de presença do RTDB
+  const usersWithPresence = useMemo(() => {
+    const oneMonthAgo = subMonths(new Date(), 1);
+    
+    return users.map(u => {
+        const presence = presenceData[u.uid];
+        const isOnline = presence?.state === 'online';
+        
+        let status = u.status;
+        // Lógica para status 'inativo' automático, mas apenas se o status atual for 'ativo'
+        if (status === 'ativo' && u.lastSeen && u.lastSeen.toDate() < oneMonthAgo) {
+            status = 'inativo';
+        }
+        
+        return {
+            ...u,
+            isOnline,
+            status
+        } as AppUser;
+    });
+  }, [users, presenceData]);
   
   const handleUserUpdate = async (userId: string, dataToUpdate: Partial<AppUser>) => {
     if (!currentUser) return;
     
+    // Se o status estiver sendo mudado para 'inativo', reverta para 'ativo'
+    // pois 'inativo' é um status visual, não um estado a ser salvo.
+    if(dataToUpdate.status === 'inativo') {
+      dataToUpdate.status = 'ativo';
+    }
+
     if (currentUser.role === 'Dirigente' && dataToUpdate.status && !['ativo', 'rejeitado'].includes(dataToUpdate.status)) {
         toast({ title: "Permissão Negada", description: "Você só pode aprovar ou rejeitar usuários pendentes.", variant: "destructive" });
         return;
@@ -127,56 +157,18 @@ export default function UserManagement() {
   };
 
   const stats = useMemo(() => {
-    const onlineCount = users.filter(u => u.isOnline === true).length;
-    const pendingCount = users.filter(u => u.status === 'pendente').length;
+    const onlineCount = usersWithPresence.filter(u => u.isOnline === true).length;
+    const pendingCount = usersWithPresence.filter(u => u.status === 'pendente').length;
     return {
-      total: users.length,
+      total: usersWithPresence.length,
       online: onlineCount,
-      offline: users.length - onlineCount,
+      offline: usersWithPresence.length - onlineCount,
       pending: pendingCount
     };
-  }, [users]);
-  
-  const filterCounts = useMemo(() => {
-    const oneHourAgo = subHours(new Date(), 1);
-    const oneDayAgo = subHours(new Date(), 24);
-    const oneWeekAgo = subDays(new Date(), 7);
-    const oneMonthAgo = subMonths(new Date(), 1);
-
-    const inactiveUsersCount = users.filter(u => u.status === 'ativo' && u.lastSeen && u.lastSeen.toDate() < oneMonthAgo).length;
-    const allActiveUsersCount = users.filter(u => u.status === 'ativo').length;
-
-
-    return {
-        status: {
-            ativo: allActiveUsersCount - inactiveUsersCount,
-            pendente: users.filter(u => u.status === 'pendente').length,
-            inativo: inactiveUsersCount,
-            rejeitado: users.filter(u => u.status === 'rejeitado').length,
-            bloqueado: users.filter(u => u.status === 'bloqueado').length,
-        },
-        presence: {
-            online: users.filter(u => u.isOnline === true).length,
-            offline: users.filter(u => u.isOnline !== true).length,
-        },
-        role: {
-            'Administrador': users.filter(u => u.role === 'Administrador').length,
-            'Dirigente': users.filter(u => u.role === 'Dirigente').length,
-            'Servo de Territórios': users.filter(u => u.role === 'Servo de Territórios').length,
-            'Ajudante de Servo de Territórios': users.filter(u => u.role === 'Ajudante de Servo de Territórios').length,
-            'Publicador': users.filter(u => u.role === 'Publicador').length,
-        },
-        activity: {
-            active_hourly: users.filter(u => u.lastSeen && u.lastSeen.toDate() > oneHourAgo).length,
-            active_daily: users.filter(u => u.lastSeen && u.lastSeen.toDate() > oneDayAgo).length,
-            active_weekly: users.filter(u => u.lastSeen && u.lastSeen.toDate() > oneWeekAgo).length,
-        }
-    };
-  }, [users]);
-
+  }, [usersWithPresence]);
 
   const filteredAndSortedUsers = useMemo(() => {
-    let filtered = [...users];
+    let filtered = [...usersWithPresence];
 
     if (presenceFilter !== 'all') {
       filtered = filtered.filter(user => (user.isOnline === true) === (presenceFilter === 'online'));
@@ -185,31 +177,19 @@ export default function UserManagement() {
       filtered = filtered.filter(user => user.role === roleFilter);
     }
      if (statusFilter !== 'all') {
-        const oneMonthAgo = subMonths(new Date(), 1);
-        filtered = filtered.filter(user => {
-            const isInactive = user.status === 'ativo' && user.lastSeen && user.lastSeen.toDate() < oneMonthAgo;
-            
-            if (statusFilter === 'inativo') {
-                return isInactive;
-            }
-            if (statusFilter === 'ativo') {
-                return user.status === 'ativo' && !isInactive;
-            }
-            return user.status === statusFilter;
-        });
+      filtered = filtered.filter(user => user.status === statusFilter);
     }
     
     if (activityFilter !== 'all') {
-        const now = new Date();
         if (activityFilter === 'active_hourly') {
-            const oneHourAgo = subHours(now, 1);
+            const oneHourAgo = subHours(new Date(), 1);
             filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneHourAgo);
-        } else if (activityFilter === 'active_daily') {
-            const oneDayAgo = subHours(now, 24);
-            filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneDayAgo);
         } else if (activityFilter === 'active_weekly') {
-            const oneWeekAgo = subDays(now, 7);
+            const oneWeekAgo = subDays(new Date(), 7);
             filtered = filtered.filter(u => u.lastSeen && u.lastSeen.toDate() > oneWeekAgo);
+        } else if (activityFilter === 'inactive_month') {
+            const oneMonthAgo = subMonths(new Date(), 1);
+            filtered = filtered.filter(u => u.status === 'ativo' && (!u.lastSeen || u.lastSeen.toDate() < oneMonthAgo));
         }
     }
 
@@ -240,15 +220,13 @@ export default function UserManagement() {
       return a.name.localeCompare(b.name);
     });
 
-  }, [users, currentUser, searchTerm, presenceFilter, roleFilter, activityFilter, statusFilter]);
+  }, [usersWithPresence, currentUser, searchTerm, presenceFilter, roleFilter, activityFilter, statusFilter]);
   
   if (userLoading || loading) {
     return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
   }
   
-  const canManageUsers = currentUser?.role === 'Administrador' || currentUser?.role === 'Dirigente' || currentUser?.role === 'Servo de Territórios' || currentUser?.role === 'Ajudante de Servo de Territórios';
-
-  if (!currentUser || !canManageUsers) {
+  if (!currentUser || !['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'].includes(currentUser.role)) {
     return (
         <div className="text-center p-8">
             <h1 className="text-2xl font-bold">Acesso Negado</h1>
@@ -257,10 +235,9 @@ export default function UserManagement() {
     );
   }
 
-  const FilterButton = ({ label, value, count, currentFilter, setFilter }: { label: string, value: string, count: number, currentFilter: string, setFilter: (value: any) => void}) => (
-    <button onClick={() => setFilter(value)} className={`px-3 py-1 text-sm rounded-full transition-colors flex items-center gap-2 ${currentFilter === value ? 'bg-primary text-primary-foreground font-semibold' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'}`}>
+  const FilterButton = ({ label, value, currentFilter, setFilter }: { label: string, value: string, currentFilter: string, setFilter: (value: any) => void}) => (
+    <button onClick={() => setFilter(value)} className={`px-3 py-1 text-sm rounded-full transition-colors ${currentFilter === value ? 'bg-primary text-primary-foreground font-semibold' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'}`}>
         {label}
-        <span className={`px-1.5 py-0.5 text-xs rounded-full ${currentFilter === value ? 'bg-primary-foreground text-primary' : 'bg-gray-400/50 text-foreground'}`}>{count}</span>
     </button>
   );
 
@@ -318,43 +295,42 @@ export default function UserManagement() {
                         <div>
                             <p className="font-semibold mb-2">Status da Conta</p>
                             <div className="flex flex-wrap gap-2">
-                                <FilterButton label="Todos" value="all" count={users.length} currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                <FilterButton label="Ativo" value="ativo" count={filterCounts.status.ativo} currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                <FilterButton label="Pendente" value="pendente" count={filterCounts.status.pendente} currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                <FilterButton label="Inativo" value="inativo" count={filterCounts.status.inativo} currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                <FilterButton label="Rejeitado" value="rejeitado" count={filterCounts.status.rejeitado} currentFilter={statusFilter} setFilter={setStatusFilter} />
-                                <FilterButton label="Bloqueado" value="bloqueado" count={filterCounts.status.bloqueado} currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                <FilterButton label="Ativo" value="ativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                <FilterButton label="Pendente" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                <FilterButton label="Inativo (Visual)" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} />
+                                <FilterButton label="Rejeitado" value="rejeitado" currentFilter={statusFilter} setFilter={setStatusFilter} />
                             </div>
                         </div>
                         
                         <div>
                             <p className="font-semibold mb-2">Status de Presença</p>
                             <div className="flex flex-wrap gap-2">
-                                <FilterButton label="Todos" value="all" count={users.length} currentFilter={presenceFilter} setFilter={setPresenceFilter} />
-                                <FilterButton label="Online" value="online" count={filterCounts.presence.online} currentFilter={presenceFilter} setFilter={setPresenceFilter} />
-                                <FilterButton label="Offline" value="offline" count={filterCounts.presence.offline} currentFilter={presenceFilter} setFilter={setPresenceFilter} />
+                                <FilterButton label="Todos" value="all" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
+                                <FilterButton label="Online" value="online" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
+                                <FilterButton label="Offline" value="offline" currentFilter={presenceFilter} setFilter={setPresenceFilter} />
                             </div>
                         </div>
 
                         <div>
                             <p className="font-semibold mb-2">Perfil de Usuário</p>
                             <div className="flex flex-wrap gap-2">
-                                <FilterButton label="Todos" value="all" count={users.length} currentFilter={roleFilter} setFilter={setRoleFilter} />
-                                <FilterButton label="Admin" value="Administrador" count={filterCounts.role['Administrador']} currentFilter={roleFilter} setFilter={setRoleFilter} />
-                                <FilterButton label="Dirigente" value="Dirigente" count={filterCounts.role['Dirigente']} currentFilter={roleFilter} setFilter={setRoleFilter} />
-                                <FilterButton label="S. de Terr." value="Servo de Territórios" count={filterCounts.role['Servo de Territórios']} currentFilter={roleFilter} setFilter={setRoleFilter} />
-                                <FilterButton label="Ajudante" value="Ajudante de Servo de Territórios" count={filterCounts.role['Ajudante de Servo de Territórios']} currentFilter={roleFilter} setFilter={setRoleFilter} />
-                                <FilterButton label="Publicador" value="Publicador" count={filterCounts.role['Publicador']} currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                <FilterButton label="Todos" value="all" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                <FilterButton label="Admin" value="Administrador" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                <FilterButton label="Dirigente" value="Dirigente" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                <FilterButton label="S. de Terr." value="Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                <FilterButton label="Ajudante" value="Ajudante de Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} />
+                                <FilterButton label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} />
                             </div>
                         </div>
 
                         <div>
                             <p className="font-semibold mb-2">Atividade Recente (Visto por último)</p>
                             <div className="flex flex-wrap gap-2">
-                                <FilterButton label="Todos" value="all" count={users.length} currentFilter={activityFilter} setFilter={setActivityFilter} />
-                                <FilterButton label="Última Hora" value="active_hourly" count={filterCounts.activity.active_hourly} currentFilter={activityFilter} setFilter={setActivityFilter} />
-                                <FilterButton label="Últimas 24h" value="active_daily" count={filterCounts.activity.active_daily} currentFilter={activityFilter} setFilter={setActivityFilter} />
-                                <FilterButton label="Última Semana" value="active_weekly" count={filterCounts.activity.active_weekly} currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                <FilterButton label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                <FilterButton label="Ativos na Última Hora" value="active_hourly" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                <FilterButton label="Ativos na Semana" value="active_weekly" currentFilter={activityFilter} setFilter={setActivityFilter} />
+                                <FilterButton label="Ausentes há um Mês" value="inactive_month" currentFilter={activityFilter} setFilter={setActivityFilter} />
                             </div>
                         </div>
                     </div>
@@ -425,5 +401,3 @@ export default function UserManagement() {
     </>
   );
 }
-
-    
