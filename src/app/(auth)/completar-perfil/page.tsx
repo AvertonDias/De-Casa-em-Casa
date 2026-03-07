@@ -123,7 +123,7 @@ function CompleteProfilePage() {
                             type="tel"
                             inputMode="numeric"
                             value={congregationNumber}
-                            onChange={(e) => setCongregationNumber(e.target.value)}
+                            onChange={(e) => setCongregationNumber(e.target.value.replace(/\D/g, ''))}
                             placeholder="Número da Congregação"
                             required
                             className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
