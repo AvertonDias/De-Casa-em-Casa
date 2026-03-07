@@ -66,7 +66,6 @@ export default function UserManagement() {
     }
   }, [currentUser]);
 
-  // Combina dados do Firestore com o sinal de presença em tempo real do RTDB
   const usersWithPresence = useMemo(() => {
     const now = new Date();
     const oneMonthAgo = subMonths(now, 1);
@@ -75,7 +74,6 @@ export default function UserManagement() {
         const presence = presenceData[u.uid];
         const isOnline = presence?.state === 'online';
         
-        // Tenta pegar o timestamp mais recente: ou do RTDB (tempo real) ou do Firestore (histórico)
         let effectiveLastSeenDate = u.lastSeen?.toDate ? u.lastSeen.toDate() : null;
         if (presence?.last_changed) {
             const presenceDate = new Date(presence.last_changed);
@@ -93,7 +91,6 @@ export default function UserManagement() {
             ...u, 
             isOnline, 
             status,
-            // Atualiza o lastSeen para os componentes filhos usarem a data mais precisa
             lastSeen: effectiveLastSeenDate ? { toDate: () => effectiveLastSeenDate } : u.lastSeen 
         };
     });
@@ -154,7 +151,7 @@ export default function UserManagement() {
         congregationId: null 
     };
 
-    updateDoc(userRef, updateData).then(() => {
+    updateDoc(userRef, dataToUpdate as any).then(() => {
         toast({ 
             title: "Acesso Removido", 
             description: "O usuário foi bloqueado e desvinculado da congregação." 
@@ -193,11 +190,18 @@ export default function UserManagement() {
     });
     
     return filtered.sort((a, b) => {
+      // 1. O usuário atual ("Você") sempre fica em primeiro lugar absoluto
+      if (a.uid === currentUser?.uid) return -1;
+      if (b.uid === currentUser?.uid) return 1;
+
+      // 2. Solicitações pendentes ficam em segundo lugar
       if (a.status === 'pendente' && b.status !== 'pendente') return -1;
       if (a.status !== 'pendente' && b.status === 'pendente') return 1;
+
+      // 3. Ordem alfabética para os demais casos
       return a.name.localeCompare(b.name);
     });
-  }, [usersWithPresence, presenceFilter, roleFilter, statusFilter, activityFilter, searchTerm]);
+  }, [usersWithPresence, presenceFilter, roleFilter, statusFilter, activityFilter, searchTerm, currentUser]);
 
   const FilterButton = ({ label, value, currentFilter, setFilter, count }: { label: string, value: string, currentFilter: string, setFilter: (value: any) => void, count?: number}) => {
     const isActive = currentFilter === value;
