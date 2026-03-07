@@ -11,8 +11,10 @@ import { Label } from '@/components/ui/label';
 import { Loader, KeyRound, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Footer } from '@/components/Footer';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/lib/firebase';
 
-const functionUrl = (name: string) => `https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/${name}`;
+const functions = getFunctions(app, 'southamerica-east1');
 
 function PasswordResetAction() {
   const searchParams = useSearchParams();
@@ -57,27 +59,17 @@ function PasswordResetAction() {
     setStage('verifying');
 
     try {
-      const res = await fetch(functionUrl('resetPasswordWithTokenV2'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: { token, newPassword } })
-      });
-      const resData = await res.json();
-
-      if (!res.ok) {
-          throw new Error(resData.error?.message || `Ocorreu um erro desconhecido.`);
-      }
-
+      // Chamada via Callable Function para evitar problemas de CORS
+      const resetPwd = httpsCallable(functions, 'resetPasswordWithTokenV2');
+      await resetPwd({ token, newPassword });
       setStage('success');
       
     } catch (err: any) {
-      console.error("Erro ao redefinir senha com token:", err);
+      console.error("Erro ao redefinir senha:", err);
       
       let errorMessage = 'Ocorreu um erro inesperado. Tente novamente.';
-      if (err.message.includes('inválido ou já foi utilizado')) {
-        errorMessage = 'O link de redefinição é inválido ou já foi utilizado.';
-      } else if (err.message.includes('expirou')) {
-        errorMessage = 'O link de redefinição expirou. Por favor, solicite um novo.';
+      if (err.message.includes('inválido') || err.message.includes('precondition')) {
+        errorMessage = 'O link de redefinição é inválido ou expirou.';
       }
 
       toast({

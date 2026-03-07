@@ -1,11 +1,11 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, auth, rtdb } from '@/lib/firebase';
+import { db, auth, rtdb, app } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { ref, onValue } from 'firebase/database';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Loader, Search, SlidersHorizontal, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
@@ -17,6 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
+
+const functions = getFunctions(app, 'southamerica-east1');
 
 export default function UserManagement() {
   const { user: currentUser, loading: userLoading } = useUser(); 
@@ -158,37 +160,27 @@ export default function UserManagement() {
     setIsConfirmModalOpen(false);
     
     try {
-      toast({ title: "Processando Exclusão", description: "Removendo acesso e dados permanentemente..." });
+      toast({ title: "Processando Exclusão", description: "Removendo acesso e dados via protocolo seguro..." });
       
-      const idToken = await auth.currentUser.getIdToken();
-      
-      // Chamada direta via HTTPS para máxima compatibilidade com CORS no ambiente Cloud Workstations
-      const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/deleteUserAccountV2', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({ userIdToDelete: userId })
-      });
+      // Chamada via Callable Function (onCall) - Gerencia CORS e Auth automaticamente
+      const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
+      const result = await deleteUserAccount({ userIdToDelete: userId });
+      const data = result.data as any;
 
-      const result = await response.json();
-
-      if (response.ok && result.data?.success) {
+      if (data.success) {
         toast({ 
             title: "Usuário Excluído", 
-            description: result.data.message || "A conta e os dados foram removidos com sucesso." 
+            description: data.message || "A conta e os dados foram removidos com sucesso." 
         });
       } else {
-        const errorMsg = result.error?.message || "Ocorreu um erro ao processar a exclusão no servidor.";
-        throw new Error(errorMsg);
+        throw new Error("O servidor retornou uma resposta inesperada.");
       }
     } catch (e: any) {
       console.error("Erro na exclusão remota:", e);
       toast({
         variant: "destructive",
         title: "Falha na Exclusão",
-        description: e.message || "Não foi possível completar a exclusão remota. Verifique sua conexão.",
+        description: e.message || "Não foi possível completar a exclusão remota. Verifique se o servidor está ativo.",
       });
     } finally {
         setUserToDelete(null);

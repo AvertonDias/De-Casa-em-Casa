@@ -15,50 +15,39 @@ const db = admin.firestore();
 setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   HTTPS onRequest Functions (Com suporte nativo a CORS v2)
+//   HTTPS onCall Functions (Gerenciamento automático de CORS e Auth)
 // ========================================================================
 
-export const deleteUserAccountV2 = https.onRequest({ 
-    region: "southamerica-east1",
-    cors: true // O Firebase v2 gerencia automaticamente os cabeçalhos CORS e preflights
-}, async (req, res) => {
+export const deleteUserAccountV2 = https.onCall({ 
+    region: "southamerica-east1"
+}, async (request) => {
+    // 1. Validar Autenticação (Token é verificado automaticamente pelo Firebase)
+    if (!request.auth) {
+        throw new https.HttpsError('unauthenticated', 'Ação não autorizada. Por favor, faça login.');
+    }
+
+    const { userIdToDelete } = request.data;
+    if (!userIdToDelete) {
+        throw new https.HttpsError('invalid-argument', 'ID do usuário a ser deletado é obrigatório.');
+    }
+
+    const callingUserUid = request.auth.uid;
+
+    // 2. Verificar permissões de Administrador no Firestore
+    const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
+    const callingUserData = callingUserSnap.data();
+
+    if (!callingUserData || callingUserData.role !== "Administrador") {
+        throw new https.HttpsError('permission-denied', 'Apenas administradores podem excluir usuários permanentemente.');
+    }
+
+    // 3. Impedir auto-exclusão
+    if (callingUserUid === userIdToDelete) {
+        throw new https.HttpsError('permission-denied', 'Um administrador não pode excluir a própria conta através desta ferramenta.');
+    }
+
     try {
-        // 1. Extrair Dados (Suporta JSON direto ou formato Firebase)
-        const body = req.body?.data || req.body;
-        const { userIdToDelete } = body;
-
-        if (!userIdToDelete) {
-            res.status(400).json({ error: { message: "ID do usuário a ser deletado é obrigatório." } });
-            return;
-        }
-
-        // 2. Validar Autenticação (Token do Admin)
-        const authHeader = req.headers.authorization;
-        if (!authHeader?.startsWith('Bearer ')) {
-            res.status(401).json({ error: { message: "Ação não autorizada. Cabeçalho de autorização ausente." } });
-            return;
-        }
-
-        const idToken = authHeader.split('Bearer ')[1];
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
-        const callingUserUid = decodedToken.uid;
-
-        // 3. Verificar permissões de Administrador no Firestore
-        const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-        const callingUserData = callingUserSnap.data();
-
-        if (!callingUserData || callingUserData.role !== "Administrador") {
-            res.status(403).json({ error: { message: "Apenas administradores podem excluir usuários permanentemente." } });
-            return;
-        }
-
-        // 4. Impedir auto-exclusão
-        if (callingUserUid === userIdToDelete) {
-            res.status(403).json({ error: { message: "Um administrador não pode excluir a própria conta através desta ferramenta." } });
-            return;
-        }
-
-        // 5. Executar Exclusão no Auth
+        // 4. Executar Exclusão no Auth
         try {
             await admin.auth().deleteUser(userIdToDelete);
             logger.info(`Usuário ${userIdToDelete} removido do Auth.`);
@@ -69,148 +58,117 @@ export const deleteUserAccountV2 = https.onRequest({
             logger.warn(`Usuário ${userIdToDelete} não existia no Auth, prosseguindo com limpeza do DB.`);
         }
 
-        // 6. Executar Exclusão no Firestore
+        // 5. Executar Exclusão no Firestore
         const userDocRef = db.collection("users").doc(userIdToDelete);
         await userDocRef.delete();
         logger.info(`Dados do usuário ${userIdToDelete} removidos do Firestore.`);
 
-        res.status(200).json({ data: { success: true, message: "Usuário e dados excluídos com sucesso." } });
+        return { success: true, message: "Usuário e dados excluídos com sucesso." };
 
     } catch (error: any) {
-        logger.error("Erro em deleteUserAccountV2:", error);
-        res.status(500).json({ error: { message: error.message || "Erro interno no servidor" } });
+        logger.error("Erro interno em deleteUserAccountV2:", error);
+        throw new https.HttpsError('internal', error.message || 'Falha ao processar a exclusão.');
     }
 });
 
-export const getCongregationIdByNumberV2 = https.onRequest({ region: "southamerica-east1", cors: true }, async (req, res) => {
-    try {
-        const data = req.body?.data || req.body;
-        const { congregationNumber } = data;
-        if (!congregationNumber) {
-            res.status(400).json({ error: { message: "O número da congregação é obrigatório." } });
-            return;
-        }
-        const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).limit(1).get();
-        if (congQuery.empty) {
-            res.status(404).json({ error: { message: "Congregação não encontrada." } });
-            return;
-        }
-        res.status(200).json({ data: { success: true, congregationId: congQuery.docs[0].id } });
-    } catch (error) {
-        res.status(500).json({ error: { message: "Erro interno." } });
+export const getCongregationIdByNumberV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
+    const { congregationNumber } = request.data;
+    if (!congregationNumber) {
+        throw new https.HttpsError('invalid-argument', "O número da congregação é obrigatório.");
     }
-});
-
-export const createCongregationAndAdminV2 = https.onRequest({ region: "southamerica-east1", cors: true }, async (req, res) => {
-    try {
-        const data = req.body?.data || req.body;
-        const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = data;
-
-        if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
-            res.status(400).json({ error: { message: "Todos os campos são obrigatórios." } });
-            return;
-        }
-
-        const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).get();
-        if (!congQuery.empty) {
-            res.status(409).json({ error: { message: "Uma congregação com este número já existe." } });
-            return;
-        }
-
-        const newUser = await admin.auth().createUser({ email: adminEmail, password: adminPassword, displayName: adminName });
-
-        const batch = db.batch();
-        const newCongregationRef = db.collection("congregations").doc();
-        batch.set(newCongregationRef, {
-            name: congregationName,
-            number: congregationNumber,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        const userDocRef = db.collection("users").doc(newUser.uid);
-        batch.set(userDocRef, {
-            name: adminName,
-            email: adminEmail,
-            whatsapp: whatsapp,
-            congregationId: newCongregationRef.id,
-            role: "Administrador",
-            status: "ativo",
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        
-        await batch.commit();
-        res.status(200).json({ data: { success: true, userId: newUser.uid } });
-
-    } catch (error: any) {
-        if (error.code === 'auth/email-already-exists') {
-            res.status(409).json({ error: { message: "Este e-mail já está em uso." } });
-        } else {
-            res.status(500).json({ error: { message: error.message || "Erro interno" } });
-        }
+    const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).limit(1).get();
+    if (congQuery.empty) {
+        throw new https.HttpsError('not-found', "Congregação não encontrada.");
     }
+    return { congregationId: congQuery.docs[0].id };
 });
 
-export const completeUserProfileV2 = https.onRequest({ region: "southamerica-east1", cors: true }, async (req, res) => {
-    try {
-        const idToken = req.headers.authorization?.split('Bearer ')[1];
-        if (!idToken) {
-            res.status(401).json({ error: { message: "Token ausente." } });
-            return;
-        }
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
-        const data = req.body?.data || req.body;
-        const { congregationId, whatsapp, name } = data;
-        
-        await db.collection("users").doc(decodedToken.uid).set({
-            name: name || decodedToken.name,
-            email: decodedToken.email,
-            whatsapp: whatsapp,
-            congregationId: congregationId,
-            role: "Publicador",
-            status: "pendente",
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            lastSeen: admin.firestore.FieldValue.serverTimestamp()
-        });
-        res.status(200).json({ data: { success: true } });
-    } catch (error: any) {
-        res.status(500).json({ error: { message: error.message } });
+export const createCongregationAndAdminV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
+    const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = request.data;
+
+    if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
+        throw new https.HttpsError('invalid-argument', "Todos os campos são obrigatórios.");
     }
+
+    const congQuery = await db.collection("congregations").where("number", "==", congregationNumber).get();
+    if (!congQuery.empty) {
+        throw new https.HttpsError('already-exists', "Uma congregação com este número já existe.");
+    }
+
+    const newUser = await admin.auth().createUser({ email: adminEmail, password: adminPassword, displayName: adminName });
+
+    const batch = db.batch();
+    const newCongregationRef = db.collection("congregations").doc();
+    batch.set(newCongregationRef, {
+        name: congregationName,
+        number: congregationNumber,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    const userDocRef = db.collection("users").doc(newUser.uid);
+    batch.set(userDocRef, {
+        name: adminName,
+        email: adminEmail,
+        whatsapp: whatsapp,
+        congregationId: newCongregationRef.id,
+        role: "Administrador",
+        status: "ativo",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    
+    await batch.commit();
+    return { success: true, userId: newUser.uid };
 });
 
-export const notifyOnNewUserV2 = https.onRequest({ region: "southamerica-east1", cors: true }, async (req, res) => {
-    res.status(200).json({ data: { success: true } });
+export const completeUserProfileV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
+    if (!request.auth) throw new https.HttpsError('unauthenticated', 'Não autenticado.');
+    
+    const { congregationId, whatsapp, name } = request.data;
+    
+    await db.collection("users").doc(request.auth.uid).set({
+        name: name || request.auth.token.name,
+        email: request.auth.token.email,
+        whatsapp: whatsapp,
+        congregationId: congregationId,
+        role: "Publicador",
+        status: "pendente",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastSeen: admin.firestore.FieldValue.serverTimestamp()
+    });
+    return { success: true };
 });
 
-export const requestPasswordResetV2 = https.onRequest({ region: "southamerica-east1", cors: true }, async (req, res) => {
+export const requestPasswordResetV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
+    const { email } = request.data;
+    if (!email) throw new https.HttpsError('invalid-argument', 'Email obrigatório.');
+    
     try {
-        const { email } = req.body?.data || req.body;
         const user = await admin.auth().getUserByEmail(email);
         const token = crypto.randomUUID();
         await db.collection("resetTokens").doc(token).set({
             uid: user.uid,
             expires: admin.firestore.Timestamp.fromMillis(Date.now() + 3600000),
         });
-        res.status(200).json({ data: { success: true, token } });
+        return { success: true, token };
     } catch (error) {
-        res.status(200).json({ data: { success: true, token: null } });
+        return { success: true, token: null };
     }
 });
 
-export const resetPasswordWithTokenV2 = https.onRequest({ region: "southamerica-east1", cors: true }, async (req, res) => {
-    try {
-        const { token, newPassword } = req.body?.data || req.body;
-        const tokenRef = db.collection("resetTokens").doc(token);
-        const tokenDoc = await tokenRef.get();
-        if (!tokenDoc.exists || (tokenDoc.data()?.expires.toMillis() || 0) < Date.now()) {
-            res.status(400).json({ error: { message: "Token inválido ou expirado." } });
-            return;
-        }
-        await admin.auth().updateUser(tokenDoc.data()!.uid, { password: newPassword });
-        await tokenRef.delete();
-        res.status(200).json({ data: { success: true } });
-    } catch (error) {
-        res.status(500).json({ error: { message: "Erro ao resetar." } });
+export const resetPasswordWithTokenV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
+    const { token, newPassword } = request.data;
+    if (!token || !newPassword) throw new https.HttpsError('invalid-argument', 'Token e senha obrigatórios.');
+    
+    const tokenRef = db.collection("resetTokens").doc(token);
+    const tokenDoc = await tokenRef.get();
+    
+    if (!tokenDoc.exists || (tokenDoc.data()?.expires.toMillis() || 0) < Date.now()) {
+        throw new https.HttpsError('failed-precondition', "Token inválido ou expirado.");
     }
+    
+    await admin.auth().updateUser(tokenDoc.data()!.uid, { password: newPassword });
+    await tokenRef.delete();
+    return { success: true };
 });
 
 
