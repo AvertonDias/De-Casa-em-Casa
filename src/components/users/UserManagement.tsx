@@ -82,8 +82,6 @@ export default function UserManagement() {
             }
         }
 
-        // CRÍTICO: Se o usuário está online agora, consideramos sua atividade como "Agora"
-        // Isso garante que os contadores de "Última Hora" funcionem mesmo se o sinal de 'last_changed' for antigo
         if (isOnline) {
             effectiveLastSeenDate = now;
         }

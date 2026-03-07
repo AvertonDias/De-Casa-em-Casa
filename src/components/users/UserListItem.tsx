@@ -1,8 +1,9 @@
+
 "use client";
 
 import type { AppUser } from '@/types/types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Check, Trash2, XCircle, Edit, User } from 'lucide-react';
+import { MoreVertical, Check, Trash2, XCircle, Edit, User, UserX } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -108,7 +109,7 @@ export const UserListItem = ({
                         <DropdownMenuItem onClick={handleApprove} className="text-green-600 dark:text-green-400 focus:bg-green-500 focus:text-white">
                           <Check className="mr-2 h-4 w-4"/>Aprovar
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onUpdate(user.uid, { status: 'rejeitado' })} className="text-red-500 dark:text-red-400 focus:bg-red-500 focus:text-white">
+                        <DropdownMenuItem onClick={() => onUpdate(user.uid, { status: 'rejeitado' })} className="text-red-500 dark:text-red-400 focus:bg-red-500 text-white">
                           <XCircle className="mr-2 h-4 w-4"/>Rejeitar
                         </DropdownMenuItem>
                       </>
@@ -121,8 +122,8 @@ export const UserListItem = ({
                     {isAdmin && user.uid !== currentUser.uid && (
                       <>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleDelete} className="text-red-500 dark:text-red-400 focus:bg-red-500 focus:text-white">
-                          <Trash2 className="mr-2 h-4 w-4"/>Excluir (Permanente)
+                        <DropdownMenuItem onClick={handleDelete} className="text-red-500 dark:text-red-400 focus:bg-red-500 text-white">
+                          <UserX className="mr-2 h-4 w-4"/>Remover Acesso
                         </DropdownMenuItem>
                       </>
                     )}
