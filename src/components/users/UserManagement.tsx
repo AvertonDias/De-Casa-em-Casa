@@ -103,8 +103,6 @@ export default function UserManagement() {
     if (!userToRemove || currentUser?.role !== 'Administrador') return;
     setIsConfirmModalOpen(false);
     try {
-        // No Spark, não podemos apagar a conta de autenticação de outros sem o Admin SDK.
-        // A solução é marcar como bloqueado e remover a vinculação com a congregação.
         const userRef = doc(db, 'users', userToRemove.uid);
         await updateDoc(userRef, { 
             status: 'bloqueado', 
@@ -126,7 +124,15 @@ export default function UserManagement() {
         (statusFilter === 'all' || u.status === statusFilter) &&
         (!searchTerm || u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email?.toLowerCase().includes(searchTerm.toLowerCase()))
     );
-    return filtered.sort((a, b) => a.name.localeCompare(b.name));
+    
+    return filtered.sort((a, b) => {
+      // 1. Prioridade absoluta para o status 'pendente'
+      if (a.status === 'pendente' && b.status !== 'pendente') return -1;
+      if (a.status !== 'pendente' && b.status === 'pendente') return 1;
+      
+      // 2. Ordenação secundária por nome
+      return a.name.localeCompare(b.name);
+    });
   }, [usersWithPresence, presenceFilter, roleFilter, statusFilter, searchTerm]);
 
   const FilterButton = ({ label, value, currentFilter, setFilter, count }: { label: string, value: string, currentFilter: string, setFilter: (value: any) => void, count?: number}) => (
