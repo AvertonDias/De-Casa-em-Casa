@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db, rtdb } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { ref, onValue } from 'firebase/database';
 import { Loader, Search, SlidersHorizontal, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -33,7 +32,7 @@ export default function UserManagement() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'rejeitado' | 'bloqueado'>('all');
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [userToRemove, setUserToRemove] = useState<{uid: string, name: string} | null>(null);
+  const [userToDelete, setUserToDelete] = useState<{uid: string, name: string} | null>(null);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState<AppUser | null>(null);
@@ -151,29 +150,30 @@ export default function UserManagement() {
     });
   };
 
-  const confirmRemoveUser = async () => {
-    if (!userToRemove || currentUser?.role !== 'Administrador') return;
+  const confirmDeleteUser = async () => {
+    if (!userToDelete || currentUser?.role !== 'Administrador') return;
     setIsConfirmModalOpen(false);
     
-    const userRef = doc(db, 'users', userToRemove.uid);
-    const dataToUpdate = { 
-        status: 'bloqueado' as const, 
-        congregationId: null 
-    };
+    const userRef = doc(db, 'users', userToDelete.uid);
 
-    updateDoc(userRef, dataToUpdate as any).then(() => {
+    deleteDoc(userRef).then(() => {
         toast({ 
-            title: "Acesso Removido", 
-            description: "O usuário foi bloqueado e desvinculado da congregação." 
+            title: "Usuário Excluído", 
+            description: "O registro do usuário foi removido permanentemente do banco de dados." 
         });
     }).catch(async (error) => {
         if (error.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
                 path: userRef.path,
-                operation: 'update',
-                requestResourceData: dataToUpdate,
+                operation: 'delete',
             });
             errorEmitter.emit('permission-error', permissionError);
+        } else {
+            toast({
+                title: "Erro ao excluir",
+                description: "Não foi possível remover o registro do banco de dados.",
+                variant: "destructive"
+            });
         }
     });
   };
@@ -353,7 +353,7 @@ export default function UserManagement() {
                 currentUser={currentUser!} 
                 onUpdate={handleUserUpdate} 
                 onEdit={(user) => { setUserToEdit(user); setIsEditModalOpen(true); }} 
-                onDelete={(uid, name) => { setUserToRemove({uid, name}); setIsConfirmModalOpen(true); }} 
+                onDelete={(uid, name) => { setUserToDelete({uid, name}); setIsConfirmModalOpen(true); }} 
               />
             ))
           ) : (
@@ -365,7 +365,7 @@ export default function UserManagement() {
         </ul>
       </div>
 
-      <ConfirmationModal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} onConfirm={confirmRemoveUser} title="Remover Acesso" message={`Tem certeza que deseja remover o acesso de ${userToRemove?.name}? O usuário será bloqueado e desvinculado da congregação.`} confirmText="Sim, Remover Acesso" />
+      <ConfirmationModal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} onConfirm={confirmDeleteUser} title="Excluir Registro do Banco" message={`Tem certeza que deseja excluir permanentemente o registro de ${userToDelete?.name} do banco de dados? Esta ação removerá o perfil e o histórico dele da congregação.`} confirmText="Sim, Excluir Registro" />
       {userToEdit && <EditUserByAdminModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} userToEdit={userToEdit} onSave={handleUserUpdate} />}
     </div>
   );

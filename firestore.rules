@@ -64,7 +64,8 @@ service cloud.firestore {
             allow get: if isAuth();
             allow list: if isAuth();
             allow update: if isAuth() && (request.auth.uid == userId || canApproveUsers());
-            allow delete: if false;
+            // Permite que Administradores excluam o documento de outros usuários
+            allow delete: if isAuth() && isAdmin();
 
             // Regras para a subcoleção de notificações
             match /notifications/{notifId} {
