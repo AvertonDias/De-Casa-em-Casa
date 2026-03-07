@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -75,13 +76,14 @@ export default function SignUpPage() {
             lastSeen: serverTimestamp()
         };
 
-        setDoc(userDocRef, userData).catch(async (err) => {
+        await setDoc(userDocRef, userData).catch(async (err) => {
             const permissionError = new FirestorePermissionError({
                 path: userDocRef.path,
                 operation: 'create',
                 requestResourceData: userData,
             });
             errorEmitter.emit('permission-error', permissionError);
+            throw err;
         });
       
         toast({
@@ -107,6 +109,8 @@ export default function SignUpPage() {
     try {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
+        // O login com Google redirecionará automaticamente via UserContext
+        // para a página /completar-perfil se o usuário não tiver congregationId no Firestore.
         await signInWithPopup(auth, provider);
     } catch (error: any) {
       if (error.code !== 'auth/popup-closed-by-user') {

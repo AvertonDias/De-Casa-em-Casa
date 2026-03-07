@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -11,6 +12,8 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import withAuth from '@/components/withAuth';
 import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Footer } from '@/components/Footer';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 function CompleteProfilePage() {
     const { user, loading: userLoading } = useUser();
@@ -30,7 +33,7 @@ function CompleteProfilePage() {
         setError(null);
 
         try {
-            // 1. Buscar o ID da congregação pelo número (Plano Spark - Client Side)
+            // 1. Buscar o ID da congregação pelo número
             const congQuery = query(collection(db, "congregations"), where("number", "==", congregationNumber.trim()));
             const congSnap = await getDocs(congQuery);
 
@@ -39,8 +42,9 @@ function CompleteProfilePage() {
             }
             const congregationId = congSnap.docs[0].id;
 
-            // 2. Criar o perfil do usuário diretamente no Firestore (Plano Spark)
-            await setDoc(doc(db, "users", user.uid), {
+            // 2. Criar o perfil do usuário diretamente no Firestore
+            const userDocRef = doc(db, "users", user.uid);
+            const userData = {
                 name: user.name,
                 email: user.email,
                 whatsapp: whatsapp,
@@ -49,6 +53,16 @@ function CompleteProfilePage() {
                 status: "pendente",
                 createdAt: serverTimestamp(),
                 lastSeen: serverTimestamp()
+            };
+
+            await setDoc(userDocRef, userData).catch(async (err) => {
+                const permissionError = new FirestorePermissionError({
+                    path: userDocRef.path,
+                    operation: 'create',
+                    requestResourceData: userData,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                throw err;
             });
             
             toast({
@@ -57,7 +71,7 @@ function CompleteProfilePage() {
                 variant: 'default',
             });
             
-            // O UserContext irá lidar com o redirecionamento para /aguardando-aprovacao
+            // O UserContext irá lidar com o redirecionamento automático para /aguardando-aprovacao
 
         } catch (err: any) {
             console.error("Erro ao completar perfil:", err);
