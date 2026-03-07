@@ -29,13 +29,20 @@ const corsHandler = cors({
 //   HTTPS Callables (Preferred for Web Apps)
 // ========================================================================
 
-export const deleteUserAccountV2 = onCall({ region: "southamerica-east1" }, async (request) => {
+export const deleteUserAccountV2 = onCall({ 
+  region: "southamerica-east1",
+  cors: true // Essential for cross-origin requests from workstations/local dev
+}, async (request) => {
   const { userIdToDelete } = request.data;
   const auth = request.auth;
 
   // 1. Verificar autenticação
   if (!auth) {
     throw new HttpsError("unauthenticated", "Você precisa estar logado para realizar esta ação.");
+  }
+
+  if (!userIdToDelete) {
+    throw new HttpsError("invalid-argument", "O ID do usuário a ser deletado é obrigatório.");
   }
 
   // 2. Verificar permissões de Administrador
@@ -81,7 +88,7 @@ export const deleteUserAccountV2 = onCall({ region: "southamerica-east1" }, asyn
 //   HTTPS onRequest Functions (Legacy / REST)
 // ========================================================================
 
-export const getCongregationIdByNumberV2 = https.onRequest((req, res) => {
+export const getCongregationIdByNumberV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
   corsHandler(req, res, async () => {
     if (req.method === 'OPTIONS') {
       res.status(204).send('');
@@ -108,7 +115,7 @@ export const getCongregationIdByNumberV2 = https.onRequest((req, res) => {
   });
 });
 
-export const createCongregationAndAdminV2 = https.onRequest((req, res) => {
+export const createCongregationAndAdminV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
   corsHandler(req, res, async () => {
     if (req.method === 'OPTIONS') {
       res.status(204).send('');
@@ -164,7 +171,7 @@ export const createCongregationAndAdminV2 = https.onRequest((req, res) => {
   });
 });
 
-export const completeUserProfileV2 = https.onRequest((req, res) => {
+export const completeUserProfileV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
   corsHandler(req, res, async () => {
     if (req.method === 'OPTIONS') {
       res.status(204).send('');
@@ -221,7 +228,7 @@ export const completeUserProfileV2 = https.onRequest((req, res) => {
   });
 });
 
-export const notifyOnNewUserV2 = https.onRequest((req, res) => {
+export const notifyOnNewUserV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
   corsHandler(req, res, async () => {
     logger.info("notifyOnNewUserV2 chamada com:", req.body);
     // Função agora é apenas um placeholder, não lança erros.
@@ -229,7 +236,7 @@ export const notifyOnNewUserV2 = https.onRequest((req, res) => {
   });
 });
 
-export const requestPasswordResetV2 = https.onRequest((req, res) => {
+export const requestPasswordResetV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
   corsHandler(req, res, async () => {
     if (req.method === 'OPTIONS') {
       res.status(204).send('');
@@ -262,7 +269,7 @@ export const requestPasswordResetV2 = https.onRequest((req, res) => {
   });
 });
 
-export const resetPasswordWithTokenV2 = https.onRequest((req, res) => {
+export const resetPasswordWithTokenV2 = https.onRequest({ region: "southamerica-east1" }, (req, res) => {
   corsHandler(req, res, async () => {
     if (req.method === 'OPTIONS') {
       res.status(204).send('');

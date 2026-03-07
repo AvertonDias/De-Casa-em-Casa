@@ -19,7 +19,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
 
-// Inicializar funções
+// Inicializar funções com a região correta
 const functions = getFunctions(app, 'southamerica-east1');
 const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
 
@@ -71,7 +71,6 @@ export default function UserManagement() {
     }
   }, [currentUser]);
 
-  // Lógica Híbrida: Combina Firestore + Realtime Database para precisão total
   const usersWithPresence = useMemo(() => {
     const now = new Date();
     const oneMonthAgo = subMonths(now, 1);
@@ -80,13 +79,11 @@ export default function UserManagement() {
         const presence = presenceData[u.uid];
         const isOnline = presence?.state === 'online';
         
-        // 1. Tentar pegar o dado do Firestore (Banco de Dados Principal)
         let effectiveLastSeenDate: Date | null = null;
         if (u.lastSeen && typeof u.lastSeen.toDate === 'function') {
             effectiveLastSeenDate = u.lastSeen.toDate();
         }
 
-        // 2. Cruzar com o Realtime DB (Sinal de rede instantâneo)
         if (presence?.last_changed) {
             const presenceDate = new Date(presence.last_changed);
             if (!effectiveLastSeenDate || presenceDate > effectiveLastSeenDate) {
@@ -94,12 +91,10 @@ export default function UserManagement() {
             }
         }
 
-        // 3. Se estiver online agora, a atividade é "Agora"
         if (isOnline) {
             effectiveLastSeenDate = now;
         }
 
-        // 4. Determinar se o status visual deve ser 'inativo' (ausente há mais de 1 mês)
         let status = u.status;
         if (status === 'ativo' && effectiveLastSeenDate && effectiveLastSeenDate < oneMonthAgo) {
             status = 'inativo';
@@ -109,7 +104,6 @@ export default function UserManagement() {
             ...u, 
             isOnline, 
             status,
-            // Re-encapsulamos para manter a compatibilidade com o componente UserListItem
             lastSeen: effectiveLastSeenDate ? { toDate: () => effectiveLastSeenDate } : u.lastSeen 
         };
     });
@@ -176,28 +170,34 @@ export default function UserManagement() {
       toast({ title: "Iniciando Exclusão", description: "Removendo conta e registros do servidor..." });
       
       const result = await deleteUserAccount({ userIdToDelete: userId });
-      const data = result.data as any;
+      const responseData = result.data as any;
 
-      if (data.success) {
+      if (responseData.success) {
         toast({ 
             title: "Usuário Excluído", 
-            description: data.message || "A conta e os dados foram removidos permanentemente." 
+            description: responseData.message || "A conta e os dados foram removidos permanentemente." 
         });
       }
     } catch (e: any) {
-      console.error("Erro ao excluir via servidor:", e);
+      console.error("Erro completo ao excluir via servidor:", e);
       
+      let errorMsg = "Não foi possível remover o e-mail automaticamente.";
+      if (e.message?.includes("CORS") || e.code === "internal") {
+          errorMsg = "Erro de conexão com o servidor (CORS/Network). A conta de e-mail deve ser removida manualmente no console.";
+      }
+
       toast({
         variant: "destructive",
         title: "Atenção: Exclusão Parcial",
-        description: "Não foi possível remover o e-mail/senha automaticamente. Por favor, remova-o manualmente no Console do Firebase.",
+        description: errorMsg,
       });
 
+      // Fallback: Remover do Firestore pelo menos
       const userRef = doc(db, 'users', userId);
       deleteDoc(userRef).then(() => {
           toast({ 
-              title: "Registro Removido", 
-              description: "O perfil foi removido do banco de dados local." 
+              title: "Registro Local Removido", 
+              description: "O perfil foi removido do banco de dados da congregação." 
           });
       }).catch(async (error) => {
           if (error.code === 'permission-denied') {
@@ -239,15 +239,10 @@ export default function UserManagement() {
     });
     
     return filtered.sort((a, b) => {
-      // O "Você" sempre fica em primeiro
       if (a.uid === currentUser?.uid) return -1;
       if (b.uid === currentUser?.uid) return 1;
-      
-      // Pendentes ficam em segundo
       if (a.status === 'pendente' && b.status !== 'pendente') return -1;
       if (a.status !== 'pendente' && b.status === 'pendente') return 1;
-      
-      // Demais por ordem alfabética
       return a.name.localeCompare(b.name);
     });
   }, [usersWithPresence, presenceFilter, roleFilter, statusFilter, activityFilter, searchTerm, currentUser]);
