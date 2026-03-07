@@ -3,10 +3,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, app, rtdb } from '@/lib/firebase';
+import { db, auth, rtdb } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { ref, onValue } from 'firebase/database';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Loader, Search, SlidersHorizontal, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
@@ -18,10 +17,6 @@ import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
-
-// Inicializar funções com a região correta
-const functions = getFunctions(app, 'southamerica-east1');
-const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
 
 export default function UserManagement() {
   const { user: currentUser, loading: userLoading } = useUser(); 
@@ -161,7 +156,7 @@ export default function UserManagement() {
   };
 
   const confirmDeleteUser = async () => {
-    if (!userToDelete || currentUser?.role !== 'Administrador') return;
+    if (!userToDelete || currentUser?.role !== 'Administrador' || !auth.currentUser) return;
     
     const userId = userToDelete.uid;
     setIsConfirmModalOpen(false);
@@ -169,35 +164,45 @@ export default function UserManagement() {
     try {
       toast({ title: "Iniciando Exclusão", description: "Removendo conta e registros do servidor..." });
       
-      const result = await deleteUserAccount({ userIdToDelete: userId });
-      const responseData = result.data as any;
+      // Obter Token de Identidade para chamada HTTPS manual (bypass CORS SDK)
+      const idToken = await auth.currentUser.getIdToken();
+      
+      const response = await fetch(`https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/deleteUserAccountV2`, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({ data: { userIdToDelete: userId } })
+      });
 
-      if (responseData.success) {
+      const result = await response.json();
+
+      if (!response.ok) {
+          throw new Error(result.error?.message || "Falha na comunicação com o servidor.");
+      }
+
+      if (result.data?.success) {
         toast({ 
             title: "Usuário Excluído", 
-            description: responseData.message || "A conta e os dados foram removidos permanentemente." 
+            description: result.data.message || "A conta e os dados foram removidos permanentemente." 
         });
       }
     } catch (e: any) {
       console.error("Erro completo ao excluir via servidor:", e);
       
-      let errorMsg = "Não foi possível remover o e-mail automaticamente.";
-      if (e.message?.includes("CORS") || e.code === "internal") {
-          errorMsg = "Erro de conexão com o servidor (CORS/Network). A conta de e-mail deve ser removida manualmente no console.";
-      }
-
       toast({
         variant: "destructive",
-        title: "Atenção: Exclusão Parcial",
-        description: errorMsg,
+        title: "Atenção: Falha na Exclusão Total",
+        description: e.message || "Não foi possível remover o e-mail via servidor (CORS/Network).",
       });
 
-      // Fallback: Remover do Firestore pelo menos
+      // Fallback: Remover do Firestore pelo menos para que suma da lista da congregação
       const userRef = doc(db, 'users', userId);
       deleteDoc(userRef).then(() => {
           toast({ 
               title: "Registro Local Removido", 
-              description: "O perfil foi removido do banco de dados da congregação." 
+              description: "O perfil foi removido da congregação. A autenticação pode precisar de remoção manual no console." 
           });
       }).catch(async (error) => {
           if (error.code === 'permission-denied') {
