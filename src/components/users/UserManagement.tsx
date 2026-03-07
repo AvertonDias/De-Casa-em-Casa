@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, app, auth, rtdb } from '@/lib/firebase';
+import { db, app, rtdb } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { ref, onValue } from 'firebase/database';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -71,6 +71,7 @@ export default function UserManagement() {
     }
   }, [currentUser]);
 
+  // Lógica Híbrida: Combina Firestore + Realtime Database para precisão total
   const usersWithPresence = useMemo(() => {
     const now = new Date();
     const oneMonthAgo = subMonths(now, 1);
@@ -79,7 +80,13 @@ export default function UserManagement() {
         const presence = presenceData[u.uid];
         const isOnline = presence?.state === 'online';
         
-        let effectiveLastSeenDate = u.lastSeen?.toDate ? u.lastSeen.toDate() : null;
+        // 1. Tentar pegar o dado do Firestore (Banco de Dados Principal)
+        let effectiveLastSeenDate: Date | null = null;
+        if (u.lastSeen && typeof u.lastSeen.toDate === 'function') {
+            effectiveLastSeenDate = u.lastSeen.toDate();
+        }
+
+        // 2. Cruzar com o Realtime DB (Sinal de rede instantâneo)
         if (presence?.last_changed) {
             const presenceDate = new Date(presence.last_changed);
             if (!effectiveLastSeenDate || presenceDate > effectiveLastSeenDate) {
@@ -87,10 +94,12 @@ export default function UserManagement() {
             }
         }
 
+        // 3. Se estiver online agora, a atividade é "Agora"
         if (isOnline) {
             effectiveLastSeenDate = now;
         }
 
+        // 4. Determinar se o status visual deve ser 'inativo' (ausente há mais de 1 mês)
         let status = u.status;
         if (status === 'ativo' && effectiveLastSeenDate && effectiveLastSeenDate < oneMonthAgo) {
             status = 'inativo';
@@ -100,6 +109,7 @@ export default function UserManagement() {
             ...u, 
             isOnline, 
             status,
+            // Re-encapsulamos para manter a compatibilidade com o componente UserListItem
             lastSeen: effectiveLastSeenDate ? { toDate: () => effectiveLastSeenDate } : u.lastSeen 
         };
     });
@@ -163,7 +173,6 @@ export default function UserManagement() {
     setIsConfirmModalOpen(false);
     
     try {
-      // 1. Tentar exclusão TOTAL via Cloud Function (Auth + DB)
       toast({ title: "Iniciando Exclusão", description: "Removendo conta e registros do servidor..." });
       
       const result = await deleteUserAccount({ userIdToDelete: userId });
@@ -178,15 +187,12 @@ export default function UserManagement() {
     } catch (e: any) {
       console.error("Erro ao excluir via servidor:", e);
       
-      // 2. Se a função falhar (provavelmente por falta de deploy ou permissão de rede), avisamos o usuário
-      // No plano Spark, a função pode não estar disponível.
       toast({
         variant: "destructive",
         title: "Atenção: Exclusão Parcial",
         description: "Não foi possível remover o e-mail/senha automaticamente. Por favor, remova-o manualmente no Console do Firebase.",
       });
 
-      // 3. Fallback: Excluir apenas o documento no Firestore para pelo menos sumir da lista do app
       const userRef = doc(db, 'users', userId);
       deleteDoc(userRef).then(() => {
           toast({ 
@@ -233,10 +239,15 @@ export default function UserManagement() {
     });
     
     return filtered.sort((a, b) => {
+      // O "Você" sempre fica em primeiro
       if (a.uid === currentUser?.uid) return -1;
       if (b.uid === currentUser?.uid) return 1;
+      
+      // Pendentes ficam em segundo
       if (a.status === 'pendente' && b.status !== 'pendente') return -1;
       if (a.status !== 'pendente' && b.status === 'pendente') return 1;
+      
+      // Demais por ordem alfabética
       return a.name.localeCompare(b.name);
     });
   }, [usersWithPresence, presenceFilter, roleFilter, statusFilter, activityFilter, searchTerm, currentUser]);
@@ -293,7 +304,7 @@ export default function UserManagement() {
       </div>
 
       <div className="mx-4 md:mx-0">
-        <Accordion type="single" collapsible className="w-full bg-card rounded-xl border border-border/40 shadow-sm overflow-hidden">
+        <Accordion type="single" collapsible defaultValue="" className="w-full bg-card rounded-xl border border-border/40 shadow-sm overflow-hidden">
           <AccordionItem value="filters" className="border-b-0">
             <AccordionTrigger className="flex items-center gap-2 px-6 py-4 text-muted-foreground hover:no-underline hover:bg-white/5 transition-all">
               <div className="flex items-center gap-2">
