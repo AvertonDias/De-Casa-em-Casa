@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, rtdb } from '@/lib/firebase';
+import { db, rtdb, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { ref, onValue } from 'firebase/database';
 import { Loader, Search, SlidersHorizontal, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
@@ -154,12 +155,41 @@ export default function UserManagement() {
     if (!userToDelete || currentUser?.role !== 'Administrador') return;
     setIsConfirmModalOpen(false);
     
-    const userRef = doc(db, 'users', userToDelete.uid);
+    // Tentativa de exclusão total (Auth + Firestore) via Cloud Function
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Token ausente");
 
-    deleteDoc(userRef).then(() => {
+      const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/deleteUserAccountV2', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ data: { userIdToDelete: userToDelete.uid } })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
         toast({ 
             title: "Usuário Excluído", 
-            description: "O registro do usuário foi removido permanentemente do banco de dados." 
+            description: "A conta e os dados do usuário foram removidos com sucesso." 
+        });
+        return;
+      }
+      
+      console.warn("Falha ao excluir via servidor, tentando exclusão direta do BD:", result.error?.message);
+    } catch (e) {
+      console.error("Erro ao chamar função de exclusão:", e);
+    }
+
+    // Fallback: Excluir apenas o documento no Firestore
+    const userRef = doc(db, 'users', userToDelete.uid);
+    deleteDoc(userRef).then(() => {
+        toast({ 
+            title: "Registro Removido", 
+            description: "O perfil foi removido do banco de dados com sucesso." 
         });
     }).catch(async (error) => {
         if (error.code === 'permission-denied') {
