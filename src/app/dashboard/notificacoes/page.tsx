@@ -12,6 +12,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type Notification } from '@/types/types';
 import { Button } from '@/components/ui/button';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 function NotificacoesPage() {
   const { user, loading: userLoading } = useUser();
@@ -26,7 +28,8 @@ function NotificacoesPage() {
       return;
     }
 
-    const notificationsRef = collection(db, `users/${user.uid}/notifications`);
+    const notificationsPath = `users/${user.uid}/notifications`;
+    const notificationsRef = collection(db, notificationsPath);
     const q = query(
       notificationsRef, 
       orderBy('createdAt', 'desc'), 
@@ -40,8 +43,14 @@ function NotificacoesPage() {
         } as Notification)).filter(n => n.type !== 'user_pending');
         setNotifications(fetchedNotifications);
         setLoading(false);
-    }, (error) => {
-        console.error("Erro ao buscar notificações: ", error);
+    }, async (error) => {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: notificationsPath,
+                operation: 'list',
+            } satisfies SecurityRuleContext);
+            errorEmitter.emit('permission-error', permissionError);
+        }
         setLoading(false);
     });
 
@@ -77,7 +86,17 @@ function NotificacoesPage() {
     const notifRef = doc(db, `users/${user.uid}/notifications`, notification.id);
     
     if (!notification.isRead) {
-        updateDoc(notifRef, { isRead: true, readAt: Timestamp.now() });
+        const updateData = { isRead: true, readAt: Timestamp.now() };
+        updateDoc(notifRef, updateData).catch(async (error) => {
+            if (error.code === 'permission-denied') {
+                const permissionError = new FirestorePermissionError({
+                    path: notifRef.path,
+                    operation: 'update',
+                    requestResourceData: updateData,
+                } satisfies SecurityRuleContext);
+                errorEmitter.emit('permission-error', permissionError);
+            }
+        });
     }
 
     if (notification.link) {
@@ -88,20 +107,45 @@ function NotificacoesPage() {
   const handleMarkOneAsRead = async (notificationId: string) => {
     if (!user) return;
     const notifRef = doc(db, `users/${user.uid}/notifications`, notificationId);
-    await updateDoc(notifRef, { isRead: true, readAt: Timestamp.now() });
+    const updateData = { isRead: true, readAt: Timestamp.now() };
+    
+    updateDoc(notifRef, updateData).catch(async (error) => {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: notifRef.path,
+                operation: 'update',
+                requestResourceData: updateData,
+            } satisfies SecurityRuleContext);
+            errorEmitter.emit('permission-error', permissionError);
+        }
+    });
   };
 
 
   const handleMarkAllAsRead = async () => {
     if (!user) return;
     const batch = writeBatch(db);
+    let hasUpdates = false;
+    
     notifications.forEach(n => {
         if (!n.isRead) {
             const notifRef = doc(db, `users/${user.uid}/notifications`, n.id);
             batch.update(notifRef, { isRead: true, readAt: Timestamp.now() });
+            hasUpdates = true;
         }
     });
-    await batch.commit();
+
+    if (hasUpdates) {
+        batch.commit().catch(async (error) => {
+            if (error.code === 'permission-denied') {
+                const permissionError = new FirestorePermissionError({
+                    path: `users/${user.uid}/notifications`,
+                    operation: 'write',
+                } satisfies SecurityRuleContext);
+                errorEmitter.emit('permission-error', permissionError);
+            }
+        });
+    }
   };
 
   const getIconForType = (type: Notification['type']) => {

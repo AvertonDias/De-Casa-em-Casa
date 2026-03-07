@@ -9,7 +9,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { usePresence } from '@/hooks/usePresence';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 
 interface UserContextType {
@@ -58,7 +58,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 path: userRef.path,
                 operation: 'update',
                 requestResourceData: data,
-            });
+            } satisfies SecurityRuleContext);
             errorEmitter.emit('permission-error', permissionError);
         }
     });
@@ -134,15 +134,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
                     const permissionError = new FirestorePermissionError({
                         path: congRef.path,
                         operation: 'get',
-                    });
+                    } satisfies SecurityRuleContext);
                     errorEmitter.emit('permission-error', permissionError);
                 }
                 setLoading(false);
               }
             );
 
+            const territoryCollectionPath = `congregations/${appUser.congregationId}/territories`;
             const assignedTerritoriesQuery = query(
-                collection(db, 'congregations', appUser.congregationId, 'territories'),
+                collection(db, territoryCollectionPath),
                 where("assignment.uid", "==", appUser.uid)
             );
             
@@ -175,6 +176,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
                                 type: 'territory_overdue',
                                 isRead: false,
                                 createdAt: serverTimestamp()
+                            }).catch(async (notifErr) => {
+                                if (notifErr.code === 'permission-denied') {
+                                    const permissionError = new FirestorePermissionError({
+                                        path: `users/${appUser.uid}/notifications`,
+                                        operation: 'create',
+                                    } satisfies SecurityRuleContext);
+                                    errorEmitter.emit('permission-error', permissionError);
+                                }
                             });
                         }
                     }
@@ -183,9 +192,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
               async (error) => {
                 if (error.code === 'permission-denied') {
                     const permissionError = new FirestorePermissionError({
-                        path: assignedTerritoriesQuery.toString(),
+                        path: territoryCollectionPath,
                         operation: 'list',
-                    });
+                    } satisfies SecurityRuleContext);
                     errorEmitter.emit('permission-error', permissionError);
                 }
               }
@@ -203,7 +212,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
               const permissionError = new FirestorePermissionError({
                   path: userRef.path,
                   operation: 'get',
-              });
+              } satisfies SecurityRuleContext);
               errorEmitter.emit('permission-error', permissionError);
           }
           setLoading(false);
