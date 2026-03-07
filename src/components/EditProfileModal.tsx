@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -13,6 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
 import { doc, deleteDoc } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
@@ -168,7 +169,21 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
             await reauthenticateWithCredential(currentUser, credential);
         }
         
-        await deleteDoc(doc(db, 'users', user.uid));
+        const userDocRef = doc(db, 'users', user.uid);
+        
+        // Excluir o documento no Firestore primeiro
+        await deleteDoc(userDocRef).catch(async (dbError) => {
+            if (dbError.code === 'permission-denied') {
+                const permissionError = new FirestorePermissionError({
+                    path: userDocRef.path,
+                    operation: 'delete',
+                } satisfies SecurityRuleContext);
+                errorEmitter.emit('permission-error', permissionError);
+            }
+            throw dbError;
+        });
+
+        // Só depois excluir o acesso (Auth)
         await deleteUser(currentUser);
         
         toast({
@@ -184,6 +199,8 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
              setError("Senha incorreta. A exclusão foi cancelada.");
          } else if (error.code?.includes('auth/popup-closed-by-user')) {
              setError("A autenticação com Google foi cancelada.");
+         } else if (error.code === 'permission-denied') {
+             // O erro de permissão agora é emitido via global listener
          } else {
             setError(error.message || "Ocorreu um erro ao tentar excluir a conta.");
          }
