@@ -13,6 +13,8 @@ import { EditUserByAdminModal } from './EditUserByAdminModal';
 import { subDays, subMonths, subHours } from 'date-fns';
 import type { AppUser } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function UserManagement() {
   const { user: currentUser, loading: userLoading } = useUser(); 
@@ -43,6 +45,14 @@ export default function UserManagement() {
         const usersData = snapshot.docs.map(docSnap => ({ uid: docSnap.id, ...docSnap.data() } as AppUser));
         setUsers(usersData);
         setLoading(false);
+      }, async (error) => {
+          if (error.code === 'permission-denied') {
+              const permissionError = new FirestorePermissionError({
+                  path: usersRef.path,
+                  operation: 'list',
+              });
+              errorEmitter.emit('permission-error', permissionError);
+          }
       });
 
       const statusRef = ref(rtdb, 'status');
@@ -91,30 +101,45 @@ export default function UserManagement() {
   const handleUserUpdate = async (userId: string, dataToUpdate: Partial<AppUser>) => {
     if (!currentUser || currentUser.role !== 'Administrador' && currentUser.role !== 'Dirigente') return;
     const userRef = doc(db, 'users', userId);
-    try {
-        await updateDoc(userRef, dataToUpdate as any);
+    updateDoc(userRef, dataToUpdate as any).then(() => {
         toast({ title: "Sucesso", description: "Usuário atualizado." });
-    } catch (error) {
-        toast({ title: "Erro", description: "Falha na atualização.", variant: "destructive" });
-    }
+    }).catch(async (error) => {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: userRef.path,
+                operation: 'update',
+                requestResourceData: dataToUpdate,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+    });
   };
 
   const confirmRemoveUser = async () => {
     if (!userToRemove || currentUser?.role !== 'Administrador') return;
     setIsConfirmModalOpen(false);
-    try {
-        const userRef = doc(db, 'users', userToRemove.uid);
-        await updateDoc(userRef, { 
-            status: 'bloqueado', 
-            congregationId: null 
-        });
+    
+    const userRef = doc(db, 'users', userToRemove.uid);
+    const updateData = { 
+        status: 'bloqueado' as const, 
+        congregationId: null 
+    };
+
+    updateDoc(userRef, updateData).then(() => {
         toast({ 
             title: "Acesso Removido", 
             description: "O usuário foi bloqueado e desvinculado da congregação." 
         });
-    } catch (error) {
-        toast({ title: "Erro", description: "Falha ao remover o acesso.", variant: "destructive" });
-    }
+    }).catch(async (error) => {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: userRef.path,
+                operation: 'update',
+                requestResourceData: updateData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+    });
   };
 
   const filteredAndSortedUsers = useMemo(() => {
@@ -126,11 +151,8 @@ export default function UserManagement() {
     );
     
     return filtered.sort((a, b) => {
-      // 1. Prioridade absoluta para o status 'pendente'
       if (a.status === 'pendente' && b.status !== 'pendente') return -1;
       if (a.status !== 'pendente' && b.status === 'pendente') return 1;
-      
-      // 2. Ordenação secundária por nome
       return a.name.localeCompare(b.name);
     });
   }, [usersWithPresence, presenceFilter, roleFilter, statusFilter, searchTerm]);

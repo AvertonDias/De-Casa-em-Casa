@@ -8,6 +8,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next"
 import { PT_Sans } from 'next/font/google'; // Importar a fonte
 import "./globals.css";
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 // Configurar a fonte
 const ptSans = PT_Sans({
@@ -37,7 +38,6 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode; }) {
   return (
     <html lang="pt-BR" className={ptSans.variable} suppressHydrationWarning>
-      {/* O <head> foi removido. As meta tags estão no objeto 'metadata' e a fonte é injetada pelo Next.js */}
       <body className="font-body antialiased">
         <UserProvider>
           <ThemeProvider 
@@ -49,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode; })
             <ModalProvider>
               <FontSizeProvider>
                 <ServiceWorkerRegistrar />
+                <FirebaseErrorListener />
                 {children}
                 <Toaster />
               </FontSizeProvider>

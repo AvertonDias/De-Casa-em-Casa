@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -12,6 +11,8 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { maskPhone } from '@/lib/utils';
 import { Footer } from '@/components/Footer';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -50,7 +51,6 @@ export default function SignUpPage() {
     setError(null);
     
     try {
-        // 1. Buscar a congregação pelo número (Diretamente no Firestore)
         const congQuery = query(collection(db, "congregations"), where("number", "==", congregationNumber.trim()));
         const congSnap = await getDocs(congQuery);
 
@@ -59,21 +59,29 @@ export default function SignUpPage() {
         }
         const congregationId = congSnap.docs[0].id;
 
-        // 2. Criar usuário no Auth
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         await updateProfile(user, { displayName: name.trim() });
         
-        // 3. Criar perfil no Firestore
-        await setDoc(doc(db, "users", user.uid), {
+        const userDocRef = doc(db, "users", user.uid);
+        const userData = {
             name: name.trim(),
             email: email.toLowerCase(),
             whatsapp: whatsapp,
             congregationId: congregationId,
-            role: "Publicador",
-            status: "pendente",
+            role: "Publicador" as const,
+            status: "pendente" as const,
             createdAt: serverTimestamp(),
             lastSeen: serverTimestamp()
+        };
+
+        setDoc(userDocRef, userData).catch(async (err) => {
+            const permissionError = new FirestorePermissionError({
+                path: userDocRef.path,
+                operation: 'create',
+                requestResourceData: userData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
         });
       
         toast({
@@ -83,12 +91,10 @@ export default function SignUpPage() {
         });
       
     } catch (err: any) {
-      console.error("Erro no cadastro:", err);
-      let message = err.message || "Ocorreu um erro desconhecido.";
       if (err.code === 'auth/email-already-in-use') { 
         setError(<>Este e-mail já está em uso. <Link href="/recuperar-senha" className="font-bold underline ml-1">Esqueceu a senha?</Link></>); 
       } else { 
-        setError(message); 
+        setError(err.message || "Ocorreu um erro desconhecido."); 
       }
     } finally {
         setLoading(false);
@@ -104,7 +110,6 @@ export default function SignUpPage() {
         await signInWithPopup(auth, provider);
     } catch (error: any) {
       if (error.code !== 'auth/popup-closed-by-user') {
-        console.error("Erro no cadastro com Google:", error);
         setError("Não foi possível cadastrar com o Google.");
       }
     } finally {

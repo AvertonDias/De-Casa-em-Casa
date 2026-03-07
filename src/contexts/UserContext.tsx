@@ -1,4 +1,3 @@
-
 "use client";
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
@@ -7,10 +6,10 @@ import { doc, onSnapshot, updateDoc, serverTimestamp, Timestamp, getDoc, setDoc,
 import { auth, db } from '@/lib/firebase';
 import type { AppUser, Congregation, Territory } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
-import { Loader } from 'lucide-react';
-import { subMonths } from 'date-fns';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { usePresence } from '@/hooks/usePresence';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 
 interface UserContextType {
@@ -53,7 +52,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const updateUser = async (data: Partial<AppUser>) => {
     if (!user) throw new Error("Não é possível atualizar um usuário que não está logado.");
     const userRef = doc(db, 'users', user.uid);
-    await updateDoc(userRef, data);
+    updateDoc(userRef, data).catch(async (error) => {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: userRef.path,
+                operation: 'update',
+                requestResourceData: data,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+    });
   };
 
   useEffect(() => {
@@ -73,13 +81,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       listenersRef.current.user = onSnapshot(userRef, 
         async (userDoc) => {
           if (!userDoc.exists()) {
-            // Usuário do Auth existe mas não tem perfil no Firestore.
-            // Isso acontece com novos cadastros (Google ou Email) antes do perfil ser completo.
             const partialUser: AppUser = {
                 uid: firebaseUser.uid,
                 name: firebaseUser.displayName || 'Novo Usuário',
                 email: firebaseUser.email!,
-                // O resto dos campos ficará undefined, sinalizando perfil incompleto.
             } as AppUser;
             setUser(partialUser);
             setCongregation(null);
@@ -88,7 +93,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
           }
 
           const rawData = userDoc.data();
-          
           const appUser = { 
             uid: firebaseUser.uid, ...rawData,
             name: rawData?.name || firebaseUser.displayName, email: rawData?.email || firebaseUser.email,
@@ -118,21 +122,25 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 if (congDoc.exists()) {
                   const congData = { id: congDoc.id, ...congDoc.data() } as Congregation;
                   setCongregation(congData);
-                  // Atualiza o nome da congregação no usuário, mantendo o usuário atualizado
                   setUser({ ...appUser, congregationName: congData.name });
                 } else {
                   setCongregation(null);
-                  setUser(appUser); // Garante que o usuário seja definido mesmo sem congregação
+                  setUser(appUser);
                 }
                 setLoading(false); 
               }, 
-              (error) => {
-                console.warn("Erro no listener de congregação (pode ser temporário durante transições):", error);
+              async (error) => {
+                if (error.code === 'permission-denied') {
+                    const permissionError = new FirestorePermissionError({
+                        path: congRef.path,
+                        operation: 'get',
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
+                }
                 setLoading(false);
               }
             );
 
-            // Lógica para verificar territórios atrasados
             const assignedTerritoriesQuery = query(
                 collection(db, 'congregations', appUser.congregationId, 'territories'),
                 where("assignment.uid", "==", appUser.uid)
@@ -142,17 +150,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
               (snapshot) => {
                 snapshot.docs.forEach(async (territoryDoc) => {
                     const territory = { id: territoryDoc.id, ...territoryDoc.data() } as Territory;
-                    
                     const isOverdue = territory.assignment && territory.assignment.dueDate.toDate() < new Date();
 
                     if (isOverdue) {
                         const notificationsRef = collection(db, `users/${appUser.uid}/notifications`);
                         const territoryLink = territory.type === 'rural' ? `/dashboard/rural/${territory.id}` : `/dashboard/territorios/${territory.id}`;
                         
-                        // Evita spam de notificações verificando se já existe uma recente
                         const qNotif = query(notificationsRef, where("link", "==", territoryLink));
                         const existingNotifsSnapshot = await getDocs(qNotif);
-                        
                         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
                         
                         const recentOverdueNotificationExists = existingNotifsSnapshot.docs.some(doc => {
@@ -163,7 +168,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
                         });
 
                         if (!recentOverdueNotificationExists) {
-                            await addDoc(notificationsRef, {
+                            addDoc(notificationsRef, {
                                 title: "Território Atrasado",
                                 body: `O território "${territory.number} - ${territory.name}" está com a devolução atrasada.`,
                                 link: territoryLink,
@@ -175,8 +180,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
                     }
                 });
               },
-              (error) => {
-                console.warn("Erro no listener de territórios atrasados (pode ser temporário):", error);
+              async (error) => {
+                if (error.code === 'permission-denied') {
+                    const permissionError = new FirestorePermissionError({
+                        path: assignedTerritoriesQuery.toString(),
+                        operation: 'list',
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
+                }
               }
             );
 
@@ -187,15 +198,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
           }
 
         }, 
-        (error) => {
-          console.error("Erro no listener de usuário:", error);
-          // Só limpa tudo se for um erro crítico não relacionado a permissões temporárias
-          if (error.code !== 'permission-denied') {
-            setUser(null); setCongregation(null); setLoading(false); unsubscribeAll();
-          } else {
-            // Em caso de erro de permissão (comum no signup/logout), apenas paramos o carregamento
-            setLoading(false);
+        async (error) => {
+          if (error.code === 'permission-denied') {
+              const permissionError = new FirestorePermissionError({
+                  path: userRef.path,
+                  operation: 'get',
+              });
+              errorEmitter.emit('permission-error', permissionError);
           }
+          setLoading(false);
         }
       );
     });
@@ -222,16 +233,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
       return;
     }
   
-    // Se o usuário está autenticado mas não tem perfil no Firestore (congregationId está ausente),
-    // ele DEVE completar o perfil.
     if (!user.congregationId) {
         if (!isCompleteProfilePage) {
             router.replace('/completar-perfil');
         }
-        return; // Impede outras regras de redirecionamento de serem executadas
+        return;
     }
   
-    // Se o usuário tem um perfil, a lógica normal se aplica
     switch (user.status) {
       case 'pendente':
         if (!isWaitingPage) router.replace('/aguardando-aprovacao');
