@@ -24,14 +24,14 @@ service cloud.firestore {
         function isAdmin() { return isRole('Administrador'); }
         function isDirigente() { return isRole('Dirigente'); }
         function isServoTerritorios() { return isRole('Servo de Territórios'); }
-        function canApproveUsers() { return isServoTerritorios() || isDirigente() || isAdmin(); }
+        function isAjudante() { return isRole('Ajudante de Servo de Territórios'); }
+        function canApproveUsers() { return isServoTerritorios() || isDirigente() || isAdmin() || isAjudante(); }
 
         match /congregations/{congId} {
             // Permitimos a leitura pública para que usuários possam encontrar sua congregação pelo número no cadastro
-            // ou verificar se o número já existe ao criar uma nova. Isso é essencial para o plano gratuito (Spark).
             allow read: if true; 
             
-            // Somente usuários autenticados podem criar uma congregação (o criador se torna Admin)
+            // Somente usuários autenticados podem criar uma congregação
             allow create: if isAuth();
             
             // Somente o Administrador da própria congregação pode atualizar ou excluir
@@ -55,7 +55,16 @@ service cloud.firestore {
             allow get: if isAuth();
             allow list: if isAuth();
             allow update: if isAuth() && (request.auth.uid == userId || canApproveUsers());
-            allow delete: if false; // No Spark, apenas bloqueamos o acesso via status 'bloqueado' e congregationId=null
+            allow delete: if false;
+
+            // Regras para a subcoleção de notificações
+            match /notifications/{notifId} {
+                // O próprio usuário pode ler, atualizar (marcar como lido) e excluir suas notificações
+                allow get, list, update, delete: if isAuth() && request.auth.uid == userId;
+                
+                // Administradores e servos podem criar notificações para outros usuários (usado nas designações)
+                allow create: if isAuth() && (request.auth.uid == userId || canApproveUsers());
+            }
         }
 
         match /feedbacks/{feedbackId} { allow create: if isAuth(); }
