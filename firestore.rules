@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -14,10 +13,14 @@ service cloud.firestore {
         function canApproveUsers() { return isServoTerritorios() || isDirigente() || isAdmin(); }
 
         match /congregations/{congId} {
-            // Qualquer um logado pode pesquisar uma congregação pelo número para se cadastrar
-            allow read: if isAuth(); 
-            // Somente o criador inicial (Admin) pode criar uma nova
+            // Permitimos a leitura pública para que usuários possam encontrar sua congregação pelo número no cadastro
+            // ou verificar se o número já existe ao criar uma nova. Isso é essencial para o plano gratuito (Spark).
+            allow read: if true; 
+            
+            // Somente usuários autenticados podem criar uma congregação (o criador se torna Admin)
             allow create: if isAuth();
+            
+            // Somente o Administrador da própria congregação pode atualizar ou excluir
             allow update, delete: if isUserInCongregation(congId) && isAdmin();
 
             match /territories/{terrId} {
@@ -38,7 +41,7 @@ service cloud.firestore {
             allow get: if isAuth();
             allow list: if isAuth();
             allow update: if isAuth() && (request.auth.uid == userId || canApproveUsers());
-            allow delete: if false; // Não permitimos exclusão física no Spark, apenas bloqueio via status
+            allow delete: if false; // No Spark, apenas bloqueamos o acesso via status 'bloqueado' e congregationId=null
         }
 
         match /feedbacks/{feedbackId} { allow create: if isAuth(); }

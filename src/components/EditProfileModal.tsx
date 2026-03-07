@@ -1,22 +1,17 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { reauthenticateWithCredential, EmailAuthProvider, updateProfile } from 'firebase/auth';
-import { auth, functions } from '@/lib/firebase';
+import { reauthenticateWithCredential, EmailAuthProvider, updateProfile, sendPasswordResetEmail, deleteUser } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Eye, EyeOff, Trash2, KeyRound, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
-import { sendPasswordResetEmail } from '@/lib/emailService';
-import { httpsCallable } from 'firebase/functions';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
-
-const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
-const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
+import { doc, deleteDoc } from 'firebase/firestore';
 
 export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
   const { user, updateUser, logout } = useUser();
@@ -123,7 +118,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   };
 
   const handleSendPasswordReset = async () => {
-    if (!user || !user.email) {
+    if (!auth.currentUser?.email) {
       toast({ title: "Erro", description: "E-mail do usuário não encontrado.", variant: "destructive" });
       return;
     }
@@ -132,31 +127,16 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setPasswordResetSuccess(null);
 
     try {
-        const result = await requestPasswordReset({ email: user.email });
-        const data = result.data as { success: boolean, token?: string | null, error?: string; };
-
-        if (!data.success) {
-            throw new Error(data.error || "Erro desconhecido ao solicitar reset.");
-        }
-        
-        if (data.token) {
-            const resetLink = `${window.location.origin}/auth/action?token=${data.token}`;
-            
-            await sendPasswordResetEmail({
-                email: user.email,
-                link: resetLink,
-            });
-        }
-      
+        // Usando o método padrão e gratuito do Firebase Auth
+        await sendPasswordResetEmail(auth, auth.currentUser.email);
         setPasswordResetSuccess(
-            `Link enviado para ${user.email}. Se não o encontrar, verifique sua caixa de SPAM.`
+            `Link enviado para ${auth.currentUser.email}. Se não o encontrar, verifique sua caixa de SPAM.`
         );
-
     } catch (error: any) {
-      console.error("Erro no processo de redefinição de senha:", error);
+      console.error("Erro ao enviar reset de senha:", error);
       toast({
         title: "Erro ao enviar e-mail",
-        description: error.message || "Não foi possível iniciar o processo de redefinição. Tente novamente.",
+        description: "Não foi possível enviar o link de redefinição no momento.",
         variant: "destructive",
       });
     } finally {
@@ -174,22 +154,24 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     setError(null);
     
     try {
-        const credential = EmailAuthProvider.credential(auth.currentUser.email, passwordForDelete);
-        await reauthenticateWithCredential(auth.currentUser, credential);
+        const currentUser = auth.currentUser;
+        const credential = EmailAuthProvider.credential(currentUser.email!, passwordForDelete);
         
-        const result = await deleteUserAccount({ userIdToDelete: user.uid });
-        const data = result.data as { success: boolean; error?: string };
-
-        if (!data.success) {
-            throw new Error(data.error || "Ocorreu um erro na exclusão.");
-        }
+        // Reautenticação é obrigatória para excluir a própria conta no Firebase
+        await reauthenticateWithCredential(currentUser, credential);
+        
+        // 1. Excluir o documento do Firestore
+        await deleteDoc(doc(db, 'users', user.uid));
+        
+        // 2. Excluir o usuário do Auth (Plano Spark)
+        await deleteUser(currentUser);
         
         toast({
           title: "Conta Excluída",
-          description: "Sua conta foi removida com sucesso. Você será desconectado.",
+          description: "Sua conta foi removida com sucesso.",
         });
         
-        await logout();
+        // O logout manual não é estritamente necessário pois deleteUser encerra a sessão
         onOpenChange(false);
 
     } catch (error: any) {

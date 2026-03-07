@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db, rtdb } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { ref, onValue } from 'firebase/database';
 import { Loader, Search, SlidersHorizontal, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -104,11 +103,19 @@ export default function UserManagement() {
     if (!userToRemove || currentUser?.role !== 'Administrador') return;
     setIsConfirmModalOpen(false);
     try {
-        // No Spark, não podemos apagar o Auth de outros. Bloqueamos o acesso.
-        await updateDoc(doc(db, 'users', userToRemove.uid), { status: 'bloqueado', congregationId: null });
-        toast({ title: "Acesso Removido", description: "O usuário foi desconectado e bloqueado." });
+        // No Spark, não podemos apagar a conta de autenticação de outros sem o Admin SDK.
+        // A solução é marcar como bloqueado e remover a vinculação com a congregação.
+        const userRef = doc(db, 'users', userToRemove.uid);
+        await updateDoc(userRef, { 
+            status: 'bloqueado', 
+            congregationId: null 
+        });
+        toast({ 
+            title: "Acesso Removido", 
+            description: "O usuário foi bloqueado e desvinculado da congregação." 
+        });
     } catch (error) {
-        toast({ title: "Erro", description: "Falha ao remover.", variant: "destructive" });
+        toast({ title: "Erro", description: "Falha ao remover o acesso.", variant: "destructive" });
     }
   };
 
@@ -124,7 +131,7 @@ export default function UserManagement() {
 
   const FilterButton = ({ label, value, currentFilter, setFilter, count }: { label: string, value: string, currentFilter: string, setFilter: (value: any) => void, count?: number}) => (
     <button onClick={() => setFilter(value)} className={`px-3 py-1.5 text-sm rounded-full transition-colors flex items-center gap-2 ${currentFilter === value ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'}`}>
-        {label} {count !== undefined && <span className="bg-white/20 px-1.5 py-0.5 rounded-md text-[10px]">{count}</span>}
+        {label} {count !== undefined && <span className="bg-white/20 px-1.5 py-0.5 rounded-md text-[10px] font-bold">{count}</span>}
     </button>
   );
 
@@ -157,7 +164,7 @@ export default function UserManagement() {
         ))}
       </div>
 
-      <ConfirmationModal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} onConfirm={confirmRemoveUser} title="Remover Usuário" message={`Tem certeza que deseja remover o acesso de ${userToRemove?.name}? O usuário será bloqueado.`} />
+      <ConfirmationModal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} onConfirm={confirmRemoveUser} title="Remover Acesso" message={`Tem certeza que deseja remover o acesso de ${userToRemove?.name}? O usuário será bloqueado e desvinculado da congregação.`} confirmText="Sim, Remover Acesso" />
       {userToEdit && <EditUserByAdminModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} userToEdit={userToEdit} onSave={handleUserUpdate} />}
     </div>
   );

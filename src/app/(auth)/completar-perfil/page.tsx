@@ -3,17 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/contexts/UserContext';
-import { auth, functions } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast";
 import { maskPhone } from '@/lib/utils';
 import Image from 'next/image';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import withAuth from '@/components/withAuth';
-import { httpsCallable } from 'firebase/functions';
+import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Footer } from '@/components/Footer';
-
-const getCongregationIdByNumber = httpsCallable(functions, 'getCongregationIdByNumberV2');
-const completeUserProfile = httpsCallable(functions, 'completeUserProfileV2');
 
 function CompleteProfilePage() {
     const { user, loading: userLoading } = useUser();
@@ -33,17 +30,26 @@ function CompleteProfilePage() {
         setError(null);
 
         try {
-            const congIdRes: any = await getCongregationIdByNumber({ congregationNumber: congregationNumber.trim() });
-            const congIdData = congIdRes.data;
+            // 1. Buscar o ID da congregação pelo número (Plano Spark - Client Side)
+            const congQuery = query(collection(db, "congregations"), where("number", "==", congregationNumber.trim()));
+            const congSnap = await getDocs(congQuery);
 
-            if (!congIdData.success) {
-                throw new Error(congIdData.message || "Número da congregação inválido ou não encontrado.");
+            if (congSnap.empty) {
+                throw new Error("Número da congregação não encontrado.");
             }
-            const congregationId = congIdData.congregationId;
+            const congregationId = congSnap.docs[0].id;
 
-            await auth.currentUser?.getIdToken(true);
-
-            await completeUserProfile({ congregationId, whatsapp });
+            // 2. Criar o perfil do usuário diretamente no Firestore (Plano Spark)
+            await setDoc(doc(db, "users", user.uid), {
+                name: user.name,
+                email: user.email,
+                whatsapp: whatsapp,
+                congregationId: congregationId,
+                role: "Publicador",
+                status: "pendente",
+                createdAt: serverTimestamp(),
+                lastSeen: serverTimestamp()
+            });
             
             toast({
                 title: 'Perfil completo!',
@@ -56,7 +62,7 @@ function CompleteProfilePage() {
         } catch (err: any) {
             console.error("Erro ao completar perfil:", err);
             let message = err.message || "Ocorreu um erro desconhecido.";
-            if (message.includes("congregationNumber") || message.includes("Congregação não encontrada")) {
+            if (message.includes("not found") || message.includes("não encontrado")) {
               setError("Número da congregação inválido ou não encontrado.");
             } else { 
               setError("Ocorreu um erro ao salvar seu perfil: " + message); 
