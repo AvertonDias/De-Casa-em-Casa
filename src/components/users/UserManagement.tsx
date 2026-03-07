@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -65,14 +66,36 @@ export default function UserManagement() {
     }
   }, [currentUser]);
 
+  // Combina dados do Firestore com o sinal de presença em tempo real do RTDB
   const usersWithPresence = useMemo(() => {
-    const oneMonthAgo = subMonths(new Date(), 1);
+    const now = new Date();
+    const oneMonthAgo = subMonths(now, 1);
+    
     return users.map(u => {
         const presence = presenceData[u.uid];
         const isOnline = presence?.state === 'online';
+        
+        // Tenta pegar o timestamp mais recente: ou do RTDB (tempo real) ou do Firestore (histórico)
+        let effectiveLastSeenDate = u.lastSeen?.toDate ? u.lastSeen.toDate() : null;
+        if (presence?.last_changed) {
+            const presenceDate = new Date(presence.last_changed);
+            if (!effectiveLastSeenDate || presenceDate > effectiveLastSeenDate) {
+                effectiveLastSeenDate = presenceDate;
+            }
+        }
+
         let status = u.status;
-        if (status === 'ativo' && u.lastSeen && u.lastSeen.toDate() < oneMonthAgo) status = 'inativo';
-        return { ...u, isOnline, status };
+        if (status === 'ativo' && effectiveLastSeenDate && effectiveLastSeenDate < oneMonthAgo) {
+            status = 'inativo';
+        }
+        
+        return { 
+            ...u, 
+            isOnline, 
+            status,
+            // Atualiza o lastSeen para os componentes filhos usarem a data mais precisa
+            lastSeen: effectiveLastSeenDate ? { toDate: () => effectiveLastSeenDate } : u.lastSeen 
+        };
     });
   }, [users, presenceData]);
 
