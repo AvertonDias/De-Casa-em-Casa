@@ -77,17 +77,23 @@ export default function UserManagement() {
         
         let effectiveLastSeenDate: Date | null = null;
         
-        // 1. Prioridade: Status Online (Visto agora)
+        // 1. Base: Dado salvo no Firestore (histórico oficial no banco)
+        if (u.lastSeen && typeof u.lastSeen.toDate === 'function') {
+            effectiveLastSeenDate = u.lastSeen.toDate();
+        }
+
+        // 2. Override: Sinal de rede (RTDB). Mais rápido para detectar entradas/saídas recentes.
+        if (presence?.last_changed) {
+            const rtdbDate = new Date(presence.last_changed);
+            // Só usa o dado do sinal de rede se ele for mais recente que o do banco fixo
+            if (!effectiveLastSeenDate || rtdbDate > effectiveLastSeenDate) {
+                effectiveLastSeenDate = rtdbDate;
+            }
+        }
+
+        // 3. Override Final: Se está online AGORA, a data de atividade é AGORA
         if (isOnline) {
             effectiveLastSeenDate = now;
-        } 
-        // 2. Segunda prioridade: Última mudança de status no RTDB (mais preciso)
-        else if (presence?.last_changed) {
-            effectiveLastSeenDate = new Date(presence.last_changed);
-        }
-        // 3. Terceira prioridade: Dado salvo no Firestore (histórico)
-        else if (u.lastSeen && typeof u.lastSeen.toDate === 'function') {
-            effectiveLastSeenDate = u.lastSeen.toDate();
         }
 
         // Determina se deve exibir como "Inativo" (mais de 1 mês sem aparecer)
@@ -100,7 +106,6 @@ export default function UserManagement() {
             ...u, 
             isOnline, 
             status,
-            // Sobrescreve o lastSeen para o cálculo de filtros e exibição
             effectiveLastSeen: effectiveLastSeenDate 
         };
     });
@@ -250,18 +255,15 @@ export default function UserManagement() {
     });
     
     return filtered.sort((a, b) => {
-      // 1. Você sempre em primeiro
       if (a.uid === currentUser?.uid) return -1;
       if (b.uid === currentUser?.uid) return 1;
-      // 2. Pendentes em destaque
       if (a.status === 'pendente' && b.status !== 'pendente') return -1;
       if (a.status !== 'pendente' && b.status === 'pendente') return 1;
-      // 3. Ordem alfabética
       return a.name.localeCompare(b.name);
     });
   }, [usersWithPresence, presenceFilter, roleFilter, statusFilter, activityFilter, searchTerm, currentUser]);
 
-  const FilterButton = ({ label, value, currentFilter, setFilter, count }: { label: string, value: string, currentFilter: string, setFilter: (value: any) => void, count?: number}) => {
+  const FilterButtonComponent = ({ label, value, currentFilter, setFilter, count }: { label: string, value: string, currentFilter: string, setFilter: (value: any) => void, count?: number}) => {
     const isActive = currentFilter === value;
     return (
       <button 
@@ -300,7 +302,7 @@ export default function UserManagement() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4 md:px-0">
         <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4 border border-border/40">
           <div className="bg-blue-500/20 text-blue-400 p-3 rounded-lg"><UsersIcon size={28} /></div>
-          <div><p className="text-sm text-muted-foreground">Total de Usuários</p><p className="text-2xl font-bold">{filterCounts.status.all}</p></div>
+          <div><p className="text-sm text-muted-foreground">Total</p><p className="text-2xl font-bold">{filterCounts.status.all}</p></div>
         </div>
         <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4 border border-border/40">
           <div className="bg-green-500/20 text-green-400 p-3 rounded-lg"><Wifi size={28} /></div>
@@ -326,43 +328,43 @@ export default function UserManagement() {
                 <div className="space-y-3">
                   <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Status da Conta</p>
                   <div className="flex flex-wrap gap-2">
-                    <FilterButton label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.all} />
-                    <FilterButton label="Ativo" value="ativo" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.ativo} />
-                    <FilterButton label="Pendente" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.pendente} />
-                    <FilterButton label="Inativo" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.inativo} />
-                    <FilterButton label="Rejeitado" value="rejeitado" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.rejeitado} />
-                    <FilterButton label="Bloqueado" value="bloqueado" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.bloqueado} />
+                    <FilterButtonComponent label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.all} />
+                    <FilterButtonComponent label="Ativo" value="ativo" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.ativo} />
+                    <FilterButtonComponent label="Pendente" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.pendente} />
+                    <FilterButtonComponent label="Inativo" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.inativo} />
+                    <FilterButtonComponent label="Rejeitado" value="rejeitado" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.rejeitado} />
+                    <FilterButtonComponent label="Bloqueado" value="bloqueado" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.bloqueado} />
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Status de Presença</p>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Presença</p>
                   <div className="flex flex-wrap gap-2">
-                    <FilterButton label="Todos" value="all" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.all} />
-                    <FilterButton label="Online" value="online" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.online} />
-                    <FilterButton label="Offline" value="offline" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.offline} />
+                    <FilterButtonComponent label="Todos" value="all" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.all} />
+                    <FilterButtonComponent label="Online" value="online" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.online} />
+                    <FilterButtonComponent label="Offline" value="offline" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.offline} />
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Perfil de Usuário</p>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Perfil</p>
                   <div className="flex flex-wrap gap-2">
-                    <FilterButton label="Todos" value="all" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.all} />
-                    <FilterButton label="Admin" value="Administrador" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Administrador} />
-                    <FilterButton label="Dirigente" value="Dirigente" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Dirigente} />
-                    <FilterButton label="S. de Terr." value="Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role['Servo de Territórios']} />
-                    <FilterButton label="Ajudante" value="Ajudante de Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role['Ajudante de Servo de Territórios']} />
-                    <FilterButton label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Publicador} />
+                    <FilterButtonComponent label="Todos" value="all" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.all} />
+                    <FilterButtonComponent label="Admin" value="Administrador" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Administrador} />
+                    <FilterButtonComponent label="Dirigente" value="Dirigente" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Dirigente} />
+                    <FilterButtonComponent label="Servo" value="Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role['Servo de Territórios']} />
+                    <FilterButtonComponent label="Ajudante" value="Ajudante de Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role['Ajudante de Servo de Territórios']} />
+                    <FilterButtonComponent label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Publicador} />
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Atividade Recente (Visto por último)</p>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Atividade</p>
                   <div className="flex flex-wrap gap-2">
-                    <FilterButton label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.all} />
-                    <FilterButton label="Última Hora" value="active_hourly" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_hourly} />
-                    <FilterButton label="Últimas 24h" value="active_daily" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_daily} />
-                    <FilterButton label="Última Semana" value="active_weekly" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_weekly} />
+                    <FilterButtonComponent label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.all} />
+                    <FilterButtonComponent label="Última Hora" value="active_hourly" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_hourly} />
+                    <FilterButtonComponent label="Hoje" value="active_daily" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_daily} />
+                    <FilterButtonComponent label="Semana" value="active_weekly" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_weekly} />
                   </div>
                 </div>
               </div>
@@ -400,7 +402,6 @@ export default function UserManagement() {
                 key={u.uid} 
                 user={{
                     ...u,
-                    // Passa o lastSeen processado para exibição no ListItem
                     lastSeen: u.effectiveLastSeen ? { toDate: () => u.effectiveLastSeen } : u.lastSeen
                 }} 
                 currentUser={currentUser!} 
@@ -412,7 +413,7 @@ export default function UserManagement() {
           ) : (
             <div className="p-12 text-center text-muted-foreground">
               <UsersIcon className="mx-auto h-12 w-12 opacity-20 mb-4" />
-              <p className="text-lg">Nenhum usuário encontrado com os filtros selecionados.</p>
+              <p className="text-lg">Nenhum usuário encontrado.</p>
             </div>
           )}
         </ul>
@@ -423,7 +424,7 @@ export default function UserManagement() {
         onClose={() => setIsConfirmModalOpen(false)} 
         onConfirm={confirmDeleteUser} 
         title="Excluir Registro Permanente" 
-        message={`Tem certeza que deseja excluir permanentemente o usuário ${userToDelete?.name}? O sistema tentará remover o acesso (e-mail) e todos os dados do banco de dados. Esta ação não pode ser desfeita.`} 
+        message={`Tem certeza que deseja excluir permanentemente o usuário ${userToDelete?.name}?`} 
         confirmText="Sim, Excluir Tudo" 
       />
       {userToEdit && <EditUserByAdminModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} userToEdit={userToEdit} onSave={handleUserUpdate} />}
