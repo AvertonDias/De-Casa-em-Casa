@@ -3,9 +3,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, rtdb, auth } from '@/lib/firebase';
+import { db, app, auth, rtdb } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { ref, onValue } from 'firebase/database';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Loader, Search, SlidersHorizontal, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
@@ -17,6 +18,10 @@ import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
+
+// Inicializar funções
+const functions = getFunctions(app, 'southamerica-east1');
+const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
 
 export default function UserManagement() {
   const { user: currentUser, loading: userLoading } = useUser(); 
@@ -153,59 +158,53 @@ export default function UserManagement() {
 
   const confirmDeleteUser = async () => {
     if (!userToDelete || currentUser?.role !== 'Administrador') return;
+    
+    const userId = userToDelete.uid;
     setIsConfirmModalOpen(false);
     
-    // Tentativa de exclusão total (Auth + Firestore) via Cloud Function
     try {
-      const idToken = await auth.currentUser?.getIdToken();
-      if (!idToken) throw new Error("Token ausente");
+      // 1. Tentar exclusão TOTAL via Cloud Function (Auth + DB)
+      toast({ title: "Iniciando Exclusão", description: "Removendo conta e registros do servidor..." });
+      
+      const result = await deleteUserAccount({ userIdToDelete: userId });
+      const data = result.data as any;
 
-      const response = await fetch('https://southamerica-east1-appterritorios-e5bb5.cloudfunctions.net/deleteUserAccountV2', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({ data: { userIdToDelete: userToDelete.uid } })
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
+      if (data.success) {
         toast({ 
             title: "Usuário Excluído", 
-            description: "A conta e os dados do usuário foram removidos com sucesso." 
+            description: data.message || "A conta e os dados foram removidos permanentemente." 
         });
-        return;
       }
+    } catch (e: any) {
+      console.error("Erro ao excluir via servidor:", e);
       
-      console.warn("Falha ao excluir via servidor, tentando exclusão direta do BD:", result.error?.message);
-    } catch (e) {
-      console.error("Erro ao chamar função de exclusão:", e);
-    }
+      // 2. Se a função falhar (provavelmente por falta de deploy ou permissão de rede), avisamos o usuário
+      // No plano Spark, a função pode não estar disponível.
+      toast({
+        variant: "destructive",
+        title: "Atenção: Exclusão Parcial",
+        description: "Não foi possível remover o e-mail/senha automaticamente. Por favor, remova-o manualmente no Console do Firebase.",
+      });
 
-    // Fallback: Excluir apenas o documento no Firestore
-    const userRef = doc(db, 'users', userToDelete.uid);
-    deleteDoc(userRef).then(() => {
-        toast({ 
-            title: "Registro Removido", 
-            description: "O perfil foi removido do banco de dados com sucesso." 
-        });
-    }).catch(async (error) => {
-        if (error.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({
-                path: userRef.path,
-                operation: 'delete',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        } else {
-            toast({
-                title: "Erro ao excluir",
-                description: "Não foi possível remover o registro do banco de dados.",
-                variant: "destructive"
-            });
-        }
-    });
+      // 3. Fallback: Excluir apenas o documento no Firestore para pelo menos sumir da lista do app
+      const userRef = doc(db, 'users', userId);
+      deleteDoc(userRef).then(() => {
+          toast({ 
+              title: "Registro Removido", 
+              description: "O perfil foi removido do banco de dados local." 
+          });
+      }).catch(async (error) => {
+          if (error.code === 'permission-denied') {
+              const permissionError = new FirestorePermissionError({
+                  path: userRef.path,
+                  operation: 'delete',
+              });
+              errorEmitter.emit('permission-error', permissionError);
+          }
+      });
+    } finally {
+        setUserToDelete(null);
+    }
   };
 
   const filteredAndSortedUsers = useMemo(() => {
@@ -395,7 +394,14 @@ export default function UserManagement() {
         </ul>
       </div>
 
-      <ConfirmationModal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} onConfirm={confirmDeleteUser} title="Excluir Registro do Banco" message={`Tem certeza que deseja excluir permanentemente o registro de ${userToDelete?.name} do banco de dados? Esta ação removerá o perfil e o histórico dele da congregação.`} confirmText="Sim, Excluir Registro" />
+      <ConfirmationModal 
+        isOpen={isConfirmModalOpen} 
+        onClose={() => setIsConfirmModalOpen(false)} 
+        onConfirm={confirmDeleteUser} 
+        title="Excluir Registro Permanente" 
+        message={`Tem certeza que deseja excluir permanentemente o usuário ${userToDelete?.name}? O sistema tentará remover o acesso (e-mail) e todos os dados do banco de dados. Esta ação não pode ser desfeita.`} 
+        confirmText="Sim, Excluir Tudo" 
+      />
       {userToEdit && <EditUserByAdminModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} userToEdit={userToEdit} onSave={handleUserUpdate} />}
     </div>
   );

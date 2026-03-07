@@ -1,6 +1,7 @@
 // src/functions/src/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
 import admin from "firebase-admin";
@@ -25,7 +26,59 @@ const corsHandler = cors({
 
 
 // ========================================================================
-//   HTTPS onRequest Functions
+//   HTTPS Callables (Preferred for Web Apps)
+// ========================================================================
+
+export const deleteUserAccountV2 = onCall({ region: "southamerica-east1" }, async (request) => {
+  const { userIdToDelete } = request.data;
+  const auth = request.auth;
+
+  // 1. Verificar autenticação
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Você precisa estar logado para realizar esta ação.");
+  }
+
+  // 2. Verificar permissões de Administrador
+  const callingUserUid = auth.uid;
+  const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
+  const callingUserData = callingUserSnap.data();
+
+  if (!callingUserData || callingUserData.role !== "Administrador") {
+    throw new HttpsError("permission-denied", "Apenas administradores podem excluir usuários permanentemente.");
+  }
+
+  // 3. Impedir auto-exclusão
+  if (callingUserUid === userIdToDelete) {
+    throw new HttpsError("invalid-argument", "Um administrador não pode excluir a própria conta através desta ferramenta.");
+  }
+
+  try {
+    // 4. Excluir do Firebase Authentication
+    await admin.auth().deleteUser(userIdToDelete);
+    logger.info(`Usuário ${userIdToDelete} removido do Auth com sucesso.`);
+
+    // 5. Excluir do Firestore
+    const userDocRef = db.collection("users").doc(userIdToDelete);
+    await userDocRef.delete();
+    logger.info(`Documento do usuário ${userIdToDelete} removido do Firestore.`);
+
+    return { success: true, message: "Usuário e dados excluídos com sucesso." };
+  } catch (error: any) {
+    logger.error("Erro ao excluir conta de usuário:", error);
+    
+    // Se o erro for que o usuário não existe no Auth, tentamos apagar do DB pelo menos
+    if (error.code === 'auth/user-not-found') {
+        await db.collection("users").doc(userIdToDelete).delete();
+        return { success: true, message: "Dados removidos (usuário já não existia no Auth)." };
+    }
+
+    throw new HttpsError("internal", error.message || "Falha ao processar a exclusão total.");
+  }
+});
+
+
+// ========================================================================
+//   HTTPS onRequest Functions (Legacy / REST)
 // ========================================================================
 
 export const getCongregationIdByNumberV2 = https.onRequest((req, res) => {
@@ -247,64 +300,6 @@ export const resetPasswordWithTokenV2 = https.onRequest((req, res) => {
   });
 });
 
-export const deleteUserAccountV2 = https.onRequest((req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method === 'OPTIONS') {
-      res.status(204).send('');
-      return;
-    }
-    try {
-      const idToken = req.headers.authorization?.split('Bearer ')[1];
-      if (!idToken) {
-        res.status(401).json({ error: { message: "Ação não autorizada. Token ausente." } });
-        return;
-      }
-      
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const callingUserUid = decodedToken.uid;
-      const data = req.body?.data || req.body;
-      const { userIdToDelete } = data;
-
-      if (!userIdToDelete) {
-        res.status(400).json({ error: { message: 'ID do usuário a ser deletado é obrigatório.' } });
-        return;
-      }
-
-      const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-      const callingUserData = callingUserSnap.data();
-      if (!callingUserData) {
-        res.status(404).json({ error: { message: 'Usuário requisitante não encontrado.' } });
-        return;
-      }
-      
-      const isCallingUserAdmin = callingUserData.role === "Administrador";
-      const isSelfDelete = callingUserUid === userIdToDelete;
-
-      if (isCallingUserAdmin && isSelfDelete) {
-        res.status(403).json({ error: { message: 'Admin não pode se autoexcluir por esta função.' } });
-        return;
-      }
-      if (!isSelfDelete && !isCallingUserAdmin) {
-        res.status(403).json({ error: { message: 'Sem permissão para esta ação.' } });
-        return;
-      }
-
-      await admin.auth().deleteUser(userIdToDelete);
-      const userDocRef = db.collection("users").doc(userIdToDelete);
-      if ((await userDocRef.get()).exists) {
-        await userDocRef.delete();
-      }
-      res.status(200).json({ data: { success: true } });
-    } catch (error: any) {
-      logger.error("Erro ao excluir usuário:", error);
-      if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error') {
-        res.status(401).json({ error: { message: "Token de autenticação inválido ou expirado." } });
-      } else {
-        res.status(500).json({ error: { message: error.message || "Falha na exclusão." } });
-      }
-    }
-  });
-});
 
 // ========================================================================
 //   GATILHOS FIRESTORE
