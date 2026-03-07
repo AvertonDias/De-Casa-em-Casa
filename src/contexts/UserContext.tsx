@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
@@ -71,120 +70,134 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
       const userRef = doc(db, 'users', firebaseUser.uid);
       
-      listenersRef.current.user = onSnapshot(userRef, async (userDoc) => {
-        if (!userDoc.exists()) {
-          // Usuário do Auth existe mas não tem perfil no Firestore.
-          // Isso acontece com novos cadastros (Google ou Email) antes do perfil ser completo.
-          const partialUser: AppUser = {
-              uid: firebaseUser.uid,
-              name: firebaseUser.displayName || 'Novo Usuário',
-              email: firebaseUser.email!,
-              // O resto dos campos ficará undefined, sinalizando perfil incompleto.
-          } as AppUser;
-          setUser(partialUser);
-          setCongregation(null);
-          setLoading(false);
-          // A lógica de redirecionamento no final do UserContext cuidará de mandá-lo para a página correta.
-          return;
-        }
-
-        const rawData = userDoc.data();
-        
-        const appUser = { 
-          uid: firebaseUser.uid, ...rawData,
-          name: rawData?.name || firebaseUser.displayName, email: rawData?.email || firebaseUser.email,
-        } as AppUser;
-
-        if (appUser.status === 'bloqueado' || appUser.status === 'rejeitado') {
-            logout('/');
+      listenersRef.current.user = onSnapshot(userRef, 
+        async (userDoc) => {
+          if (!userDoc.exists()) {
+            // Usuário do Auth existe mas não tem perfil no Firestore.
+            // Isso acontece com novos cadastros (Google ou Email) antes do perfil ser completo.
+            const partialUser: AppUser = {
+                uid: firebaseUser.uid,
+                name: firebaseUser.displayName || 'Novo Usuário',
+                email: firebaseUser.email!,
+                // O resto dos campos ficará undefined, sinalizando perfil incompleto.
+            } as AppUser;
+            setUser(partialUser);
+            setCongregation(null);
             setLoading(false);
             return;
-        }
-        
-        if (listenersRef.current.congregation) {
-            listenersRef.current.congregation();
-            delete listenersRef.current.congregation;
-            setCongregation(null);
-        }
-        
-        if (listenersRef.current.overdueListener) {
-            listenersRef.current.overdueListener();
-            delete listenersRef.current.overdueListener;
-        }
-        
-        if (appUser.congregationId) {
-          const congRef = doc(db, 'congregations', appUser.congregationId);
-          listenersRef.current.congregation = onSnapshot(congRef, (congDoc) => {
-            if (congDoc.exists()) {
-              const congData = { id: congDoc.id, ...congDoc.data() } as Congregation;
-              setCongregation(congData);
-              // Atualiza o nome da congregação no usuário, mantendo o usuário atualizado
-              setUser({ ...appUser, congregationName: congData.name });
-            } else {
-              setCongregation(null);
-              setUser(appUser); // Garante que o usuário seja definido mesmo sem congregação
-            }
-            setLoading(false); 
-          }, (error) => {
-            console.error("Erro no listener de congregação:", error);
-            setCongregation(null);
-            setUser(appUser);
-            setLoading(false);
-          });
+          }
 
-          // Lógica para verificar territórios atrasados
-          const assignedTerritoriesQuery = query(
-              collection(db, 'congregations', appUser.congregationId, 'territories'),
-              where("assignment.uid", "==", appUser.uid)
-          );
+          const rawData = userDoc.data();
           
-          listenersRef.current.overdueListener = onSnapshot(assignedTerritoriesQuery, (snapshot) => {
-              snapshot.docs.forEach(async (territoryDoc) => {
-                  const territory = { id: territoryDoc.id, ...territoryDoc.data() } as Territory;
-                  
-                  const isOverdue = territory.assignment && territory.assignment.dueDate.toDate() < new Date();
+          const appUser = { 
+            uid: firebaseUser.uid, ...rawData,
+            name: rawData?.name || firebaseUser.displayName, email: rawData?.email || firebaseUser.email,
+          } as AppUser;
 
-                  if (isOverdue) {
-                      const notificationsRef = collection(db, `users/${appUser.uid}/notifications`);
-                      const territoryLink = territory.type === 'rural' ? `/dashboard/rural/${territory.id}` : `/dashboard/territorios/${territory.id}`;
-                      
-                      // Evita spam de notificações verificando se já existe uma recente
-                      const qNotif = query(notificationsRef, where("link", "==", territoryLink));
-                      const existingNotifsSnapshot = await getDocs(qNotif);
-                      
-                      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-                      
-                      const recentOverdueNotificationExists = existingNotifsSnapshot.docs.some(doc => {
-                          const data = doc.data();
-                          return data.type === 'territory_overdue' &&
-                                 data.createdAt &&
-                                 data.createdAt.toDate() > twentyFourHoursAgo;
-                      });
+          if (appUser.status === 'bloqueado' || appUser.status === 'rejeitado') {
+              logout('/');
+              setLoading(false);
+              return;
+          }
+          
+          if (listenersRef.current.congregation) {
+              listenersRef.current.congregation();
+              delete listenersRef.current.congregation;
+              setCongregation(null);
+          }
+          
+          if (listenersRef.current.overdueListener) {
+              listenersRef.current.overdueListener();
+              delete listenersRef.current.overdueListener;
+          }
+          
+          if (appUser.congregationId) {
+            const congRef = doc(db, 'congregations', appUser.congregationId);
+            listenersRef.current.congregation = onSnapshot(congRef, 
+              (congDoc) => {
+                if (congDoc.exists()) {
+                  const congData = { id: congDoc.id, ...congDoc.data() } as Congregation;
+                  setCongregation(congData);
+                  // Atualiza o nome da congregação no usuário, mantendo o usuário atualizado
+                  setUser({ ...appUser, congregationName: congData.name });
+                } else {
+                  setCongregation(null);
+                  setUser(appUser); // Garante que o usuário seja definido mesmo sem congregação
+                }
+                setLoading(false); 
+              }, 
+              (error) => {
+                console.warn("Erro no listener de congregação (pode ser temporário durante transições):", error);
+                setLoading(false);
+              }
+            );
 
-                      if (!recentOverdueNotificationExists) {
-                          await addDoc(notificationsRef, {
-                              title: "Território Atrasado",
-                              body: `O território "${territory.number} - ${territory.name}" está com a devolução atrasada.`,
-                              link: territoryLink,
-                              type: 'territory_overdue',
-                              isRead: false,
-                              createdAt: serverTimestamp()
-                          });
-                      }
-                  }
-              });
-          });
+            // Lógica para verificar territórios atrasados
+            const assignedTerritoriesQuery = query(
+                collection(db, 'congregations', appUser.congregationId, 'territories'),
+                where("assignment.uid", "==", appUser.uid)
+            );
+            
+            listenersRef.current.overdueListener = onSnapshot(assignedTerritoriesQuery, 
+              (snapshot) => {
+                snapshot.docs.forEach(async (territoryDoc) => {
+                    const territory = { id: territoryDoc.id, ...territoryDoc.data() } as Territory;
+                    
+                    const isOverdue = territory.assignment && territory.assignment.dueDate.toDate() < new Date();
 
-        } else {
-            setCongregation(null);
-            setUser(appUser);
+                    if (isOverdue) {
+                        const notificationsRef = collection(db, `users/${appUser.uid}/notifications`);
+                        const territoryLink = territory.type === 'rural' ? `/dashboard/rural/${territory.id}` : `/dashboard/territorios/${territory.id}`;
+                        
+                        // Evita spam de notificações verificando se já existe uma recente
+                        const qNotif = query(notificationsRef, where("link", "==", territoryLink));
+                        const existingNotifsSnapshot = await getDocs(qNotif);
+                        
+                        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                        
+                        const recentOverdueNotificationExists = existingNotifsSnapshot.docs.some(doc => {
+                            const data = doc.data();
+                            return data.type === 'territory_overdue' &&
+                                   data.createdAt &&
+                                   data.createdAt.toDate() > twentyFourHoursAgo;
+                        });
+
+                        if (!recentOverdueNotificationExists) {
+                            await addDoc(notificationsRef, {
+                                title: "Território Atrasado",
+                                body: `O território "${territory.number} - ${territory.name}" está com a devolução atrasada.`,
+                                link: territoryLink,
+                                type: 'territory_overdue',
+                                isRead: false,
+                                createdAt: serverTimestamp()
+                            });
+                        }
+                    }
+                });
+              },
+              (error) => {
+                console.warn("Erro no listener de territórios atrasados (pode ser temporário):", error);
+              }
+            );
+
+          } else {
+              setCongregation(null);
+              setUser(appUser);
+              setLoading(false);
+          }
+
+        }, 
+        (error) => {
+          console.error("Erro no listener de usuário:", error);
+          // Só limpa tudo se for um erro crítico não relacionado a permissões temporárias
+          if (error.code !== 'permission-denied') {
+            setUser(null); setCongregation(null); setLoading(false); unsubscribeAll();
+          } else {
+            // Em caso de erro de permissão (comum no signup/logout), apenas paramos o carregamento
             setLoading(false);
+          }
         }
-
-      }, (error) => {
-        console.error("Erro no listener de usuário:", error);
-        setUser(null); setCongregation(null); setLoading(false); unsubscribeAll();
-      });
+      );
     });
 
     return () => {
