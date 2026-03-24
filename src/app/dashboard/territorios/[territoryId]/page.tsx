@@ -1,3 +1,4 @@
+
 "use client";
 
 import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, deleteField, getDoc, arrayRemove } from "firebase/firestore";
@@ -12,6 +13,7 @@ import Link from 'next/link';
 import ActivityHistory from '@/components/ActivityHistory';
 import AssignmentHistory from '@/components/AssignmentHistory';
 import QuadraCard from '@/components/QuadraCard';
+import QuadraListItem from '@/components/QuadraListItem';
 import EditTerritoryModal from '@/components/EditTerritoryModal';
 import AddQuadraModal from '@/components/AddQuadraModal';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
@@ -249,13 +251,23 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             <h2 className="text-2xl font-bold flex items-center"><LayoutGrid className="mr-3" />Quadras</h2>
             {isManagerView && <Button onClick={() => setIsAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {quadras.map(q => (
-                <Link key={q.id} href={`/dashboard/territorios/${territoryId}/quadras/${q.id}`} className="block">
-                    <QuadraCard quadra={q} isManagerView={isManagerView} onEdit={(e) => { e.preventDefault(); }} hideStats={isPublicador} />
-                </Link>
-            ))}
-        </div>
+        {isPublicador ? (
+            <div className="divide-y divide-border -mx-6 px-6">
+                {quadras.map(q => (
+                    <Link key={q.id} href={`/dashboard/territorios/${territoryId}/quadras/${q.id}`} className="block">
+                        <QuadraListItem quadra={q} />
+                    </Link>
+                ))}
+            </div>
+        ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {quadras.map(q => (
+                    <Link key={q.id} href={`/dashboard/territorios/${territoryId}/quadras/${q.id}`} className="block">
+                        <QuadraCard quadra={q} isManagerView={isManagerView} onEdit={(e) => { e.preventDefault(); }} hideStats={isPublicador} />
+                    </Link>
+                ))}
+            </div>
+        )}
     </div>
   );
 
