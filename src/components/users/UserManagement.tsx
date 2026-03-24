@@ -290,7 +290,6 @@ export default function UserManagement() {
                     <FilterButtonComponent label="Ativo" value="ativo" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.ativo} />
                     <FilterButtonComponent label="Pendente" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.pendente} />
                     <FilterButtonComponent label="Inativo" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.inativo} />
-                    <FilterButtonComponent label="Rejeitado" value="rejeitado" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.rejeitado} />
                     <FilterButtonComponent label="Bloqueado" value="bloqueado" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.bloqueado} />
                   </div>
                 </div>
@@ -321,7 +320,7 @@ export default function UserManagement() {
                   <div className="flex flex-wrap gap-2">
                     <FilterButtonComponent label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.all} />
                     <FilterButtonComponent label="Última Hora" value="active_hourly" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_hourly} />
-                    <FilterButtonComponent label="Hoje" value="active_daily" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_daily} />
+                    <FilterButtonComponent label="Últimas 24h" value="active_daily" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_daily} />
                     <FilterButtonComponent label="Semana" value="active_weekly" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_weekly} />
                   </div>
                 </div>
