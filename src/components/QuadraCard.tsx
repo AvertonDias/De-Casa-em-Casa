@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { MouseEvent } from 'react';
@@ -19,7 +18,7 @@ export default function QuadraCard({ quadra, isManagerView, onEdit, hideStats = 
   const progresso = totalCasas > 0 ? Math.round((casasFeitas / totalCasas) * 100) : 0;
 
   return (
-    <div className="bg-card p-4 rounded-lg shadow-sm flex flex-col space-y-4 border border-border transition-all hover:shadow-md hover:ring-2 hover:ring-primary/50">
+    <div className="bg-card p-6 rounded-lg shadow-md flex flex-col space-y-4 border border-border transition-all hover:shadow-lg">
       {/* Cabeçalho do Card */}
       <div className="flex justify-between items-start">
         <div className="flex-1">

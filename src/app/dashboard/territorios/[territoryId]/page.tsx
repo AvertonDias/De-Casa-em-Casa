@@ -1,4 +1,3 @@
-
 "use client";
 
 import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, deleteField, getDoc, arrayRemove } from "firebase/firestore";
@@ -249,7 +248,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
     <div className="bg-card p-6 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold flex items-center"><LayoutGrid className="mr-3" />Quadras</h2>
-            {isManagerView && <Button onClick={() => setIsAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
+            {isManagerView && <Button onClick={() => setIsAddAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
         </div>
         {isPublicador ? (
             <div className="divide-y divide-border -mx-6 px-6">
@@ -260,7 +259,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
                 ))}
             </div>
         ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {quadras.map(q => (
                     <Link key={q.id} href={`/dashboard/territorios/${territoryId}/quadras/${q.id}`} className="block">
                         <QuadraCard quadra={q} isManagerView={isManagerView} onEdit={(e) => { e.preventDefault(); }} hideStats={isPublicador} />
@@ -347,7 +346,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             </div>
         )}
         
-        {/* Para administradores/gerentes as quadras aparecem por último como estava antes */}
+        {/* Para administradores/gerentes as quadras aparecem por último */}
         {!isPublicador && quadrasSection}
 
         <EditTerritoryModal 
