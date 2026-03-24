@@ -240,7 +240,25 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   };
 
   if (loading || userLoading || !territory) return <div className="p-8 text-center"><Loader className="animate-spin mx-auto" /></div>;
-  const isManagerView = ['Administrador', 'Dirigente', 'Servo de Territórios'].includes(user!.role);
+  
+  const isManagerView = ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'].includes(user!.role);
+  const isPublicador = user!.role === 'Publicador';
+
+  const quadrasSection = (
+    <div className="bg-card p-6 rounded-lg shadow-md">
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold flex items-center"><LayoutGrid className="mr-3" />Quadras</h2>
+            {isManagerView && <Button onClick={() => setIsAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {quadras.map(q => (
+                <Link key={q.id} href={`/dashboard/territorios/${territoryId}/quadras/${q.id}`} className="block">
+                    <QuadraCard quadra={q} isManagerView={isManagerView} onEdit={(e) => { e.preventDefault(); }} />
+                </Link>
+            ))}
+        </div>
+    </div>
+  );
 
   return (
     <div className="p-4 space-y-6">
@@ -250,6 +268,9 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             {isManagerView && <Button onClick={() => setIsEditTerritoryModalOpen(true)}><Edit className="mr-2 h-4" /> Editar</Button>}
         </div>
         
+        {/* Para publicadores as quadras sempre aparecem primeiro */}
+        {isPublicador && quadrasSection}
+
         <ProgressSection territory={territory} />
         <ActivityHistory territoryId={territory.id} history={activityHistory} />
 
@@ -315,19 +336,8 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             </div>
         )}
         
-        <div className="bg-card p-6 rounded-lg shadow-md">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold flex items-center"><LayoutGrid className="mr-3" />Quadras</h2>
-                {isManagerView && <Button onClick={() => setIsAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {quadras.map(q => (
-                    <Link key={q.id} href={`/dashboard/territorios/${territoryId}/quadras/${q.id}`} className="block">
-                        <QuadraCard quadra={q} isManagerView={isManagerView} onEdit={(e) => { e.preventDefault(); }} />
-                    </Link>
-                ))}
-            </div>
-        </div>
+        {/* Para administradores/gerentes as quadras aparecem por último como estava antes */}
+        {!isPublicador && quadrasSection}
 
         <EditTerritoryModal 
           isOpen={isEditTerritoryModalOpen} 
