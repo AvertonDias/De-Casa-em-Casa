@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { MouseEvent } from 'react';
@@ -9,9 +8,10 @@ interface QuadraCardProps {
   quadra: Quadra;
   isManagerView: boolean;
   onEdit: (event: MouseEvent<HTMLButtonElement>) => void;
+  hideStats?: boolean;
 }
 
-export default function QuadraCard({ quadra, isManagerView, onEdit }: QuadraCardProps) {
+export default function QuadraCard({ quadra, isManagerView, onEdit, hideStats = false }: QuadraCardProps) {
   const totalCasas = quadra.totalHouses || 0;
   const casasFeitas = quadra.housesDone || 0;
   const casasPendentes = totalCasas - casasFeitas;
@@ -37,17 +37,19 @@ export default function QuadraCard({ quadra, isManagerView, onEdit }: QuadraCard
       </div>
 
       {/* Estatísticas */}
-      <>
-        <div className="grid grid-cols-4 gap-2 text-center">
-            <div><p className="text-xs text-muted-foreground">Total</p><p className="font-bold text-xl">{totalCasas}</p></div>
-            <div><p className="text-xs text-muted-foreground">Feitos</p><p className="font-bold text-xl text-green-400">{casasFeitas}</p></div>
-            <div><p className="text-xs text-muted-foreground">Pendentes</p><p className="font-bold text-xl text-yellow-400">{casasPendentes}</p></div>
-            <div><p className="text-xs text-muted-foreground">Progresso</p><p className="font-bold text-xl text-blue-400">{progresso}%</p></div>
-        </div>
-        <div className="w-full bg-muted rounded-full h-2.5">
-          <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progresso}%` }}></div>
-        </div>
-      </>
+      {!hideStats && (
+        <>
+          <div className="grid grid-cols-4 gap-2 text-center">
+              <div><p className="text-xs text-muted-foreground">Total</p><p className="font-bold text-xl">{totalCasas}</p></div>
+              <div><p className="text-xs text-muted-foreground">Feitos</p><p className="font-bold text-xl text-green-400">{casasFeitas}</p></div>
+              <div><p className="text-xs text-muted-foreground">Pendentes</p><p className="font-bold text-xl text-yellow-400">{casasPendentes}</p></div>
+              <div><p className="text-xs text-muted-foreground">Progresso</p><p className="font-bold text-xl text-blue-400">{progresso}%</p></div>
+          </div>
+          <div className="w-full bg-muted rounded-full h-2.5">
+            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progresso}%` }}></div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

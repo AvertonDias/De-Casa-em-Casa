@@ -1,4 +1,3 @@
-
 "use client";
 
 import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, deleteField, getDoc, arrayRemove } from "firebase/firestore";
@@ -253,7 +252,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {quadras.map(q => (
                 <Link key={q.id} href={`/dashboard/territorios/${territoryId}/quadras/${q.id}`} className="block">
-                    <QuadraCard quadra={q} isManagerView={isManagerView} onEdit={(e) => { e.preventDefault(); }} />
+                    <QuadraCard quadra={q} isManagerView={isManagerView} onEdit={(e) => { e.preventDefault(); }} hideStats={isPublicador} />
                 </Link>
             ))}
         </div>
@@ -271,7 +270,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         {/* Para publicadores as quadras sempre aparecem primeiro */}
         {isPublicador && quadrasSection}
 
-        <ProgressSection territory={territory} />
+        {!isPublicador && <ProgressSection territory={territory} />}
         <ActivityHistory territoryId={territory.id} history={activityHistory} />
 
         {/* Histórico de Designação */}
