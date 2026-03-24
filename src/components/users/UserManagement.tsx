@@ -6,7 +6,7 @@ import { db, auth, rtdb, app } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { ref, onValue } from 'firebase/database';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { Loader, Search, SlidersHorizontal, X, Users as UsersIcon, Wifi, Check } from 'lucide-react';
+import { Loader, Search, SlidersHorizontal, X, Users as UsersIcon, Wifi, Check, Trash2 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { UserListItem } from './UserListItem';
@@ -18,8 +18,6 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
 
-const functions = getFunctions(app, 'southamerica-east1');
-
 export default function UserManagement() {
   const { user: currentUser, loading: userLoading } = useUser(); 
   const { toast } = useToast();
@@ -27,6 +25,7 @@ export default function UserManagement() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [presenceData, setPresenceData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
@@ -157,32 +156,41 @@ export default function UserManagement() {
     if (!userToDelete || currentUser?.role !== 'Administrador' || !auth.currentUser) return;
     
     const userId = userToDelete.uid;
+    const userName = userToDelete.name;
     setIsConfirmModalOpen(false);
+    setIsDeleting(true);
     
     try {
-      toast({ title: "Processando Exclusão", description: "Removendo acesso e dados via protocolo seguro..." });
+      toast({ title: "Processando Exclusão", description: `Removendo todos os dados de ${userName}...` });
       
-      // Chamada via Callable Function (onCall) - Gerencia CORS e Auth automaticamente
-      const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
+      const functionsInstance = getFunctions(app, 'southamerica-east1');
+      const deleteUserAccount = httpsCallable(functionsInstance, 'deleteUserAccountV2');
+      
       const result = await deleteUserAccount({ userIdToDelete: userId });
       const data = result.data as any;
 
       if (data.success) {
         toast({ 
             title: "Usuário Excluído", 
-            description: data.message || "A conta e os dados foram removidos com sucesso." 
+            description: data.message || "A conta e os dados foram removidos permanentemente." 
         });
       } else {
-        throw new Error("O servidor retornou uma resposta inesperada.");
+        throw new Error("O servidor concluiu a tarefa com um status inesperado.");
       }
     } catch (e: any) {
       console.error("Erro na exclusão remota:", e);
+      
+      let errorMsg = "Ocorreu um erro de rede ou de permissão. Verifique sua conexão.";
+      if (e.code === 'permission-denied') errorMsg = "Você não tem permissão de Administrador para esta ação.";
+      if (e.message?.includes('fetch')) errorMsg = "Erro de rede (CORS). Tente atualizar a página e tentar novamente.";
+
       toast({
         variant: "destructive",
         title: "Falha na Exclusão",
-        description: e.message || "Não foi possível completar a exclusão remota. Verifique se o servidor está ativo.",
+        description: e.message || errorMsg,
       });
     } finally {
+        setIsDeleting(false);
         setUserToDelete(null);
     }
   };
@@ -381,8 +389,17 @@ export default function UserManagement() {
         onClose={() => setIsConfirmModalOpen(false)} 
         onConfirm={confirmDeleteUser} 
         title="Excluir Registro Permanente" 
-        message={`Tem certeza que deseja excluir permanentemente o usuário ${userToDelete?.name}? Todos os seus dados e o e-mail de acesso serão removidos.`} 
+        message={
+            <div className="space-y-3">
+                <p>Tem certeza que deseja excluir permanentemente o usuário <strong>{userToDelete?.name}</strong>?</p>
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-start gap-2">
+                    <Trash2 size={14} className="shrink-0 mt-0.5" />
+                    <span>Esta ação removerá o e-mail de acesso (Auth) e o perfil no banco de dados (Firestore). Não há como desfazer.</span>
+                </div>
+            </div>
+        } 
         confirmText="Sim, Excluir Tudo" 
+        isLoading={isDeleting}
       />
       {userToEdit && <EditUserByAdminModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} userToEdit={userToEdit} onSave={handleUserUpdate} />}
     </div>
