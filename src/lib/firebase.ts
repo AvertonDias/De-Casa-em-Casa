@@ -24,10 +24,9 @@ const firebaseConfig = {
 // Inicializa o Firebase
 const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Configuração Offline do Firestore (A parte mais importante)
+// Configuração Offline do Firestore
 const db: Firestore = initializeFirestore(app, {
   localCache: persistentLocalCache({
-    // Permite que o cache funcione em múltiplas abas simultaneamente
     tabManager: persistentMultipleTabManager()
   })
 });
@@ -37,7 +36,7 @@ const storage: FirebaseStorage = getStorage(app);
 const functions: Functions = getFunctions(app, 'southamerica-east1');
 const rtdb: Database = getDatabase(app);
 
-// Persistência de login: Mantém logado mesmo offline ou ao fechar o app
+// Persistência de login
 setPersistence(auth, browserLocalPersistence);
 
 let messaging: Messaging | null = null;

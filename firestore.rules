@@ -32,20 +32,12 @@ service cloud.firestore {
         function canApproveUsers() { return isServoTerritorios() || isDirigente() || isAdmin() || isAjudante(); }
 
         match /congregations/{congId} {
-            // Permitimos a leitura pública para que usuários possam encontrar sua congregação pelo número no cadastro
             allow read: if true; 
-            
-            // Somente usuários autenticados podem criar uma congregação
             allow create: if isAuth();
-            
-            // Permitir que membros ativos atualizem para que contadores globais funcionem
             allow update: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers());
-            
-            // Somente o Administrador da própria congregação pode excluir
             allow delete: if isUserInCongregation(congId) && isAdmin();
 
             match /territories/{terrId} {
-                // Só permite leitura se estiver na congregação E for ativo OU tiver cargo de gerência
                 allow read: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers());
                 allow create, delete: if isUserInCongregation(congId) && (isAdmin() || isServoTerritorios());
                 allow update: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers());
@@ -67,17 +59,17 @@ service cloud.firestore {
             allow get: if isAuth();
             allow list: if isAuth();
             allow update: if isAuth() && (request.auth.uid == userId || canApproveUsers());
-            // Permite que Administradores excluam o documento de outros usuários OU o próprio usuário se autoexclua
             allow delete: if isAuth() && (request.auth.uid == userId || isAdmin());
 
-            // Regras para a subcoleção de notificações
             match /notifications/{notifId} {
-                // O próprio usuário pode ler, atualizar (marcar como lido) e excluir suas notificações
                 allow get, list, update, delete: if isAuth() && request.auth.uid == userId;
-                
-                // Administradores e servos podem criar notificações para outros usuários (usado nas designações)
                 allow create: if isAuth() && (request.auth.uid == userId || canApproveUsers());
             }
+        }
+
+        match /resetTokens/{tokenId} {
+            allow read, delete: if true;
+            allow create: if true;
         }
 
         match /feedbacks/{feedbackId} { allow create: if isAuth(); }

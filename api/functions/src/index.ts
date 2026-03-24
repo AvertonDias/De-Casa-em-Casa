@@ -20,7 +20,7 @@ setGlobalOptions({ region: "southamerica-east1" });
 
 export const deleteUserAccountV2 = https.onCall({ 
     region: "southamerica-east1",
-    cors: true // Força o suporte a CORS para ambientes de desenvolvimento instáveis
+    cors: true 
 }, async (request) => {
     // 1. Validar Autenticação
     if (!request.auth) {
@@ -34,20 +34,20 @@ export const deleteUserAccountV2 = https.onCall({
 
     const callingUserUid = request.auth.uid;
 
-    // 2. Verificar permissões de Administrador no Firestore
-    const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
-    const callingUserData = callingUserSnap.data();
-
-    if (!callingUserData || callingUserData.role !== "Administrador") {
-        throw new https.HttpsError('permission-denied', 'Apenas administradores podem excluir usuários permanentemente.');
-    }
-
-    // 3. Impedir auto-exclusão
-    if (callingUserUid === userIdToDelete) {
-        throw new https.HttpsError('permission-denied', 'Um administrador não pode excluir a própria conta através desta ferramenta.');
-    }
-
     try {
+        // 2. Verificar permissões de Administrador no Firestore
+        const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
+        const callingUserData = callingUserSnap.data();
+
+        if (!callingUserData || callingUserData.role !== "Administrador") {
+            throw new https.HttpsError('permission-denied', 'Apenas administradores podem excluir usuários permanentemente.');
+        }
+
+        // 3. Impedir auto-exclusão por esta via (deve ser feita pelo perfil)
+        if (callingUserUid === userIdToDelete) {
+            throw new https.HttpsError('permission-denied', 'Um administrador não pode excluir a própria conta através desta ferramenta.');
+        }
+
         // 4. Executar Exclusão no Auth
         try {
             await admin.auth().deleteUser(userIdToDelete);
@@ -67,6 +67,7 @@ export const deleteUserAccountV2 = https.onCall({
         return { success: true, message: "Usuário e dados excluídos com sucesso." };
 
     } catch (error: any) {
+        if (error instanceof https.HttpsError) throw error;
         logger.error("Erro interno em deleteUserAccountV2:", error);
         throw new https.HttpsError('internal', error.message || 'Falha ao processar a exclusão.');
     }
@@ -96,13 +97,22 @@ export const createCongregationAndAdminV2 = https.onCall({ region: "southamerica
         throw new https.HttpsError('already-exists', "Uma congregação com este número já existe.");
     }
 
-    const newUser = await admin.auth().createUser({ email: adminEmail, password: adminPassword, displayName: adminName });
+    const newUser = await admin.auth().createUser({ 
+        email: adminEmail, 
+        password: adminPassword, 
+        displayName: adminName 
+    });
 
     const batch = db.batch();
     const newCongregationRef = db.collection("congregations").doc();
     batch.set(newCongregationRef, {
         name: congregationName,
         number: congregationNumber,
+        territoryCount: 0,
+        ruralTerritoryCount: 0,
+        totalQuadras: 0,
+        totalHouses: 0,
+        totalHousesDone: 0,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 

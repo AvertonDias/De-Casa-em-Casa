@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, auth, rtdb, app } from '@/lib/firebase';
+import { db, auth, rtdb, functions } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { ref, onValue } from 'firebase/database';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
 import { Loader, Search, SlidersHorizontal, X, Users as UsersIcon, Wifi, Check, Trash2 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
@@ -163,9 +163,7 @@ export default function UserManagement() {
     try {
       toast({ title: "Processando Exclusão", description: `Removendo todos os dados de ${userName}...` });
       
-      const functionsInstance = getFunctions(app, 'southamerica-east1');
-      const deleteUserAccount = httpsCallable(functionsInstance, 'deleteUserAccountV2');
-      
+      const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
       const result = await deleteUserAccount({ userIdToDelete: userId });
       const data = result.data as any;
 
@@ -174,15 +172,13 @@ export default function UserManagement() {
             title: "Usuário Excluído", 
             description: data.message || "A conta e os dados foram removidos permanentemente." 
         });
-      } else {
-        throw new Error("O servidor concluiu a tarefa com um status inesperado.");
       }
     } catch (e: any) {
-      console.error("Erro na exclusão remota:", e);
+      console.error("Erro na exclusão remota (objeto completo):", e);
       
-      let errorMsg = "Ocorreu um erro de rede ou de permissão. Verifique sua conexão.";
+      let errorMsg = "Ocorreu um erro ao tentar excluir o usuário. Verifique sua conexão.";
       if (e.code === 'permission-denied') errorMsg = "Você não tem permissão de Administrador para esta ação.";
-      if (e.message?.includes('fetch')) errorMsg = "Erro de rede (CORS). Tente atualizar a página e tentar novamente.";
+      if (e.code === 'unauthenticated') errorMsg = "Sessão expirada. Por favor, faça login novamente.";
 
       toast({
         variant: "destructive",
