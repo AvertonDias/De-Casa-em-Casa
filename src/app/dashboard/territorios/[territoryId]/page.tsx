@@ -1,3 +1,4 @@
+
 "use client";
 
 import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, deleteField, getDoc, arrayRemove } from "firebase/firestore";
@@ -248,7 +249,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
     <div className="bg-card p-6 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold flex items-center"><LayoutGrid className="mr-3" />Quadras</h2>
-            {isManagerView && <Button onClick={() => setIsAddAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
+            {isManagerView && <Button onClick={() => setIsAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
         </div>
         {isPublicador ? (
             <div className="divide-y divide-border -mx-6 px-6">
@@ -270,84 +271,100 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
     </div>
   );
 
-  return (
-    <div className="p-4 space-y-6">
+  const cardSection = territory.cardUrl && (
+    <div className="bg-card p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-bold mb-4 flex items-center gap-3">
+            <FileImage className="text-primary" />
+            Cartão do Território
+        </h2>
+        <div 
+            className="cursor-pointer overflow-hidden rounded-lg border border-border/50 hover:opacity-90 transition-opacity"
+            onClick={() => { setSelectedImageUrl(territory.cardUrl!); setIsPreviewModalOpen(true); }}
+        >
+            <img 
+                src={territory.cardUrl} 
+                alt="Cartão do Mapa" 
+                className="w-full h-auto max-h-[400px] object-contain mx-auto"
+            />
+        </div>
+    </div>
+  );
+
+  const mapSection = territory.mapLink && (
+    <div className="bg-card p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-bold mb-4 flex items-center gap-3">
+            <Map className="text-primary" />
+            Mapa do Território
+        </h2>
+        <div className="aspect-video w-full overflow-hidden rounded-lg border border-border/50 bg-muted">
+            <GoogleMapEmbed mapLink={territory.mapLink} />
+        </div>
+    </div>
+  );
+
+  const assignmentHistorySection = (
+    <div className="w-full">
+        <Accordion type="single" collapsible className="w-full bg-card rounded-lg shadow-md overflow-hidden">
+            <AccordionItem value="assignment-history" className="border-b-0">
+                <AccordionTrigger className="px-6 hover:no-underline font-semibold text-lg">
+                    <div className="flex items-center gap-3">
+                        <History className="text-primary" />
+                        <span>Histórico e Designação Atual</span>
+                    </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                    <AssignmentHistory 
+                        currentAssignment={territory.assignment}
+                        pastAssignments={territory.assignmentHistory || []}
+                        onEdit={(log) => { setHistoryLogToEdit(log); setIsEditLogModalOpen(true); }}
+                        onDelete={(log) => {
+                            setConfirmAction({
+                                title: "Excluir Registro",
+                                message: `Tem certeza que deseja excluir o registro de ${log.name}?`,
+                                action: async () => handleDeleteHistoryLog(log)
+                            });
+                            setIsConfirmModalOpen(true);
+                        }}
+                    />
+                </AccordionContent>
+            </AccordionItem>
+        </Accordion>
+    </div>
+  );
+
+  const headerSection = (
+    <div className="space-y-6">
         <Link href="/dashboard/territorios" className="text-sm flex items-center"><ArrowLeft className="mr-2 h-4" /> Voltar</Link>
         <div className="flex justify-between items-start">
             <div><h1 className="text-3xl font-bold">{territory.number} - {territory.name}</h1><p className="text-muted-foreground">{territory.description}</p></div>
             {isManagerView && <Button onClick={() => setIsEditTerritoryModalOpen(true)}><Edit className="mr-2 h-4" /> Editar</Button>}
         </div>
+    </div>
+  );
+
+  return (
+    <div className="p-4 space-y-6">
+        {headerSection}
         
-        {/* Para publicadores as quadras sempre aparecem primeiro */}
-        {isPublicador && quadrasSection}
-
-        {!isPublicador && <ProgressSection territory={territory} />}
-        <ActivityHistory territoryId={territory.id} history={activityHistory} />
-
-        {/* Histórico de Designação */}
-        <div className="w-full">
-            <Accordion type="single" collapsible className="w-full bg-card rounded-lg shadow-md overflow-hidden">
-                <AccordionItem value="assignment-history" className="border-b-0">
-                    <AccordionTrigger className="px-6 hover:no-underline font-semibold text-lg">
-                        <div className="flex items-center gap-3">
-                            <History className="text-primary" />
-                            <span>Histórico e Designação Atual</span>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <AssignmentHistory 
-                            currentAssignment={territory.assignment}
-                            pastAssignments={territory.assignmentHistory || []}
-                            onEdit={(log) => { setHistoryLogToEdit(log); setIsEditLogModalOpen(true); }}
-                            onDelete={(log) => {
-                                setConfirmAction({
-                                    title: "Excluir Registro",
-                                    message: `Tem certeza que deseja excluir o registro de ${log.name}?`,
-                                    action: async () => handleDeleteHistoryLog(log)
-                                });
-                                setIsConfirmModalOpen(true);
-                            }}
-                        />
-                    </AccordionContent>
-                </AccordionItem>
-            </Accordion>
-        </div>
-
-        {/* Cartão do Território */}
-        {territory.cardUrl && (
-            <div className="bg-card p-6 rounded-lg shadow-md">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-3">
-                    <FileImage className="text-primary" />
-                    Cartão do Território
-                </h2>
-                <div 
-                    className="cursor-pointer overflow-hidden rounded-lg border border-border/50 hover:opacity-90 transition-opacity"
-                    onClick={() => { setSelectedImageUrl(territory.cardUrl!); setIsPreviewModalOpen(true); }}
-                >
-                    <img 
-                        src={territory.cardUrl} 
-                        alt="Cartão do Mapa" 
-                        className="w-full h-auto max-h-[400px] object-contain mx-auto"
-                    />
-                </div>
-            </div>
+        {isPublicador ? (
+            <>
+                {quadrasSection}
+                {cardSection}
+                {mapSection}
+                <ActivityHistory territoryId={territory.id} history={activityHistory} />
+                {assignmentHistorySection}
+                <ProgressSection territory={territory} />
+            </>
+        ) : (
+            <>
+                <ProgressSection territory={territory} />
+                <ActivityHistory territoryId={territory.id} history={activityHistory} />
+                {assignmentHistorySection}
+                {cardSection}
+                {mapSection}
+                {quadrasSection}
+            </>
         )}
-
-        {/* Mapa do Território */}
-        {territory.mapLink && (
-            <div className="bg-card p-6 rounded-lg shadow-md">
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-3">
-                    <Map className="text-primary" />
-                    Mapa do Território
-                </h2>
-                <div className="aspect-video w-full overflow-hidden rounded-lg border border-border/50 bg-muted">
-                    <GoogleMapEmbed mapLink={territory.mapLink} />
-                </div>
-            </div>
-        )}
-        
-        {/* Para administradores/gerentes as quadras aparecem por último */}
-        {!isPublicador && quadrasSection}
 
         <EditTerritoryModal 
           isOpen={isEditTerritoryModalOpen} 
