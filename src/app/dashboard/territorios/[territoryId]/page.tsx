@@ -1,6 +1,7 @@
+
 "use client";
 
-import { doc, onSnapshot, collection, updateDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, deleteField, getDoc } from "firebase/firestore";
+import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, deleteField, getDoc, arrayRemove } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
@@ -14,9 +15,7 @@ import AssignmentHistory from '@/components/AssignmentHistory';
 import QuadraCard from '@/components/QuadraCard';
 import EditTerritoryModal from '@/components/EditTerritoryModal';
 import AddQuadraModal from '@/components/AddQuadraModal';
-import { EditQuadraModal } from '@/components/EditQuadraModal';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
-import QuadraListItem from "@/components/QuadraListItem";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import withAuth from "@/components/withAuth";
 import AddEditAssignmentLogModal from "@/components/admin/AddEditAssignmentLogModal";
@@ -55,8 +54,6 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
 
   const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
   const [isAddQuadraModalOpen, setIsAddQuadraModalOpen] = useState(false);
-  const [isEditQuadraModalOpen, setIsEditQuadraModalOpen] = useState(false);
-  const [selectedQuadra, setSelectedQuadra] = useState<Quadra | null>(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ action: () => Promise<void>; title: string; message: string; } | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
@@ -94,10 +91,54 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
     });
   };
 
+  const handleSaveHistoryLog = async (originalLog: AssignmentHistoryLog, updatedData: { name: string; assignedAt: Date; completedAt: Date; }) => {
+    if (!user?.congregationId || !territory) return;
+    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const territoryDoc = await transaction.get(territoryRef);
+            if (!territoryDoc.exists()) throw new Error("Território não encontrado.");
+            
+            const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
+            
+            const newHistory = currentHistory.map(log => {
+                if (log.uid === originalLog.uid && log.assignedAt.isEqual(originalLog.assignedAt)) {
+                    return {
+                        ...log,
+                        name: updatedData.name,
+                        assignedAt: Timestamp.fromDate(updatedData.assignedAt),
+                        completedAt: Timestamp.fromDate(updatedData.completedAt),
+                    };
+                }
+                return log;
+            });
+            transaction.update(territoryRef, { assignmentHistory: newHistory });
+        });
+        toast({ title: "Sucesso!", description: "Histórico atualizado." });
+    } catch (e: any) {
+        toast({ title: "Erro", description: "Falha ao salvar histórico.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteHistoryLog = async (logToDelete: AssignmentHistoryLog) => {
+    if (!user?.congregationId || !territory) return;
+    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
+    
+    try {
+        await updateDoc(territoryRef, {
+            assignmentHistory: arrayRemove(logToDelete)
+        });
+        toast({ title: "Sucesso!", description: "Registro removido." });
+    } catch (e: any) {
+        toast({ title: "Erro", description: "Falha ao remover registro.", variant: "destructive" });
+    }
+  };
+
   const handleDeleteTerritory = (tid: string) => {
     setConfirmAction({
       title: "Excluir Território",
-      message: "Isso apagará todas as quadras e casas deste território. Esta ação é lenta e irreversível no plano gratuito.",
+      message: "Isso apagará todas as quadras e casas deste território. Esta ação é lenta e irreversível.",
       action: async () => {
         setIsProcessingAction(true);
         try {
@@ -117,7 +158,6 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           await batch.commit();
           router.push('/dashboard/territorios');
         } catch (error: any) {
-          console.error("Erro ao deletar território:", error);
           toast({ title: "Erro ao deletar", description: "Não foi possível excluir o território.", variant: "destructive" });
         } finally {
           setIsProcessingAction(false);
@@ -145,7 +185,6 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           const batch = writeBatch(db);
           let totalDecrement = 0;
 
-          // 1. Resetar casas e quadras
           for (const qDoc of quadrasSnap.docs) {
             const housesSnap = await getDocs(collection(qDoc.ref, 'casas'));
             let quadraDecrement = 0;
@@ -167,19 +206,16 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             }
           }
 
-          // 2. Apagar todo o histórico de atividades
           historySnap.forEach(hDoc => {
             batch.delete(hDoc.ref);
           });
 
-          // 3. Atualizar estatísticas do território
           batch.update(territoryRef, {
             "stats.housesDone": 0,
             progress: 0,
             lastUpdate: serverTimestamp()
           });
 
-          // 4. Atualizar contador global da congregação
           if (totalDecrement > 0) {
             const congRef = doc(db, 'congregations', user.congregationId);
             const congSnap = await getDoc(congRef);
@@ -192,8 +228,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           await batch.commit();
           toast({ title: "Território Resetado", description: "O progresso e o histórico foram limpos com sucesso." });
         } catch (error: any) {
-          console.error("Erro ao resetar território:", error);
-          toast({ title: "Erro ao resetar", description: error.message || "Falha na operação.", variant: "destructive" });
+          toast({ title: "Erro ao resetar", description: "Falha na operação.", variant: "destructive" });
         } finally {
           setIsProcessingAction(false);
           setIsConfirmModalOpen(false);
@@ -217,6 +252,68 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         
         <ProgressSection territory={territory} />
         <ActivityHistory territoryId={territory.id} history={activityHistory} />
+
+        {/* Histórico de Designação */}
+        <div className="w-full">
+            <Accordion type="single" collapsible className="w-full bg-card rounded-lg shadow-md overflow-hidden">
+                <AccordionItem value="assignment-history" className="border-b-0">
+                    <AccordionTrigger className="px-6 hover:no-underline font-semibold text-lg">
+                        <div className="flex items-center gap-3">
+                            <History className="text-primary" />
+                            <span>Histórico e Designação Atual</span>
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                        <AssignmentHistory 
+                            currentAssignment={territory.assignment}
+                            pastAssignments={territory.assignmentHistory || []}
+                            onEdit={(log) => { setHistoryLogToEdit(log); setIsEditLogModalOpen(true); }}
+                            onDelete={(log) => {
+                                setConfirmAction({
+                                    title: "Excluir Registro",
+                                    message: `Tem certeza que deseja excluir o registro de ${log.name}?`,
+                                    action: async () => handleDeleteHistoryLog(log)
+                                });
+                                setIsConfirmModalOpen(true);
+                            }}
+                        />
+                    </AccordionContent>
+                </AccordionItem>
+            </Accordion>
+        </div>
+
+        {/* Cartão do Território */}
+        {territory.cardUrl && (
+            <div className="bg-card p-6 rounded-lg shadow-md">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-3">
+                    <FileImage className="text-primary" />
+                    Cartão do Território
+                </h2>
+                <div 
+                    className="cursor-pointer overflow-hidden rounded-lg border border-border/50 hover:opacity-90 transition-opacity"
+                    onClick={() => { setSelectedImageUrl(territory.cardUrl!); setIsPreviewModalOpen(true); }}
+                >
+                    <img 
+                        src={territory.cardUrl} 
+                        alt="Cartão do Mapa" 
+                        className="w-full h-auto max-h-[400px] object-contain mx-auto"
+                    />
+                </div>
+            </div>
+        )}
+
+        {/* Mapa do Território */}
+        {territory.mapLink && (
+            <div className="bg-card p-6 rounded-lg shadow-md">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-3">
+                    <Map className="text-primary" />
+                    Mapa do Território
+                </h2>
+                <div className="aspect-video w-full overflow-hidden rounded-lg border border-border/50 bg-muted">
+                    <GoogleMapEmbed mapLink={territory.mapLink} />
+                </div>
+            </div>
+        )}
         
         <div className="bg-card p-6 rounded-lg shadow-md">
             <div className="flex justify-between items-center mb-6">
@@ -226,7 +323,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {quadras.map(q => (
                     <Link key={q.id} href={`/dashboard/territorios/${territoryId}/quadras/${q.id}`} className="block">
-                        <QuadraCard quadra={q} isManagerView={isManagerView} onEdit={(e) => { e.preventDefault(); setSelectedQuadra(q); setIsEditQuadraModalOpen(true); }} />
+                        <QuadraCard quadra={q} isManagerView={isManagerView} onEdit={(e) => { e.preventDefault(); }} />
                     </Link>
                 ))}
             </div>
@@ -240,8 +337,37 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           onDelete={handleDeleteTerritory} 
           onReset={handleResetTerritory} 
         />
-        <AddQuadraModal isOpen={isAddQuadraModalOpen} onClose={() => setIsAddQuadraModalOpen(false)} onSave={handleAddQuadra} existingQuadrasCount={quadras.length} />
-        {confirmAction && <ConfirmationModal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} onConfirm={confirmAction.action} title={confirmAction.title} message={confirmAction.message} isLoading={isProcessingAction} />}
+        
+        <AddQuadraModal 
+            isOpen={isAddQuadraModalOpen} 
+            onClose={() => setIsAddQuadraModalOpen(false)} 
+            onSave={handleAddQuadra} 
+            existingQuadrasCount={quadras.length} 
+        />
+
+        <AddEditAssignmentLogModal
+            isOpen={isEditLogModalOpen}
+            onClose={() => setIsEditLogModalOpen(false)}
+            onSave={handleSaveHistoryLog}
+            logToEdit={historyLogToEdit}
+        />
+
+        <ImagePreviewModal 
+            isOpen={isPreviewModalOpen} 
+            onClose={() => setIsPreviewModalOpen(false)} 
+            imageUrl={selectedImageUrl} 
+        />
+
+        {confirmAction && (
+            <ConfirmationModal 
+                isOpen={isConfirmModalOpen} 
+                onClose={() => setIsConfirmModalOpen(false)} 
+                onConfirm={confirmAction.action} 
+                title={confirmAction.title} 
+                message={confirmAction.message} 
+                isLoading={isProcessingAction} 
+            />
+        )}
     </div>
   );
 }
