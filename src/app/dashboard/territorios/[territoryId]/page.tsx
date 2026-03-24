@@ -131,8 +131,8 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
 
   const handleResetTerritory = async (tid: string) => {
     setConfirmAction({
-      title: "Limpar Progresso do Território",
-      message: "Isso marcará todas as casas deste território como 'não trabalhadas' e zerará o progresso. O histórico de atividades será mantido, mas um novo registro de limpeza será adicionado. Deseja continuar?",
+      title: "Limpar Tudo (Progresso e Histórico)",
+      message: "Esta ação irá marcar todas as casas como 'não trabalhadas', zerar o progresso e APAGAR PERMANENTEMENTE todo o histórico de trabalho deste território. Deseja continuar?",
       action: async () => {
         setIsProcessingAction(true);
         try {
@@ -140,17 +140,23 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           
           const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', tid);
           const quadrasSnap = await getDocs(collection(territoryRef, 'quadras'));
+          const historySnap = await getDocs(collection(territoryRef, 'activityHistory'));
           
           const batch = writeBatch(db);
           let totalDecrement = 0;
 
+          // 1. Resetar casas e quadras
           for (const qDoc of quadrasSnap.docs) {
             const housesSnap = await getDocs(collection(qDoc.ref, 'casas'));
             let quadraDecrement = 0;
             
             housesSnap.forEach(hDoc => {
               if (hDoc.data().status === true) {
-                batch.update(hDoc.ref, { status: false, lastWorkedBy: deleteField(), activityLogId: deleteField() });
+                batch.update(hDoc.ref, { 
+                  status: false, 
+                  lastWorkedBy: deleteField(), 
+                  activityLogId: deleteField() 
+                });
                 quadraDecrement++;
               }
             });
@@ -161,14 +167,19 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             }
           }
 
-          // Update territory stats
+          // 2. Apagar todo o histórico de atividades
+          historySnap.forEach(hDoc => {
+            batch.delete(hDoc.ref);
+          });
+
+          // 3. Atualizar estatísticas do território
           batch.update(territoryRef, {
             "stats.housesDone": 0,
             progress: 0,
             lastUpdate: serverTimestamp()
           });
 
-          // Update congregation global counter
+          // 4. Atualizar contador global da congregação
           if (totalDecrement > 0) {
             const congRef = doc(db, 'congregations', user.congregationId);
             const congSnap = await getDoc(congRef);
@@ -178,20 +189,8 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             }
           }
 
-          // Add entry to activity history
-          const activityHistoryRef = collection(territoryRef, 'activityHistory');
-          const newActivityRef = doc(activityHistoryRef);
-          batch.set(newActivityRef, {
-            type: "manual",
-            activityDate: Timestamp.now(),
-            description: "O progresso do território foi limpo (resetado) por um administrador.",
-            userId: user.uid,
-            userName: user.name,
-            createdAt: serverTimestamp(),
-          });
-
           await batch.commit();
-          toast({ title: "Território Limpo", description: "Todo o progresso foi zerado com sucesso." });
+          toast({ title: "Território Resetado", description: "O progresso e o histórico foram limpos com sucesso." });
         } catch (error: any) {
           console.error("Erro ao resetar território:", error);
           toast({ title: "Erro ao resetar", description: error.message || "Falha na operação.", variant: "destructive" });
