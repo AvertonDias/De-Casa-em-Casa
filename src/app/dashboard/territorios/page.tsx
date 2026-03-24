@@ -111,7 +111,7 @@ function TerritoriosPage() {
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const { user, loading: userLoading } = useUser();
+  const { user, loading: userLoading, congregation } = useUser();
   const [isOffline, setIsOffline] = useState(false);
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -258,7 +258,7 @@ function TerritoriosPage() {
                 </span>
               )}
             </h1>
-            <p className="text-muted-foreground">{user.congregationName || 'Sua Congregação'}</p>
+            <p className="text-muted-foreground">{congregation?.name || user.congregationName || 'Sua Congregação'}</p>
           </div>
 
           {isAdmin && (
