@@ -1,7 +1,6 @@
-
 "use client";
 
-import { doc, onSnapshot, collection, updateDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch } from "firebase/firestore";
+import { doc, onSnapshot, collection, updateDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, deleteField, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
@@ -101,21 +100,105 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
       message: "Isso apagará todas as quadras e casas deste território. Esta ação é lenta e irreversível no plano gratuito.",
       action: async () => {
         setIsProcessingAction(true);
-        const territoryRef = doc(db, 'congregations', user!.congregationId!, 'territories', tid);
-        const quadrasSnap = await getDocs(collection(territoryRef, 'quadras'));
-        const batch = writeBatch(db);
-        
-        for (const qDoc of quadrasSnap.docs) {
-            const housesSnap = await getDocs(collection(qDoc.ref, 'casas'));
-            housesSnap.forEach(h => batch.delete(h.ref));
-            batch.delete(qDoc.ref);
+        try {
+          const territoryRef = doc(db, 'congregations', user!.congregationId!, 'territories', tid);
+          const quadrasSnap = await getDocs(collection(territoryRef, 'quadras'));
+          const batch = writeBatch(db);
+          
+          for (const qDoc of quadrasSnap.docs) {
+              const housesSnap = await getDocs(collection(qDoc.ref, 'casas'));
+              housesSnap.forEach(h => batch.delete(h.ref));
+              batch.delete(qDoc.ref);
+          }
+          const histSnap = await getDocs(collection(territoryRef, 'activityHistory'));
+          histSnap.forEach(h => batch.delete(h.ref));
+          batch.delete(territoryRef);
+          
+          await batch.commit();
+          router.push('/dashboard/territorios');
+        } catch (error: any) {
+          console.error("Erro ao deletar território:", error);
+          toast({ title: "Erro ao deletar", description: "Não foi possível excluir o território.", variant: "destructive" });
+        } finally {
+          setIsProcessingAction(false);
+          setIsConfirmModalOpen(false);
         }
-        const histSnap = await getDocs(collection(territoryRef, 'activityHistory'));
-        histSnap.forEach(h => batch.delete(h.ref));
-        batch.delete(territoryRef);
-        
-        await batch.commit();
-        router.push('/dashboard/territorios');
+      }
+    });
+    setIsEditTerritoryModalOpen(false);
+    setIsConfirmModalOpen(true);
+  };
+
+  const handleResetTerritory = async (tid: string) => {
+    setConfirmAction({
+      title: "Limpar Progresso do Território",
+      message: "Isso marcará todas as casas deste território como 'não trabalhadas' e zerará o progresso. O histórico de atividades será mantido, mas um novo registro de limpeza será adicionado. Deseja continuar?",
+      action: async () => {
+        setIsProcessingAction(true);
+        try {
+          if (!user?.congregationId) return;
+          
+          const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', tid);
+          const quadrasSnap = await getDocs(collection(territoryRef, 'quadras'));
+          
+          const batch = writeBatch(db);
+          let totalDecrement = 0;
+
+          for (const qDoc of quadrasSnap.docs) {
+            const housesSnap = await getDocs(collection(qDoc.ref, 'casas'));
+            let quadraDecrement = 0;
+            
+            housesSnap.forEach(hDoc => {
+              if (hDoc.data().status === true) {
+                batch.update(hDoc.ref, { status: false, lastWorkedBy: deleteField(), activityLogId: deleteField() });
+                quadraDecrement++;
+              }
+            });
+            
+            if (quadraDecrement > 0) {
+              batch.update(qDoc.ref, { housesDone: 0 });
+              totalDecrement += quadraDecrement;
+            }
+          }
+
+          // Update territory stats
+          batch.update(territoryRef, {
+            "stats.housesDone": 0,
+            progress: 0,
+            lastUpdate: serverTimestamp()
+          });
+
+          // Update congregation global counter
+          if (totalDecrement > 0) {
+            const congRef = doc(db, 'congregations', user.congregationId);
+            const congSnap = await getDoc(congRef);
+            if (congSnap.exists()) {
+              const currentCongDone = congSnap.data().totalHousesDone || 0;
+              batch.update(congRef, { totalHousesDone: Math.max(0, currentCongDone - totalDecrement) });
+            }
+          }
+
+          // Add entry to activity history
+          const activityHistoryRef = collection(territoryRef, 'activityHistory');
+          const newActivityRef = doc(activityHistoryRef);
+          batch.set(newActivityRef, {
+            type: "manual",
+            activityDate: Timestamp.now(),
+            description: "O progresso do território foi limpo (resetado) por um administrador.",
+            userId: user.uid,
+            userName: user.name,
+            createdAt: serverTimestamp(),
+          });
+
+          await batch.commit();
+          toast({ title: "Território Limpo", description: "Todo o progresso foi zerado com sucesso." });
+        } catch (error: any) {
+          console.error("Erro ao resetar território:", error);
+          toast({ title: "Erro ao resetar", description: error.message || "Falha na operação.", variant: "destructive" });
+        } finally {
+          setIsProcessingAction(false);
+          setIsConfirmModalOpen(false);
+        }
       }
     });
     setIsEditTerritoryModalOpen(false);
@@ -150,7 +233,14 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             </div>
         </div>
 
-        <EditTerritoryModal isOpen={isEditTerritoryModalOpen} onClose={() => setIsEditTerritoryModalOpen(false)} territory={territory} onSave={handleSaveTerritory} onDelete={handleDeleteTerritory} onReset={() => {}} />
+        <EditTerritoryModal 
+          isOpen={isEditTerritoryModalOpen} 
+          onClose={() => setIsEditTerritoryModalOpen(false)} 
+          territory={territory} 
+          onSave={handleSaveTerritory} 
+          onDelete={handleDeleteTerritory} 
+          onReset={handleResetTerritory} 
+        />
         <AddQuadraModal isOpen={isAddQuadraModalOpen} onClose={() => setIsAddQuadraModalOpen(false)} onSave={handleAddQuadra} existingQuadrasCount={quadras.length} />
         {confirmAction && <ConfirmationModal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} onConfirm={confirmAction.action} title={confirmAction.title} message={confirmAction.message} isLoading={isProcessingAction} />}
     </div>
