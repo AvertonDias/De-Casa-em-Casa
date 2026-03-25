@@ -384,17 +384,17 @@ export default function UserManagement() {
         isOpen={isConfirmModalOpen} 
         onClose={() => setIsConfirmModalOpen(false)} 
         onConfirm={confirmDeleteUser} 
-        title="Excluir Registro Permanente" 
+        title="Confirmar Exclusão" 
         message={
             <div className="space-y-3">
-                <p>Tem certeza que deseja excluir permanentemente o usuário <strong>{userToDelete?.name}</strong>?</p>
+                <p>Você tem certeza que deseja excluir permanentemente o usuário <strong>{userToDelete?.name}</strong>?</p>
                 <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-start gap-2">
                     <Trash2 size={14} className="shrink-0 mt-0.5" />
-                    <span>Esta ação removerá o e-mail de acesso (Auth) e o perfil no banco de dados (Firestore). Não há como desfazer.</span>
+                    <span>Atenção: Esta ação removerá permanentemente o acesso e todos os dados deste usuário do sistema. Não é possível desfazer esta operação.</span>
                 </div>
             </div>
         } 
-        confirmText="Sim, Excluir Tudo" 
+        confirmText="Sim, Excluir Usuário" 
         isLoading={isDeleting}
       />
       {userToEdit && <EditUserByAdminModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} userToEdit={userToEdit} onSave={handleUserUpdate} />}
