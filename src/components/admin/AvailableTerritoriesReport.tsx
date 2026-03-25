@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -48,7 +47,7 @@ const ReportContent = ({ territories, congregationName, type }: { territories: A
   );
 
 export default function AvailableTerritoriesReport() {
-  const { user } = useUser();
+  const { user, congregation } = useUser();
   const { toast } = useToast();
   const [allTerritories, setAllTerritories] = useState<AvailableTerritory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,6 +118,7 @@ export default function AvailableTerritoriesReport() {
                 description: 'O PDF foi salvo na pasta Documentos do seu dispositivo.'
             });
         } else {
+            // Comportamento padrão para web
             await worker.save();
         }
     } catch (err: any) {
@@ -153,7 +153,7 @@ export default function AvailableTerritoriesReport() {
            <div className="flex items-center justify-center h-48"><Loader className="animate-spin" /></div>
         ) : (
           <div id="pdf-content-available" className="text-black">
-            <ReportContent territories={filteredTerritories} congregationName={user?.congregationName} type={typeFilter} />
+            <ReportContent territories={filteredTerritories} congregationName={congregation?.name || user?.congregationName} type={typeFilter} />
           </div>
         )}
       </div>
