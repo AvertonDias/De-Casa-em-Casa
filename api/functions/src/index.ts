@@ -1,9 +1,9 @@
-// src/functions/src/index.ts
+// api/functions/src/index.ts
 
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
 import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
-import admin from "firebase-admin";
+import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 
 if (!admin.apps.length) {
@@ -19,12 +19,15 @@ setGlobalOptions({ region: "southamerica-east1" });
 //   HTTPS onCall Functions
 // ========================================================================
 
+/**
+ * Exclui um usuário do Authentication e do Firestore.
+ * Apenas Administradores podem realizar esta ação.
+ */
 export const deleteUserAccountV2 = https.onCall({ 
     region: "southamerica-east1",
-    cors: true,
-    maxInstances: 10
+    cors: true
 }, async (request) => {
-    // 1. Validar Autenticação do solicitante
+    // 1. Validar Autenticação
     if (!request.auth) {
         throw new https.HttpsError('unauthenticated', 'Ação não autorizada. Por favor, faça login novamente.');
     }
@@ -39,7 +42,7 @@ export const deleteUserAccountV2 = https.onCall({
     try {
         logger.info(`[DeleteUser] Solicitação de ${callingUserUid} para excluir ${userIdToDelete}`);
 
-        // 2. Verificar permissões de Administrador no Firestore
+        // 2. Verificar permissões de Administrador
         const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
         const callingUserData = callingUserSnap.data();
 
@@ -48,44 +51,49 @@ export const deleteUserAccountV2 = https.onCall({
             throw new https.HttpsError('permission-denied', 'Apenas administradores podem excluir usuários.');
         }
 
-        // 3. Impedir auto-exclusão por esta via
+        // 3. Impedir auto-exclusão
         if (callingUserUid === userIdToDelete) {
-            throw new https.HttpsError('permission-denied', 'Você não pode excluir sua própria conta por aqui. Use as configurações de perfil.');
+            throw new https.HttpsError('permission-denied', 'Você não pode excluir sua própria conta por aqui.');
         }
 
-        // 4. Executar Exclusão no Firebase Auth
+        // 4. Excluir do Firebase Auth
         try {
             await auth.deleteUser(userIdToDelete);
-            logger.info(`[DeleteUser] Usuário ${userIdToDelete} removido do Authentication.`);
+            logger.info(`[DeleteUser] Usuário ${userIdToDelete} removido do Auth.`);
         } catch (authError: any) {
-            if (authError.code === 'auth/user-not-found') {
-                logger.warn(`[DeleteUser] Usuário ${userIdToDelete} não encontrado no Auth, prosseguindo com limpeza de dados.`);
-            } else {
+            if (authError.code !== 'auth/user-not-found') {
                 logger.error(`[DeleteUser] Erro ao excluir do Auth:`, authError);
                 throw new https.HttpsError('internal', `Erro no Authentication: ${authError.message}`);
             }
         }
 
-        // 5. Executar Exclusão no Firestore (incluindo subcoleções via Recursive Delete)
+        // 5. Limpeza Manual no Firestore (Substituindo recursiveDelete para evitar erros 500)
         const userDocRef = db.collection("users").doc(userIdToDelete);
-        try {
-            // Tenta deletar o documento e suas subcoleções (como notificações)
-            await db.recursiveDelete(userDocRef);
-            logger.info(`[DeleteUser] Dados do usuário ${userIdToDelete} removidos do Firestore recursivamente.`);
-        } catch (dbError: any) {
-            logger.error(`[DeleteUser] Erro ao excluir do Firestore:`, dbError);
-            // Se o recursiveDelete falhar, tenta pelo menos o documento principal
-            await userDocRef.delete();
+        
+        // Deletar notificações conhecidas
+        const notifSnaps = await userRefToNotifs(userIdToDelete).get();
+        if (!notifSnaps.empty) {
+            const batch = db.batch();
+            notifSnaps.docs.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            logger.info(`[DeleteUser] Notificações de ${userIdToDelete} removidas.`);
         }
 
-        return { success: true, message: "Usuário e todos os seus dados foram excluídos permanentemente." };
+        // Deletar o documento do usuário
+        await userDocRef.delete();
+        logger.info(`[DeleteUser] Perfil de ${userIdToDelete} removido.`);
+
+        return { success: true, message: "Usuário excluído com sucesso." };
 
     } catch (error: any) {
         if (error instanceof https.HttpsError) throw error;
-        logger.error("[DeleteUser] Erro crítico não tratado:", error);
+        logger.error("[DeleteUser] Erro crítico:", error);
         throw new https.HttpsError('internal', error.message || 'Falha interna ao processar a exclusão.');
     }
 });
+
+// Helper para referenciar notificações
+const userRefToNotifs = (uid: string) => db.collection("users").doc(uid).collection("notifications");
 
 export const getCongregationIdByNumberV2 = https.onCall({ region: "southamerica-east1", cors: true }, async (request) => {
     const { congregationNumber } = request.data;

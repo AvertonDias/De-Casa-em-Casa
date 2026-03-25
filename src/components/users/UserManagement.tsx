@@ -164,6 +164,8 @@ export default function UserManagement() {
     
     const userId = userToDelete.uid;
     const userName = userToDelete.name;
+    
+    // Inicia processo de exclusão
     setIsConfirmModalOpen(false);
     setIsDeleting(true);
     
@@ -181,17 +183,17 @@ export default function UserManagement() {
         });
       }
     } catch (e: any) {
-      console.error("Erro na exclusão:", e);
+      console.error("Erro na exclusão remota:", e);
       
-      let errorMsg = "Ocorreu um erro ao tentar excluir o usuário.";
-      if (e.code === 'permission-denied') errorMsg = "Você não tem permissão para esta ação.";
-      if (e.code === 'unauthenticated') errorMsg = "Sessão expirada. Faça login novamente.";
-      if (e.code === 'internal') errorMsg = "Erro no servidor ao excluir do banco de dados.";
+      let errorMsg = "Ocorreu um erro inesperado ao tentar excluir o usuário.";
+      if (e.code === 'permission-denied') errorMsg = "Você não tem permissão para excluir usuários.";
+      else if (e.code === 'unauthenticated') errorMsg = "Sessão expirada. Por favor, saia e entre novamente.";
+      else if (e.code === 'internal' || e.message?.includes('INTERNAL')) errorMsg = "Falha no servidor ao processar a limpeza de dados.";
 
       toast({
         variant: "destructive",
         title: "Falha na Exclusão",
-        description: e.message || errorMsg,
+        description: errorMsg,
       });
     } finally {
         setIsDeleting(false);
@@ -398,7 +400,7 @@ export default function UserManagement() {
                 <p>Você tem certeza que deseja excluir <strong>{userToDelete?.name}</strong>?</p>
                 <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-start gap-2">
                     <Trash2 size={14} className="shrink-0 mt-0.5" />
-                    <span>Esta ação removerá permanentemente a conta e todos os dados deste usuário. Não é possível desfazer.</span>
+                    <span>Esta ação removerá permanentemente o acesso e os dados deste usuário. Não é possível desfazer.</span>
                 </div>
             </div>
         } 
