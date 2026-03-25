@@ -248,7 +248,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const quadrasSection = (
     <div className="bg-card p-6 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold flex items-center"><LayoutGrid className="mr-3" />Quadras</h2>
+            <h2 className="text-2xl font-bold flex items-center"><LayoutGrid className="mr-3 text-primary" />Quadras</h2>
             {isManagerView && <Button onClick={() => setIsAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
         </div>
         {isPublicador ? (
