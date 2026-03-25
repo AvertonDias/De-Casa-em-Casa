@@ -342,25 +342,23 @@ export default function UserManagement() {
         </Accordion>
       </div>
 
-      <div className="relative px-4 md:px-0">
-        <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />
-          <input 
-            type="text" 
-            placeholder="Buscar por nome ou e-mail..." 
-            value={searchTerm} 
-            onChange={(e) => setSearchTerm(e.target.value)} 
-            className="w-full pl-12 pr-12 py-3 bg-card border border-border/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm" 
-          />
-          {searchTerm && (
-            <button 
-              onClick={() => setSearchTerm('')} 
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-full hover:bg-muted"
-            >
-              <X size={18} />
-            </button>
-          )}
-        </div>
+      <div className="relative group px-4 md:px-0">
+        <Search className="absolute left-8 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />
+        <input 
+          type="text" 
+          placeholder="Buscar por nome ou e-mail..." 
+          value={searchTerm} 
+          onChange={(e) => setSearchTerm(e.target.value)} 
+          className="w-full pl-12 pr-12 py-3 bg-card border border-border/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm" 
+        />
+        {searchTerm && (
+          <button 
+            onClick={() => setSearchTerm('')} 
+            className="absolute right-8 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-full hover:bg-muted"
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
       
       <div className="bg-card rounded-xl border border-border/40 shadow-md overflow-hidden mx-4 md:mx-0">
