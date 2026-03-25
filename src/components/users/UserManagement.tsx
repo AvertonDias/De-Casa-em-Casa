@@ -119,11 +119,15 @@ export default function UserManagement() {
 
     usersWithPresence.forEach(u => {
       counts.status.all++;
-      if (u.status in counts.status) counts.status[u.status as keyof typeof counts.status.ativo]++;
+      if (u.status in counts.status) {
+        counts.status[u.status as keyof typeof counts.status]++;
+      }
       counts.presence.all++;
       if (u.isOnline) counts.presence.online++; else counts.presence.offline++;
       counts.role.all++;
-      if (u.role in counts.role) counts.role[u.role as keyof typeof counts.role.Publicador]++;
+      if (u.role in counts.role) {
+        counts.role[u.role as keyof typeof counts.role]++;
+      }
       counts.activity.all++;
       const lastSeen = u.effectiveLastSeen;
       if (lastSeen) {
