@@ -100,12 +100,14 @@ function NotificacoesPage() {
 
     let destination = notification.link;
     
-    // Regras de redirecionamento específicas
+    // Regras de redirecionamento inteligentes
     if (notification.type === 'territory_overdue') {
-      // Notificações de atraso levam o usuário para a lista de territórios dele para devolução rápida
+      // Notificações de atraso levam o usuário para a lista geral dele para devolução rápida
       destination = '/dashboard/meus-territorios';
+    } else if (notification.type === 'territory_assigned') {
+      // Notificações de nova designação levam para o território específico (link salvo na criação)
+      destination = notification.link;
     }
-    // territory_assigned agora leva para o território específico (link configurado na criação)
 
     if (destination) {
       router.push(destination);
