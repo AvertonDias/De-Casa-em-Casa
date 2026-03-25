@@ -25,7 +25,7 @@ import { Directory, Filesystem } from "@capacitor/filesystem";
 import { useToast } from "@/hooks/use-toast";
 
 export default function S13ReportPage() {
-  const { user } = useUser();
+  const { user, congregation } = useUser();
   const { toast } = useToast();
   const [allTerritories, setAllTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,7 +174,7 @@ export default function S13ReportPage() {
         <div className="flex items-center">
           <span className="font-semibold whitespace-nowrap">Congregação:</span>
           <span className="ml-2 px-4 flex-grow min-w-[150px] text-center">
-            <u>{user?.congregationName || "..."}</u>
+            <u>{congregation?.name || user?.congregationName || "..."}</u>
           </span>
         </div>
       </div>
