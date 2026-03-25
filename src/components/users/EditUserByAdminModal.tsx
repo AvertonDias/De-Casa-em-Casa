@@ -109,7 +109,6 @@ export function EditUserByAdminModal({ isOpen, onClose, userToEdit, onSave }: Ed
                                     <SelectItem value="ativo">Ativo</SelectItem>
                                     <SelectItem value="pendente">Pendente</SelectItem>
                                     <SelectItem value="inativo">Inativo</SelectItem>
-                                    <SelectItem value="rejeitado">Rejeitado</SelectItem>
                                     <SelectItem value="bloqueado">Bloqueado</SelectItem>
                                 </SelectContent>
                             </Select>

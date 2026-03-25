@@ -138,6 +138,18 @@ export default function UserManagement() {
   const handleUserUpdate = async (userId: string, dataToUpdate: Partial<AppUser>) => {
     if (!currentUser || (currentUser.role !== 'Administrador' && currentUser.role !== 'Dirigente')) return;
     const userRef = doc(db, 'users', userId);
+    
+    // Proteção contra status de rejeição que está sendo removido
+    if (dataToUpdate.status === 'rejeitado') {
+        toast({ title: "Ação Inválida", description: "O status 'rejeitado' não é mais suportado.", variant: "destructive" });
+        return;
+    }
+
+    if (currentUser.role === 'Dirigente' && dataToUpdate.status && dataToUpdate.status !== 'ativo') {
+        toast({ title: "Permissão Negada", description: "Você só pode aprovar usuários pendentes.", variant: "destructive" });
+        return;
+    }
+
     updateDoc(userRef, dataToUpdate as any).then(() => {
         toast({ title: "Sucesso", description: "Usuário atualizado." });
     }).catch(async (error) => {
