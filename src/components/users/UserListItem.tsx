@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { AppUser } from '@/types/types';
@@ -114,7 +113,7 @@ export const UserListItem = ({
                       <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={handleDelete} className="text-red-500 dark:text-red-400 focus:bg-red-500 text-white">
-                          <Trash2 className="mr-2 h-4 w-4"/>Excluir (Permanente)
+                          <Trash2 className="mr-2 h-4 w-4"/>Excluir
                         </DropdownMenuItem>
                       </>
                     )}
