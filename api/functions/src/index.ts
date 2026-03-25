@@ -24,78 +24,74 @@ setGlobalOptions({ region: "southamerica-east1" });
  * Apenas Administradores podem realizar esta ação.
  */
 export const deleteUserAccountV2 = https.onCall({ 
-    region: "southamerica-east1",
-    cors: true
+    region: "southamerica-east1"
 }, async (request) => {
-    // 1. Validar Autenticação
+    // 1. Validar Autenticação do Requisitante
     if (!request.auth) {
-        throw new https.HttpsError('unauthenticated', 'Ação não autorizada. Por favor, faça login novamente.');
+        throw new https.HttpsError('unauthenticated', 'Sessão expirada. Faça login novamente.');
     }
 
     const { userIdToDelete } = request.data;
     if (!userIdToDelete) {
-        throw new https.HttpsError('invalid-argument', 'O ID do usuário a ser excluído é obrigatório.');
+        throw new https.HttpsError('invalid-argument', 'ID do usuário é obrigatório.');
     }
 
     const callingUserUid = request.auth.uid;
 
     try {
-        logger.info(`[DeleteUser] Solicitação de ${callingUserUid} para excluir ${userIdToDelete}`);
+        logger.info(`[DeleteUser] Início: ${callingUserUid} excluindo ${userIdToDelete}`);
 
         // 2. Verificar permissões de Administrador
         const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
         const callingUserData = callingUserSnap.data();
 
         if (!callingUserData || callingUserData.role !== "Administrador") {
-            logger.warn(`[DeleteUser] Tentativa de exclusão negada: Usuário ${callingUserUid} não é Administrador.`);
+            logger.warn(`[DeleteUser] Negado: ${callingUserUid} não é Admin.`);
             throw new https.HttpsError('permission-denied', 'Apenas administradores podem excluir usuários.');
         }
 
-        // 3. Impedir auto-exclusão
+        // 3. Impedir auto-exclusão por segurança nesta função
         if (callingUserUid === userIdToDelete) {
-            throw new https.HttpsError('permission-denied', 'Você não pode excluir sua própria conta por aqui.');
+            throw new https.HttpsError('permission-denied', 'Para sua segurança, você não pode excluir sua própria conta por aqui.');
         }
 
-        // 4. Excluir do Firebase Auth
-        try {
-            await auth.deleteUser(userIdToDelete);
-            logger.info(`[DeleteUser] Usuário ${userIdToDelete} removido do Auth.`);
-        } catch (authError: any) {
-            if (authError.code !== 'auth/user-not-found') {
-                logger.error(`[DeleteUser] Erro ao excluir do Auth:`, authError);
-                throw new https.HttpsError('internal', `Erro no Authentication: ${authError.message}`);
-            }
-        }
-
-        // 5. Limpeza Manual no Firestore (Substituindo recursiveDelete para evitar erros 500)
+        // 4. Limpeza no Firestore (Dados primeiro)
         const userDocRef = db.collection("users").doc(userIdToDelete);
         
-        // Deletar notificações conhecidas
-        const notifSnaps = await userRefToNotifs(userIdToDelete).get();
+        // Remove notificações do usuário
+        const notifSnaps = await userDocRef.collection("notifications").get();
         if (!notifSnaps.empty) {
             const batch = db.batch();
             notifSnaps.docs.forEach(doc => batch.delete(doc.ref));
             await batch.commit();
-            logger.info(`[DeleteUser] Notificações de ${userIdToDelete} removidas.`);
         }
 
-        // Deletar o documento do usuário
+        // Remove o perfil
         await userDocRef.delete();
-        logger.info(`[DeleteUser] Perfil de ${userIdToDelete} removido.`);
+        logger.info(`[DeleteUser] Firestore limpo para ${userIdToDelete}.`);
 
-        return { success: true, message: "Usuário excluído com sucesso." };
+        // 5. Excluir do Firebase Auth (Acesso por último)
+        try {
+            await auth.deleteUser(userIdToDelete);
+            logger.info(`[DeleteUser] Auth removido para ${userIdToDelete}.`);
+        } catch (authError: any) {
+            // Se o usuário já não existir no Auth, ignoramos o erro
+            if (authError.code !== 'auth/user-not-found') {
+                logger.error(`[DeleteUser] Erro no Auth:`, authError);
+                // Não travamos o processo se o Firestore já foi limpo
+            }
+        }
+
+        return { success: true, message: "Usuário removido com sucesso." };
 
     } catch (error: any) {
         if (error instanceof https.HttpsError) throw error;
-        logger.error("[DeleteUser] Erro crítico:", error);
-        throw new https.HttpsError('internal', error.message || 'Falha interna ao processar a exclusão.');
+        logger.error("[DeleteUser] Erro crítico inesperado:", error);
+        throw new https.HttpsError('internal', 'Ocorreu um erro no servidor ao tentar excluir o usuário. Tente novamente mais tarde.');
     }
 });
 
-// Helper para referenciar notificações
-const userRefToNotifs = (uid: string) => db.collection("users").doc(uid).collection("notifications");
-
-export const getCongregationIdByNumberV2 = https.onCall({ region: "southamerica-east1", cors: true }, async (request) => {
+export const getCongregationIdByNumberV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
     const { congregationNumber } = request.data;
     if (!congregationNumber) {
         throw new https.HttpsError('invalid-argument', "O número da congregação é obrigatório.");
@@ -107,7 +103,7 @@ export const getCongregationIdByNumberV2 = https.onCall({ region: "southamerica-
     return { congregationId: congQuery.docs[0].id };
 });
 
-export const createCongregationAndAdminV2 = https.onCall({ region: "southamerica-east1", cors: true }, async (request) => {
+export const createCongregationAndAdminV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
     const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = request.data;
 
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
@@ -153,7 +149,7 @@ export const createCongregationAndAdminV2 = https.onCall({ region: "southamerica
     return { success: true, userId: newUser.uid };
 });
 
-export const completeUserProfileV2 = https.onCall({ region: "southamerica-east1", cors: true }, async (request) => {
+export const completeUserProfileV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
     if (!request.auth) throw new https.HttpsError('unauthenticated', 'Não autenticado.');
     
     const { congregationId, whatsapp, name } = request.data;
@@ -171,7 +167,7 @@ export const completeUserProfileV2 = https.onCall({ region: "southamerica-east1"
     return { success: true };
 });
 
-export const requestPasswordResetV2 = https.onCall({ region: "southamerica-east1", cors: true }, async (request) => {
+export const requestPasswordResetV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
     const { email } = request.data;
     if (!email) throw new https.HttpsError('invalid-argument', 'Email obrigatório.');
     
@@ -188,7 +184,7 @@ export const requestPasswordResetV2 = https.onCall({ region: "southamerica-east1
     }
 });
 
-export const resetPasswordWithTokenV2 = https.onCall({ region: "southamerica-east1", cors: true }, async (request) => {
+export const resetPasswordWithTokenV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
     const { token, newPassword } = request.data;
     if (!token || !newPassword) throw new https.HttpsError('invalid-argument', 'Token e senha obrigatórios.');
     

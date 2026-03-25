@@ -165,12 +165,11 @@ export default function UserManagement() {
     const userId = userToDelete.uid;
     const userName = userToDelete.name;
     
-    // Inicia processo de exclusão
     setIsConfirmModalOpen(false);
     setIsDeleting(true);
     
     try {
-      toast({ title: "Processando Exclusão", description: `Removendo conta e dados de ${userName}...` });
+      toast({ title: "Excluindo Usuário", description: `Removendo ${userName} do sistema...` });
       
       const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
       const result = await deleteUserAccount({ userIdToDelete: userId });
@@ -178,21 +177,20 @@ export default function UserManagement() {
 
       if (data.success) {
         toast({ 
-            title: "Usuário Excluído", 
-            description: "A conta e todos os dados foram removidos permanentemente." 
+            title: "Usuário Removido", 
+            description: "A conta e os dados foram excluídos permanentemente." 
         });
       }
     } catch (e: any) {
-      console.error("Erro na exclusão remota:", e);
+      console.error("Erro na exclusão:", e);
       
-      let errorMsg = "Ocorreu um erro inesperado ao tentar excluir o usuário.";
-      if (e.code === 'permission-denied') errorMsg = "Você não tem permissão para excluir usuários.";
-      else if (e.code === 'unauthenticated') errorMsg = "Sessão expirada. Por favor, saia e entre novamente.";
-      else if (e.code === 'internal' || e.message?.includes('INTERNAL')) errorMsg = "Falha no servidor ao processar a limpeza de dados.";
+      let errorMsg = "Não foi possível completar a exclusão agora. Tente novamente em alguns instantes.";
+      if (e.code === 'permission-denied') errorMsg = "Você não tem permissão para esta ação.";
+      else if (e.code === 'unauthenticated') errorMsg = "Sua sessão expirou. Entre novamente.";
 
       toast({
         variant: "destructive",
-        title: "Falha na Exclusão",
+        title: "Erro ao Excluir",
         description: errorMsg,
       });
     } finally {
@@ -394,13 +392,13 @@ export default function UserManagement() {
         isOpen={isConfirmModalOpen} 
         onClose={() => setIsConfirmModalOpen(false)} 
         onConfirm={confirmDeleteUser} 
-        title="Confirmar Exclusão" 
+        title="Excluir Usuário" 
         message={
             <div className="space-y-3">
                 <p>Você tem certeza que deseja excluir <strong>{userToDelete?.name}</strong>?</p>
                 <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-start gap-2">
                     <Trash2 size={14} className="shrink-0 mt-0.5" />
-                    <span>Esta ação removerá permanentemente o acesso e os dados deste usuário. Não é possível desfazer.</span>
+                    <span>Isso vai apagar a conta desta pessoa e todas as informações dela no sistema para sempre. Não tem como recuperar depois.</span>
                 </div>
             </div>
         } 
