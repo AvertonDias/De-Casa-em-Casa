@@ -3,12 +3,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, writeBatch, doc, updateDoc, limit, Timestamp, where } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, limit, Timestamp, writeBatch } from 'firebase/firestore';
 import withAuth from '@/components/withAuth';
 import { Bell, Inbox, AlertTriangle, CheckCheck, Loader, UserPlus, Milestone, ArrowRight } from 'lucide-react';
 import { format, formatDistanceToNow, isToday, isYesterday, isThisWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type Notification } from '@/types/types';
 import { Button } from '@/components/ui/button';
@@ -99,8 +98,17 @@ function NotificacoesPage() {
         });
     }
 
-    if (notification.link) {
-      router.push(notification.link);
+    let destination = notification.link;
+    
+    // Regras de redirecionamento específicas
+    if (notification.type === 'territory_overdue') {
+      // Notificações de atraso levam o usuário para a lista de territórios dele para devolução rápida
+      destination = '/dashboard/meus-territorios';
+    }
+    // territory_assigned agora leva para o território específico (link configurado na criação)
+
+    if (destination) {
+      router.push(destination);
     }
   };
 

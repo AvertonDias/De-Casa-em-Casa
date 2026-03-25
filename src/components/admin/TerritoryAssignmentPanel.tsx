@@ -128,14 +128,17 @@ export default function TerritoryAssignmentPanel() {
         await updateDoc(territoryRef, { status: 'designado', assignment: assignmentData });
         
         const assignedUserId = assignedUser.uid;
+        const currentTerritory = territories.find(t => t.id === territoryId);
+
         if (!assignedUserId.startsWith('custom_')) {
             const notificationRef = collection(db, `users/${assignedUserId}/notifications`);
-            const currentTerritory = territories.find(t => t.id === territoryId);
+            // Define o link direto para o território (em vez da lista geral)
+            const territoryLink = currentTerritory?.type === 'rural' ? `/dashboard/rural/${territoryId}` : `/dashboard/territorios/${territoryId}`;
             
             await addDoc(notificationRef, {
                 title: "Você recebeu um novo território!",
                 body: `O território "${currentTerritory?.number} - ${currentTerritory?.name}" foi designado para você.`,
-                link: `/dashboard/meus-territorios`,
+                link: territoryLink,
                 type: 'territory_assigned',
                 isRead: false,
                 createdAt: serverTimestamp()
@@ -144,7 +147,6 @@ export default function TerritoryAssignmentPanel() {
         
         const userForWhatsapp = users.find(u => u.uid === assignedUser.uid);
         if (userForWhatsapp?.whatsapp && !assignedUser.uid.startsWith('custom_')) {
-            const currentTerritory = territories.find(t => t.id === territoryId);
             const formattedDueDate = format(assignmentData.dueDate.toDate(), 'dd/MM/yyyy');
             const link = `${window.location.origin}/dashboard/meus-territorios`;
             
