@@ -1,3 +1,4 @@
+// src/components/users/UserManagement.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -31,7 +32,7 @@ export default function UserManagement() {
   const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Ajudante de Servo de Territórios' | 'Publicador'>('all');
   const [activityFilter, setActivityFilter] = useState<'all' | 'active_hourly' | 'active_daily' | 'active_weekly' | 'inactive_month'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'rejeitado' | 'bloqueado'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'bloqueado'>('all');
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<{uid: string, name: string} | null>(null);
@@ -105,7 +106,7 @@ export default function UserManagement() {
 
   const filterCounts = useMemo(() => {
     const counts = {
-      status: { all: 0, ativo: 0, pendente: 0, inativo: 0, rejeitado: 0, bloqueado: 0 },
+      status: { all: 0, ativo: 0, pendente: 0, inativo: 0, bloqueado: 0 },
       presence: { all: 0, online: 0, offline: 0 },
       role: { all: 0, Administrador: 0, Dirigente: 0, 'Servo de Territórios': 0, 'Ajudante de Servo de Territórios': 0, Publicador: 0 },
       activity: { all: 0, active_hourly: 0, active_daily: 0, active_weekly: 0, inactive_month: 0 }
@@ -139,19 +140,13 @@ export default function UserManagement() {
     if (!currentUser || (currentUser.role !== 'Administrador' && currentUser.role !== 'Dirigente')) return;
     const userRef = doc(db, 'users', userId);
     
-    // Proteção contra status de rejeição que está sendo removido
-    if (dataToUpdate.status === 'rejeitado') {
-        toast({ title: "Ação Inválida", description: "O status 'rejeitado' não é mais suportado.", variant: "destructive" });
-        return;
-    }
-
     if (currentUser.role === 'Dirigente' && dataToUpdate.status && dataToUpdate.status !== 'ativo') {
         toast({ title: "Permissão Negada", description: "Você só pode aprovar usuários pendentes.", variant: "destructive" });
         return;
     }
 
     updateDoc(userRef, dataToUpdate as any).then(() => {
-        toast({ title: "Sucesso", description: "Usuário atualizado." });
+        toast({ title: "Sucesso", description: "Usuário atualizado com sucesso." });
     }).catch(async (error) => {
         if (error.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
@@ -173,7 +168,7 @@ export default function UserManagement() {
     setIsDeleting(true);
     
     try {
-      toast({ title: "Processando Exclusão", description: `Removendo todos os dados de ${userName}...` });
+      toast({ title: "Processando Exclusão", description: `Removendo conta e dados de ${userName}...` });
       
       const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
       const result = await deleteUserAccount({ userIdToDelete: userId });
@@ -182,15 +177,16 @@ export default function UserManagement() {
       if (data.success) {
         toast({ 
             title: "Usuário Excluído", 
-            description: data.message || "A conta e os dados foram removidos permanentemente." 
+            description: "A conta e todos os dados foram removidos permanentemente." 
         });
       }
     } catch (e: any) {
-      console.error("Erro na exclusão remota (objeto completo):", e);
+      console.error("Erro na exclusão:", e);
       
-      let errorMsg = "Ocorreu um erro ao tentar excluir o usuário. Verifique sua conexão.";
-      if (e.code === 'permission-denied') errorMsg = "Você não tem permissão de Administrador para esta ação.";
-      if (e.code === 'unauthenticated') errorMsg = "Sessão expirada. Por favor, faça login novamente.";
+      let errorMsg = "Ocorreu um erro ao tentar excluir o usuário.";
+      if (e.code === 'permission-denied') errorMsg = "Você não tem permissão para esta ação.";
+      if (e.code === 'unauthenticated') errorMsg = "Sessão expirada. Faça login novamente.";
+      if (e.code === 'internal') errorMsg = "Erro no servidor ao excluir do banco de dados.";
 
       toast({
         variant: "destructive",
@@ -399,14 +395,14 @@ export default function UserManagement() {
         title="Confirmar Exclusão" 
         message={
             <div className="space-y-3">
-                <p>Você tem certeza que deseja excluir permanentemente o usuário <strong>{userToDelete?.name}</strong>?</p>
+                <p>Você tem certeza que deseja excluir <strong>{userToDelete?.name}</strong>?</p>
                 <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-start gap-2">
                     <Trash2 size={14} className="shrink-0 mt-0.5" />
-                    <span>Atenção: Esta ação removerá permanentemente o acesso e todos os dados deste usuário do sistema. Não é possível desfazer esta operação.</span>
+                    <span>Esta ação removerá permanentemente a conta e todos os dados deste usuário. Não é possível desfazer.</span>
                 </div>
             </div>
         } 
-        confirmText="Sim, Excluir Usuário" 
+        confirmText="Sim, Excluir" 
         isLoading={isDeleting}
       />
       {userToEdit && <EditUserByAdminModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} userToEdit={userToEdit} onSave={handleUserUpdate} />}

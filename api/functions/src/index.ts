@@ -10,66 +10,80 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 const db = admin.firestore();
+const auth = admin.auth();
 
 // Configuração Global para a região correta
 setGlobalOptions({ region: "southamerica-east1" });
 
 // ========================================================================
-//   HTTPS onCall Functions (Gerenciamento automático de CORS e Auth)
+//   HTTPS onCall Functions
 // ========================================================================
 
 export const deleteUserAccountV2 = https.onCall({ 
     region: "southamerica-east1",
-    cors: true 
+    cors: true,
+    maxInstances: 10
 }, async (request) => {
-    // 1. Validar Autenticação
+    // 1. Validar Autenticação do solicitante
     if (!request.auth) {
-        throw new https.HttpsError('unauthenticated', 'Ação não autorizada. Por favor, faça login.');
+        throw new https.HttpsError('unauthenticated', 'Ação não autorizada. Por favor, faça login novamente.');
     }
 
     const { userIdToDelete } = request.data;
     if (!userIdToDelete) {
-        throw new https.HttpsError('invalid-argument', 'ID do usuário a ser deletado é obrigatório.');
+        throw new https.HttpsError('invalid-argument', 'O ID do usuário a ser excluído é obrigatório.');
     }
 
     const callingUserUid = request.auth.uid;
 
     try {
+        logger.info(`[DeleteUser] Solicitação de ${callingUserUid} para excluir ${userIdToDelete}`);
+
         // 2. Verificar permissões de Administrador no Firestore
         const callingUserSnap = await db.collection("users").doc(callingUserUid).get();
         const callingUserData = callingUserSnap.data();
 
         if (!callingUserData || callingUserData.role !== "Administrador") {
-            throw new https.HttpsError('permission-denied', 'Apenas administradores podem excluir usuários permanentemente.');
+            logger.warn(`[DeleteUser] Tentativa de exclusão negada: Usuário ${callingUserUid} não é Administrador.`);
+            throw new https.HttpsError('permission-denied', 'Apenas administradores podem excluir usuários.');
         }
 
-        // 3. Impedir auto-exclusão por esta via (deve ser feita pelo perfil)
+        // 3. Impedir auto-exclusão por esta via
         if (callingUserUid === userIdToDelete) {
-            throw new https.HttpsError('permission-denied', 'Um administrador não pode excluir a própria conta através desta ferramenta.');
+            throw new https.HttpsError('permission-denied', 'Você não pode excluir sua própria conta por aqui. Use as configurações de perfil.');
         }
 
-        // 4. Executar Exclusão no Auth
+        // 4. Executar Exclusão no Firebase Auth
         try {
-            await admin.auth().deleteUser(userIdToDelete);
-            logger.info(`Usuário ${userIdToDelete} removido do Auth.`);
+            await auth.deleteUser(userIdToDelete);
+            logger.info(`[DeleteUser] Usuário ${userIdToDelete} removido do Authentication.`);
         } catch (authError: any) {
-            if (authError.code !== 'auth/user-not-found') {
-                throw authError;
+            if (authError.code === 'auth/user-not-found') {
+                logger.warn(`[DeleteUser] Usuário ${userIdToDelete} não encontrado no Auth, prosseguindo com limpeza de dados.`);
+            } else {
+                logger.error(`[DeleteUser] Erro ao excluir do Auth:`, authError);
+                throw new https.HttpsError('internal', `Erro no Authentication: ${authError.message}`);
             }
-            logger.warn(`Usuário ${userIdToDelete} não existia no Auth, prosseguindo com limpeza do DB.`);
         }
 
-        // 5. Executar Exclusão no Firestore
+        // 5. Executar Exclusão no Firestore (incluindo subcoleções via Recursive Delete)
         const userDocRef = db.collection("users").doc(userIdToDelete);
-        await userDocRef.delete();
-        logger.info(`Dados do usuário ${userIdToDelete} removidos do Firestore.`);
+        try {
+            // Tenta deletar o documento e suas subcoleções (como notificações)
+            await db.recursiveDelete(userDocRef);
+            logger.info(`[DeleteUser] Dados do usuário ${userIdToDelete} removidos do Firestore recursivamente.`);
+        } catch (dbError: any) {
+            logger.error(`[DeleteUser] Erro ao excluir do Firestore:`, dbError);
+            // Se o recursiveDelete falhar, tenta pelo menos o documento principal
+            await userDocRef.delete();
+        }
 
-        return { success: true, message: "Usuário e dados excluídos com sucesso." };
+        return { success: true, message: "Usuário e todos os seus dados foram excluídos permanentemente." };
 
     } catch (error: any) {
         if (error instanceof https.HttpsError) throw error;
-        logger.error("Erro interno em deleteUserAccountV2:", error);
-        throw new https.HttpsError('internal', error.message || 'Falha ao processar a exclusão.');
+        logger.error("[DeleteUser] Erro crítico não tratado:", error);
+        throw new https.HttpsError('internal', error.message || 'Falha interna ao processar a exclusão.');
     }
 });
 
@@ -97,7 +111,7 @@ export const createCongregationAndAdminV2 = https.onCall({ region: "southamerica
         throw new https.HttpsError('already-exists', "Uma congregação com este número já existe.");
     }
 
-    const newUser = await admin.auth().createUser({ 
+    const newUser = await auth.createUser({ 
         email: adminEmail, 
         password: adminPassword, 
         displayName: adminName 
@@ -154,7 +168,7 @@ export const requestPasswordResetV2 = https.onCall({ region: "southamerica-east1
     if (!email) throw new https.HttpsError('invalid-argument', 'Email obrigatório.');
     
     try {
-        const user = await admin.auth().getUserByEmail(email);
+        const user = await auth.getUserByEmail(email);
         const token = crypto.randomUUID();
         await db.collection("resetTokens").doc(token).set({
             uid: user.uid,
@@ -177,7 +191,7 @@ export const resetPasswordWithTokenV2 = https.onCall({ region: "southamerica-eas
         throw new https.HttpsError('failed-precondition', "Token inválido ou expirado.");
     }
     
-    await admin.auth().updateUser(tokenDoc.data()!.uid, { password: newPassword });
+    await auth.updateUser(tokenDoc.data()!.uid, { password: newPassword });
     await tokenRef.delete();
     return { success: true };
 });
@@ -190,18 +204,15 @@ export const resetPasswordWithTokenV2 = https.onCall({ region: "southamerica-eas
 export const onDeleteTerritory = onDocumentDeleted(
   "congregations/{congregationId}/territories/{territoryId}",
   async (event) => {
-    if (!event.data) {
-      logger.warn(`[onDeleteTerritory] Evento de deleção sem dados. Ignorando.`);
-      return null;
-    }
+    if (!event.data) return null;
     const ref = event.data.ref;
     try {
-      await admin.firestore().recursiveDelete(ref);
-      logger.log(`[onDeleteTerritory] Território e subcoleções deletadas.`);
+      await db.recursiveDelete(ref);
+      logger.log(`[Trigger] Território e subcoleções deletadas.`);
       return { success: true };
     } catch (error) {
-      logger.error(`[onDeleteTerritory] Erro ao deletar:`, error);
-      throw new https.HttpsError("internal", "Falha ao deletar território recursivamente.");
+      logger.error(`[Trigger] Erro ao deletar território:`, error);
+      return null;
     }
   }
 );
@@ -210,18 +221,15 @@ export const onDeleteTerritory = onDocumentDeleted(
 export const onDeleteQuadra = onDocumentDeleted(
   "congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}",
   async (event) => {
-    if (!event.data) {
-      logger.warn(`[onDeleteQuadra] Evento de deleção sem dados. Ignorando.`);
-      return null;
-    }
+    if (!event.data) return null;
     const ref = event.data.ref;
     try {
-      await admin.firestore().recursiveDelete(ref);
-      logger.log(`[onDeleteQuadra] Quadra e subcoleções deletadas.`);
+      await db.recursiveDelete(ref);
+      logger.log(`[Trigger] Quadra e subcoleções deletadas.`);
       return { success: true };
     } catch (error) {
-      logger.error(`[onDeleteQuadra] Erro ao deletar:`, error);
-      throw new https.HttpsError("internal", "Falha ao deletar quadra recursivamente.");
+      logger.error(`[Trigger] Erro ao deletar quadra:`, error);
+      return null;
     }
   }
 );
