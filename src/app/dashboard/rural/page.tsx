@@ -123,7 +123,7 @@ function RuralPage() {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-bold">Territórios Rurais</h1>
-            <p className="text-muted-foreground">{user?.congregationName || 'Sua Congregação'}</p>
+            <p className="text-muted-foreground">{congregation?.name || user?.congregationName || 'Sua Congregação'}</p>
           </div>
           {isAdmin && user.congregationId && (
             <>
