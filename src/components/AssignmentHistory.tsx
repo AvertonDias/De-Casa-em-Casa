@@ -135,7 +135,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                               <span className="text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-bold uppercase">Transferido</span>
                             </div>
                             <p className="text-[11px] text-muted-foreground/70 mt-0.5">
-                              Transferido em: {format(t.completedAt.toDate(), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
+                              Transferido em: {format(t.completedAt.toDate(), "dd/MM/yy", { locale: ptBR })}
                             </p>
                           </div>
                           {isAdmin && (
