@@ -77,6 +77,9 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
               const hasTransfers = transfers.length > 0;
               const isExpanded = expandedGroups[cycleId];
 
+              // Verificar se está atrasado
+              const isOverdue = isCurrent && (displayHead as Assignment).dueDate && (displayHead as Assignment).dueDate.toDate() < new Date();
+
               return (
                 <div key={cycleId} className={cn(
                   "rounded-lg border transition-all",
@@ -97,7 +100,12 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                       <div className="text-[13px] text-muted-foreground flex flex-wrap gap-x-4 mt-1">
                         <span>Designado: {format(displayHead.assignedAt.toDate(), "dd/MM/yy")}</span>
                         {isCurrent ? (
-                          <span className="font-bold text-primary/80">Devolver até: {format((displayHead as Assignment).dueDate.toDate(), "dd/MM/yyyy", { locale: ptBR })}</span>
+                          <span className={cn(
+                            "font-bold",
+                            isOverdue ? "text-red-500" : "text-primary/80"
+                          )}>
+                            Devolver até: {format((displayHead as Assignment).dueDate.toDate(), "dd/MM/yyyy", { locale: ptBR })}
+                          </span>
                         ) : (
                           head && <span>Devolvido: {format((head as AssignmentHistoryLog).completedAt.toDate(), "dd/MM/yy")}</span>
                         )}
