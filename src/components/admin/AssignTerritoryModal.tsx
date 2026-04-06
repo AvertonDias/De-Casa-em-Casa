@@ -35,41 +35,53 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
 
   useEffect(() => {
     if (isOpen) {
-      const newAssignmentDate = new Date();
-      newAssignmentDate.setMinutes(newAssignmentDate.getMinutes() - newAssignmentDate.getTimezoneOffset());
-      const newDueDate = new Date(newAssignmentDate);
-      newDueDate.setMonth(newDueDate.getMonth() + defaultMonths);
+      const now = new Date();
+      // Formatação local para evitar problemas de fuso horário no input date
+      const formatLocal = (date: Date) => {
+        const d = new Date(date);
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        return d.toISOString().split('T')[0];
+      };
 
-      setAssignmentDate(newAssignmentDate.toISOString().split('T')[0]);
-      setDueDate(newDueDate.toISOString().split('T')[0]);
+      const todayStr = formatLocal(now);
+      setAssignmentDate(todayStr);
+
+      if (territory?.assignment?.dueDate) {
+        // Reatribuição: Usa a data de devolução que já estava designada
+        setDueDate(formatLocal(territory.assignment.dueDate.toDate()));
+      } else {
+        // Nova designação: Calcula com base no prazo padrão
+        const futureDate = new Date(now);
+        futureDate.setMonth(futureDate.getMonth() + defaultMonths);
+        setDueDate(formatLocal(futureDate));
+      }
       
       setSelectedUid('');
       setCustomName('');
       setError('');
       setUserSearchTerm(''); 
     }
-  }, [isOpen, defaultMonths]);
+  }, [isOpen, territory, defaultMonths]);
   
-  useEffect(() => {
-    if (assignmentDate) {
-      const baseDate = new Date(assignmentDate);
-      baseDate.setMinutes(baseDate.getMinutes() + baseDate.getTimezoneOffset());
+  // Função para recalcular a devolução quando a data de designação é alterada manualmente
+  const handleAssignmentDateChange = (newDate: string) => {
+    setAssignmentDate(newDate);
+    if (newDate && !territory?.assignment) {
+      // Apenas auto-calcula para novas designações para manter a flexibilidade na reatribuição
+      const baseDate = new Date(newDate + 'T12:00:00');
       if (!isNaN(baseDate.getTime())) {
-          const newDueDate = new Date(baseDate);
-          newDueDate.setMonth(newDueDate.getMonth() + defaultMonths);
-          setDueDate(newDueDate.toISOString().split('T')[0]);
+          const futureDate = new Date(baseDate);
+          futureDate.setMonth(futureDate.getMonth() + defaultMonths);
+          setDueDate(futureDate.toISOString().split('T')[0]);
       }
     }
-  }, [assignmentDate, defaultMonths]);
-
+  };
 
   const handleDueDateSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const monthsToAdd = parseInt(event.target.value, 10);
     if (isNaN(monthsToAdd) || !assignmentDate) return;
 
-    const baseDate = new Date(assignmentDate);
-    baseDate.setMinutes(baseDate.getMinutes() + baseDate.getTimezoneOffset());
-
+    const baseDate = new Date(assignmentDate + 'T12:00:00');
     if (!isNaN(baseDate.getTime())) {
       const futureDate = new Date(baseDate);
       futureDate.setMonth(futureDate.getMonth() + monthsToAdd);
@@ -191,11 +203,21 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
           <div className="flex gap-4">
             <div className="w-1/2">
               <label className="block text-sm font-medium mb-1">Data de Designação:</label>
-              <input type="date" value={assignmentDate} onChange={(e) => setAssignmentDate(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"/>
+              <input 
+                type="date" 
+                value={assignmentDate} 
+                onChange={(e) => handleAssignmentDateChange(e.target.value)} 
+                className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+              />
             </div>
             <div className="w-1/2">
               <label className="block text-sm font-medium mb-1">Data para Devolução:</label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"/>
+              <input 
+                type="date" 
+                value={dueDate} 
+                onChange={(e) => setDueDate(e.target.value)} 
+                className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+              />
             </div>
           </div>
           
