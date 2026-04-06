@@ -44,13 +44,14 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
       };
 
       const todayStr = formatLocal(now);
-      setAssignmentDate(todayStr);
 
-      if (territory?.assignment?.dueDate) {
-        // Reatribuição: Usa a data de devolução que já estava designada
+      if (territory?.assignment) {
+        // REATRIBUIÇÃO: Mantém as datas originais da primeira designação deste ciclo
+        setAssignmentDate(formatLocal(territory.assignment.assignedAt.toDate()));
         setDueDate(formatLocal(territory.assignment.dueDate.toDate()));
       } else {
-        // Nova designação: Calcula com base no prazo padrão
+        // NOVA DESIGNAÇÃO: Inicializa com hoje e calcula prazo
+        setAssignmentDate(todayStr);
         const futureDate = new Date(now);
         futureDate.setMonth(futureDate.getMonth() + defaultMonths);
         setDueDate(formatLocal(futureDate));
@@ -63,11 +64,9 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
     }
   }, [isOpen, territory, defaultMonths]);
   
-  // Função para recalcular a devolução quando a data de designação é alterada manualmente
   const handleAssignmentDateChange = (newDate: string) => {
     setAssignmentDate(newDate);
     if (newDate && !territory?.assignment) {
-      // Apenas auto-calcula para novas designações para manter a flexibilidade na reatribuição
       const baseDate = new Date(newDate + 'T12:00:00');
       if (!isNaN(baseDate.getTime())) {
           const futureDate = new Date(baseDate);
@@ -132,11 +131,13 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
 
   if (!isOpen || !territory) return null;
 
+  const isReassigning = !!territory.assignment;
+
   return (
     <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4">
       <div className="bg-card text-card-foreground p-6 rounded-lg shadow-xl w-full max-w-md relative">
         <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground hover:text-white"><X /></button>
-        <h2 className="text-xl font-bold">Designar Território</h2>
+        <h2 className="text-xl font-bold">{isReassigning ? 'Reatribuir Território' : 'Designar Território'}</h2>
         
         <p className="text-muted-foreground text-sm mt-1 mb-4">
           Atribua o território <span className="font-semibold text-primary">{territory.number} - {territory.name}</span> a um publicador ou grupo.
@@ -207,8 +208,10 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
                 type="date" 
                 value={assignmentDate} 
                 onChange={(e) => handleAssignmentDateChange(e.target.value)} 
-                className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={isReassigning}
+                className="w-full bg-input rounded-md p-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
               />
+              {isReassigning && <p className="text-[10px] text-muted-foreground mt-1">Mantida a data original deste ciclo.</p>}
             </div>
             <div className="w-1/2">
               <label className="block text-sm font-medium mb-1">Data para Devolução:</label>
@@ -221,18 +224,20 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
             </div>
           </div>
           
-          <div>
-            <label className="block text-sm font-medium mb-1">Definir Devolução Rápida:</label>
-            <select 
-              onChange={handleDueDateSelect} 
-              className="w-full bg-input rounded-md p-2 border border-border text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              defaultValue={String(defaultMonths)}
-            >
-              {Array.from(Array(12).keys()).map(i => (
-                <option key={i + 1} value={i + 1}>Em {i + 1} {i + 1 > 1 ? 'meses' : 'mês'}</option>
-              ))}
-            </select>
-          </div>
+          {!isReassigning && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Definir Devolução Rápida:</label>
+              <select 
+                onChange={handleDueDateSelect} 
+                className="w-full bg-input rounded-md p-2 border border-border text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                defaultValue={String(defaultMonths)}
+              >
+                {Array.from(Array(12).keys()).map(i => (
+                  <option key={i + 1} value={i + 1}>Em {i + 1} {i + 1 > 1 ? 'meses' : 'mês'}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 

@@ -133,7 +133,7 @@ export default function TerritoryAssignmentPanel() {
                 assignment: {
                     uid: assignedUser.uid,
                     name: assignedUser.name,
-                    assignedAt: assignedAt,
+                    assignedAt: assignedAt, // Será a original se for reatribuição
                     dueDate: dueDateObj,
                     isReassigned: isReassignment // Marca se foi uma troca direta
                 },
@@ -146,7 +146,7 @@ export default function TerritoryAssignmentPanel() {
                     uid: data.assignment!.uid,
                     name: data.assignment!.name,
                     assignedAt: data.assignment!.assignedAt,
-                    completedAt: assignedAt, // A conclusão do anterior é o início do novo
+                    completedAt: Timestamp.now(), // A transferência aconteceu hoje
                     isCompletion: false // Marcar como transferência, não conclusão
                 };
                 
@@ -162,7 +162,6 @@ export default function TerritoryAssignmentPanel() {
 
         if (!assignedUserId.startsWith('custom_')) {
             const notificationRef = collection(db, `users/${assignedUserId}/notifications`);
-            // Define o link direto para o território (em vez da lista geral)
             const territoryLink = currentTerritory?.type === 'rural' ? `/dashboard/rural/${territoryId}` : `/dashboard/territorios/${territoryId}`;
             
             await addDoc(notificationRef, {
