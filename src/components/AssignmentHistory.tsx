@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser } from '@/contexts/UserContext';
@@ -53,7 +54,9 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground">Designado: {format(log.assignedAt.toDate(), "dd/MM/yy")}</p>
-                  <p className="text-sm text-muted-foreground">Devolvido: {log.completedAt ? format(log.completedAt.toDate(), "dd/MM/yy") : 'Não devolvido'}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {log.isCompletion === false ? 'Transferido em:' : 'Devolvido:'} {log.completedAt ? format(log.completedAt.toDate(), "dd/MM/yy") : 'Não devolvido'}
+                  </p>
                 </div>
                 {/* Edit and Delete actions are only available for Admins */}
                 {isAdmin && (
