@@ -34,13 +34,11 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                 <div>
                   <p className="font-semibold text-base">{currentAssignment.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {currentAssignment.isReassigned ? 'Reatribuído em:' : 'Designado em:'} {format(currentAssignment.assignedAt.toDate(), "dd/MM/yy", { locale: ptBR })}
+                    {currentAssignment.isReassigned 
+                      ? `Reatribuído em: ${currentAssignment.transferredAt ? format(currentAssignment.transferredAt.toDate(), "dd/MM/yy", { locale: ptBR }) : format(currentAssignment.assignedAt.toDate(), "dd/MM/yy", { locale: ptBR })}`
+                      : `Designado em: ${format(currentAssignment.assignedAt.toDate(), "dd/MM/yy", { locale: ptBR })}`
+                    }
                   </p>
-                  {currentAssignment.isReassigned && currentAssignment.transferredAt && (
-                    <p className="text-xs text-muted-foreground italic">
-                      Transferência feita em: {format(currentAssignment.transferredAt.toDate(), "dd/MM/yy", { locale: ptBR })}
-                    </p>
-                  )}
                   <p className="text-sm font-semibold text-primary">
                     Devolver até: {format(currentAssignment.dueDate.toDate(), "dd/MM/yyyy", { locale: ptBR })}
                   </p>
