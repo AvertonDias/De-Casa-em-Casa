@@ -92,7 +92,6 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                         <p className={cn("font-bold truncate text-base", isCurrent ? "text-primary" : "text-foreground")}>
                           {displayHead.name}
                         </p>
-                        {isCurrent && <span className="text-[10px] bg-primary text-white px-1.5 py-0.5 rounded-full font-black uppercase tracking-tight">Atual</span>}
                       </div>
                       
                       <div className="text-[13px] text-muted-foreground flex flex-wrap gap-x-4 mt-1">
