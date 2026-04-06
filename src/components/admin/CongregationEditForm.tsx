@@ -14,7 +14,12 @@ import type { Congregation } from '@/types/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 
-export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess: () => void }) {
+interface CongregationEditFormProps {
+  onSaveSuccess: () => void;
+  onDirtyChange?: (isDirty: boolean) => void;
+}
+
+export default function CongregationEditForm({ onSaveSuccess, onDirtyChange }: CongregationEditFormProps) {
   const { user } = useUser();
   const { toast } = useToast();
 
@@ -57,6 +62,32 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
       });
     }
   }, [user?.congregationId, defaultAssignmentTemplate, defaultPendingTemplate, defaultOverdueTemplate]);
+
+  const hasChanges = 
+    congregationName.trim() !== (originalData.name || '').trim() || 
+    congregationNumber.trim() !== (originalData.number || '').trim() ||
+    templatePending !== (originalData.whatsappTemplates?.pendingApproval || defaultPendingTemplate) ||
+    templateAssignment !== (originalData.whatsappTemplates?.assignment || defaultAssignmentTemplate) ||
+    templateOverdue !== (originalData.whatsappTemplates?.overdueReminder || defaultOverdueTemplate) ||
+    whatsappEnabled !== (originalData.whatsappEnabled !== false) ||
+    Number(defaultAssignmentMonths) !== (originalData.defaultAssignmentMonths || 2);
+
+  // Avisar o pai se houver alterações não salvas
+  useEffect(() => {
+    onDirtyChange?.(hasChanges);
+  }, [hasChanges, onDirtyChange]);
+
+  // Prevenir fechamento da aba/janela se houver alterações
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasChanges]);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,14 +164,6 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
 
 
   const isDisabled = user?.role !== 'Administrador';
-  const hasChanges = 
-    congregationName.trim() !== (originalData.name || '').trim() || 
-    congregationNumber.trim() !== (originalData.number || '').trim() ||
-    templatePending !== (originalData.whatsappTemplates?.pendingApproval || defaultPendingTemplate) ||
-    templateAssignment !== (originalData.whatsappTemplates?.assignment || defaultAssignmentTemplate) ||
-    templateOverdue !== (originalData.whatsappTemplates?.overdueReminder || defaultOverdueTemplate) ||
-    whatsappEnabled !== (originalData.whatsappEnabled !== false) ||
-    Number(defaultAssignmentMonths) !== (originalData.defaultAssignmentMonths || 2);
 
   const pendingApprovalTags = [
     { tag: "[Nome do Usuário]", label: "Nome do Usuário" },
@@ -327,4 +350,4 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
       </form>
     </div>
   );
-};
+}
