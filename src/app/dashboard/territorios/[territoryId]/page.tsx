@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory, Activity, Quadra, AssignmentHistoryLog } from "@/types/types"; 
-import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, History, Loader } from "lucide-react";
+import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, History, Loader, Navigation } from "lucide-react";
 import Link from 'next/link';
 
 import ActivityHistory from '@/components/ActivityHistory';
@@ -292,13 +292,24 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
 
   const mapSection = territory.mapLink && (
     <div className="bg-card p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-bold mb-4 flex items-center gap-3">
-            <Map className="text-primary" />
-            Mapa do Território
-        </h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+            <h2 className="text-xl font-bold flex items-center gap-3">
+                <Map className="text-primary" />
+                Mapa do Território
+            </h2>
+            <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
+                <a href={territory.mapLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
+                    <Navigation size={14} className="text-blue-500" />
+                    <span>Usar GPS (Abrir App)</span>
+                </a>
+            </Button>
+        </div>
         <div className="aspect-video w-full overflow-hidden rounded-lg border border-border/50 bg-muted">
             <GoogleMapEmbed mapLink={territory.mapLink} />
         </div>
+        <p className="text-[10px] text-muted-foreground mt-2 text-center">
+            Dica: Para ver sua localização em tempo real sobre o mapa, clique no botão acima e use o app oficial do Google Maps.
+        </p>
     </div>
   );
 

@@ -53,6 +53,7 @@ export function GoogleMapEmbed({ mapLink }: GoogleMapEmbedProps) {
       src={embedUrl}
       title="Mapa do Território"
       className="border-0 rounded-lg"
+      allow="geolocation"
     ></iframe>
   );
 }
