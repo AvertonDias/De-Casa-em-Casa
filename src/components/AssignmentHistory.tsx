@@ -107,7 +107,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                       {hasTransfers && (
                         <button 
                           onClick={() => toggleGroup(cycleId)}
-                          className="mt-2 text-xs flex items-center gap-1.5 text-primary hover:text-primary/80 font-bold transition-colors"
+                          className="mt-2 text-[13px] flex items-center gap-1.5 text-primary hover:underline font-bold transition-colors"
                         >
                           {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                           {transfers.length} {transfers.length === 1 ? 'Transferência anterior' : 'Transferências anteriores'}
