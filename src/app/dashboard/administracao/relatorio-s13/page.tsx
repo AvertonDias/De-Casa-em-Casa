@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
@@ -217,7 +216,14 @@ export default function S13ReportPage() {
                   assignedAt: t.assignment.assignedAt,
                 });
               }
-              const display = Array(4).fill(null).map((_, i) => allAssignments[i] || null);
+              
+              // Ordenar cronologicamente para preencher as colunas corretamente
+              allAssignments.sort((a, b) => (a.assignedAt?.toMillis() || 0) - (b.assignedAt?.toMillis() || 0));
+
+              // Pegamos as 4 mais recentes para caber nas colunas do formulário S-13
+              const recentAssignments = allAssignments.slice(-4);
+              const display = Array(4).fill(null).map((_, i) => recentAssignments[i] || null);
+              
               const isEven = index % 2 === 0;
               const bgColor = isEven ? '#e5e7eb' : 'transparent';
               
@@ -273,10 +279,14 @@ export default function S13ReportPage() {
                 assignedAt: t.assignment.assignedAt,
               });
             }
+            
+            allAssignments.sort((a, b) => (a.assignedAt?.toMillis() || 0) - (b.assignedAt?.toMillis() || 0));
+            const recentAssignments = allAssignments.slice(-4);
+
             return (
               <div key={t.id} className="border border-border rounded-lg p-4">
                 <h3 className="font-bold text-lg mb-2">Território {t.number}</h3>
-                {allAssignments.length > 0 ? allAssignments.slice(0, 4).map((a, i) => (
+                {recentAssignments.length > 0 ? recentAssignments.map((a, i) => (
                   <div key={i} className="text-sm border-t border-border mt-2 pt-2">
                     <p><span className="font-semibold">Designado a:</span> {a.name || "N/A"}</p>
                     <p><span className="font-semibold">Data:</span> {a.assignedAt ? format(a.assignedAt.toDate(), "dd/MM/yy") : "N/A"}</p>

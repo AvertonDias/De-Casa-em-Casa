@@ -115,17 +115,43 @@ export default function TerritoryAssignmentPanel() {
     
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
     
-    const assignmentData = {
-        uid: assignedUser.uid,
-        name: assignedUser.name,
-        assignedAt: Timestamp.fromDate(new Date(assignmentDate + 'T12:00:00')),
-        dueDate: Timestamp.fromDate(new Date(dueDate + 'T12:00:00')),
-    };
+    const assignedAt = Timestamp.fromDate(new Date(assignmentDate + 'T12:00:00'));
+    const dueDateObj = Timestamp.fromDate(new Date(dueDate + 'T12:00:00'));
 
     setIsAssignModalOpen(false);
 
     try {
-        await updateDoc(territoryRef, { status: 'designado', assignment: assignmentData });
+        await runTransaction(db, async (transaction) => {
+            const territoryDoc = await transaction.get(territoryRef);
+            if (!territoryDoc.exists()) throw new Error("Território não encontrado.");
+
+            const data = territoryDoc.data() as Territory;
+            const updates: any = {
+                status: 'designado',
+                assignment: {
+                    uid: assignedUser.uid,
+                    name: assignedUser.name,
+                    assignedAt: assignedAt,
+                    dueDate: dueDateObj,
+                },
+                lastUpdate: serverTimestamp()
+            };
+
+            // Se já estava designado, movemos a designação anterior para o histórico (reatribuição)
+            if (data.status === 'designado' && data.assignment) {
+                const historyLog: AssignmentHistoryLog = {
+                    uid: data.assignment.uid,
+                    name: data.assignment.name,
+                    assignedAt: data.assignment.assignedAt,
+                    completedAt: assignedAt, // A conclusão do anterior é o início do novo
+                };
+                
+                const currentHistory = data.assignmentHistory || [];
+                updates.assignmentHistory = [...currentHistory, historyLog];
+            }
+
+            transaction.update(territoryRef, updates);
+        });
         
         const assignedUserId = assignedUser.uid;
         const currentTerritory = territories.find(t => t.id === territoryId);
@@ -147,7 +173,7 @@ export default function TerritoryAssignmentPanel() {
         
         const userForWhatsapp = users.find(u => u.uid === assignedUser.uid);
         if (userForWhatsapp?.whatsapp && !assignedUser.uid.startsWith('custom_')) {
-            const formattedDueDate = format(assignmentData.dueDate.toDate(), 'dd/MM/yyyy');
+            const formattedDueDate = format(dueDateObj.toDate(), 'dd/MM/yyyy');
             const link = `${window.location.origin}/dashboard/meus-territorios`;
             
             const defaultTemplate = "Olá, o território *[Território]* foi designado para você! Devolva até [Data de Devolução]. Acesse o app para ver os detalhes: [Link]";
