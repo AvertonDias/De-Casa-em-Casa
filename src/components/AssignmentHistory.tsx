@@ -131,10 +131,10 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                         <div key={idx} className="p-3 pl-8 flex justify-between items-start group">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <p className="text-sm font-semibold truncate text-muted-foreground">{t.name}</p>
-                              <span className="text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-bold uppercase">Transferido</span>
+                              <p className="text-sm font-semibold truncate text-foreground">{t.name}</p>
+                              <span className="text-[9px] bg-muted text-foreground px-1.5 py-0.5 rounded font-bold uppercase">Transferido</span>
                             </div>
-                            <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                            <p className="text-[11px] text-foreground/70 mt-0.5">
                               Transferido em: {format(t.completedAt.toDate(), "dd/MM/yy", { locale: ptBR })}
                             </p>
                           </div>
