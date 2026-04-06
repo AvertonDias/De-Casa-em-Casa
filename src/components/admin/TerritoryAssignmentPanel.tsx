@@ -126,6 +126,8 @@ export default function TerritoryAssignmentPanel() {
             if (!territoryDoc.exists()) throw new Error("Território não encontrado.");
 
             const data = territoryDoc.data() as Territory;
+            const isReassignment = data.status === 'designado' && !!data.assignment;
+
             const updates: any = {
                 status: 'designado',
                 assignment: {
@@ -133,16 +135,17 @@ export default function TerritoryAssignmentPanel() {
                     name: assignedUser.name,
                     assignedAt: assignedAt,
                     dueDate: dueDateObj,
+                    isReassigned: isReassignment // Marca se foi uma troca direta
                 },
                 lastUpdate: serverTimestamp()
             };
 
             // Se já estava designado, movemos a designação anterior para o histórico (reatribuição)
-            if (data.status === 'designado' && data.assignment) {
+            if (isReassignment) {
                 const historyLog: AssignmentHistoryLog = {
-                    uid: data.assignment.uid,
-                    name: data.assignment.name,
-                    assignedAt: data.assignment.assignedAt,
+                    uid: data.assignment!.uid,
+                    name: data.assignment!.name,
+                    assignedAt: data.assignment!.assignedAt,
                     completedAt: assignedAt, // A conclusão do anterior é o início do novo
                 };
                 

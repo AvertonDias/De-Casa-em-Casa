@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser } from '@/contexts/UserContext';
@@ -35,7 +34,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                 <div>
                   <p className="font-semibold text-base">{currentAssignment.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    Designado em: {format(currentAssignment.assignedAt.toDate(), "dd/MM/yy", { locale: ptBR })}
+                    {currentAssignment.isReassigned ? 'Reatribuído em:' : 'Designado em:'} {format(currentAssignment.assignedAt.toDate(), "dd/MM/yy", { locale: ptBR })}
                   </p>
                   <p className="text-sm font-semibold text-primary">
                     Devolver até: {format(currentAssignment.dueDate.toDate(), "dd/MM/yyyy", { locale: ptBR })}

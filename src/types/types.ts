@@ -171,6 +171,7 @@ export interface Assignment {
   name: string;     // Nome do usuário designado
   assignedAt: Timestamp; // Data em que foi atribuído
   dueDate: Timestamp;    // Data em que deve ser devolvido
+  isReassigned?: boolean; // Flag para diferenciar reatribuição direta
 }
 
 export interface AssignmentHistoryLog {
