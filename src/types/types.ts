@@ -172,6 +172,7 @@ export interface Assignment {
   assignedAt: Timestamp; // Data em que foi atribuído
   dueDate: Timestamp;    // Data em que deve ser devolvido
   isReassigned?: boolean; // Flag para diferenciar reatribuição direta
+  transferredAt?: Timestamp; // Data em que a transferência ocorreu
 }
 
 export interface AssignmentHistoryLog {

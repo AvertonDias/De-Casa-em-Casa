@@ -135,7 +135,8 @@ export default function TerritoryAssignmentPanel() {
                     name: assignedUser.name,
                     assignedAt: assignedAt, // Será a original se for reatribuição
                     dueDate: dueDateObj,
-                    isReassigned: isReassignment // Marca se foi uma troca direta
+                    isReassigned: isReassignment, // Marca se foi uma troca direta
+                    transferredAt: isReassignment ? Timestamp.now() : null // Data do ato da transferência
                 },
                 lastUpdate: serverTimestamp()
             };
@@ -453,7 +454,7 @@ export default function TerritoryAssignmentPanel() {
                               </span>
                           </div>
                           <div className="col-span-12 sm:col-span-4 text-sm text-muted-foreground text-left">
-                              {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yy', { locale: ptBR })})` : ''}
+                              {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/yy', { locale: ptBR })})` : ''}
                           </div>
                        </div>
                        <div className="flex items-center justify-end flex-shrink-0 ml-2 sm:col-span-2">
