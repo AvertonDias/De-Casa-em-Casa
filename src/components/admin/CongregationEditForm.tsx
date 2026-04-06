@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '../ui/textarea';
 import type { Congregation } from '@/types/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess: () => void }) {
   const { user } = useUser();
@@ -23,6 +24,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
   const [templatePending, setTemplatePending] = useState('');
   const [templateOverdue, setTemplateOverdue] = useState('');
   const [defaultAssignmentMonths, setDefaultAssignmentMonths] = useState(2);
+  const [whatsappEnabled, setWhatsappEnabled] = useState(true);
   
   const [originalData, setOriginalData] = useState<Partial<Congregation>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -50,6 +52,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
           setTemplateAssignment(data.whatsappTemplates?.assignment || defaultAssignmentTemplate);
           setTemplateOverdue(data.whatsappTemplates?.overdueReminder || defaultOverdueTemplate);
           setDefaultAssignmentMonths(data.defaultAssignmentMonths || 2);
+          setWhatsappEnabled(data.whatsappEnabled !== false);
         }
       });
     }
@@ -73,6 +76,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
             name: congregationName.trim(), 
             number: congregationNumber.trim(),
             defaultAssignmentMonths: Number(defaultAssignmentMonths),
+            whatsappEnabled: whatsappEnabled,
             whatsappTemplates: {
                 pendingApproval: templatePending,
                 assignment: templateAssignment,
@@ -135,6 +139,7 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
     templatePending !== (originalData.whatsappTemplates?.pendingApproval || defaultPendingTemplate) ||
     templateAssignment !== (originalData.whatsappTemplates?.assignment || defaultAssignmentTemplate) ||
     templateOverdue !== (originalData.whatsappTemplates?.overdueReminder || defaultOverdueTemplate) ||
+    whatsappEnabled !== (originalData.whatsappEnabled !== false) ||
     Number(defaultAssignmentMonths) !== (originalData.defaultAssignmentMonths || 2);
 
   const pendingApprovalTags = [
@@ -216,6 +221,18 @@ export default function CongregationEditForm({ onSaveSuccess }: { onSaveSuccess:
             <h3 className="text-xl font-bold flex items-center gap-2 mb-3"><MessageSquare/>Modelos de Mensagem do WhatsApp</h3>
             
             <div className="space-y-6">
+                <div className="flex items-center justify-between py-4 border-b border-border/50">
+                    <div className="space-y-0.5">
+                        <Label className="text-base font-bold">Ativar Notificações via WhatsApp</Label>
+                        <p className="text-sm text-muted-foreground">Define se o sistema deve abrir o WhatsApp para enviar as mensagens abaixo.</p>
+                    </div>
+                    <Switch 
+                        checked={whatsappEnabled} 
+                        onCheckedChange={setWhatsappEnabled} 
+                        disabled={isDisabled}
+                    />
+                </div>
+
                 <div>
                      <div className="flex justify-between items-center mb-1">
                         <Label htmlFor="template-pending" className="text-md font-bold text-foreground">Ao solicitar acesso (para avisar um Dirigente):</Label>

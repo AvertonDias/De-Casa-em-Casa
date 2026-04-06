@@ -89,6 +89,8 @@ export interface Congregation {
         overdueReminder: string;
     };
 
+    whatsappEnabled?: boolean; // Novo campo para ativar/desativar WhatsApp
+
     defaultAssignmentMonths?: number;
 
     createdAt?: Timestamp;

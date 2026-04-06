@@ -176,7 +176,7 @@ export default function TerritoryAssignmentPanel() {
         }
         
         const userForWhatsapp = users.find(u => u.uid === assignedUser.uid);
-        if (userForWhatsapp?.whatsapp && !assignedUser.uid.startsWith('custom_')) {
+        if (congregation?.whatsappEnabled !== false && userForWhatsapp?.whatsapp && !assignedUser.uid.startsWith('custom_')) {
             const formattedDueDate = format(dueDateObj.toDate(), 'dd/MM/yyyy');
             const link = `${window.location.origin}/dashboard/meus-territorios`;
             
@@ -323,6 +323,15 @@ export default function TerritoryAssignmentPanel() {
   
   const handleNotifyOverdue = async (territory: Territory) => {
     if (!territory.assignment) return;
+
+    if (congregation?.whatsappEnabled === false) {
+        toast({
+            title: "WhatsApp Desativado",
+            description: "As notificações via WhatsApp estão desativadas nas configurações da congregação.",
+            variant: "destructive",
+        });
+        return;
+    }
     
     const assignedUser = users.find(u => u.uid === territory.assignment!.uid);
     if (!assignedUser || !assignedUser.whatsapp) {
