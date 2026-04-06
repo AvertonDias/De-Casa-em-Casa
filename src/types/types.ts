@@ -179,6 +179,7 @@ export interface AssignmentHistoryLog {
   name: string;
   assignedAt: Timestamp;
   completedAt: Timestamp; // Data em que foi devolvido
+  isCompletion?: boolean; // Se foi concluído ou apenas transferido
 }
 
 // --- Tipos para Campanhas de Notificação ---

@@ -209,7 +209,12 @@ export default function S13ReportPage() {
             </tbody>
           ) : (
             filteredTerritories.map((t, index) => {
-              const allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
+              // Filtrar histórico para incluir apenas conclusões (isCompletion !== false)
+              const historyCompletions = (t.assignmentHistory || []).filter(h => h.isCompletion !== false);
+              
+              const allAssignments: Partial<AssignmentHistoryLog>[] = [...historyCompletions];
+              
+              // Incluir o atual se houver
               if (t.status === "designado" && t.assignment) {
                 allAssignments.push({
                   name: t.assignment.name,
@@ -272,7 +277,10 @@ export default function S13ReportPage() {
           <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" /></div>
         ) : (
           filteredTerritories.map(t => {
-            const allAssignments: Partial<AssignmentHistoryLog>[] = [...(t.assignmentHistory || [])];
+            // Filtrar histórico para incluir apenas conclusões
+            const historyCompletions = (t.assignmentHistory || []).filter(h => h.isCompletion !== false);
+            const allAssignments: Partial<AssignmentHistoryLog>[] = [...historyCompletions];
+            
             if (t.status === "designado" && t.assignment) {
               allAssignments.push({
                 name: t.assignment.name,

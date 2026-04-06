@@ -147,6 +147,7 @@ export default function TerritoryAssignmentPanel() {
                     name: data.assignment!.name,
                     assignedAt: data.assignment!.assignedAt,
                     completedAt: assignedAt, // A conclusão do anterior é o início do novo
+                    isCompletion: false // Marcar como transferência, não conclusão
                 };
                 
                 const currentHistory = data.assignmentHistory || [];
@@ -223,6 +224,7 @@ export default function TerritoryAssignmentPanel() {
       name: territoryToReturn.assignment.name,
       assignedAt: territoryToReturn.assignment.assignedAt,
       completedAt: Timestamp.fromDate(new Date(returnDate + 'T12:00:00')),
+      isCompletion: true // Marcar como conclusão real
     };
 
     try {

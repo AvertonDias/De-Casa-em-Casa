@@ -45,14 +45,19 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
             {/* Seção para o Histórico Passado */}
             {sortedHistory.map((log, index) => (
               <li key={index} className="flex justify-between items-start pl-4 border-l-2 border-border">
-                <div>
-                  <p className="font-semibold">{log.name}</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold truncate">{log.name}</p>
+                    {log.isCompletion === false && (
+                      <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded uppercase font-bold whitespace-nowrap">Transferido</span>
+                    )}
+                  </div>
                   <p className="text-sm text-muted-foreground">Designado: {format(log.assignedAt.toDate(), "dd/MM/yy")}</p>
                   <p className="text-sm text-muted-foreground">Devolvido: {log.completedAt ? format(log.completedAt.toDate(), "dd/MM/yy") : 'Não devolvido'}</p>
                 </div>
                 {/* Edit and Delete actions are only available for Admins */}
                 {isAdmin && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 ml-4">
                     <button onClick={() => onEdit(log)} className="text-muted-foreground hover:text-white" title="Editar"><Edit size={14} /></button>
                     <button onClick={() => onDelete(log)} className="text-muted-foreground hover:text-red-500" title="Excluir"><Trash2 size={14} /></button>
                   </div>

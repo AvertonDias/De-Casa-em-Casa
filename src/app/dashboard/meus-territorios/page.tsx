@@ -69,6 +69,7 @@ function MyTerritoriesPage() {
       name: territoryToReturn.assignment.name,
       assignedAt: territoryToReturn.assignment.assignedAt,
       completedAt: Timestamp.now(), 
+      isCompletion: true // Marcado como concluído ao devolver
     };
 
     try {
