@@ -146,7 +146,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                             </p>
                           </div>
                           {isAdmin && (
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1 shrink-0">
                               <button onClick={() => onEdit(t)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md transition-colors"><Edit size={12} /></button>
                               <button onClick={() => onDelete(t)} className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors"><Trash2 size={12} /></button>
                             </div>
