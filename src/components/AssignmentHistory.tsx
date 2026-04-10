@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -102,7 +103,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                         {isCurrent ? (
                           <span className={cn(
                             "font-bold",
-                            isOverdue ? "text-red-500" : "text-primary/80"
+                            isOverdue ? "text-red-500" : "text-foreground"
                           )}>
                             Devolver até: {format((displayHead as Assignment).dueDate.toDate(), "dd/MM/yyyy", { locale: ptBR })}
                           </span>
@@ -141,7 +142,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                               <p className="text-sm font-semibold truncate text-foreground">{t.name}</p>
                               <span className="text-[9px] bg-muted text-foreground px-1.5 py-0.5 rounded font-bold uppercase">Transferido</span>
                             </div>
-                            <p className="text-[11px] text-foreground/70 mt-0.5">
+                            <p className="text-[11px] text-foreground mt-0.5">
                               Transferido em: {format(t.completedAt.toDate(), "dd/MM/yy", { locale: ptBR })}
                             </p>
                           </div>
