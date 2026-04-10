@@ -93,12 +93,15 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                   )}>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <p className={cn("font-bold truncate text-base", isCurrent ? "text-primary" : "text-foreground")}>
+                        <p className={cn("font-bold truncate text-base", isCurrent ? "text-foreground" : "text-foreground")}>
                           {displayHead.name}
                         </p>
                       </div>
                       
-                      <div className="text-[13px] text-muted-foreground flex flex-wrap gap-x-4 mt-1">
+                      <div className={cn(
+                        "text-[13px] flex flex-wrap gap-x-4 mt-1",
+                        isCurrent ? "text-foreground" : "text-muted-foreground"
+                      )}>
                         <span>Designado: {format(displayHead.assignedAt.toDate(), "dd/MM/yy")}</span>
                         {isCurrent ? (
                           <span className={cn(

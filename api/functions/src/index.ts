@@ -137,7 +137,7 @@ export const createCongregationAndAdminV2 = https.onCall({ region: "southamerica
     const userDocRef = db.collection("users").doc(newUser.uid);
     batch.set(userDocRef, {
         name: adminName,
-        email: adminEmail,
+        email: adminEmail.toLowerCase(),
         whatsapp: whatsapp,
         congregationId: newCongregationRef.id,
         role: "Administrador",
@@ -156,7 +156,7 @@ export const completeUserProfileV2 = https.onCall({ region: "southamerica-east1"
     
     await db.collection("users").doc(request.auth.uid).set({
         name: name || request.auth.token.name,
-        email: request.auth.token.email,
+        email: request.auth.token.email.toLowerCase(),
         whatsapp: whatsapp,
         congregationId: congregationId,
         role: "Publicador",
@@ -172,14 +172,28 @@ export const requestPasswordResetV2 = https.onCall({ region: "southamerica-east1
     if (!email) throw new https.HttpsError('invalid-argument', 'Email obrigatório.');
     
     try {
-        const user = await auth.getUserByEmail(email);
+        const normalizedEmail = email.trim().toLowerCase();
+        
+        // Tenta encontrar o UID no Firestore primeiro (onde o e-mail é normalizado)
+        const userQuery = await db.collection("users").where("email", "==", normalizedEmail).limit(1).get();
+        
+        let uid = '';
+        if (!userQuery.empty) {
+            uid = userQuery.docs[0].id;
+        } else {
+            // Fallback para buscar diretamente no Auth
+            const user = await auth.getUserByEmail(normalizedEmail);
+            uid = user.uid;
+        }
+
         const token = crypto.randomUUID();
         await db.collection("resetTokens").doc(token).set({
-            uid: user.uid,
-            expires: admin.firestore.Timestamp.fromMillis(Date.now() + 3600000),
+            uid: uid,
+            expires: admin.firestore.Timestamp.fromMillis(Date.now() + 3600000), // 1 hora
         });
         return { success: true, token };
     } catch (error) {
+        // Por segurança, retorna sucesso sem token para não expor se o e-mail existe
         return { success: true, token: null };
     }
 });

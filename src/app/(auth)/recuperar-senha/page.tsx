@@ -23,19 +23,21 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setIsLoading(true);
 
+    const targetEmail = email.trim().toLowerCase();
+
     try {
         // Usar o fluxo customizado com Token e EmailJS para maior confiabilidade na entrega
         const functions = getFunctions(app, 'southamerica-east1');
         const requestPasswordReset = httpsCallable(functions, 'requestPasswordResetV2');
         
-        const result = await requestPasswordReset({ email: email.trim() });
+        const result = await requestPasswordReset({ email: targetEmail });
         const { token } = result.data as { token: string | null };
 
         // Se o e-mail existe no sistema, o token é gerado e enviamos o e-mail
         if (token) {
             const resetLink = `${window.location.origin}/auth/action?token=${token}`;
             await sendPasswordResetEmail({ 
-                email: email.trim(), 
+                email: targetEmail, 
                 link: resetLink 
             });
         }
