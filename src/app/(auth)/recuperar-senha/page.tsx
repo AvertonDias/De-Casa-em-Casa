@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -75,8 +74,7 @@ export default function ForgotPasswordPage() {
                   </p>
                   <p className="text-xs leading-relaxed">
                     1. Verifique sua pasta de <b>SPAM</b> ou <b>Lixo Eletrônico</b>.<br/>
-                    2. O e-mail pode levar até 2-5 minutos para chegar.<br/>
-                    3. Se você usa <b>Yahoo</b> ou <b>Outlook</b>, procure por um e-mail do serviço "EmailJS" ou "De Casa em Casa".
+                    2. O e-mail pode levar até 2-5 minutos para chegar.
                   </p>
               </div>
               
