@@ -33,9 +33,9 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Redireciona se já estiver logado
+  // Redireciona se já estiver logado e aprovado
   useEffect(() => {
-    if (!userLoading && currentUser?.congregationId) {
+    if (!userLoading && currentUser?.congregationId && currentUser?.status === 'ativo') {
       router.replace('/dashboard');
     }
   }, [currentUser, userLoading, router]);
@@ -62,34 +62,29 @@ export default function SignUpPage() {
     if (whatsapp !== confirmWhatsapp) { setError("Os números de WhatsApp não coincidem."); return; }
     if (password.length < 6) { setError("A senha precisa ter pelo menos 6 caracteres."); return; }
     if (whatsapp.length < 15) { setError("Por favor, preencha o número de WhatsApp completo."); return; }
+    if (!congregationNumber.trim()) { setError("O número da congregação é obrigatório."); return; }
     
     setLoading(true);
 
     try {
-        // 1. Verificar se o e-mail já existe no Firestore (Prevenção de duplicidade)
-        const userQuery = query(collection(db, "users"), where("email", "==", targetEmail));
-        const userSnap = await getDocs(userQuery);
-        if (!userSnap.empty) {
-            throw new Error("Este e-mail já está cadastrado. Se não consegue entrar, tente recuperar sua senha.");
-        }
-
-        // 2. Verificar se a congregação existe
+        // 1. Verificar se a congregação existe (é permitido ler publicamente)
         const congQuery = query(collection(db, "congregations"), where("number", "==", congregationNumber.trim()));
         const congSnap = await getDocs(congQuery);
 
         if (congSnap.empty) {
-            throw new Error("Número de congregação inválido. Verifique com seu dirigente.");
+            throw new Error("Número de congregação não encontrado. Verifique com seu dirigente se o número está correto.");
         }
         const congregationId = congSnap.docs[0].id;
 
-        // 3. Criar conta no Firebase Auth
+        // 2. Criar conta no Firebase Auth
+        // O Firebase Auth já impede naturalmente e-mails duplicados para o provedor de senha.
         const userCredential = await createUserWithEmailAndPassword(auth, targetEmail, password);
         const user = userCredential.user;
         
-        // 4. Atualizar nome no perfil do Auth
+        // 3. Atualizar nome no perfil do Auth
         await updateProfile(user, { displayName: name.trim() });
         
-        // 5. Criar documento no Firestore
+        // 4. Criar documento no Firestore usando o UID como ID (isso evita duplicatas para o mesmo UID)
         const userDocRef = doc(db, "users", user.uid);
         await setDoc(userDocRef, {
             name: name.trim(),
@@ -106,13 +101,18 @@ export default function SignUpPage() {
             title: 'Solicitação enviada!',
             description: 'Sua conta foi criada. Agora um administrador precisa aprovar seu acesso.',
         });
+        
+        // O UserContext redirecionará para /aguardando-aprovacao
       
     } catch (err: any) {
       console.error("Erro no cadastro:", err);
+      
       if (err.code === 'auth/email-already-in-use') { 
-        setError(<>Este e-mail já está em uso. <Link href="/recuperar-senha" className="font-bold underline ml-1">Recuperar senha?</Link></>); 
+        setError(<>Este e-mail já está em uso por outra conta. <Link href="/recuperar-senha" className="font-bold underline ml-1">Esqueceu a senha?</Link></>); 
+      } else if (err.code === 'permission-denied' || err.message?.includes('permissions')) {
+        setError("Erro de permissão ao verificar dados. Por favor, tente novamente ou use o login com Google.");
       } else { 
-        setError(err.message || "Falha ao completar o cadastro."); 
+        setError(err.message || "Falha ao completar o cadastro. Verifique sua conexão."); 
       }
     } finally {
         setLoading(false);
@@ -126,9 +126,10 @@ export default function SignUpPage() {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         await signInWithPopup(auth, provider);
+        // O redirecionamento é feito pelo UserContext
     } catch (error: any) {
       if (error.code === 'auth/account-exists-with-different-credential') {
-        setError("Este e-mail já possui uma conta com senha.");
+        setError("Este e-mail já possui uma conta cadastrada com senha.");
       } else if (error.code !== 'auth/popup-closed-by-user') {
         setError("Erro ao autenticar com o Google.");
       }

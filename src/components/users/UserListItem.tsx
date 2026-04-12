@@ -3,7 +3,7 @@
 
 import type { AppUser } from '@/types/types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Check, Trash2, Edit, User } from 'lucide-react';
+import { MoreVertical, Check, Trash2, XCircle, Edit, User, Mail, Shield } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -36,6 +36,7 @@ export const UserListItem = ({
     switch (status) {
       case 'ativo': return 'bg-green-500 text-white';
       case 'pendente': return 'bg-yellow-500 text-black';
+      case 'rejeitado': return 'bg-red-500 text-white';
       case 'inativo': return 'bg-orange-500 text-white';
       case 'bloqueado': return 'bg-gray-700 text-white';
       default: return 'bg-gray-400 text-white';
@@ -67,13 +68,23 @@ export const UserListItem = ({
             title={isOnline ? 'Online' : 'Offline'}
           />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 space-y-0.5">
             <p className="font-semibold text-gray-900 dark:text-white truncate">
               {user.name}
               {user.uid === currentUser.uid && <span className="text-purple-400 font-normal ml-2">(Você)</span>}
             </p>
-            {isAdmin && <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">{user.email}</p>}
-            <p className={`text-sm ${isOnline ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+            {/* Exibe E-mail e UID apenas para administradores para ajudar na limpeza de duplicidades */}
+            {isAdmin && (
+                <div className="space-y-0.5">
+                    <p className="text-[10px] text-muted-foreground font-mono truncate flex items-center gap-1">
+                        <Mail size={10} /> {user.email}
+                    </p>
+                    <p className="text-[9px] text-muted-foreground/60 font-mono truncate flex items-center gap-1">
+                        <Shield size={9} /> ID: {user.uid}
+                    </p>
+                </div>
+            )}
+            <p className={`text-xs ${isOnline ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
               {isOnline ? 'Online' : (user.lastSeen?.toDate ? `Visto ${formatDistanceToNow(user.lastSeen.toDate(), { addSuffix: true, locale: ptBR })}` : 'Offline')}
             </p>
         </div>
@@ -96,9 +107,14 @@ export const UserListItem = ({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end">
                     {user.status === 'pendente' && (
-                      <DropdownMenuItem onClick={handleApprove} className="text-green-600 dark:text-green-400 focus:bg-green-500 focus:text-white">
-                        <Check className="mr-2 h-4 w-4"/>Aprovar
-                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuItem onClick={handleApprove} className="text-green-600 dark:text-green-400 focus:bg-green-500 focus:text-white">
+                          <Check className="mr-2 h-4 w-4"/>Aprovar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onUpdate(user.uid, { status: 'rejeitado' })} className="text-red-500 dark:text-red-400 focus:bg-red-500 focus:text-white">
+                          <XCircle className="mr-2 h-4 w-4"/>Rejeitar
+                        </DropdownMenuItem>
+                      </>
                     )}
                     {isAdmin && user.status !== 'pendente' && (
                         <DropdownMenuItem onClick={handleEdit} className="focus:bg-blue-500 focus:text-white">
@@ -108,8 +124,8 @@ export const UserListItem = ({
                     {isAdmin && user.uid !== currentUser.uid && (
                       <>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleDelete} className="text-red-500 dark:text-red-400 focus:bg-red-500 text-white">
-                          <Trash2 className="mr-2 h-4 w-4"/>Excluir
+                        <DropdownMenuItem onClick={handleDelete} className="text-red-500 dark:text-red-400 focus:bg-red-500 focus:text-white">
+                          <Trash2 className="mr-2 h-4 w-4"/>Excluir (Permanente)
                         </DropdownMenuItem>
                       </>
                     )}
