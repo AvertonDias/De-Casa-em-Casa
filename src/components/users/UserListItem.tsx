@@ -1,4 +1,4 @@
-// src/components/users/UserListItem.tsx
+
 "use client";
 
 import type { AppUser } from '@/types/types';
@@ -72,6 +72,7 @@ export const UserListItem = ({
               {user.name}
               {user.uid === currentUser.uid && <span className="text-purple-400 font-normal ml-2">(Você)</span>}
             </p>
+            {isAdmin && <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">{user.email}</p>}
             <p className={`text-sm ${isOnline ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
               {isOnline ? 'Online' : (user.lastSeen?.toDate ? `Visto ${formatDistanceToNow(user.lastSeen.toDate(), { addSuffix: true, locale: ptBR })}` : 'Offline')}
             </p>
