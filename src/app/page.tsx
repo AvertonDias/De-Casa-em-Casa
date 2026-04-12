@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -149,7 +148,12 @@ export default function UniversalLoginPage() {
                           Criar cadastro
                       </Link>
                   </div>
-                  <p className="pt-2 border-t border-border/50 text-xs">Administrador? <Link href="/nova-congregacao" className="font-bold text-primary hover:underline">Comece aqui</Link></p>
+                  <div className="pt-2 border-t border-border/50 space-y-2">
+                      <p className="text-xs text-muted-foreground">Administrador?</p>
+                      <Link href="/nova-congregacao" className="block w-full text-center px-4 py-2 text-sm font-bold text-foreground bg-muted border border-border rounded-md hover:bg-muted/80 transition-all">
+                          Criar Congregação
+                      </Link>
+                  </div>
               </div>
 
               <div className="pt-2">
