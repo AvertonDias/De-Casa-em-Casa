@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, signInWithPopup, fetchSignInMethodsForEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { auth, GoogleAuthProvider } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff, Info, AlertTriangle } from 'lucide-react';
@@ -34,14 +34,19 @@ export default function UniversalLoginPage() {
     setError(null);
     setLoading(true);
 
+    // Normalização vital: remove espaços e coloca em caixa baixa
+    const targetEmail = email.trim().toLowerCase();
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, targetEmail, password);
     } catch (err: any) {
+      console.error("Erro de login:", err);
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError("E-mail ou senha inválidos.");
+        setError("E-mail ou senha incorretos. Se você se cadastrou pelo Google, entre pelo botão do Google acima.");
+      } else if (err.code === 'auth/too-many-requests') {
+        setError("Muitas tentativas falhas. Sua conta foi temporariamente bloqueada. Tente novamente mais tarde ou redefina sua senha.");
       } else {
-        setError("Ocorreu um erro. Verifique sua conexão.");
-        console.error("Erro de login:", err);
+        setError("Ocorreu um erro ao entrar. Verifique sua conexão com a internet.");
       }
     } finally {
       setLoading(false);
@@ -89,7 +94,7 @@ export default function UniversalLoginPage() {
           
           {error && (
               <div className="p-4 bg-destructive/10 text-destructive-foreground border border-destructive/20 rounded-lg flex items-start gap-3">
-                  <AlertTriangle size={20} className="text-destructive mt-0.5" />
+                  <AlertTriangle size={20} className="text-destructive mt-0.5 shrink-0" />
                   <p className="text-sm font-medium">{error}</p>
               </div>
           )}
@@ -173,7 +178,7 @@ export default function UniversalLoginPage() {
               </div>
 
               <div className="pt-4">
-                  <Link href="/sobre" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                  <Link href="https://aplicativos-ton.vercel.app/de-casa-em-casa" target="_blank" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
                       <Info size={16} />
                       Conheça o Sistema
                   </Link>

@@ -50,6 +50,9 @@ export default function SignUpPage() {
     
     setLoading(true);
     setError(null);
+
+    // Normalização preventiva
+    const targetEmail = email.trim().toLowerCase();
     
     try {
         const congQuery = query(collection(db, "congregations"), where("number", "==", congregationNumber.trim()));
@@ -60,14 +63,14 @@ export default function SignUpPage() {
         }
         const congregationId = congSnap.docs[0].id;
 
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, targetEmail, password);
         const user = userCredential.user;
         await updateProfile(user, { displayName: name.trim() });
         
         const userDocRef = doc(db, "users", user.uid);
         const userData = {
             name: name.trim(),
-            email: email.toLowerCase(),
+            email: targetEmail,
             whatsapp: whatsapp,
             congregationId: congregationId,
             role: "Publicador" as const,
@@ -93,6 +96,7 @@ export default function SignUpPage() {
         });
       
     } catch (err: any) {
+      console.error("Erro no cadastro:", err);
       if (err.code === 'auth/email-already-in-use') { 
         setError(<>Este e-mail já está em uso. <Link href="/recuperar-senha" className="font-bold underline ml-1">Esqueceu a senha?</Link></>); 
       } else { 
@@ -132,7 +136,7 @@ export default function SignUpPage() {
 
           {error && (
               <div className="p-4 bg-destructive/10 text-destructive-foreground border border-destructive/20 rounded-lg flex items-start gap-3">
-                  <AlertTriangle size={20} className="text-destructive mt-0.5" />
+                  <AlertTriangle size={20} className="text-destructive mt-0.5 shrink-0" />
                   <div className="text-sm font-medium">{error}</div>
               </div>
           )}

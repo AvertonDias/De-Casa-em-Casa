@@ -40,6 +40,9 @@ export default function NovaCongregacaoPage() {
     
     setIsLoading(true);
 
+    // Normalização preventiva
+    const targetEmail = adminEmail.trim().toLowerCase();
+
     try {
         // 1. Verificar se o número já existe
         const congQuery = query(collection(db, "congregations"), where("number", "==", congregationNumber.trim()));
@@ -48,8 +51,8 @@ export default function NovaCongregacaoPage() {
             throw new Error("Uma congregação com este número já existe.");
         }
 
-        // 2. Criar Admin no Auth
-        const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
+        // 2. Criar Admin no Auth com e-mail limpo
+        const userCredential = await createUserWithEmailAndPassword(auth, targetEmail, adminPassword);
         const user = userCredential.user;
 
         // 3. Criar Congregação
@@ -67,7 +70,7 @@ export default function NovaCongregacaoPage() {
         // 4. Criar Perfil do Admin
         await setDoc(doc(db, "users", user.uid), {
             name: adminName.trim(),
-            email: adminEmail.toLowerCase(),
+            email: targetEmail,
             whatsapp: whatsapp,
             congregationId: newCongRef.id,
             role: "Administrador",
@@ -79,7 +82,11 @@ export default function NovaCongregacaoPage() {
         
     } catch (error: any) {
         console.error("Erro na criação:", error);
-        setErrorMessage(error.message || "Erro inesperado.");
+        if (error.code === 'auth/email-already-in-use') {
+            setErrorMessage("Este e-mail já está cadastrado no sistema.");
+        } else {
+            setErrorMessage(error.message || "Erro inesperado.");
+        }
     } finally {
         setIsLoading(false);
     }
