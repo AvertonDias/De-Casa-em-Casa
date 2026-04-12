@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { auth, GoogleAuthProvider } from '@/lib/firebase';
@@ -9,9 +9,7 @@ import Link from 'next/link';
 import { Eye, EyeOff, Info, AlertTriangle, Loader } from 'lucide-react';
 import Image from 'next/image';
 import { useUser } from '@/contexts/UserContext';
-import { useModal } from '@/contexts/ModalContext';
 import { Footer } from '@/components/Footer';
-
 
 export default function UniversalLoginPage() {
   const [email, setEmail] = useState('');
@@ -23,17 +21,25 @@ export default function UniversalLoginPage() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
 
-  // Se o usuário já está logado e carregado, o UserContext cuidará do redirecionamento.
-  if (user && !userLoading) {
-      return null;
-  }
+  // Redireciona se já estiver logado
+  useEffect(() => {
+    if (!userLoading && user?.congregationId) {
+      const dest = user.role === 'Administrador' ? '/dashboard' : '/dashboard/territorios';
+      router.replace(dest);
+    }
+  }, [user, userLoading, router]);
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError(null);
+    // Força limpeza do e-mail no momento da digitação
+    setEmail(e.target.value.toLowerCase().trim());
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    // Normalização vital: remove espaços e coloca em caixa baixa
     const targetEmail = email.trim().toLowerCase();
 
     try {
@@ -41,15 +47,12 @@ export default function UniversalLoginPage() {
     } catch (err: any) {
       console.error("Erro de login:", err);
       
-      // Erros comuns do Firebase Auth
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError("E-mail ou senha incorretos. Dica: Se você se cadastrou pelo Google, sua conta não tem uma senha definida. Use o botão do Google ou clique em 'Esqueceu a senha' para criar uma.");
+        setError("E-mail ou senha incorretos. DICA: Se você se cadastrou pelo Google, entre usando o botão abaixo ou crie uma senha em 'Esqueceu a senha'.");
       } else if (err.code === 'auth/too-many-requests') {
-        setError("Muitas tentativas falhas. Sua conta foi temporariamente bloqueada por segurança. Tente novamente em alguns minutos ou redefina sua senha.");
-      } else if (err.code === 'auth/network-request-failed') {
-        setError("Erro de conexão. Verifique sua internet.");
+        setError("Muitas tentativas falhas. Aguarde alguns minutos ou redefina sua senha.");
       } else {
-        setError("Ocorreu um erro ao entrar. Por favor, tente novamente.");
+        setError("Não foi possível entrar. Verifique sua conexão e tente novamente.");
       }
     } finally {
       setLoading(false);
@@ -61,126 +64,92 @@ export default function UniversalLoginPage() {
     setGoogleLoading(true);
     try {
         const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({
-          prompt: 'select_account'
-        });
+        provider.setCustomParameters({ prompt: 'select_account' });
         await signInWithPopup(auth, provider);
     } catch (error: any) {
       if (error.code === 'auth/account-exists-with-different-credential') {
-        setError("Já existe uma conta com este e-mail usando uma senha. Por favor, entre com seu e-mail e senha.");
+        setError("Este e-mail já possui uma conta com senha. Entre com seu e-mail e senha.");
       } else if (error.code !== 'auth/popup-closed-by-user') {
-        console.error("Erro no login com Google:", error);
-        setError("Não foi possível autenticar com o Google.");
+        setError("Falha ao entrar com o Google.");
       }
     } finally {
         setGoogleLoading(false);
     }
   };
 
+  if (userLoading) return null;
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <div className="flex-grow flex items-center justify-center p-4">
         <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg border border-border/50">
           <div className="flex flex-col items-center justify-center">
-              <Image
-                  src="/images/Logo_v3.png"
-                  alt="Logo Casa em Casa"
-                  width={80}
-                  height={80}
-                  className="rounded-lg mb-4"
-                  priority
-              />
-              <h1 className="text-3xl font-bold text-center">
-                  Casa em Casa
-              </h1>
+              <Image src="/images/Logo_v3.png" alt="Logo" width={80} height={80} className="rounded-lg mb-4" priority />
+              <h1 className="text-3xl font-bold text-center tracking-tight">Casa em Casa</h1>
           </div>
           
           {error && (
               <div className="p-4 bg-destructive/10 text-destructive-foreground border border-destructive/20 rounded-lg flex items-start gap-3">
                   <AlertTriangle size={20} className="text-destructive mt-0.5 shrink-0" />
-                  <p className="text-sm font-medium">{error}</p>
+                  <p className="text-sm font-medium leading-relaxed">{error}</p>
               </div>
           )}
 
-          <p className="text-center text-muted-foreground text-sm">Acesse o painel com sua conta.</p>
-          
-          <button
-              onClick={handleGoogleLogin}
-              disabled={loading || googleLoading}
-              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 font-semibold text-foreground bg-background border border-input rounded-md hover:bg-accent transition-colors disabled:opacity-50"
-          >
-              {googleLoading ? <Loader className="animate-spin" size={20}/> : (
-                  <>
-                  <svg className="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"></path><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"></path><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"></path><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C42.021 35.596 44 30.138 44 24c0-1.341-.138-2.65-.389-3.917z"></path></svg>
-                  Entrar com Google
-                  </>
-              )}
-          </button>
-
-          <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">OU E-MAIL E SENHA</span>
-              </div>
-          </div>
-
           <form onSubmit={handleLogin} className="space-y-4">
-            <div>
+            <div className="space-y-3">
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                onChange={handleEmailChange}
                 placeholder="Seu e-mail"
                 required
-                autoComplete="email"
-                className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-4 py-2.5 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none"
               />
-            </div>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Sua senha"
-                required
-                autoComplete="current-password"
-                className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring pr-10"
-              />
-               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground hover:text-foreground">
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Sua senha"
+                  required
+                  className="w-full px-4 py-2.5 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none pr-10"
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground hover:text-foreground">
                   {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
                 </button>
+              </div>
             </div>
             <button
               type="submit"
               disabled={loading || googleLoading}
-              className="w-full px-4 py-2 font-bold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background focus:ring-primary disabled:opacity-50 transition-all"
+              className="w-full px-4 py-2.5 font-bold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 transition-all shadow-md"
             >
-              {loading ? <><Loader className="animate-spin inline mr-2" size={18}/> Entrando...</> : 'Entrar'}
+              {loading ? <><Loader className="animate-spin inline mr-2" size={18}/> Entrando...</> : 'Entrar com E-mail'}
             </button>
           </form>
+
+          <div className="relative">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Ou continue com</span></div>
+          </div>
+
+          <button onClick={handleGoogleLogin} disabled={loading || googleLoading} className="w-full flex items-center justify-center gap-3 px-4 py-2.5 font-semibold text-foreground bg-background border border-input rounded-md hover:bg-accent transition-colors disabled:opacity-50">
+              {googleLoading ? <Loader className="animate-spin" size={20}/> : (
+                  <><svg className="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"></path><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"></path><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"></path><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C42.021 35.596 44 30.138 44 24c0-1.341-.138-2.65-.389-3.917z"></path></svg> Google</>
+              )}
+          </button>
           
-          <div className="text-center text-muted-foreground text-sm space-y-4">
-              <Link href="/recuperar-senha" className="block hover:text-primary font-medium underline-offset-4 hover:underline">Esqueceu a senha?</Link>
+          <div className="text-center text-sm space-y-4 pt-2">
+              <Link href="/recuperar-senha" className="block text-primary font-semibold hover:underline">Esqueceu a senha?</Link>
 
               <div className="p-4 bg-secondary/50 border border-border rounded-lg space-y-3">
-                  <p>
-                  Não tem acesso?{' '}
-                  <Link href="/cadastro" className="font-bold text-primary hover:underline">
-                      Solicite seu acesso aqui
-                  </Link>
-                  </p>
-                  <p className="pt-2 border-t border-border/50">
-                  É administrador?{' '}
-                  <Link href="/nova-congregacao" className="font-bold text-primary hover:underline">Comece sua congregação</Link>
-                  </p>
+                  <p className="text-muted-foreground">Não tem acesso? <Link href="/cadastro" className="font-bold text-primary hover:underline">Solicite aqui</Link></p>
+                  <p className="pt-2 border-t border-border/50 text-xs">Administrador? <Link href="/nova-congregacao" className="font-bold text-primary hover:underline">Comece aqui</Link></p>
               </div>
 
               <div className="pt-2">
                   <Link href="https://aplicativos-ton.vercel.app/de-casa-em-casa" target="_blank" className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors">
-                      <Info size={14} />
-                      Sobre o Sistema
+                      <Info size={14} /> Sobre o Sistema
                   </Link>
               </div>
           </div>
