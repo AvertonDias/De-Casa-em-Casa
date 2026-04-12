@@ -1,9 +1,8 @@
-
 "use client";
 
 import type { AppUser } from '@/types/types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { MoreVertical, Check, Trash2, XCircle, Edit, User, Mail, Shield } from 'lucide-react';
+import { MoreVertical, Check, Trash2, XCircle, Edit, User } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -73,17 +72,6 @@ export const UserListItem = ({
               {user.name}
               {user.uid === currentUser.uid && <span className="text-purple-400 font-normal ml-2">(Você)</span>}
             </p>
-            {/* Exibe E-mail e UID apenas para administradores para ajudar na limpeza de duplicidades */}
-            {isAdmin && (
-                <div className="space-y-0.5">
-                    <p className="text-[10px] text-muted-foreground font-mono truncate flex items-center gap-1">
-                        <Mail size={10} /> {user.email}
-                    </p>
-                    <p className="text-[9px] text-muted-foreground/60 font-mono truncate flex items-center gap-1">
-                        <Shield size={9} /> ID: {user.uid}
-                    </p>
-                </div>
-            )}
             <p className={`text-xs ${isOnline ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
               {isOnline ? 'Online' : (user.lastSeen?.toDate ? `Visto ${formatDistanceToNow(user.lastSeen.toDate(), { addSuffix: true, locale: ptBR })}` : 'Offline')}
             </p>
