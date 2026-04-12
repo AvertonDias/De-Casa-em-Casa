@@ -143,7 +143,12 @@ export default function UniversalLoginPage() {
               <Link href="/recuperar-senha" className="block text-primary font-semibold hover:underline">Esqueceu a senha?</Link>
 
               <div className="p-4 bg-secondary/50 border border-border rounded-lg space-y-3">
-                  <p className="text-muted-foreground">Não tem acesso? <Link href="/cadastro" className="font-bold text-primary hover:underline">Solicite aqui</Link></p>
+                  <div className="space-y-2">
+                      <p className="text-muted-foreground">Não tem acesso?</p>
+                      <Link href="/cadastro" className="block w-full text-center px-4 py-2 font-bold text-primary border border-primary rounded-md hover:bg-primary/10 transition-all">
+                          Criar cadastro
+                      </Link>
+                  </div>
                   <p className="pt-2 border-t border-border/50 text-xs">Administrador? <Link href="/nova-congregacao" className="font-bold text-primary hover:underline">Comece aqui</Link></p>
               </div>
 
