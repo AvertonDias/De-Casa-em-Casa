@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -133,7 +134,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
     try {
         await sendPasswordResetEmail(auth, auth.currentUser.email);
         setPasswordResetSuccess(
-            `Link enviado para ${auth.currentUser.email}. Se não o encontrar, verifique sua caixa de SPAM.`
+            `Link enviado para ${auth.currentUser.email}. Se não o encontrar em 2 minutos, verifique sua caixa de SPAM.`
         );
     } catch (error: any) {
       console.error("Erro ao enviar reset de senha:", error);
@@ -216,13 +217,13 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="max-w-md p-0"
+        className="max-w-md p-0 overflow-hidden"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader className="p-6 pb-4">
           <DialogTitle>Editar Perfil</DialogTitle>
           <DialogDescription>
-            Altere seu nome e WhatsApp. {isGoogleUser && "Como você entrou com o Google, use a redefinição abaixo para criar uma senha própria."}
+            Altere seu nome e WhatsApp. {isGoogleUser && "Como você entrou com o Google, use a redefinição abaixo para criar uma senha própria se desejar."}
           </DialogDescription>
           {user?.email && (
             <div className="mt-2 flex items-center justify-between">
@@ -240,7 +241,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
           <form id="edit-profile-form" onSubmit={handleSaveChanges} className="space-y-4">
             <div>
                 <label htmlFor="name" className="text-sm font-medium text-muted-foreground">Nome Completo</label>
-                <Input ref={nameInputRef} id="name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1"/>
+                <Input ref={nameInputRef} id="name" type="text" value={name} onChange={e => setName(e.target.value)} required className="mt-1 bg-input/50"/>
               </div>
               <div>
                 <label htmlFor="whatsapp" className="text-sm font-medium text-muted-foreground">WhatsApp</label>
@@ -252,7 +253,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                   onChange={e => setWhatsapp(maskPhone(e.target.value))} 
                   placeholder="(XX) XXXXX-XXXX" 
                   required
-                  className="mt-1"
+                  className="mt-1 bg-input/50"
                 />
               </div>
               <div>
@@ -264,7 +265,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                   onChange={e => setConfirmWhatsapp(maskPhone(e.target.value))} 
                   placeholder="Repita seu WhatsApp" 
                   required
-                  className={`mt-1 ${whatsappMismatch ? 'border-destructive' : ''}`}
+                  className={`mt-1 bg-input/50 ${whatsappMismatch ? 'border-destructive' : ''}`}
                 />
                 {whatsappMismatch && (
                     <p className="text-xs text-destructive mt-1">Os números de WhatsApp não coincidem.</p>
@@ -273,9 +274,9 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
               
               <div className="pt-2 border-t border-border">
                 <div className="mb-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                    <p className="text-xs text-blue-400 flex items-start gap-2">
+                    <p className="text-xs text-blue-400 flex items-start gap-2 leading-relaxed">
                         <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                        <span>Se você quiser entrar usando apenas e-mail e senha (sem o Google), clique abaixo para <b>criar sua senha pela primeira vez</b>.</span>
+                        <span>Deseja entrar usando <b>e-mail e senha</b>? Clique abaixo para criar/trocar sua senha de acesso.</span>
                     </p>
                 </div>
                 <Button 
@@ -286,43 +287,43 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                   className="w-full text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400"
                 >
                   {passwordResetLoading ? <Loader className="animate-spin mr-2" /> : <KeyRound className="mr-2" size={16} />}
-                  {isGoogleUser ? "Criar Senha / Redefinir" : "Redefinir Minha Senha"}
+                  {isGoogleUser ? "Criar Senha de Acesso" : "Redefinir Minha Senha"}
                 </Button>
                 {passwordResetSuccess && (
-                  <p className="text-sm text-green-600 dark:text-green-400 font-semibold text-center mt-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                  <div className="text-sm text-green-600 dark:text-green-400 font-semibold text-center mt-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20 leading-relaxed">
                     {passwordResetSuccess.split('SPAM').map((part, index) =>
                       <React.Fragment key={index}>
-                        {index > 0 && <strong className="underline">SPAM</strong>}
+                        {index > 0 && <strong className="underline decoration-2">SPAM</strong>}
                         {part}
                       </React.Fragment>
                     )}
-                  </p>
+                  </div>
                 )}
               </div>
           </form>
         </div>
 
 
-        <DialogFooter className="p-6 pt-4 border-t">
+        <DialogFooter className="p-6 pt-4 border-t bg-background">
           <DialogClose asChild>
               <Button type="button" variant="secondary" className="bg-muted hover:bg-muted/80">Cancelar</Button>
           </DialogClose>
-          <Button type="submit" form="edit-profile-form" disabled={isSaveDisabled}>
+          <Button type="submit" form="edit-profile-form" disabled={isSaveDisabled} className="font-bold">
             {loading ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
         </DialogFooter>
 
-        <div className="px-6 pb-6">
+        <div className="px-6 pb-6 bg-background">
             <div className="pt-4 border-t border-red-500/30">
-              <h4 className="text-md font-semibold text-destructive">Zona de Perigo</h4>
+              <h4 className="text-md font-bold text-destructive">Zona de Perigo</h4>
               {!showDeleteConfirm && (
                 <>
-                  <p className="text-sm text-muted-foreground mt-1">A ação abaixo é permanente e não pode ser desfeita.</p>
+                  <p className="text-xs text-muted-foreground mt-1">A exclusão da conta é permanente e apagará todos os seus dados.</p>
                   <Button
                     variant="destructive"
                     onClick={() => setShowDeleteConfirm(true)}
                     disabled={loading}
-                    className="w-full mt-2"
+                    className="w-full mt-2 font-bold"
                   >
                     <Trash2 size={16} className="mr-2"/>
                     Excluir Minha Conta
@@ -349,9 +350,10 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                         onChange={(e) => setPasswordForDelete(e.target.value)}
                         placeholder="Digite sua senha para confirmar"
                         autoFocus
+                        className="bg-background"
                         />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute bottom-2 right-3 text-muted-foreground">
-                            {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute bottom-2.5 right-3 text-muted-foreground">
+                            {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
                         </button>
                     </div>
                   )}
@@ -363,8 +365,9 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                         size="sm"
                         onClick={confirmSelfDelete}
                         disabled={loading || (!isGoogleUser && passwordForDelete.length < 6)}
+                        className="font-bold"
                       >
-                         {loading ? <Loader className="animate-spin" /> : (isGoogleUser ? 'Confirmar via Google' : 'Confirmar Exclusão')}
+                         {loading ? <Loader className="animate-spin" size={16}/> : (isGoogleUser ? 'Confirmar via Google' : 'Confirmar Exclusão')}
                       </Button>
                   </div>
                 </div>
@@ -372,7 +375,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
             </div>
         </div>
         
-        {error && <p className="text-destructive text-sm px-6 pb-4 text-center">{error}</p>}
+        {error && <p className="text-destructive font-bold text-xs px-6 pb-4 text-center">{error}</p>}
       </DialogContent>
     </Dialog>
   );
