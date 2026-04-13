@@ -12,6 +12,7 @@ import { usePresence } from '@/hooks/usePresence';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
+const USER_CACHE_KEY = 'decasaemcasa_user_cache';
 
 interface UserContextType {
   user: AppUser | null;
@@ -42,6 +43,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const logout = async (redirectPath: string = '/') => {
     unsubscribeAll();
+    localStorage.removeItem(USER_CACHE_KEY);
     await signOut(auth).catch(e => console.error("Falha no signOut do Auth:", e));
     
     setUser(null);
@@ -64,21 +66,34 @@ export function UserProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  // Carrega cache inicial (Login Constante)
+  useEffect(() => {
+    const cached = localStorage.getItem(USER_CACHE_KEY);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        setUser(parsed);
+        // Não removemos o loading aqui pois precisamos da confirmação do Firebase Auth
+      } catch (e) {
+        console.warn("Erro ao ler cache do usuário");
+      }
+    }
+  }, []);
+
   // 1. Ouvinte de Autenticação e Perfil do Usuário
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       if (!firebaseUser) {
         unsubscribeAll();
+        localStorage.removeItem(USER_CACHE_KEY);
         setUser(null);
         setCongregation(null);
         setLoading(false);
         return;
       }
       
-      setLoading(true);
       const userRef = doc(db, 'users', firebaseUser.uid);
       
-      // Encerra ouvintes antigos antes de criar novos para o mesmo usuário
       if (listenersRef.current.user) listenersRef.current.user();
 
       listenersRef.current.user = onSnapshot(userRef, 
@@ -108,8 +123,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
           }
           
           setUser(appUser);
+          // Salva no cache para carregamento instantâneo no próximo acesso
+          localStorage.setItem(USER_CACHE_KEY, JSON.stringify(appUser));
 
-          // Ouvinte da Congregação (apenas se mudou ou não existe)
           if (appUser.congregationId) {
             const congRef = doc(db, 'congregations', appUser.congregationId);
             
@@ -159,9 +175,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // 2. Monitoramento de Territórios Atrasados (Isolado para estabilidade)
+  // 2. Monitoramento de Territórios Atrasados
   useEffect(() => {
-    // Só inicia se o usuário for ATIVO ou tiver cargo de gerência, conforme regras
     const isAuthorized = user?.status === 'ativo' || 
       ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'].includes(user?.role || '');
 
@@ -179,7 +194,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
         where("assignment.uid", "==", user.uid)
     );
     
-    // Evita duplicar o listener se ele já estiver ativo para este contexto
     if (listenersRef.current.overdueListener) listenersRef.current.overdueListener();
 
     listenersRef.current.overdueListener = onSnapshot(assignedTerritoriesQuery, 
@@ -225,7 +239,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
         });
       },
       async (error) => {
-        // Silencia erros de permissão temporários durante trocas de status
         if (error.code === 'permission-denied') {
             console.warn("[OverdueListener] Acesso negado temporariamente.");
         }
@@ -239,7 +252,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   
   // 3. Redirecionamentos Automáticos
   useEffect(() => {
-    if (loading) return; 
+    if (loading && !user) return; // Se estiver carregando e não tiver cache, aguarda
   
     const isAuthPage = ['/', '/cadastro', '/recuperar-senha', '/nova-congregacao'].some(p => p === pathname);
     const isAuthActionPage = pathname?.startsWith('/auth/action');

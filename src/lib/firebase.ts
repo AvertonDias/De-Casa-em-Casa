@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth, browserLocalPersistence, setPersistence, GoogleAuthProvider } from "firebase/auth";
 import { 
@@ -36,8 +37,10 @@ const storage: FirebaseStorage = getStorage(app);
 const functions: Functions = getFunctions(app, 'southamerica-east1');
 const rtdb: Database = getDatabase(app);
 
-// Persistência de login
-setPersistence(auth, browserLocalPersistence);
+// Força a persistência local (Login Constante)
+setPersistence(auth, browserLocalPersistence).catch((err) => {
+  console.error("Erro ao configurar persistência do Firebase Auth:", err);
+});
 
 let messaging: Messaging | null = null;
 if (typeof window !== 'undefined') {
