@@ -1,10 +1,11 @@
+
 "use client";
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
-import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, serverTimestamp, Timestamp, getDoc, setDoc, collection, query, getDocs, addDoc, where } from 'firebase/firestore';
+import { onAuthStateChanged, User, signOut, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import type { AppUser, Congregation, Territory } from '@/types/types';
+import type { AppUser, Congregation } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { usePresence } from '@/hooks/usePresence';
@@ -65,13 +66,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  // Carrega cache inicial para login instantâneo
+  // 1. Reforço: Configura persistência e carrega cache inicial para login instantâneo
   useEffect(() => {
+    setPersistence(auth, browserLocalPersistence).catch(console.error);
+
     const cached = localStorage.getItem(USER_CACHE_KEY);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
         setUser(parsed);
+        // Se temos cache, já podemos parar de mostrar o loading global do sistema
+        // enquanto o Firebase valida a sessão em background
+        setLoading(false);
       } catch (e) {
         console.warn("Erro ao ler cache do usuário");
       }
@@ -119,6 +125,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           }
           
           setUser(appUser);
+          // 2. Reforço: Atualiza o cache toda vez que o perfil mudar
           localStorage.setItem(USER_CACHE_KEY, JSON.stringify(appUser));
 
           if (appUser.congregationId) {

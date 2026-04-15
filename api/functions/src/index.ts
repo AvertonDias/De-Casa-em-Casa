@@ -1,3 +1,4 @@
+
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
 import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
@@ -37,15 +38,18 @@ export const deleteUserAccountV2 = https.onCall({
             throw new https.HttpsError('permission-denied', 'Auto-exclusão não permitida por esta função.');
         }
 
+        // Exclui do Firestore primeiro
         const userDocRef = db.collection("users").doc(userIdToDelete);
         await userDocRef.delete();
+        
+        // Exclui do Auth
         await auth.deleteUser(userIdToDelete);
 
         return { success: true };
     } catch (error: any) {
         if (error instanceof https.HttpsError) throw error;
-        logger.error("[DeleteUser] Erro:", error);
-        throw new https.HttpsError('internal', 'Erro interno ao excluir usuário.');
+        logger.error("[DeleteUser] Erro fatal:", error);
+        throw new https.HttpsError('internal', `Erro ao excluir usuário: ${error.message || 'Erro desconhecido'}`);
     }
 });
 
@@ -80,16 +84,16 @@ export const createCongregationAndAdminV2 = https.onCall({
     }
 
     const newUser = await auth.createUser({ 
-        email: adminEmail.toLowerCase(), 
+        email: adminEmail.toLowerCase().trim(), 
         password: adminPassword, 
-        displayName: adminName 
+        displayName: adminName.trim() 
     });
 
     const batch = db.batch();
     const newCongregationRef = db.collection("congregations").doc();
     batch.set(newCongregationRef, {
-        name: congregationName,
-        number: congregationNumber,
+        name: congregationName.trim(),
+        number: congregationNumber.trim(),
         territoryCount: 0,
         ruralTerritoryCount: 0,
         totalQuadras: 0,
@@ -100,8 +104,8 @@ export const createCongregationAndAdminV2 = https.onCall({
 
     const userDocRef = db.collection("users").doc(newUser.uid);
     batch.set(userDocRef, {
-        name: adminName,
-        email: adminEmail.toLowerCase(),
+        name: adminName.trim(),
+        email: adminEmail.toLowerCase().trim(),
         whatsapp: whatsapp,
         congregationId: newCongregationRef.id,
         role: "Administrador",
