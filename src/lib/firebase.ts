@@ -1,4 +1,3 @@
-
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth, browserLocalPersistence, setPersistence, GoogleAuthProvider } from "firebase/auth";
 import { 
@@ -22,10 +21,8 @@ const firebaseConfig = {
   databaseURL: "https://appterritorios-e5bb5-default-rtdb.firebaseio.com",
 };
 
-// Inicializa o Firebase
 const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Configuração Offline do Firestore
 const db: Firestore = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
@@ -37,7 +34,7 @@ const storage: FirebaseStorage = getStorage(app);
 const functions: Functions = getFunctions(app, 'southamerica-east1');
 const rtdb: Database = getDatabase(app);
 
-// Força a persistência local (Login Constante)
+// Força a persistência local para manter o usuário logado
 setPersistence(auth, browserLocalPersistence).catch((err) => {
   console.error("Erro ao configurar persistência do Firebase Auth:", err);
 });

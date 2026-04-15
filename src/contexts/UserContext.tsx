@@ -1,4 +1,3 @@
-
 "use client";
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
@@ -32,7 +31,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   
-  usePresence(); // Ativa o sistema de presença para o usuário logado
+  usePresence(); 
   
   const listenersRef = useRef<{ [key: string]: () => void }>({});
 
@@ -44,7 +43,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const logout = async (redirectPath: string = '/') => {
     unsubscribeAll();
     localStorage.removeItem(USER_CACHE_KEY);
-    await signOut(auth).catch(e => console.error("Falha no signOut do Auth:", e));
+    await signOut(auth).catch(e => console.error("Falha no logout:", e));
     
     setUser(null);
     setCongregation(null);
@@ -52,7 +51,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
   
   const updateUser = async (data: Partial<AppUser>) => {
-    if (!user) throw new Error("Não é possível atualizar um usuário que não está logado.");
+    if (!user) throw new Error("Usuário não logado.");
     const userRef = doc(db, 'users', user.uid);
     updateDoc(userRef, data).catch(async (error) => {
         if (error.code === 'permission-denied') {
@@ -66,21 +65,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  // Carrega cache inicial (Login Constante)
+  // Carrega cache inicial para login instantâneo
   useEffect(() => {
     const cached = localStorage.getItem(USER_CACHE_KEY);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
         setUser(parsed);
-        // Não removemos o loading aqui pois precisamos da confirmação do Firebase Auth
       } catch (e) {
         console.warn("Erro ao ler cache do usuário");
       }
     }
   }, []);
 
-  // 1. Ouvinte de Autenticação e Perfil do Usuário
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       if (!firebaseUser) {
@@ -105,7 +102,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 email: firebaseUser.email!,
             } as AppUser;
             setUser(partialUser);
-            setCongregation(null);
             setLoading(false);
             return;
           }
@@ -123,7 +119,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
           }
           
           setUser(appUser);
-          // Salva no cache para carregamento instantâneo no próximo acesso
           localStorage.setItem(USER_CACHE_KEY, JSON.stringify(appUser));
 
           if (appUser.congregationId) {
@@ -141,13 +136,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 setLoading(false); 
               }, 
               async (error) => {
-                if (error.code === 'permission-denied') {
-                    const permissionError = new FirestorePermissionError({
-                        path: congRef.path,
-                        operation: 'get',
-                    } satisfies SecurityRuleContext);
-                    errorEmitter.emit('permission-error', permissionError);
-                }
                 setLoading(false);
               }
             );
@@ -157,13 +145,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
           }
         }, 
         async (error) => {
-          if (error.code === 'permission-denied') {
-              const permissionError = new FirestorePermissionError({
-                  path: userRef.path,
-                  operation: 'get',
-              } satisfies SecurityRuleContext);
-              errorEmitter.emit('permission-error', permissionError);
-          }
           setLoading(false);
         }
       );
@@ -175,93 +156,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // 2. Monitoramento de Territórios Atrasados
   useEffect(() => {
-    const isAuthorized = user?.status === 'ativo' || 
-      ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'].includes(user?.role || '');
-
-    if (!user?.uid || !user?.congregationId || !isAuthorized) {
-        if (listenersRef.current.overdueListener) {
-            listenersRef.current.overdueListener();
-            delete listenersRef.current.overdueListener;
-        }
-        return;
-    }
-
-    const territoryCollectionPath = `congregations/${user.congregationId}/territories`;
-    const assignedTerritoriesQuery = query(
-        collection(db, territoryCollectionPath),
-        where("assignment.uid", "==", user.uid)
-    );
-    
-    if (listenersRef.current.overdueListener) listenersRef.current.overdueListener();
-
-    listenersRef.current.overdueListener = onSnapshot(assignedTerritoriesQuery, 
-      (snapshot) => {
-        snapshot.docs.forEach(async (territoryDoc) => {
-            const territory = { id: territoryDoc.id, ...territoryDoc.data() } as Territory;
-            const isOverdue = territory.assignment && territory.assignment.dueDate.toDate() < new Date();
-
-            if (isOverdue) {
-                const notificationsRef = collection(db, `users/${user.uid}/notifications`);
-                const territoryLink = territory.type === 'rural' ? `/dashboard/rural/${territory.id}` : `/dashboard/territorios/${territory.id}`;
-                
-                const qNotif = query(notificationsRef, where("link", "==", territoryLink));
-                const existingNotifsSnapshot = await getDocs(qNotif);
-                const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-                
-                const recentOverdueNotificationExists = existingNotifsSnapshot.docs.some(doc => {
-                    const data = doc.data();
-                    return data.type === 'territory_overdue' &&
-                           data.createdAt &&
-                           data.createdAt.toDate() > twentyFourHoursAgo;
-                });
-
-                if (!recentOverdueNotificationExists) {
-                    addDoc(notificationsRef, {
-                        title: "Território Atrasado",
-                        body: `O território "${territory.number} - ${territory.name}" está com a devolução atrasada.`,
-                        link: territoryLink,
-                        type: 'territory_overdue',
-                        isRead: false,
-                        createdAt: serverTimestamp()
-                    }).catch(async (notifErr) => {
-                        if (notifErr.code === 'permission-denied') {
-                            const permissionError = new FirestorePermissionError({
-                                path: `users/${user.uid}/notifications`,
-                                operation: 'create',
-                            } satisfies SecurityRuleContext);
-                            errorEmitter.emit('permission-error', permissionError);
-                        }
-                    });
-                }
-            }
-        });
-      },
-      async (error) => {
-        if (error.code === 'permission-denied') {
-            console.warn("[OverdueListener] Acesso negado temporariamente.");
-        }
-      }
-    );
-
-    return () => {
-        if (listenersRef.current.overdueListener) listenersRef.current.overdueListener();
-    };
-  }, [user?.uid, user?.congregationId, user?.status, user?.role]);
-  
-  // 3. Redirecionamentos Automáticos
-  useEffect(() => {
-    if (loading && !user) return; // Se estiver carregando e não tiver cache, aguarda
+    if (loading && !user) return; 
   
     const isAuthPage = ['/', '/cadastro', '/recuperar-senha', '/nova-congregacao'].some(p => p === pathname);
     const isAuthActionPage = pathname?.startsWith('/auth/action');
     const isWaitingPage = pathname === '/aguardando-aprovacao';
     const isCompleteProfilePage = pathname === '/completar-perfil';
-    const isAboutPage = pathname === '/sobre';
   
     if (!user) {
-      if (!isAuthPage && !isAuthActionPage && !isAboutPage && !isCompleteProfilePage) {
+      if (!isAuthPage && !isAuthActionPage && !isCompleteProfilePage) {
         router.replace('/');
       }
       return;
@@ -278,10 +182,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       case 'pendente':
         if (!isWaitingPage) router.replace('/aguardando-aprovacao');
         break;
-      case 'bloqueado':
-      case 'rejeitado':
-        logout('/');
-        break;
       case 'ativo':
       case 'inativo':
         if (isAuthPage || isWaitingPage || isCompleteProfilePage) {
@@ -290,7 +190,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
         }
         break;
       default:
-        logout('/');
         break;
     }
   

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -21,7 +20,6 @@ export default function UniversalLoginPage() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
 
-  // Redireciona se já estiver logado
   useEffect(() => {
     if (!userLoading && user?.congregationId) {
       const dest = user.role === 'Administrador' ? '/dashboard' : '/dashboard/territorios';
@@ -31,7 +29,6 @@ export default function UniversalLoginPage() {
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
-    // Limpeza rigorosa: sem espaços e tudo minúsculo
     setEmail(e.target.value.toLowerCase().replace(/\s/g, ''));
   };
 
@@ -47,8 +44,13 @@ export default function UniversalLoginPage() {
     } catch (err: any) {
       console.error("Erro de login:", err);
       
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError("E-mail ou senha incorretos. Verifique se não há espaços extras e se você não se cadastrou usando o botão do Google.");
+      const isGoogleUser = auth.currentUser?.providerData.some(p => p.providerId === 'google.com');
+      
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+        setError(
+          "E-mail ou senha incorretos. Verifique se não há espaços extras. " +
+          (isGoogleUser ? "Dica: Você costuma entrar com o Google. Se quiser usar uma senha, clique em 'Esqueceu a senha' para criar uma." : "")
+        );
       } else if (err.code === 'auth/too-many-requests') {
         setError("Muitas tentativas falhas. Aguarde alguns minutos ou redefina sua senha.");
       } else {
@@ -143,7 +145,7 @@ export default function UniversalLoginPage() {
 
               <div className="p-4 bg-secondary/50 border border-border rounded-lg space-y-3">
                   <div className="space-y-2">
-                      <Link href="/cadastro" className="block w-full text-center px-4 py-2 font-bold text-primary border border-primary rounded-md hover:bg-primary/10 transition-all">
+                      <Link href="/cadastro" className="block w-full text-center px-4 py-2 font-bold text-primary border border-primary rounded-md hover:bg-primary/10 transition-all text-sm">
                           Criar cadastro
                       </Link>
                   </div>
