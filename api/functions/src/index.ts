@@ -24,7 +24,8 @@ setGlobalOptions({ region: "southamerica-east1" });
  * Apenas Administradores podem realizar esta ação.
  */
 export const deleteUserAccountV2 = https.onCall({ 
-    region: "southamerica-east1"
+    region: "southamerica-east1",
+    cors: true
 }, async (request) => {
     // 1. Validar Autenticação do Requisitante
     if (!request.auth) {
@@ -87,11 +88,14 @@ export const deleteUserAccountV2 = https.onCall({
     } catch (error: any) {
         if (error instanceof https.HttpsError) throw error;
         logger.error("[DeleteUser] Erro crítico inesperado:", error);
-        throw new https.HttpsError('internal', 'Ocorreu um erro no servidor ao tentar excluir o usuário. Tente novamente mais tarde.');
+        throw new https.HttpsError('internal', 'Ocorreu um erro no servidor ao tentar excluir the usuário. Tente novamente mais tarde.');
     }
 });
 
-export const getCongregationIdByNumberV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
+export const getCongregationIdByNumberV2 = https.onCall({ 
+    region: "southamerica-east1",
+    cors: true 
+}, async (request) => {
     const { congregationNumber } = request.data;
     if (!congregationNumber) {
         throw new https.HttpsError('invalid-argument', "O número da congregação é obrigatório.");
@@ -103,7 +107,10 @@ export const getCongregationIdByNumberV2 = https.onCall({ region: "southamerica-
     return { congregationId: congQuery.docs[0].id };
 });
 
-export const createCongregationAndAdminV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
+export const createCongregationAndAdminV2 = https.onCall({ 
+    region: "southamerica-east1",
+    cors: true 
+}, async (request) => {
     const { adminName, adminEmail, adminPassword, congregationName, congregationNumber, whatsapp } = request.data;
 
     if (!adminName || !adminEmail || !adminPassword || !congregationName || !congregationNumber || !whatsapp) {
@@ -149,7 +156,10 @@ export const createCongregationAndAdminV2 = https.onCall({ region: "southamerica
     return { success: true, userId: newUser.uid };
 });
 
-export const completeUserProfileV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
+export const completeUserProfileV2 = https.onCall({ 
+    region: "southamerica-east1",
+    cors: true 
+}, async (request) => {
     if (!request.auth) throw new https.HttpsError('unauthenticated', 'Não autenticado.');
     
     const { congregationId, whatsapp, name } = request.data;
@@ -167,7 +177,10 @@ export const completeUserProfileV2 = https.onCall({ region: "southamerica-east1"
     return { success: true };
 });
 
-export const requestPasswordResetV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
+export const requestPasswordResetV2 = https.onCall({ 
+    region: "southamerica-east1",
+    cors: true 
+}, async (request) => {
     const { email } = request.data;
     if (!email) throw new https.HttpsError('invalid-argument', 'Email obrigatório.');
     
@@ -198,7 +211,10 @@ export const requestPasswordResetV2 = https.onCall({ region: "southamerica-east1
     }
 });
 
-export const resetPasswordWithTokenV2 = https.onCall({ region: "southamerica-east1" }, async (request) => {
+export const resetPasswordWithTokenV2 = https.onCall({ 
+    region: "southamerica-east1",
+    cors: true 
+}, async (request) => {
     const { token, newPassword } = request.data;
     if (!token || !newPassword) throw new https.HttpsError('invalid-argument', 'Token e senha obrigatórios.');
     
