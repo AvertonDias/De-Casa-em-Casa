@@ -66,7 +66,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  // 1. Reforço: Configura persistência e carrega cache inicial para login instantâneo
   useEffect(() => {
     setPersistence(auth, browserLocalPersistence).catch(console.error);
 
@@ -75,8 +74,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       try {
         const parsed = JSON.parse(cached);
         setUser(parsed);
-        // Se temos cache, já podemos parar de mostrar o loading global do sistema
-        // enquanto o Firebase valida a sessão em background
         setLoading(false);
       } catch (e) {
         console.warn("Erro ao ler cache do usuário");
@@ -125,7 +122,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
           }
           
           setUser(appUser);
-          // 2. Reforço: Atualiza o cache toda vez que o perfil mudar
           localStorage.setItem(USER_CACHE_KEY, JSON.stringify(appUser));
 
           if (appUser.congregationId) {

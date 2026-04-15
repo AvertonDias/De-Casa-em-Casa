@@ -18,12 +18,12 @@ export const deleteUserAccountV2 = https.onCall({
     cors: true
 }, async (request) => {
     if (!request.auth) {
-        throw new https.HttpsError('unauthenticated', 'Sessão expirada.');
+        throw new https.HttpsError('unauthenticated', 'Sessão expirada. Faça login novamente.');
     }
 
     const { userIdToDelete } = request.data;
     if (!userIdToDelete) {
-        throw new https.HttpsError('invalid-argument', 'ID do usuário é obrigatório.');
+        throw new https.HttpsError('invalid-argument', 'O ID do usuário é obrigatório.');
     }
 
     try {
@@ -35,14 +35,11 @@ export const deleteUserAccountV2 = https.onCall({
         }
 
         if (request.auth.uid === userIdToDelete) {
-            throw new https.HttpsError('permission-denied', 'Auto-exclusão não permitida por esta função.');
+            throw new https.HttpsError('permission-denied', 'Você não pode excluir sua própria conta por aqui.');
         }
 
-        // Exclui do Firestore primeiro
         const userDocRef = db.collection("users").doc(userIdToDelete);
         await userDocRef.delete();
-        
-        // Exclui do Auth
         await auth.deleteUser(userIdToDelete);
 
         return { success: true };
@@ -164,4 +161,48 @@ export const resetPasswordWithTokenV2 = https.onCall({
     await auth.updateUser(tokenDoc.data()!.uid, { password: newPassword });
     await tokenRef.delete();
     return { success: true };
+});
+
+export const onDeleteTerritory = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}", async (event) => {
+    if (!event.data) return null;
+    try {
+        await admin.firestore().recursiveDelete(event.data.ref);
+        return { success: true };
+    } catch (error) {
+        logger.error(`[onDeleteTerritory] Erro ao deletar ${event.params.territoryId}:`, error);
+        return null;
+    }
+});
+
+export const onDeleteQuadra = onDocumentDeleted("congregations/{congregationId}/territories/{territoryId}/quadras/{quadraId}", async (event) => {
+    if (!event.data) return null;
+    try {
+        await admin.firestore().recursiveDelete(event.data.ref);
+        return { success: true };
+    } catch (error) {
+        logger.error(`[onDeleteQuadra] Erro ao deletar ${event.params.quadraId}:`, error);
+        return null;
+    }
+});
+
+export const mirrorUserStatus = onValueWritten({
+    ref: "/status/{uid}",
+    region: "us-central1", 
+}, async (event) => {
+    const eventStatus = event.data.after.val();
+    const uid = event.params.uid;
+    const userDocRef = db.doc(`users/${uid}`);
+    try {
+        const userDoc = await userDocRef.get();
+        if (!userDoc.exists) return null;
+        
+        const updateData: any = {
+            isOnline: eventStatus?.state === "online",
+            lastSeen: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        await userDocRef.update(updateData);
+    } catch (err) {
+        logger.error(`[Presence Mirror] Falha para o UID ${uid}:`, err);
+    }
+    return null;
 });

@@ -47,7 +47,7 @@ export default function UniversalLoginPage() {
       
       const isGoogleUser = auth.currentUser?.providerData.some(p => p.providerId === 'google.com');
       
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
         setError(
           "E-mail ou senha incorretos. Verifique se não há espaços extras. " +
           (isGoogleUser ? "Dica: Você costuma entrar com o Google. Se quiser usar uma senha, clique em 'Esqueceu a senha' para criar uma." : "")
@@ -80,7 +80,13 @@ export default function UniversalLoginPage() {
     }
   };
 
-  if (userLoading) return null;
+  if (userLoading && !user) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader className="animate-spin text-primary" />
+        </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
