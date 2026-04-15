@@ -67,18 +67,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    setPersistence(auth, browserLocalPersistence).catch(console.error);
-
+    // Tenta carregar do cache imediatamente para evitar tela de loading
     const cached = localStorage.getItem(USER_CACHE_KEY);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
         setUser(parsed);
-        setLoading(false);
+        // Não definimos loading como false ainda, esperamos o Firebase confirmar a sessão
       } catch (e) {
         console.warn("Erro ao ler cache do usuário");
       }
     }
+
+    setPersistence(auth, browserLocalPersistence).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -200,6 +201,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const value = { user, congregation, loading, logout, updateUser };
 
+  // Só mostra tela de loading se não houver NADA (nem cache nem usuário confirmado)
   if (loading && !user) {
     return <LoadingScreen />;
   }

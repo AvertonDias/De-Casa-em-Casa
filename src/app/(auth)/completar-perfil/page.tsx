@@ -4,13 +4,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/contexts/UserContext';
-import { auth, db } from '@/lib/firebase';
+import { db, functions } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast";
 import { maskPhone } from '@/lib/utils';
 import Image from 'next/image';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import withAuth from '@/components/withAuth';
-import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { Footer } from '@/components/Footer';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -33,14 +34,14 @@ function CompleteProfilePage() {
         setError(null);
 
         try {
-            // 1. Buscar o ID da congregação pelo número
-            const congQuery = query(collection(db, "congregations"), where("number", "==", congregationNumber.trim()));
-            const congSnap = await getDocs(congQuery);
+            // 1. Buscar o ID da congregação pelo número usando Cloud Function (mais robusto)
+            const getCongId = httpsCallable(functions, 'getCongregationIdByNumberV2');
+            const result = await getCongId({ congregationNumber: congregationNumber.trim() });
+            const { congregationId } = result.data as { congregationId: string };
 
-            if (congSnap.empty) {
+            if (!congregationId) {
                 throw new Error("Número da congregação não encontrado.");
             }
-            const congregationId = congSnap.docs[0].id;
 
             // 2. Criar o perfil do usuário diretamente no Firestore
             const userDocRef = doc(db, "users", user.uid);
@@ -71,13 +72,12 @@ function CompleteProfilePage() {
                 variant: 'default',
             });
             
-            // O UserContext irá lidar com o redirecionamento automático para /aguardando-aprovacao
-
         } catch (err: any) {
             console.error("Erro ao completar perfil:", err);
             let message = err.message || "Ocorreu um erro desconhecido.";
-            if (message.includes("not found") || message.includes("não encontrado")) {
-              setError("Número da congregação inválido ou não encontrado.");
+            
+            if (message.includes("not-found") || message.includes("não encontrado")) {
+              setError("Número da congregação não encontrado. Se você deseja criar uma NOVA congregação, use o botão específico na tela de login.");
             } else { 
               setError("Ocorreu um erro ao salvar seu perfil: " + message); 
             }
@@ -110,33 +110,43 @@ function CompleteProfilePage() {
                         </p>
                     </div>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <input
-                            type="tel"
-                            value={whatsapp}
-                            onChange={(e) => setWhatsapp(maskPhone(e.target.value))}
-                            placeholder="Seu WhatsApp (Obrigatório)"
-                            required
-                            className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                            autoComplete="tel"
-                        />
-                        <input
-                            type="tel"
-                            inputMode="numeric"
-                            value={congregationNumber}
-                            onChange={(e) => setCongregationNumber(e.target.value.replace(/\D/g, ''))}
-                            placeholder="Número da Congregação"
-                            required
-                            className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
+                        <div className="space-y-1">
+                            <label className="text-[10px] text-muted-foreground uppercase font-bold ml-1">Seu WhatsApp</label>
+                            <input
+                                type="tel"
+                                value={whatsapp}
+                                onChange={(e) => setWhatsapp(maskPhone(e.target.value))}
+                                placeholder="(XX) XXXXX-XXXX"
+                                required
+                                className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                                autoComplete="tel"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] text-muted-foreground uppercase font-bold ml-1">Número da Congregação</label>
+                            <input
+                                type="tel"
+                                inputMode="numeric"
+                                value={congregationNumber}
+                                onChange={(e) => setCongregationNumber(e.target.value.replace(/\D/g, ''))}
+                                placeholder="Digite o número oficial"
+                                required
+                                className="w-full px-4 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                        </div>
                         
-                        {error && <p className="text-destructive text-sm text-center">{error}</p>}
+                        {error && (
+                            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-destructive text-xs font-medium text-center">
+                                {error}
+                            </div>
+                        )}
                         
                         <button
                             type="submit"
-                            disabled={loading || !whatsapp || !congregationNumber}
-                            className="w-full px-4 py-2 font-semibold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50"
+                            disabled={loading || !whatsapp || !congregationNumber || whatsapp.length < 15}
+                            className="w-full px-4 py-3 font-bold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 shadow-md transition-all"
                         >
-                            {loading ? 'Salvando...' : 'Finalizar Cadastro'}
+                            {loading ? <Loader className="animate-spin inline mr-2" size={18}/> : 'Finalizar Cadastro'}
                         </button>
                     </form>
                 </div>

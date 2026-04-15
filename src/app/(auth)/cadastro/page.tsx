@@ -4,8 +4,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from 'firebase/auth'; 
-import { auth, db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db, functions } from '@/lib/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Eye, EyeOff, AlertTriangle, Loader } from 'lucide-react';
@@ -33,7 +34,6 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Redireciona se já estiver logado e aprovado
   useEffect(() => {
     if (!userLoading && currentUser?.congregationId && currentUser?.status === 'ativo') {
       router.replace('/dashboard');
@@ -42,8 +42,7 @@ export default function SignUpPage() {
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
-    // Limpeza em tempo real: remove qualquer espaço e força minúsculas
-    setEmail(e.target.value.toLowerCase().replace(/\s/g, ''));
+    setEmail(e.target.value.toLowerCase().trim().replace(/\s/g, ''));
   };
 
   const handleWhatsappChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,7 +56,6 @@ export default function SignUpPage() {
 
     const targetEmail = email.trim().toLowerCase();
 
-    // Validações básicas
     if (password !== confirmPassword) { setError("As senhas não coincidem."); return; }
     if (whatsapp !== confirmWhatsapp) { setError("Os números de WhatsApp não coincidem."); return; }
     if (password.length < 6) { setError("A senha precisa ter pelo menos 6 caracteres."); return; }
@@ -67,24 +65,23 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-        // 1. Verificar se a congregação existe (é permitido ler publicamente)
-        const congQuery = query(collection(db, "congregations"), where("number", "==", congregationNumber.trim()));
-        const congSnap = await getDocs(congQuery);
+        // 1. Verificar se a congregação existe via Cloud Function
+        const getCongId = httpsCallable(functions, 'getCongregationIdByNumberV2');
+        const result = await getCongId({ congregationNumber: congregationNumber.trim() });
+        const { congregationId } = result.data as { congregationId: string };
 
-        if (congSnap.empty) {
-            throw new Error("Número de congregação não encontrado. Verifique com seu dirigente se o número está correto.");
+        if (!congregationId) {
+            throw new Error("Número da congregação não encontrado. Se você deseja CRIAR uma nova congregação, use o botão na tela inicial.");
         }
-        const congregationId = congSnap.docs[0].id;
 
         // 2. Criar conta no Firebase Auth
-        // O Firebase Auth já impede naturalmente e-mails duplicados para o provedor de senha.
         const userCredential = await createUserWithEmailAndPassword(auth, targetEmail, password);
         const user = userCredential.user;
         
-        // 3. Atualizar nome no perfil do Auth
+        // 3. Atualizar nome no perfil
         await updateProfile(user, { displayName: name.trim() });
         
-        // 4. Criar documento no Firestore usando o UID como ID (isso evita duplicatas para o mesmo UID)
+        // 4. Criar documento no Firestore
         const userDocRef = doc(db, "users", user.uid);
         await setDoc(userDocRef, {
             name: name.trim(),
@@ -101,16 +98,12 @@ export default function SignUpPage() {
             title: 'Solicitação enviada!',
             description: 'Sua conta foi criada. Agora um administrador precisa aprovar seu acesso.',
         });
-        
-        // O UserContext redirecionará para /aguardando-aprovacao
       
     } catch (err: any) {
       console.error("Erro no cadastro:", err);
       
       if (err.code === 'auth/email-already-in-use') { 
         setError(<>Este e-mail já está em uso por outra conta. <Link href="/recuperar-senha" className="font-bold underline ml-1">Esqueceu a senha?</Link></>); 
-      } else if (err.code === 'permission-denied' || err.message?.includes('permissions')) {
-        setError("Erro de permissão ao verificar dados. Por favor, tente novamente ou use o login com Google.");
       } else { 
         setError(err.message || "Falha ao completar o cadastro. Verifique sua conexão."); 
       }
@@ -126,7 +119,6 @@ export default function SignUpPage() {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         await signInWithPopup(auth, provider);
-        // O redirecionamento é feito pelo UserContext
     } catch (error: any) {
       if (error.code === 'auth/account-exists-with-different-credential') {
         setError("Este e-mail já possui uma conta cadastrada com senha.");
@@ -173,12 +165,12 @@ export default function SignUpPage() {
                   </button>
                 </div>
 
-                <div className="pt-2">
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1 ml-1 tracking-wider">Sua Congregação</p>
-                  <input type="tel" inputMode="numeric" value={congregationNumber} onChange={(e) => setCongregationNumber(e.target.value.replace(/\D/g, ''))} placeholder="Número da Congregação" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none" />
+                <div className="pt-2 border-t border-border/50">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1 ml-1 tracking-wider">Número da Congregação</p>
+                  <input type="tel" inputMode="numeric" value={congregationNumber} onChange={(e) => setCongregationNumber(e.target.value.replace(/\D/g, ''))} placeholder="Digite o número oficial" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none" />
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-2 border-t border-border/50">
                   <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1 ml-1 tracking-wider">Contato WhatsApp</p>
                   <input type="tel" value={whatsapp} onChange={handleWhatsappChange(setWhatsapp)} placeholder="Seu WhatsApp" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none" />
                   <input type="tel" value={confirmWhatsapp} onChange={handleWhatsappChange(setConfirmWhatsapp)} placeholder="Confirmar WhatsApp" required className="w-full px-4 py-2 bg-background border border-input rounded-md mt-2 focus:ring-2 focus:ring-primary outline-none" />
@@ -192,12 +184,12 @@ export default function SignUpPage() {
 
           <div className="relative">
               <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-              <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Ou</span></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Ou use o</span></div>
           </div>
 
-          <button onClick={handleGoogleSignUp} disabled={loading || googleLoading} className="w-full flex items-center justify-center gap-3 px-4 py-2 font-semibold text-foreground bg-background border border-input rounded-md hover:bg-accent transition-colors disabled:opacity-50">
+          <button onClick={handleGoogleSignUp} disabled={loading || googleLoading} className="w-full flex items-center justify-center gap-3 px-4 py-2.5 font-semibold text-foreground bg-background border border-input rounded-md hover:bg-accent transition-colors disabled:opacity-50">
               <svg className="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"></path><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"></path><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"></path><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C42.021 35.596 44 30.138 44 24c0-1.341-.138-2.65-.389-3.917z"></path></svg>
-              Solicitar com Google
+              Google
           </button>
 
           <div className="text-center text-sm">

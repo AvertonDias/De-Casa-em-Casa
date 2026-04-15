@@ -30,7 +30,8 @@ export default function UniversalLoginPage() {
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
-    setEmail(e.target.value.toLowerCase().replace(/\s/g, ''));
+    // Limpeza agressiva: minúsculas e sem espaços
+    setEmail(e.target.value.toLowerCase().trim().replace(/\s/g, ''));
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -45,17 +46,17 @@ export default function UniversalLoginPage() {
     } catch (err: any) {
       console.error("Erro de login:", err);
       
+      // Verifica se o usuário tem conta Google mas tentou logar com senha
       const isGoogleUser = auth.currentUser?.providerData.some(p => p.providerId === 'google.com');
       
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
         setError(
-          "E-mail ou senha incorretos. Verifique se não há espaços extras. " +
-          (isGoogleUser ? "Dica: Você costuma entrar com o Google. Se quiser usar uma senha, clique em 'Esqueceu a senha' para criar uma." : "")
+          "E-mail ou senha incorretos. Verifique se não há espaços extras ou se você não criou sua conta usando o Google."
         );
       } else if (err.code === 'auth/too-many-requests') {
         setError("Muitas tentativas falhas. Aguarde alguns minutos ou redefina sua senha.");
       } else {
-        setError("Falha ao entrar. Verifique sua conexão.");
+        setError("Falha ao entrar. Verifique sua conexão e tente novamente.");
       }
     } finally {
       setLoading(false);
@@ -71,7 +72,7 @@ export default function UniversalLoginPage() {
         await signInWithPopup(auth, provider);
     } catch (error: any) {
       if (error.code === 'auth/account-exists-with-different-credential') {
-        setError("Este e-mail já possui uma conta com senha.");
+        setError("Este e-mail já possui uma conta com senha. Tente digitar sua senha acima.");
       } else if (error.code !== 'auth/popup-closed-by-user') {
         setError("Falha ao entrar com o Google.");
       }
@@ -80,6 +81,8 @@ export default function UniversalLoginPage() {
     }
   };
 
+  // Se já temos o usuário do cache, não mostramos o loader, deixamos a página renderizar
+  // e o useEffect cuidará do redirecionamento se necessário.
   if (userLoading && !user) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
