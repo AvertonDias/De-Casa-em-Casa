@@ -3,8 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
-import { auth, GoogleAuthProvider } from '@/lib/firebase';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff, Info, AlertTriangle, Loader } from 'lucide-react';
 import Image from 'next/image';
@@ -30,7 +30,6 @@ export default function UniversalLoginPage() {
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
-    // Remove espaços e força minúsculas em tempo real
     setEmail(e.target.value.toLowerCase().trim().replace(/\s/g, ''));
   };
 
@@ -54,6 +53,8 @@ export default function UniversalLoginPage() {
         );
       } else if (err.code === 'auth/too-many-requests') {
         setError("Muitas tentativas falhas. Aguarde alguns minutos ou redefina sua senha.");
+      } else if (err.message?.includes('suspended')) {
+        setError("O serviço de login do Google está temporariamente indisponível para este projeto. Por favor, contate o suporte.");
       } else {
         setError("Falha ao entrar. Verifique sua conexão e tente novamente.");
       }
@@ -71,12 +72,14 @@ export default function UniversalLoginPage() {
         await signInWithPopup(auth, provider);
     } catch (error: any) {
       console.error("Erro Google Login:", error.code, error.message);
-      if (error.code === 'auth/account-exists-with-different-credential') {
+      if (error.message?.includes('suspended')) {
+          setError("A chave de acesso deste projeto foi suspensa pelo Google. Contate o administrador do sistema.");
+      } else if (error.code === 'auth/account-exists-with-different-credential') {
         setError("Este e-mail já possui uma conta com senha. Tente digitar sua senha acima.");
       } else if (error.code === 'auth/unauthorized-domain') {
-        setError("Domínio não autorizado. Verifique as configurações de domínios autorizados no Firebase Console.");
+        setError("Domínio não autorizado. Verifique as configurações no Firebase Console.");
       } else if (error.code === 'auth/popup-blocked') {
-        setError("O pop-up de login foi bloqueado pelo seu navegador. Por favor, permita pop-ups para este site.");
+        setError("O pop-up de login foi bloqueado pelo seu navegador.");
       } else if (error.code !== 'auth/popup-closed-by-user') {
         setError("Falha ao entrar com o Google. Tente usar e-mail e senha.");
       }
@@ -168,12 +171,6 @@ export default function UniversalLoginPage() {
                           Criar Congregação
                       </Link>
                   </div>
-              </div>
-
-              <div className="pt-2">
-                  <Link href="https://aplicativos-ton.vercel.app/de-casa-em-casa" target="_blank" className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors">
-                      <Info size={14} /> Sobre o Sistema
-                  </Link>
               </div>
           </div>
         </div>
