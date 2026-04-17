@@ -26,7 +26,11 @@ function CompleteProfilePage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (whatsapp.length < 15) { setError("Por favor, preencha o número de WhatsApp completo."); return; }
+        
+        const cleanWhatsapp = whatsapp.trim();
+        const cleanCongNumber = congregationNumber.trim().replace(/\D/g, '');
+
+        if (cleanWhatsapp.length < 15) { setError("Por favor, preencha o número de WhatsApp completo."); return; }
         if (!user) { setError("Usuário não autenticado."); return; }
 
         setLoading(true);
@@ -35,25 +39,25 @@ function CompleteProfilePage() {
         try {
             // 1. Buscar o ID da congregação pelo número usando Cloud Function
             const getCongId = httpsCallable(functions, 'getCongregationIdByNumberV2');
-            const result = await getCongId({ congregationNumber: congregationNumber.trim() });
+            const result = await getCongId({ congregationNumber: cleanCongNumber });
             const { congregationId } = result.data as { congregationId: string };
 
             if (!congregationId) {
                 throw new Error("Número da congregação não encontrado.");
             }
 
-            // 2. Criar o perfil do usuário diretamente no Firestore
+            // 2. Criar ou atualizar o perfil do usuário usando setDoc (previne duplicados)
             const userDocRef = doc(db, "users", user.uid);
             await setDoc(userDocRef, {
                 name: user.name,
-                email: user.email,
-                whatsapp: whatsapp,
+                email: user.email.toLowerCase().trim(),
+                whatsapp: cleanWhatsapp,
                 congregationId: congregationId,
                 role: "Publicador",
                 status: "pendente",
                 createdAt: serverTimestamp(),
                 lastSeen: serverTimestamp()
-            });
+            }, { merge: true }); // Merge evita sobrescrever campos caso já existam
             
             toast({
                 title: 'Perfil completo!',
@@ -65,9 +69,9 @@ function CompleteProfilePage() {
             let message = err.message || "Ocorreu um erro desconhecido.";
             
             if (message.includes("not-found") || message.includes("não encontrado")) {
-              setError("Número da congregação não encontrado. Se você deseja criar uma NOVA congregação, use o botão específico na tela de login.");
+              setError("Número da congregação não encontrado. Peça o número correto ao seu administrador.");
             } else { 
-              setError("Ocorreu um erro ao salvar seu perfil. Tente novamente."); 
+              setError("Ocorreu um erro ao salvar seu perfil. Verifique sua internet."); 
             }
         } finally {
             setLoading(false);

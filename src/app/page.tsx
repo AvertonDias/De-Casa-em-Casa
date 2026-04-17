@@ -30,6 +30,7 @@ export default function UniversalLoginPage() {
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
+    // Remove espaços e força minúsculas em tempo real
     setEmail(e.target.value.toLowerCase().trim().replace(/\s/g, ''));
   };
 
@@ -45,11 +46,11 @@ export default function UniversalLoginPage() {
     try {
       await signInWithEmailAndPassword(auth, targetEmail, password);
     } catch (err: any) {
-      console.error("Erro de login:", err);
+      console.error("Erro de login:", err.code, err.message);
       
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
         setError(
-          "E-mail ou senha incorretos. Verifique se não há espaços extras ou se você não criou sua conta usando o Google."
+          "E-mail ou senha incorretos. Dica: Verifique se você não criou sua conta usando o botão do Google abaixo."
         );
       } else if (err.code === 'auth/too-many-requests') {
         setError("Muitas tentativas falhas. Aguarde alguns minutos ou redefina sua senha.");
@@ -69,10 +70,15 @@ export default function UniversalLoginPage() {
         provider.setCustomParameters({ prompt: 'select_account' });
         await signInWithPopup(auth, provider);
     } catch (error: any) {
+      console.error("Erro Google Login:", error.code, error.message);
       if (error.code === 'auth/account-exists-with-different-credential') {
         setError("Este e-mail já possui uma conta com senha. Tente digitar sua senha acima.");
+      } else if (error.code === 'auth/unauthorized-domain') {
+        setError("Domínio não autorizado. Verifique as configurações de domínios autorizados no Firebase Console.");
+      } else if (error.code === 'auth/popup-blocked') {
+        setError("O pop-up de login foi bloqueado pelo seu navegador. Por favor, permita pop-ups para este site.");
       } else if (error.code !== 'auth/popup-closed-by-user') {
-        setError("Falha ao entrar com o Google.");
+        setError("Falha ao entrar com o Google. Tente usar e-mail e senha.");
       }
     } finally {
         setGoogleLoading(false);
@@ -112,6 +118,7 @@ export default function UniversalLoginPage() {
                 placeholder="Seu e-mail"
                 required
                 className="w-full px-4 py-2.5 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none"
+                autoComplete="email"
               />
               <div className="relative">
                 <input
@@ -121,6 +128,7 @@ export default function UniversalLoginPage() {
                   placeholder="Sua senha"
                   required
                   className="w-full px-4 py-2.5 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none pr-10"
+                  autoComplete="current-password"
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground hover:text-foreground">
                   {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}

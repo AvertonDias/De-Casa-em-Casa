@@ -117,8 +117,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
             email: rawData?.email || firebaseUser.email,
           } as AppUser;
 
+          // Se o usuário foi bloqueado, faz logout silencioso
           if (appUser.status === 'bloqueado' || appUser.status === 'rejeitado') {
-              logout('/');
+              unsubscribeAll();
+              localStorage.removeItem(USER_CACHE_KEY);
+              await signOut(auth);
+              setUser(null);
+              setCongregation(null);
+              setLoading(false);
               return;
           }
           
@@ -140,6 +146,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 setLoading(false); 
               }, 
               async (error) => {
+                console.error("Erro ao carregar congregação:", error);
                 setLoading(false);
               }
             );
@@ -149,6 +156,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           }
         }, 
         async (error) => {
+          console.error("Erro ao carregar perfil do usuário:", error);
           setLoading(false);
         }
       );
