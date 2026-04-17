@@ -22,7 +22,7 @@ export default function UniversalLoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!userLoading && user?.congregationId) {
+    if (!userLoading && user?.congregationId && user?.status === 'ativo') {
       const dest = user.role === 'Administrador' ? '/dashboard' : '/dashboard/territorios';
       router.replace(dest);
     }
@@ -30,24 +30,22 @@ export default function UniversalLoginPage() {
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
-    // Limpeza agressiva: minúsculas e sem espaços
     setEmail(e.target.value.toLowerCase().trim().replace(/\s/g, ''));
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setLoading(true);
-
+    
     const targetEmail = email.trim().toLowerCase();
+    if (!targetEmail || !password) return;
+    
+    setLoading(true);
 
     try {
       await signInWithEmailAndPassword(auth, targetEmail, password);
     } catch (err: any) {
       console.error("Erro de login:", err);
-      
-      // Verifica se o usuário tem conta Google mas tentou logar com senha
-      const isGoogleUser = auth.currentUser?.providerData.some(p => p.providerId === 'google.com');
       
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
         setError(
@@ -81,8 +79,6 @@ export default function UniversalLoginPage() {
     }
   };
 
-  // Se já temos o usuário do cache, não mostramos o loader, deixamos a página renderizar
-  // e o useEffect cuidará do redirecionamento se necessário.
   if (userLoading && !user) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -156,7 +152,7 @@ export default function UniversalLoginPage() {
               <div className="p-4 bg-secondary/50 border border-border rounded-lg space-y-3">
                   <div className="space-y-2">
                       <Link href="/cadastro" className="block w-full text-center px-4 py-2 font-bold text-primary border border-primary rounded-md hover:bg-primary/10 transition-all text-sm">
-                          Criar cadastro
+                          Solicite seu acesso aqui
                       </Link>
                   </div>
                   <div className="pt-2 border-t border-border/50 space-y-2">

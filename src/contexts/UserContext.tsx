@@ -73,7 +73,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       try {
         const parsed = JSON.parse(cached);
         setUser(parsed);
-        // Não definimos loading como false ainda, esperamos o Firebase confirmar a sessão
       } catch (e) {
         console.warn("Erro ao ler cache do usuário");
       }
@@ -104,6 +103,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 uid: firebaseUser.uid,
                 name: firebaseUser.displayName || 'Novo Usuário',
                 email: firebaseUser.email!,
+                status: 'pendente'
             } as AppUser;
             setUser(partialUser);
             setLoading(false);
@@ -201,7 +201,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const value = { user, congregation, loading, logout, updateUser };
 
-  // Só mostra tela de loading se não houver NADA (nem cache nem usuário confirmado)
   if (loading && !user) {
     return <LoadingScreen />;
   }

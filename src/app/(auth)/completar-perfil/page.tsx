@@ -13,8 +13,7 @@ import withAuth from '@/components/withAuth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { Footer } from '@/components/Footer';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { Loader } from 'lucide-react';
 
 function CompleteProfilePage() {
     const { user, loading: userLoading } = useUser();
@@ -34,7 +33,7 @@ function CompleteProfilePage() {
         setError(null);
 
         try {
-            // 1. Buscar o ID da congregação pelo número usando Cloud Function (mais robusto)
+            // 1. Buscar o ID da congregação pelo número usando Cloud Function
             const getCongId = httpsCallable(functions, 'getCongregationIdByNumberV2');
             const result = await getCongId({ congregationNumber: congregationNumber.trim() });
             const { congregationId } = result.data as { congregationId: string };
@@ -45,7 +44,7 @@ function CompleteProfilePage() {
 
             // 2. Criar o perfil do usuário diretamente no Firestore
             const userDocRef = doc(db, "users", user.uid);
-            const userData = {
+            await setDoc(userDocRef, {
                 name: user.name,
                 email: user.email,
                 whatsapp: whatsapp,
@@ -54,22 +53,11 @@ function CompleteProfilePage() {
                 status: "pendente",
                 createdAt: serverTimestamp(),
                 lastSeen: serverTimestamp()
-            };
-
-            await setDoc(userDocRef, userData).catch(async (err) => {
-                const permissionError = new FirestorePermissionError({
-                    path: userDocRef.path,
-                    operation: 'create',
-                    requestResourceData: userData,
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                throw err;
             });
             
             toast({
                 title: 'Perfil completo!',
                 description: 'Seu acesso agora precisa ser aprovado por um administrador.',
-                variant: 'default',
             });
             
         } catch (err: any) {
@@ -79,7 +67,7 @@ function CompleteProfilePage() {
             if (message.includes("not-found") || message.includes("não encontrado")) {
               setError("Número da congregação não encontrado. Se você deseja criar uma NOVA congregação, use o botão específico na tela de login.");
             } else { 
-              setError("Ocorreu um erro ao salvar seu perfil: " + message); 
+              setError("Ocorreu um erro ao salvar seu perfil. Tente novamente."); 
             }
         } finally {
             setLoading(false);
