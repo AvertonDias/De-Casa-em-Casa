@@ -1,4 +1,3 @@
-
 import { https, setGlobalOptions, logger } from "firebase-functions/v2";
 import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onValueWritten } from "firebase-functions/v2/database";
