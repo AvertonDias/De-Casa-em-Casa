@@ -20,7 +20,7 @@ const ptSans = PT_Sans({
 export const metadata: Metadata = {
   title: "De Casa em Casa",
   description: "Painel de Controle de Territórios",
-  manifest: "/manifest.json?v=1",
+  manifest: "/manifest.json?v=2",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
