@@ -1,4 +1,3 @@
-
 "use client";
 import { useState } from 'react';
 import Image from 'next/image';
@@ -43,7 +42,6 @@ export default function NovaCongregacaoPage() {
     try {
         const createCong = httpsCallable(functions, 'createCongregationAndAdminV2');
         
-        // Chamada para a função que cria tudo de forma atômica
         await createCong({
             adminName: adminName.trim(),
             adminEmail: adminEmail.trim().toLowerCase(),
@@ -53,10 +51,9 @@ export default function NovaCongregacaoPage() {
             whatsapp: whatsapp
         });
 
-        // Após criar, faz o login automático
         await signInWithEmailAndPassword(auth, adminEmail.trim().toLowerCase(), adminPassword);
         
-        toast({ title: "Congregação Criada!", description: "Bem-vindo ao Casa em Casa." });
+        toast({ title: "Congregação Criada!", description: "Bem-vindo ao De Casa em Casa." });
         
     } catch (error: any) {
         console.error("Erro na criação:", error);
@@ -83,7 +80,6 @@ export default function NovaCongregacaoPage() {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         await signInWithPopup(auth, provider);
-        // O redirecionamento será feito pelo UserContext ao detectar que não tem congregationId
     } catch (error: any) {
       if (error.code !== 'auth/popup-closed-by-user') {
         console.error("Erro com Google:", error);
@@ -100,7 +96,7 @@ export default function NovaCongregacaoPage() {
                 <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg">
                     <div className="flex flex-col items-center">
                         <Image src="/images/Logo_v3.png" alt="Logo" width={80} height={80} className="mb-4 rounded-lg" priority />
-                        <h1 className="text-3xl font-bold text-center">Casa em Casa</h1>
+                        <h1 className="text-3xl font-bold text-center">De Casa em Casa</h1>
                         <p className="text-muted-foreground text-sm mt-2 text-center">Crie uma nova congregação no sistema</p>
                     </div>
 

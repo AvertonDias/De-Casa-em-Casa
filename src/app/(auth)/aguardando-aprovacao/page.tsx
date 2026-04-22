@@ -27,18 +27,15 @@ function AguardandoAprovacaoPage() {
             const fetchManagersAndCongregation = async () => {
                 setLoadingManagers(true);
                 try {
-                    // Adicionada verificação para garantir que user e congregationId existam.
                     if (!user || !user.congregationId) {
                         throw new Error("Usuário ou ID da congregação não encontrado.");
                     }
-                    // Buscar congregação
                     const congRef = doc(db, 'congregations', user.congregationId);
                     const congSnap = await getDoc(congRef);
                     if (congSnap.exists()) {
                         setCongregation(congSnap.data() as Congregation);
                     }
 
-                    // Buscar dirigentes e admins
                     const usersRef = collection(db, 'users');
                     const q = query(usersRef, where("congregationId", "==", user.congregationId));
                     
@@ -80,7 +77,7 @@ function AguardandoAprovacaoPage() {
         
         const number = whatsapp.replace(/\D/g, '');
         
-        const defaultTemplate = "Olá, sou [Nome do Usuário]. Acabei de solicitar acesso ao aplicativo Casa em Casa para a congregação [Nome da Congregação]. Você poderia aprovar meu acesso, por favor?";
+        const defaultTemplate = "Olá, sou [Nome do Usuário]. Acabei de solicitar acesso ao aplicativo De Casa em Casa para a congregação [Nome da Congregação]. Você poderia aprovar meu acesso, por favor?";
         const template = congregation.whatsappTemplates?.pendingApproval || defaultTemplate;
         
         const message = template

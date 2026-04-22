@@ -21,6 +21,7 @@ import { EditProfileModal } from "@/components/EditProfileModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal"; 
 import { Territory, Notification } from "@/types/types";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { SettingsMenu } from "../components/SettingsMenu";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
 import { FontSizeModal } from "@/components/FontSizeModal";
@@ -80,7 +81,7 @@ function Sidebar({
   
   const handleShare = async () => {
     const shareData = {
-      title: 'Casa em Casa',
+      title: 'De Casa em Casa',
       text: 'Conheça o sistema para gerenciamento de territórios. Na página que abrir, clique em "Abrir App".',
       url: 'https://aplicativos-ton.vercel.app/de-casa-em-casa',
     };
@@ -92,15 +93,12 @@ function Sidebar({
         await navigator.share(shareData);
         shared = true;
       } catch (err: any) {
-        // Ignora AbortError, mas loga outros erros.
-        // O fallback para clipboard ocorrerá naturalmente.
         if (err.name !== 'AbortError') {
           console.error("Erro na API de compartilhamento:", err);
         }
       }
     }
     
-    // Fallback 1: Tentar copiar para a área de transferência
     if (!shared && typeof navigator !== 'undefined' && navigator.clipboard) {
       try {
         await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
@@ -114,7 +112,6 @@ function Sidebar({
       }
     }
     
-    // Fallback 2: Abrir em nova aba (último recurso)
     if (!shared) {
        try {
          window.open(shareData.url, '_blank');
@@ -169,7 +166,7 @@ function Sidebar({
                     <button onClick={onClose} className="md:hidden p-1 rounded-full"><AnimatedHamburgerIcon isOpen={isOpen} /></button>
                 </div>
             </div>
-            <h1 className="text-xl font-bold">Casa em Casa</h1>
+            <h1 className="text-xl font-bold">De Casa em Casa</h1>
         </div>
 
         <nav className="flex-1 overflow-y-auto">
@@ -316,7 +313,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                       <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-destructive rounded-full animate-indicator-pulse"></span>
                     )}
                   </div>
-                  <h1 className="text-lg font-bold">Casa em Casa</h1>
+                  <h1 className="text-lg font-bold">De Casa em Casa</h1>
                   <SettingsMenu 
                     onEditProfileClick={() => setIsProfileModalOpen(true)} 
                     onFontSizeClick={() => setIsFontSizeModalOpen(true)}

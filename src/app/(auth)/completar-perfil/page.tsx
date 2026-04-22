@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -37,7 +36,6 @@ function CompleteProfilePage() {
         setError(null);
 
         try {
-            // 1. Buscar o ID da congregação pelo número usando Cloud Function
             const getCongId = httpsCallable(functions, 'getCongregationIdByNumberV2');
             const result = await getCongId({ congregationNumber: cleanCongNumber });
             const { congregationId } = result.data as { congregationId: string };
@@ -46,7 +44,6 @@ function CompleteProfilePage() {
                 throw new Error("Número da congregação não encontrado.");
             }
 
-            // 2. Criar ou atualizar o perfil do usuário usando setDoc (previne duplicados)
             const userDocRef = doc(db, "users", user.uid);
             await setDoc(userDocRef, {
                 name: user.name,
@@ -57,7 +54,7 @@ function CompleteProfilePage() {
                 status: "pendente",
                 createdAt: serverTimestamp(),
                 lastSeen: serverTimestamp()
-            }, { merge: true }); // Merge evita sobrescrever campos caso já existam
+            }, { merge: true });
             
             toast({
                 title: 'Perfil completo!',
@@ -89,7 +86,7 @@ function CompleteProfilePage() {
                     <div className="text-center">
                         <Image
                             src="/images/Logo_v3.png"
-                            alt="Logo Casa em Casa"
+                            alt="Logo De Casa em Casa"
                             width={80}
                             height={80}
                             className="rounded-lg mb-4 mx-auto"

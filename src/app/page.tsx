@@ -101,7 +101,7 @@ export default function UniversalLoginPage() {
         <div className="w-full max-w-sm p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg border border-border/50">
           <div className="flex flex-col items-center justify-center">
               <Image src="/images/Logo_v3.png" alt="Logo" width={80} height={80} className="rounded-lg mb-4" priority />
-              <h1 className="text-3xl font-bold text-center tracking-tight">Casa em Casa</h1>
+              <h1 className="text-3xl font-bold text-center tracking-tight">De Casa em Casa</h1>
           </div>
           
           {error && (
