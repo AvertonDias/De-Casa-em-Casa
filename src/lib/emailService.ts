@@ -1,8 +1,8 @@
 // src/lib/emailService.ts
 import emailjs from '@emailjs/browser';
 
-const SERVICE_ID = 'service_w3xe95d';
-const PUBLIC_KEY = 'JdR2XKNICKcHc1jny';
+const SERVICE_ID = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || 'service_w3xe95d';
+const PUBLIC_KEY = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || 'JdR2XKNICKcHc1jny';
 const FEEDBACK_TEMPLATE_ID = 'template_8jxgats';
 const PASSWORD_RESET_TEMPLATE_ID = 'template_uw6rp1c';
 
