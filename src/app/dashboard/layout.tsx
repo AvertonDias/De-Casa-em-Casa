@@ -28,6 +28,8 @@ import { FontSizeModal } from "@/components/FontSizeModal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { Footer } from "@/components/Footer";
+import { TutorialButton } from "@/components/TutorialButton";
+import { TUTORIAL_IDS } from "@/lib/tutorials";
 
 const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React.SVGProps<SVGSVGElement>) => {
   return (
@@ -221,9 +223,18 @@ function Sidebar({
                         <Download className="mr-2" size={20} /> Instalar App
                     </Button>
                 )}
-                <Button onClick={handleShare} variant="outline" className="w-full justify-center text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400">
-                    <Share2 className="mr-2" size={20} /> Compartilhar App
-                </Button>
+                <div className="relative group">
+                  <Button onClick={handleShare} variant="outline" className="w-full justify-center text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400">
+                      <Share2 className="mr-2" size={20} /> Compartilhar App
+                  </Button>
+                  <div className="absolute -top-2 -right-1">
+                    <TutorialButton 
+                      videoId={TUTORIAL_IDS.SHARE_APP} 
+                      iconOnly 
+                      label="Tutorial de Compartilhamento"
+                    />
+                  </div>
+                </div>
               <FeedbackModal />
               <a href="https://aplicativos-ton.vercel.app/de-casa-em-casa" target="_blank" rel="noopener noreferrer" className="w-full block">
                 <Button variant="outline" className="w-full justify-center text-primary border-primary/50 hover:bg-primary/10 hover:text-primary">

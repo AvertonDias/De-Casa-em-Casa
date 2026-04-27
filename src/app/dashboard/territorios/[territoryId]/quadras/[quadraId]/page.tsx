@@ -16,6 +16,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { TutorialButton } from '@/components/TutorialButton';
+import { TUTORIAL_IDS } from '@/lib/tutorials';
 
 
 interface QuadraDetailPageProps {
@@ -334,7 +336,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   return (
     <>
       <div className="p-4 md:p-8 min-h-full">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
               <Link href={`/dashboard/territorios/${territoryId}`} className="text-sm text-blue-600 hover:text-blue-800 dark:text-purple-400 dark:hover:text-purple-300 flex items-center mb-2">
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -356,6 +358,10 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                 </Button>
               </div>
             </div>
+            <TutorialButton 
+              videoId={TUTORIAL_IDS.MANAGE_HOUSES} 
+              label="Como gerenciar números" 
+            />
         </div>
         
         <div className="bg-card p-4 rounded-lg shadow-md mb-6">

@@ -9,6 +9,8 @@ import { Eye, EyeOff, Info, AlertTriangle, Loader } from 'lucide-react';
 import Image from 'next/image';
 import { useUser } from '@/contexts/UserContext';
 import { Footer } from '@/components/Footer';
+import { TutorialButton } from '@/components/TutorialButton';
+import { TUTORIAL_IDS } from '@/lib/tutorials';
 
 export default function UniversalLoginPage() {
   const [email, setEmail] = useState('');
@@ -102,6 +104,11 @@ export default function UniversalLoginPage() {
           <div className="flex flex-col items-center justify-center">
               <Image src="/images/Logo_v3.png" alt="Logo" width={80} height={80} className="rounded-lg mb-4" priority />
               <h1 className="text-3xl font-bold text-center tracking-tight">De Casa em Casa</h1>
+              <TutorialButton 
+                videoId={TUTORIAL_IDS.REGISTER} 
+                label="Tutorial de Cadastro" 
+                className="mt-2"
+              />
           </div>
           
           {error && (
