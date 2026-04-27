@@ -27,7 +27,7 @@ export function TutorialButton({ videoId, label = "Ver Tutorial", className, ico
           setIsOpen(true);
         }}
         className={cn(
-          "inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 transition-colors uppercase tracking-wider",
+          "inline-flex items-center gap-1.5 text-xs font-bold text-green-600 hover:text-green-700 dark:text-green-500 dark:hover:text-green-400 transition-colors uppercase tracking-wider",
           className
         )}
         title={label}

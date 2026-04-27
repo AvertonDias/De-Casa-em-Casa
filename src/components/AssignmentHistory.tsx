@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -102,7 +101,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                         "text-[13px] flex flex-wrap gap-x-4 mt-1",
                         isCurrent ? "text-foreground" : "text-muted-foreground"
                       )}>
-                        <span>Designado: {format(displayHead.assignedAt.toDate(), "dd/MM/yy")}</span>
+                        <span>Designado: {format(displayHead.assignedAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}</span>
                         {isCurrent ? (
                           <span className={cn(
                             "font-bold",
@@ -111,7 +110,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                             Devolver até: {format((displayHead as Assignment).dueDate.toDate(), "dd/MM/yyyy", { locale: ptBR })}
                           </span>
                         ) : (
-                          head && <span>Devolvido: {format((head as AssignmentHistoryLog).completedAt.toDate(), "dd/MM/yy")}</span>
+                          head && <span>Devolvido: {format((head as AssignmentHistoryLog).completedAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}</span>
                         )}
                       </div>
 
@@ -146,7 +145,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                               <span className="text-[9px] bg-muted text-foreground px-1.5 py-0.5 rounded font-bold uppercase">Transferido</span>
                             </div>
                             <p className="text-[11px] text-foreground mt-0.5">
-                              Transferido em: {format(t.completedAt.toDate(), "dd/MM/yy", { locale: ptBR })}
+                              Transferido em: {format(t.completedAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}
                             </p>
                           </div>
                           {isAdmin && (

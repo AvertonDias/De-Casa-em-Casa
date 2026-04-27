@@ -7,18 +7,18 @@ import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { Territory, AssignmentHistoryLog } from "@/types/types";
 import {
   Printer,
-    ArrowLeft,
-      Map,
-        Trees,
-          ZoomIn,
-            ZoomOut,
-              Loader,
-                RotateCcw,
-                } from "lucide-react";
-                import { format } from "date-fns";
-                import { ptBR } from "date-fns/locale";
-                import Link from "next/link";
-                import { Button } from "@/components/ui/button";
+  ArrowLeft,
+  Map,
+  Trees,
+  ZoomIn,
+  ZoomOut,
+  Loader,
+  RotateCcw,
+} from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { Capacitor } from "@capacitor/core";
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { useToast } from "@/hooks/use-toast";
@@ -252,10 +252,10 @@ export default function S13ReportPage() {
                     {display.map((a, i) => (
                       <React.Fragment key={i}>
                         <td className="border border-black py-2" style={cellStyle}>
-                          {a?.assignedAt ? format(a.assignedAt.toDate(), "dd/MM/yy") : ""}
+                          {a?.assignedAt ? format(a.assignedAt.toDate(), "dd/MM/yyyy") : ""}
                         </td>
                         <td className="border border-black py-2" style={cellStyle}>
-                          {a?.completedAt ? format(a.completedAt.toDate(), "dd/MM/yy") : ""}
+                          {a?.completedAt ? format(a.completedAt.toDate(), "dd/MM/yyyy") : ""}
                         </td>
                       </React.Fragment>
                     ))}
@@ -297,8 +297,8 @@ export default function S13ReportPage() {
                 {recentAssignments.length > 0 ? recentAssignments.map((a, i) => (
                   <div key={i} className="text-sm border-t border-border mt-2 pt-2">
                     <p><span className="font-semibold">Designado a:</span> {a.name || "N/A"}</p>
-                    <p><span className="font-semibold">Data:</span> {a.assignedAt ? format(a.assignedAt.toDate(), "dd/MM/yy") : "N/A"}</p>
-                    <p><span className="font-semibold">Conclusão:</span> {a.completedAt ? format(a.completedAt.toDate(), "dd/MM/yy") : "..."}</p>
+                    <p><span className="font-semibold">Data:</span> {a.assignedAt ? format(a.assignedAt.toDate(), "dd/MM/yyyy") : "N/A"}</p>
+                    <p><span className="font-semibold">Conclusão:</span> {a.completedAt ? format(a.completedAt.toDate(), "dd/MM/yyyy") : "..."}</p>
                   </div>
                 )) : (
                   <p className="text-sm text-muted-foreground">Nenhuma designação registrada.</p>

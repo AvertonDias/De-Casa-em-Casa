@@ -102,11 +102,6 @@ export default function TerritoryAssignmentPanel() {
     return () => unsub();
   }, [currentUser, toast]);
 
-  const handleOpenAssignModal = (territory: Territory) => {
-    setSelectedTerritory(territory);
-    setIsAssignModalOpen(true);
-  };
-  
   const handleSaveAssignment = async (territoryId: string, assignedUser: { uid: string; name: string }, assignmentDate: string, dueDate: string) => {
     if (!currentUser?.congregationId) {
         toast({ title: "Erro", description: "Dados do usuário atual incompletos.", variant: "destructive" });
@@ -207,9 +202,9 @@ export default function TerritoryAssignmentPanel() {
     }
 };
 
-  const handleOpenReturnModal = (territory: Territory) => {
+  const handleOpenAssignModal = (territory: Territory) => {
     setSelectedTerritory(territory);
-    setIsReturnModalOpen(true);
+    setIsAssignModalOpen(true);
   };
   
   const handleConfirmReturn = async (territoryId: string, returnDate: string) => {
@@ -400,6 +395,11 @@ export default function TerritoryAssignmentPanel() {
 
   const canManageAssignments = currentUser?.role === 'Administrador' || currentUser?.role === 'Servo de Territórios' || currentUser?.role === 'Ajudante de Servo de Territórios';
 
+  const handleOpenReturnModal = (territory: Territory) => {
+    setSelectedTerritory(territory);
+    setIsReturnModalOpen(true);
+  };
+
   if(loading) return <div className="text-center p-8"><Loader className="animate-spin mx-auto text-primary" /></div>
 
   return (
@@ -463,7 +463,7 @@ export default function TerritoryAssignmentPanel() {
                               </span>
                           </div>
                           <div className="col-span-12 sm:col-span-4 text-sm text-muted-foreground text-left">
-                              {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/yy', { locale: ptBR })})` : ''}
+                              {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR })})` : ''}
                           </div>
                        </div>
                        <div className="flex items-center justify-end flex-shrink-0 ml-2 sm:col-span-2">
