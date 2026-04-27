@@ -5,7 +5,7 @@
 export const TUTORIAL_IDS = {
   ACCEPT_USER: 'X9tWNXo7JBK', // Tutorial: Aceitar usuário pendente
   REGISTER: 'HpyQfjTRp59',    // Tutorial: Cadastro no app
-  SHARE_APP: 'dotprompt24',   // Tutorial: Compartilhar app
+  SHARE_APP: '6BDJDUNeeec',   // Tutorial: Compartilhar app (URL: https://youtube.com/shorts/6BDJDUNeeec)
   MANAGE_HOUSES: '9SM5oP5qmcc', // Tutorial: Gerenciar, editar e reordenar casas (URL: https://youtube.com/shorts/9SM5oP5qmcc)
 };
 
