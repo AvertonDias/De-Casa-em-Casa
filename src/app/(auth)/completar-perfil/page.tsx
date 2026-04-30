@@ -12,6 +12,8 @@ import withAuth from '@/components/withAuth';
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { Footer } from '@/components/Footer';
 import { Loader, Building2 } from 'lucide-react';
+import { TutorialButton } from '@/components/TutorialButton';
+import { TUTORIAL_IDS } from '@/lib/tutorials';
 
 function CompleteProfileContent() {
     const { user, loading: userLoading } = useUser();
@@ -112,6 +114,11 @@ function CompleteProfileContent() {
                             Bem-vindo(a), <span className="font-semibold text-foreground">{user.name}</span>! <br/>
                             Complete os dados para fundar sua congregação no sistema.
                         </p>
+                        <TutorialButton 
+                          videoId={TUTORIAL_IDS.REGISTER_CONGREGATION} 
+                          label="Tutorial: Criar congregação" 
+                          className="mt-2"
+                        />
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-4">

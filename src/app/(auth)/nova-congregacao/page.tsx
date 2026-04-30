@@ -12,6 +12,8 @@ import { auth, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { maskPhone } from '@/lib/utils'; 
 import { Footer } from '@/components/Footer';
+import { TutorialButton } from '@/components/TutorialButton';
+import { TUTORIAL_IDS } from '@/lib/tutorials';
 
 export default function NovaCongregacaoPage() {
   const [adminName, setAdminName] = useState('');
@@ -98,6 +100,11 @@ export default function NovaCongregacaoPage() {
                         <Image src="/images/Logo_v3.png" alt="Logo" width={80} height={80} className="mb-4 rounded-lg" priority />
                         <h1 className="text-3xl font-bold text-center">De Casa em Casa</h1>
                         <p className="text-muted-foreground text-sm mt-2 text-center">Crie uma nova congregação no sistema</p>
+                        <TutorialButton 
+                          videoId={TUTORIAL_IDS.REGISTER_CONGREGATION} 
+                          label="Tutorial: Como criar congregação" 
+                          className="mt-2"
+                        />
                     </div>
 
                     <button onClick={handleGoogleCreate} disabled={isLoading || googleLoading} className="w-full flex items-center justify-center gap-2 px-4 py-2 font-semibold text-foreground bg-background border border-input rounded-md hover:bg-accent disabled:opacity-50 transition-colors">
