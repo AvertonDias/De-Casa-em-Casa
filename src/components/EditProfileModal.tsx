@@ -8,7 +8,7 @@ import { auth, db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Eye, EyeOff, Trash2, KeyRound, Loader, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Trash2, KeyRound, Loader, AlertCircle, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone } from '@/lib/utils';
 import { useAndroidBack } from '@/hooks/useAndroidBack';
@@ -40,7 +40,9 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
   const nameInputRef = useRef<HTMLInputElement>(null);
   const whatsappInputRef = useRef<HTMLInputElement>(null);
 
+  // Identificação do tipo de conta
   const isGoogleUser = auth.currentUser?.providerData.some(p => p.providerId === 'google.com');
+  const hasPassword = auth.currentUser?.providerData.some(p => p.providerId === 'password');
 
   useEffect(() => {
     if (user && isOpen) {
@@ -223,16 +225,27 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
         <DialogHeader className="p-6 pb-4">
           <DialogTitle>Editar Perfil</DialogTitle>
           <DialogDescription>
-            Altere seu nome e WhatsApp. {isGoogleUser && "Como você entrou com o Google, use a redefinição abaixo para criar uma senha própria se desejar."}
+            Altere seu nome e WhatsApp.
           </DialogDescription>
           {user?.email && (
-            <div className="mt-2 flex items-center justify-between">
+            <div className="mt-2 flex flex-col gap-1">
                 <p className="text-sm text-muted-foreground">
                   E-mail: <span className="font-semibold text-foreground">{user.email}</span>
                 </p>
-                {isGoogleUser && (
-                    <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-bold">CONTA GOOGLE</span>
-                )}
+                <div className="flex flex-wrap gap-2">
+                    {isGoogleUser && (
+                        <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                           <svg className="w-3 h-3" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"></path><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"></path><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"></path><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C42.021 35.596 44 30.138 44 24c0-1.341-.138-2.65-.389-3.917z"></path></svg>
+                           CONTA GOOGLE
+                        </span>
+                    )}
+                    {hasPassword && (
+                        <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 uppercase">
+                           <ShieldCheck size={12} />
+                           Senha Cadastrada
+                        </span>
+                    )}
+                </div>
             </div>
           )}
         </DialogHeader>
@@ -273,10 +286,20 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
               </div>
               
               <div className="pt-2 border-t border-border">
-                <div className="mb-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                    <p className="text-xs text-blue-400 flex items-start gap-2 leading-relaxed">
+                <div className={cn(
+                  "mb-3 p-3 rounded-lg border",
+                  hasPassword ? "bg-muted/50 border-border" : "bg-blue-500/10 border-blue-500/20"
+                )}>
+                    <p className={cn(
+                      "text-xs flex items-start gap-2 leading-relaxed",
+                      hasPassword ? "text-muted-foreground" : "text-blue-400"
+                    )}>
                         <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                        <span>Deseja entrar usando <b>e-mail e senha</b>? Clique abaixo para criar/trocar sua senha de acesso.</span>
+                        <span>
+                          {hasPassword 
+                            ? "Para sua segurança, enviaremos um link de redefinição de senha para o seu e-mail." 
+                            : "Você entrou com o Google. Se desejar acessar usando e-mail e senha no futuro, crie uma senha agora clicando abaixo."}
+                        </span>
                     </p>
                 </div>
                 <Button 
@@ -287,7 +310,7 @@ export function EditProfileModal({ isOpen, onOpenChange }: { isOpen: boolean, on
                   className="w-full text-blue-500 border-blue-500/50 hover:bg-blue-500/10 hover:text-blue-500 dark:text-blue-400 dark:border-blue-400/50 dark:hover:bg-blue-400/10 dark:hover:text-blue-400"
                 >
                   {passwordResetLoading ? <Loader className="animate-spin mr-2" /> : <KeyRound className="mr-2" size={16} />}
-                  {isGoogleUser ? "Criar Senha de Acesso" : "Redefinir Minha Senha"}
+                  {hasPassword ? "Redefinir Minha Senha" : "Criar Senha de Acesso"}
                 </Button>
                 {passwordResetSuccess && (
                   <div className="text-sm text-green-600 dark:text-green-400 font-semibold text-center mt-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20 leading-relaxed">
