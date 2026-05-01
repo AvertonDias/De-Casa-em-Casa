@@ -176,6 +176,7 @@ function Sidebar({
           <ul className="space-y-1">
             {filteredNavLinks.map((link) => {
               const isActive = pathname === link.href || (pathname && link.href !== "/dashboard" && pathname.startsWith(link.href));
+              const isTutoriais = link.name === "Tutoriais";
               const hasUnread = (link.name === "Usuários" && pendingUsersCount > 0) || 
                                 (link.name === "Notificações" && unreadNotificationsCount > 0);
               return (
@@ -184,9 +185,11 @@ function Sidebar({
                       'flex items-center text-md p-3 rounded-lg mb-2 transition-colors', 
                       isActive 
                         ? 'bg-primary text-primary-foreground font-semibold shadow' 
-                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                        : (isTutoriais 
+                           ? 'text-green-600 dark:text-green-500 font-bold hover:bg-green-500/10' 
+                           : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground')
                     )}>
-                      <link.icon className="h-5 w-5 mr-3" />
+                      <link.icon className={cn("h-5 w-5 mr-3", isTutoriais && !isActive && "text-green-600 dark:text-green-500")} />
                       <span>{link.name}</span>
                       {hasUnread && (
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-destructive rounded-full animate-indicator-pulse"></span>
