@@ -7,7 +7,7 @@ import { auth, db } from "@/lib/firebase";
 import { useUser } from '@/contexts/UserContext';
 import { doc, collection, query, where, onSnapshot, writeBatch, getDoc, Timestamp } from 'firebase/firestore';
 
-import { Home, Map, Users, LogOut, Trees, Download, Share2, Loader, Info, Shield, UserCheck, Bell } from 'lucide-react';
+import { Home, Map, Users, LogOut, Trees, Download, Share2, Loader, Info, Shield, UserCheck, Bell, Youtube } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -134,6 +134,7 @@ function Sidebar({
     { name: "Rural", href: "/dashboard/rural", icon: Trees, roles: ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios', 'Publicador'] },
     { name: "Meus Territórios", href: "/dashboard/meus-territorios", icon: UserCheck, roles: ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios', 'Publicador'] },
     { name: "Notificações", href: "/dashboard/notificacoes", icon: Bell, roles: ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios', 'Publicador'] },
+    { name: "Tutoriais", href: "/dashboard/tutoriais", icon: Youtube, roles: ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios', 'Publicador'] },
     { name: "Usuários", href: "/dashboard/usuarios", icon: Users, roles: ['Administrador', 'Dirigente', 'Ajudante de Servo de Territórios', 'Servo de Territórios'] },
     { name: "Administração", href: "/dashboard/administracao", icon: Shield, roles: ['Administrador', 'Dirigente', 'Ajudante de Servo de Territórios', 'Servo de Territórios'] },
   ];
