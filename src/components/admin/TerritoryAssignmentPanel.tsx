@@ -6,7 +6,7 @@ import { db, app } from '@/lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
-import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, MessageCircle, History, Loader, X } from 'lucide-react';
+import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, MessageCircle, History, Loader, X, Filter } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -19,6 +19,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '../ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   label: string;
@@ -404,11 +405,11 @@ export default function TerritoryAssignmentPanel() {
 
   return (
     <>
-      <div className="bg-card p-4 sm:p-6 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold mb-4">Designar Territórios</h2>
+      <div className="bg-card p-4 sm:p-6 rounded-lg shadow-md border border-border/40">
+        <h2 className="text-2xl font-bold mb-6">Designar Territórios</h2>
 
-        <div className="flex flex-col gap-4 mb-4">
-            <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/50 rounded-lg">
+        <div className="flex flex-col gap-6 mb-8">
+            <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/30 rounded-lg border border-border/20">
                 <FilterButton label="Todos" value="all" currentFilter={typeFilter} setFilter={setTypeFilter} />
                 <FilterButton label="Urbanos" value="urban" currentFilter={typeFilter} setFilter={setTypeFilter} />
                 <FilterButton label="Rurais" value="rural" currentFilter={typeFilter} setFilter={setTypeFilter} />
@@ -422,7 +423,7 @@ export default function TerritoryAssignmentPanel() {
                   placeholder="Buscar por nome ou número..." 
                   value={searchTerm} 
                   onChange={e => setSearchTerm(e.target.value)} 
-                  className="w-full bg-input rounded-md p-2 pl-10 pr-10 border border-border"
+                  className="w-full bg-input/50 rounded-md p-2.5 pl-10 pr-10 border border-border focus:ring-2 focus:ring-primary/50 outline-none transition-all"
                 />
                  {searchTerm && (
                   <button 
@@ -433,44 +434,55 @@ export default function TerritoryAssignmentPanel() {
                   </button>
                 )}
               </div>
-              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="bg-input rounded-md p-2 border border-border">
-                <option value="all">Todos os status</option>
-                <option value="disponivel">Disponível</option>
-                <option value="designado">Designado</option>
-                <option value="atrasado">Atrasado</option>
-              </select>
+              
+              <div className="min-w-[200px]">
+                <Select value={filterStatus} onValueChange={(val: any) => setFilterStatus(val)}>
+                  <SelectTrigger className="w-full bg-input/50 border-border h-[42px]">
+                    <div className="flex items-center gap-2">
+                        <Filter size={16} className="text-muted-foreground" />
+                        <SelectValue placeholder="Filtrar por status" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="disponivel">Disponível</SelectItem>
+                    <SelectItem value="designado">Designado</SelectItem>
+                    <SelectItem value="atrasado">Atrasado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
         </div>
         
-        <div className="border border-border rounded-lg overflow-hidden">
+        <div className="border border-border/40 rounded-xl overflow-hidden shadow-sm">
           <Accordion type="single" collapsible className="w-full">
             {filteredTerritories.map(t => {
                 const isDesignado = t.status === 'designado' && t.assignment;
                 const isOverdue = isDesignado && t.assignment && t.assignment.dueDate.toDate() < new Date();
                 
                 return (
-                  <AccordionItem value={t.id} key={t.id} className="border-b last:border-b-0">
-                    <div className="flex items-center hover:bg-accent/50 transition-colors px-4 py-3">
+                  <AccordionItem value={t.id} key={t.id} className="border-b border-border/40 last:border-b-0">
+                    <div className="flex items-center hover:bg-white/[0.02] transition-colors px-4 py-4">
                        <div className="flex-grow grid grid-cols-1 sm:grid-cols-12 items-center gap-y-2 gap-x-4">
-                          <div className="col-span-12 sm:col-span-4 font-semibold text-left">
-                              <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`} className="hover:text-primary transition-colors">
+                          <div className="col-span-12 sm:col-span-4 font-bold text-left">
+                              <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`} className="hover:text-primary transition-colors text-base">
                                   {t.number} - {t.name}
                               </Link>
                           </div>
-                          <div className="col-span-6 sm:col-span-2 text-sm font-semibold text-left">
-                              <span className="flex w-full">
-                                  {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-400">Designado</span> : <span className="text-green-400">Disponível</span>)}
+                          <div className="col-span-6 sm:col-span-2 text-xs font-bold text-left">
+                              <span className="flex w-full uppercase tracking-wider">
+                                  {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-500">Designado</span> : <span className="text-green-500">Disponível</span>)}
                               </span>
                           </div>
-                          <div className="col-span-12 sm:col-span-4 text-sm text-muted-foreground text-left">
+                          <div className="col-span-12 sm:col-span-4 text-sm text-muted-foreground text-left italic">
                               {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR })})` : ''}
                           </div>
                        </div>
-                       <div className="flex items-center justify-end flex-shrink-0 ml-2 sm:col-span-2">
+                       <div className="flex items-center justify-end flex-shrink-0 ml-2 sm:col-span-2 gap-1">
                            {canManageAssignments && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                <button className="p-2 rounded-full hover:bg-white/10">
+                                <button className="p-2 rounded-full hover:bg-white/10 transition-colors">
                                     <MoreVertical size={20} />
                                 </button>
                                 </DropdownMenuTrigger>
@@ -479,7 +491,7 @@ export default function TerritoryAssignmentPanel() {
                                     <>
                                         <DropdownMenuItem onClick={() => handleOpenReturnModal(t)}> <CheckCircle size={16} className="mr-2"/>Devolver</DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleOpenAssignModal(t)}> <RotateCw size={16} className="mr-2"/>Reatribuir</DropdownMenuItem>
-                                        {isOverdue && <DropdownMenuItem onClick={() => handleNotifyOverdue(t)} className="text-yellow-500 focus:text-yellow-500"> <MessageCircle size={16} className="mr-2"/>Notificar atraso</DropdownMenuItem>}
+                                        {isOverdue && <DropdownMenuItem onClick={() => handleNotifyOverdue(t)} className="text-yellow-500 font-bold focus:text-yellow-500"> <MessageCircle size={16} className="mr-2"/>Notificar atraso</DropdownMenuItem>}
                                     </>
                                 ) : (
                                     <DropdownMenuItem onClick={() => handleOpenAssignModal(t)}> <BookUser size={16} className="mr-2"/>Designar</DropdownMenuItem>
@@ -487,12 +499,12 @@ export default function TerritoryAssignmentPanel() {
                                 </DropdownMenuContent>
                             </DropdownMenu>
                            )}
-                           <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full [&_svg]:h-4 [&_svg]:w-4">
+                           <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full transition-colors [&_svg]:h-4 [&_svg]:w-4">
                               <History />
                             </AccordionTrigger>
                        </div>
                     </div>
-                    <AccordionContent>
+                    <AccordionContent className="bg-muted/10">
                       <AssignmentHistory 
                           currentAssignment={t.assignment} 
                           pastAssignments={t.assignmentHistory || []} 
@@ -504,6 +516,13 @@ export default function TerritoryAssignmentPanel() {
                 )
             })}
           </Accordion>
+          
+          {filteredTerritories.length === 0 && (
+              <div className="p-12 text-center text-muted-foreground bg-muted/20">
+                  <X className="mx-auto h-12 w-12 opacity-20 mb-4" />
+                  <p className="text-lg">Nenhum território corresponde aos filtros.</p>
+              </div>
+          )}
         </div>
       </div>
       
