@@ -57,6 +57,7 @@ function Sidebar({
     onClose, 
     pendingUsersCount, 
     unreadNotificationsCount,
+    showTutorialBadge,
     onEditProfileClick,
     onFontSizeClick,
 }: { 
@@ -64,6 +65,7 @@ function Sidebar({
     onClose: () => void;
     pendingUsersCount: number;
     unreadNotificationsCount: number;
+    showTutorialBadge: boolean;
     onEditProfileClick: () => void;
     onFontSizeClick: () => void;
 }) {
@@ -177,8 +179,10 @@ function Sidebar({
             {filteredNavLinks.map((link) => {
               const isActive = pathname === link.href || (pathname && link.href !== "/dashboard" && pathname.startsWith(link.href));
               const isTutoriais = link.name === "Tutoriais";
-              const hasUnread = (link.name === "Usuários" && pendingUsersCount > 0) || 
+              const hasRedBadge = (link.name === "Usuários" && pendingUsersCount > 0) || 
                                 (link.name === "Notificações" && unreadNotificationsCount > 0);
+              const hasGreenBadge = isTutoriais && showTutorialBadge;
+
               return (
                 <li key={link.name} className="relative">
                   <Link href={link.href} onClick={onClose} className={cn(
@@ -191,8 +195,11 @@ function Sidebar({
                     )}>
                       <link.icon className={cn("h-5 w-5 mr-3", isTutoriais && !isActive && "text-green-600 dark:text-green-500")} />
                       <span>{link.name}</span>
-                      {hasUnread && (
+                      {hasRedBadge && (
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-destructive rounded-full animate-indicator-pulse"></span>
+                      )}
+                      {hasGreenBadge && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-green-500 rounded-full animate-indicator-pulse"></span>
                       )}
                   </Link>
                 </li>
@@ -268,17 +275,20 @@ function Sidebar({
 
 function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useUser();
+  const pathname = usePathname();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isFontSizeModalOpen, setIsFontSizeModalOpen] = useState(false);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [showTutorialBadge, setShowTutorialBadge] = useState(false);
 
   useAndroidBack({
     enabled: isSidebarOpen,
     onClose: () => setSidebarOpen(false),
   });
 
+  // Notificações de Usuários Pendentes
   useEffect(() => {
     if (!user?.congregationId || !['Administrador', 'Dirigente'].includes(user.role)) return;
     const usersRef = collection(db, 'users');
@@ -289,6 +299,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     return () => unsub();
   }, [user]);
 
+  // Notificações de Atividade
   useEffect(() => {
     if (!user?.uid) return;
     const notifRef = collection(db, `users/${user.uid}/notifications`);
@@ -299,11 +310,26 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     return () => unsub();
   }, [user]);
 
+  // Lógica da bolinha verde dos Tutoriais
+  useEffect(() => {
+    const viewed = localStorage.getItem('tutorials_viewed_v1');
+    if (!viewed) {
+      setShowTutorialBadge(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (pathname === '/dashboard/tutoriais') {
+      localStorage.setItem('tutorials_viewed_v1', 'true');
+      setShowTutorialBadge(false);
+    }
+  }, [pathname]);
+
   if (loading || !user) {
     return null;
   }
   
-  const hasUnreadItems = pendingUsersCount > 0 || unreadNotificationsCount > 0;
+  const hasRedBadge = pendingUsersCount > 0 || unreadNotificationsCount > 0;
 
   return (
       <div className="flex h-screen bg-background overflow-hidden">
@@ -314,6 +340,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
             onClose={() => setSidebarOpen(false)}
             pendingUsersCount={pendingUsersCount}
             unreadNotificationsCount={unreadNotificationsCount}
+            showTutorialBadge={showTutorialBadge}
             onEditProfileClick={() => setIsProfileModalOpen(true)}
             onFontSizeClick={() => setIsFontSizeModalOpen(true)}
           />
@@ -324,9 +351,11 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                     <button onClick={() => setSidebarOpen(!isSidebarOpen)} aria-label="Abrir menu">
                       <AnimatedHamburgerIcon isOpen={isSidebarOpen} />
                     </button>
-                    {hasUnreadItems && (
+                    {hasRedBadge ? (
                       <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-destructive rounded-full animate-indicator-pulse"></span>
-                    )}
+                    ) : showTutorialBadge ? (
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full animate-indicator-pulse"></span>
+                    ) : null}
                   </div>
                   <h1 className="text-lg font-bold">De Casa em Casa</h1>
                   <SettingsMenu 
