@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -23,12 +22,16 @@ function HistoricoPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
 
+  // Só tenta buscar os logs se tiver certeza que o usuário é Administrador
+  const canViewHistory = user?.role === 'Administrador';
+
   useEffect(() => {
-    if (!user?.congregationId || user.role !== 'Administrador') {
+    if (!user?.congregationId || !canViewHistory) {
       if (user) setLoading(false);
       return;
     }
 
+    setLoading(true);
     const logsPath = `congregations/${user.congregationId}/auditLogs`;
     const logsRef = collection(db, logsPath);
     const q = query(logsRef, orderBy('timestamp', 'desc'), limit(100));
@@ -52,13 +55,13 @@ function HistoricoPage() {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.congregationId, canViewHistory]);
 
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
       const matchesSearch = 
-        log.userName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        log.details.toLowerCase().includes(searchTerm.toLowerCase());
+        log.userName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        log.details?.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesAction = actionFilter === 'all' || log.action === actionFilter;
 
@@ -80,7 +83,7 @@ function HistoricoPage() {
     }
   };
 
-  if (user?.role !== 'Administrador') {
+  if (!canViewHistory) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center">
         <X className="h-16 w-16 text-destructive mb-4" />
@@ -91,7 +94,12 @@ function HistoricoPage() {
   }
 
   if (loading) {
-    return <div className="flex justify-center p-12"><Loader className="animate-spin text-primary" size={32} /></div>;
+    return (
+      <div className="flex flex-col items-center justify-center p-12">
+        <Loader className="animate-spin text-primary" size={32} />
+        <p className="text-muted-foreground mt-4">Carregando histórico...</p>
+      </div>
+    );
   }
 
   return (

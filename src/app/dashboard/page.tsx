@@ -20,6 +20,8 @@ function DashboardPage() {
   const [recentLogs, setRecentLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const isFullAdmin = user?.role === 'Administrador';
+
   useEffect(() => {
     if (!user?.congregationId) {
       if (!userLoading) setLoading(false);
@@ -47,13 +49,17 @@ function DashboardPage() {
       setRecentTerritories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory)));
     });
 
-    // Listener para logs de auditoria (apenas para Administradores)
+    // Listener para logs de auditoria (apenas para Administradores Reais)
     let unsubLogs = () => {};
-    if (user.role === 'Administrador') {
+    if (isFullAdmin) {
       const logsRef = collection(db, 'congregations', congregationId, 'auditLogs');
       const qLogs = query(logsRef, orderBy('timestamp', 'desc'), limit(5));
       unsubLogs = onSnapshot(qLogs, (snapshot) => {
         setRecentLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog)));
+      }, (err) => {
+          // Se der erro de permissão no Dashboard, apenas limpamos os logs
+          console.warn("Sem permissão para logs no Dashboard");
+          setRecentLogs([]);
       });
     }
 
@@ -62,7 +68,7 @@ function DashboardPage() {
       unsubRecentTerritories();
       unsubLogs();
     };
-  }, [user, userLoading]);
+  }, [user?.congregationId, isFullAdmin, userLoading]);
 
   const stats = useMemo(() => {
     return allTerritories.reduce((acc, territory) => {
@@ -89,8 +95,6 @@ function DashboardPage() {
         </div>
     );
   }
-
-  const isFullAdmin = user!.role === 'Administrador';
 
   return (
     <div className="space-y-8">

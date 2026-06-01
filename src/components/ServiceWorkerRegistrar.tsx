@@ -7,9 +7,10 @@ export default function ServiceWorkerRegistrar() {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').then(registration => {
-          console.log('ServiceWorker registration successful with scope: ', registration.scope);
+          // Registro bem sucedido
         }).catch(err => {
-          console.log('ServiceWorker registration failed: ', err);
+          // Erro silencioso para não quebrar a UI em desenvolvimento
+          console.warn('SW registration failed (Normal in Dev): ', err.message);
         });
       });
     }

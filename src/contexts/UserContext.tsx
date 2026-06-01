@@ -1,4 +1,3 @@
-
 "use client";
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
@@ -71,6 +70,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
+        // Só usamos o cache para evitar tela em branco, 
+        // mas o loading continua true até sincronizar com o DB.
         setUser(parsed);
       } catch (e) {
         console.warn("Erro ao ler cache do usuário");
@@ -141,13 +142,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 setLoading(false); 
               }, 
               async (error) => {
-                if (error.code === 'permission-denied') {
-                  const permissionError = new FirestorePermissionError({
-                    path: congRef.path,
-                    operation: 'get',
-                  } satisfies SecurityRuleContext);
-                  errorEmitter.emit('permission-error', permissionError);
-                }
+                // Se não tiver permissão para a congregação, pelo menos paramos o loading
                 setLoading(false);
               }
             );
@@ -157,13 +152,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
           }
         }, 
         async (error) => {
-          if (error.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({
-              path: userRef.path,
-              operation: 'get',
-            } satisfies SecurityRuleContext);
-            errorEmitter.emit('permission-error', permissionError);
-          }
           setLoading(false);
         }
       );

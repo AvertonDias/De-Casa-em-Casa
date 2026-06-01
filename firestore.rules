@@ -7,88 +7,89 @@ service cloud.firestore {
         
         function isAuth() { return request.auth != null; }
         
+        // Busca o perfil do usuário logado
         function getProfile() {
             return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
         }
         
-        function isAtivo(profile) {
-            return profile != null && profile.status == 'ativo';
+        // Verifica se o usuário tem um cargo específico
+        function hasRole(profile, role) {
+            return profile != null && profile.role == role;
         }
-        
-        function isUserInCongregation(profile, congId) { 
-            return profile != null && profile.congregationId == congId; 
-        }
-        
-        function hasRole(profile, role) { 
-            return profile != null && profile.role == role; 
+
+        // Verifica se o usuário é Administrador ou Dirigente
+        function isManager(profile) {
+            return profile != null && (profile.role == 'Administrador' || profile.role == 'Dirigente' || profile.role == 'Servo de Territórios' || profile.role == 'Ajudante de Servo de Territórios');
         }
 
         // --- REGRAS POR COLEÇÃO ---
 
         match /congregations/{congId} {
-            allow read: if true; 
+            // Qualquer usuário autenticado pode ler os dados básicos da congregação
+            allow read: if isAuth(); 
             allow create: if isAuth();
             
             allow update: if isAuth() && 
                 (let profile = getProfile(); 
-                 isUserInCongregation(profile, congId) && 
-                 (isAtivo(profile) || profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
+                 profile.congregationId == congId && 
+                 (profile.status == 'ativo' || isManager(profile)));
             
             allow delete: if isAuth() && 
                 (let profile = getProfile(); 
-                 isUserInCongregation(profile, congId) && profile.role == 'Administrador');
+                 profile.congregationId == congId && profile.role == 'Administrador');
+
+            // Histórico de Auditoria: Apenas Administradores podem listar/ler
+            match /auditLogs/{logId} {
+                allow read: if isAuth() && 
+                    (let profile = getProfile(); 
+                     profile.congregationId == congId && profile.role == 'Administrador');
+                
+                allow create: if isAuth() && 
+                    (let profile = getProfile(); 
+                     profile.congregationId == congId && profile.status == 'ativo');
+            }
 
             match /territories/{terrId} {
                 allow read: if isAuth() && 
                     (let profile = getProfile(); 
-                     isUserInCongregation(profile, congId) && (isAtivo(profile) || profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
+                     profile.congregationId == congId && (profile.status == 'ativo' || isManager(profile)));
                 
                 allow create, delete: if isAuth() && 
                     (let profile = getProfile(); 
-                     isUserInCongregation(profile, congId) && profile.role in ['Administrador', 'Servo de Territórios']);
+                     profile.congregationId == congId && (profile.role == 'Administrador' || profile.role == 'Servo de Territórios'));
                 
                 allow update: if isAuth() && 
                     (let profile = getProfile(); 
-                     isUserInCongregation(profile, congId) && (isAtivo(profile) || profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
+                     profile.congregationId == congId && (profile.status == 'ativo' || isManager(profile)));
 
                 match /quadras/{quadraId} {
                     allow read, write: if isAuth() && 
                         (let profile = getProfile(); 
-                         isUserInCongregation(profile, congId) && (isAtivo(profile) || profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
+                         profile.congregationId == congId && (profile.status == 'ativo' || isManager(profile)));
                     
                     match /casas/{casaId} { 
                         allow read, write: if isAuth() && 
                             (let profile = getProfile(); 
-                             isUserInCongregation(profile, congId) && (isAtivo(profile) || profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
+                             profile.congregationId == congId && (profile.status == 'ativo' || isManager(profile)));
                     }
                 }
                 match /activityHistory/{activityId} { 
                     allow read, write: if isAuth() && 
                         (let profile = getProfile(); 
-                         isUserInCongregation(profile, congId) && (isAtivo(profile) || profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
+                         profile.congregationId == congId && (profile.status == 'ativo' || isManager(profile)));
                 }
-            }
-            
-            match /auditLogs/{logId} {
-                allow read: if isAuth() && 
-                    (let profile = getProfile(); 
-                     isUserInCongregation(profile, congId) && profile.role == 'Administrador');
-                
-                allow create: if isAuth() && 
-                    (let profile = getProfile(); 
-                     isUserInCongregation(profile, congId) && isAtivo(profile));
             }
         }
 
         match /users/{userId} {
             allow create: if isAuth() && request.auth.uid == userId;
+            // Usuários autenticados podem ver perfis de outros da mesma congregação
             allow get: if isAuth();
             allow list: if isAuth();
             
             allow update: if isAuth() && 
                 (request.auth.uid == userId || 
-                 (let profile = getProfile(); 
-                  profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
+                 (let profile = getProfile(); isManager(profile)));
             
             allow delete: if isAuth() && 
                 (request.auth.uid == userId || 
@@ -97,15 +98,12 @@ service cloud.firestore {
             match /notifications/{notifId} {
                 allow get, list, update, delete: if isAuth() && request.auth.uid == userId;
                 allow create: if isAuth() && 
-                    (request.auth.uid == userId || 
-                     (let profile = getProfile(); 
-                      profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
+                    (request.auth.uid == userId || (let profile = getProfile(); isManager(profile)));
             }
         }
 
         match /resetTokens/{tokenId} {
-            allow read, delete: if true;
-            allow create: if true;
+            allow read, delete, create: if true;
         }
 
         match /feedbacks/{feedbackId} { allow create: if isAuth(); }
