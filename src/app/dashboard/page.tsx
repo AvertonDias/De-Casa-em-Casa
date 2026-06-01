@@ -5,23 +5,18 @@ import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import type { Territory, AuditLog } from '@/types/types';
-import { CheckSquare, HousePlus, Map, Loader, Trees, History, User, Clock } from 'lucide-react';
+import type { Territory } from '@/types/types';
+import { CheckSquare, HousePlus, Map, Loader, Trees, User } from 'lucide-react';
 import RecentTerritoryCard from '@/components/dashboard/RecentTerritoryCard'; 
 import { StatCard } from '@/components/StatCard';
 import withAuth from '@/components/withAuth';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
 
 function DashboardPage() {
   const { user, loading: userLoading } = useUser();
   const [recentTerritories, setRecentTerritories] = useState<Territory[]>([]);
   const [allTerritories, setAllTerritories] = useState<Territory[]>([]);
-  const [recentLogs, setRecentLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const isAdmin = user?.role === 'Administrador';
 
   useEffect(() => {
     if (!user?.congregationId) {
@@ -48,21 +43,11 @@ function DashboardPage() {
       setRecentTerritories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory)));
     });
 
-    let unsubLogs = () => {};
-    if (isAdmin) {
-      const logsRef = collection(db, 'congregations', congregationId, 'auditLogs');
-      const qLogs = query(logsRef, orderBy('timestamp', 'desc'), limit(5));
-      unsubLogs = onSnapshot(qLogs, (snapshot) => {
-        setRecentLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog)));
-      });
-    }
-
     return () => { 
       unsubAllTerritories();
       unsubRecentTerritories();
-      unsubLogs();
     };
-  }, [user?.congregationId, isAdmin, userLoading]);
+  }, [user?.congregationId, userLoading]);
 
   const stats = useMemo(() => {
     return allTerritories.reduce((acc, territory) => {
@@ -126,58 +111,20 @@ function DashboardPage() {
           )}
         </div>
 
-        {isAdmin ? (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <History className="text-primary" size={24} />
-              Últimas Alterações no App
-            </h2>
-            <div className="bg-card rounded-lg border border-border/40 shadow-sm divide-y divide-border/20">
-              {recentLogs.length > 0 ? (
-                <>
-                  {recentLogs.map((log) => (
-                    <div key={log.id} className="p-4 space-y-1">
-                      <div className="flex justify-between items-start gap-2">
-                        <p className="text-sm font-medium leading-relaxed">
-                          <span className="text-primary font-bold">{log.userName}</span> {log.details}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3 text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
-                        <span className="flex items-center gap-1">
-                          <Clock size={10} />
-                          {log.timestamp ? formatDistanceToNow(log.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : '...'}
-                        </span>
-                        <span className="bg-muted px-1.5 py-0.5 rounded">{log.action.replace(/_/g, ' ')}</span>
-                      </div>
-                    </div>
-                  ))}
-                  <Link href="/dashboard/historico" className="block p-3 text-center text-xs font-bold text-primary hover:bg-white/5 transition-colors uppercase tracking-widest">
-                    Ver Histórico Completo
-                  </Link>
-                </>
-              ) : (
-                <div className="p-8 text-center text-muted-foreground italic text-sm">
-                  Nenhuma alteração registrada ainda.
-                </div>
-              )}
-            </div>
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <User className="text-primary" size={24} />
+            Suas Tarefas
+          </h2>
+          <div className="bg-card p-6 rounded-lg border border-border/40 shadow-sm">
+             <p className="text-sm text-muted-foreground leading-relaxed">
+               Use o menu lateral para acessar <strong>"Meus Territórios"</strong> e ver o que está sob sua responsabilidade, ou explore os <strong>"Tutoriais"</strong> para aprender a usar as ferramentas de campo.
+             </p>
+             <Link href="/dashboard/meus-territorios" className="mt-4 inline-flex items-center justify-center w-full px-4 py-2 bg-primary text-white font-bold rounded-md hover:bg-primary/90 transition-all shadow-md">
+                Ir para Meus Territórios
+             </Link>
           </div>
-        ) : (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <User className="text-primary" size={24} />
-              Suas Tarefas
-            </h2>
-            <div className="bg-card p-6 rounded-lg border border-border/40 shadow-sm">
-               <p className="text-sm text-muted-foreground leading-relaxed">
-                 Use o menu lateral para acessar <strong>"Meus Territórios"</strong> e ver o que está sob sua responsabilidade, ou explore os <strong>"Tutoriais"</strong> para aprender a usar as ferramentas de campo.
-               </p>
-               <Link href="/dashboard/meus-territorios" className="mt-4 inline-flex items-center justify-center w-full px-4 py-2 bg-primary text-white font-bold rounded-md hover:bg-primary/90 transition-all shadow-md">
-                  Ir para Meus Territórios
-               </Link>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
