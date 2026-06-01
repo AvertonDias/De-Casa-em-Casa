@@ -64,7 +64,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 
     const unsubTerritory = onSnapshot(territoryRef, (snap) => {
       if (snap.exists()) {
-        setTerritory(snap.data() as Territory);
+        setTerritory({ id: snap.id, ...snap.data() } as Territory);
       }
     });
 
@@ -76,7 +76,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     const quadraRef = doc(db, `congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
     const unsubQuadra = onSnapshot(quadraRef, (docSnap) => {
       if (docSnap.exists()) {
-        setQuadra(docSnap.data() as Quadra);
+        setQuadra({ id: docSnap.id, ...docSnap.data() } as Quadra);
       } else {
         setQuadra(null); 
       }
@@ -366,7 +366,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
               <div className="flex items-center gap-2">
                 <Button variant="secondary" size="icon" asChild disabled={!prevQuadra}>
                   <Link href={prevQuadra ? `/dashboard/territorios/${territoryId}/quadras/${prevQuadra.id}` : '#'}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 15V19a1 1 0 0 1-1.81.75l-6.837-6.836a1.207 1.207 0 0 1 0-1.707L11.189 4.37A1 1 0 0 1 13 5.061V9a1 1 0 0 0 1 1h7a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-7a1 1 0 0 0-1 1z"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                   </Link>
                 </Button>
                 <h1 className="text-xl sm:text-3xl font-bold text-gray-800 dark:text-white text-center">
@@ -374,7 +374,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                 </h1>
                 <Button variant="secondary" size="icon" asChild disabled={!nextQuadra}>
                    <Link href={nextQuadra ? `/dashboard/territorios/${territoryId}/quadras/${nextQuadra.id}` : '#'}>
-                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 9a1 1 0 0 0 1-1V5.061a1 1 0 0 1 1.811-.75l6.836 6.836a1.207 1.207 0 0 1 0 1.707L12.812 19.63A1 1 0 0 1 11 18.938V15a1 1 0 0 0-1-1H3a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h7z"/></svg>
+                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                   </Link>
                 </Button>
               </div>

@@ -196,7 +196,7 @@ function Sidebar({
                            : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground')
                     )}>
                       <link.icon className={cn("h-5 w-5 mr-3", isTutoriais && !isActive && "text-green-600 dark:text-green-500")} />
-                      <span>{link.name}</span>
+                      <span className={cn(isTutoriais && "text-green-600 dark:text-green-500 font-bold")}>{link.name}</span>
                       {hasRedBadge && (
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-destructive rounded-full animate-indicator-pulse"></span>
                       )}

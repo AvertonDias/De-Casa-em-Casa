@@ -33,7 +33,8 @@ service cloud.firestore {
             allow update: if isAuth() && isOfCongregation(congId) && (getProfile().status == 'ativo' || isManager());
             allow delete: if isAuth() && isOfCongregation(congId) && isAdmin();
 
-            // Histórico de Auditoria: Apenas Administradores podem ler/listar
+            // Histórico de Auditoria: Apenas Administradores podem ler/listar. 
+            // Usuários ativos podem criar logs ao realizar ações.
             match /auditLogs/{logId} {
                 allow read: if isAuth() && isOfCongregation(congId) && isAdmin();
                 allow create: if isAuth() && isOfCongregation(congId) && getProfile().status == 'ativo';

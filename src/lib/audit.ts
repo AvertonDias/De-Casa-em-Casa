@@ -5,6 +5,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 /**
  * Registra um evento no histórico de auditoria da congregação.
+ * As regras do Firestore devem permitir a escrita para usuários autenticados da congregação.
  */
 export async function logEvent(
   congregationId: string, 

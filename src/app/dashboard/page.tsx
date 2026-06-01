@@ -21,7 +21,7 @@ function DashboardPage() {
   const [recentLogs, setRecentLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const isFullAdmin = user?.role === 'Administrador';
+  const isAdmin = user?.role === 'Administrador';
 
   useEffect(() => {
     if (!user?.congregationId) {
@@ -32,14 +32,12 @@ function DashboardPage() {
     const congregationId = user.congregationId;
     const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
     
-    // Listener para estatísticas
     const unsubAllTerritories = onSnapshot(territoriesRef, (snapshot) => {
       const territoriesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
       setAllTerritories(territoriesData);
       setLoading(false);
     });
 
-    // Listener para territórios recentemente trabalhados
     const qRecent = query(
       territoriesRef, 
       where("lastWorkedAt", "!=", null),
@@ -50,9 +48,8 @@ function DashboardPage() {
       setRecentTerritories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory)));
     });
 
-    // Listener para logs de auditoria (apenas para Administradores)
     let unsubLogs = () => {};
-    if (isFullAdmin) {
+    if (isAdmin) {
       const logsRef = collection(db, 'congregations', congregationId, 'auditLogs');
       const qLogs = query(logsRef, orderBy('timestamp', 'desc'), limit(5));
       unsubLogs = onSnapshot(qLogs, (snapshot) => {
@@ -65,7 +62,7 @@ function DashboardPage() {
       unsubRecentTerritories();
       unsubLogs();
     };
-  }, [user?.congregationId, isFullAdmin, userLoading]);
+  }, [user?.congregationId, isAdmin, userLoading]);
 
   const stats = useMemo(() => {
     return allTerritories.reduce((acc, territory) => {
@@ -108,7 +105,6 @@ function DashboardPage() {
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Lado Esquerdo: Territórios Trabalhados */}
         <div className="space-y-4">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Map className="text-primary" size={24} />
@@ -130,8 +126,7 @@ function DashboardPage() {
           )}
         </div>
 
-        {/* Lado Direito: Histórico do App (Admin) ou Tarefas (Outros) */}
-        {isFullAdmin ? (
+        {isAdmin ? (
           <div className="space-y-4">
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <History className="text-primary" size={24} />

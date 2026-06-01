@@ -26,7 +26,7 @@ export interface Notification {
   type: 'territory_assigned' | 'territory_overdue' | 'user_pending' | 'announcement' | 'territory_returned' | 'territory_available';
   isRead: boolean;
   createdAt: Timestamp;
-  readAt?: Timestamp; // <-- NOVO CAMPO
+  readAt?: Timestamp;
 }
 
 
@@ -83,14 +83,13 @@ export interface Congregation {
 
     globalRuralLinks?: RuralLink[];
 
-    // Novos campos para modelos de mensagem
     whatsappTemplates?: {
         assignment: string;
         pendingApproval: string;
         overdueReminder: string;
     };
 
-    whatsappEnabled?: boolean; // Novo campo para ativar/desativar WhatsApp
+    whatsappEnabled?: boolean; 
 
     defaultAssignmentMonths?: number;
 
@@ -119,7 +118,7 @@ export interface Casa {
     uid: string;
     name: string;
   };
-  activityLogId?: string; // ID do registro de atividade associado
+  activityLogId?: string;
 }
 
 
@@ -128,19 +127,11 @@ export interface Activity {
   id: string;
   activityDate: Timestamp;
   notes?: string;
-  description?: string; // <-- CAMPO ADICIONADO
+  description?: string;
   userName: string;
   userId: string;
   createdAt: Timestamp; 
   type?: 'work' | 'manual';
-}
-
-export interface CongregationStats {
-  territoryCount?: number;
-  totalQuadras?: number;
-  totalHouses?: number;
-  totalHousesDone?: number;
-  ruralTerritoryCount?: number;
 }
 
 export interface RecentTerritory {
@@ -157,33 +148,33 @@ export interface RuralWorkLog {
   date: Timestamp;
   notes: string;
   userName: string;
-  userId: string; // Adicionado para rastreamento
+  userId: string;
 }
 
 export interface RuralTerritory extends Territory {
   type: 'rural';
   links?: RuralLink[];
-  workLogs?: any[]; // Ou um tipo mais específico para RuralWorkLog
+  workLogs?: any[];
 }
 
 
 // --- Novos Tipos para Atribuição ---
 
 export interface Assignment {
-  uid: string;      // UID do usuário designado
-  name: string;     // Nome do usuário designado
-  assignedAt: Timestamp; // Data em que foi atribuído
-  dueDate: Timestamp;    // Data em que deve ser devolvido
-  isReassigned?: boolean; // Flag para diferenciar reatribuição direta
-  transferredAt?: Timestamp; // Data em que a transferência ocorreu
+  uid: string;      
+  name: string;     
+  assignedAt: Timestamp; 
+  dueDate: Timestamp;    
+  isReassigned?: boolean; 
+  transferredAt?: Timestamp; 
 }
 
 export interface AssignmentHistoryLog {
   uid: string;
   name: string;
   assignedAt: Timestamp;
-  completedAt: Timestamp; // Data em que foi devolvido
-  isCompletion?: boolean; // Se foi concluído ou apenas transferido
+  completedAt: Timestamp; 
+  isCompletion?: boolean; 
 }
 
 // --- Audit Logs ---
@@ -195,23 +186,4 @@ export interface AuditLog {
   details: string;
   timestamp: Timestamp;
   metadata?: any;
-}
-
-// --- Tipos para Campanhas de Notificação ---
-
-export interface Campaign {
-  id: string;
-  title: string;
-  body: string;
-  status: 'ativa' | 'concluída' | 'rascunho' | 'agendada';
-  segmentation: 'all' | 'specific_roles'; // Exemplo de segmentação
-  roles?: AppUser['role'][]; // Para 'specific_roles'
-  scheduledAt?: Timestamp; // Para campanhas agendadas
-  createdAt: Timestamp;
-  createdBy: string; // Nome do criador
-  stats: {
-    sends: number;
-    impressions: number;
-    clicks: number;
-  };
 }

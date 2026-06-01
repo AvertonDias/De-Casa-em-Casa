@@ -13,6 +13,8 @@ import withAuth from '@/components/withAuth';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 function HistoricoPage() {
   const { user } = useUser();
@@ -21,17 +23,18 @@ function HistoricoPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
 
-  const canViewHistory = user?.role === 'Administrador';
+  const isAdmin = user?.role === 'Administrador';
 
   useEffect(() => {
-    if (!user?.congregationId || !canViewHistory) {
+    if (!user?.congregationId || !isAdmin) {
       if (user) setLoading(false);
       return;
     }
 
     setLoading(true);
-    const logsRef = collection(db, 'congregations', user.congregationId, 'auditLogs');
-    const q = query(logsRef, orderBy('timestamp', 'desc'), limit(150));
+    const logsPath = `congregations/${user.congregationId}/auditLogs`;
+    const logsRef = collection(db, logsPath);
+    const q = query(logsRef, orderBy('timestamp', 'desc'), limit(200));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const logsData = snapshot.docs.map(doc => ({
@@ -40,13 +43,19 @@ function HistoricoPage() {
       } as AuditLog));
       setLogs(logsData);
       setLoading(false);
-    }, (error) => {
-        console.error("Erro ao buscar logs de auditoria:", error);
+    }, async (error) => {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: logsPath,
+                operation: 'list',
+            } satisfies SecurityRuleContext);
+            errorEmitter.emit('permission-error', permissionError);
+        }
         setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [user?.congregationId, canViewHistory]);
+  }, [user?.congregationId, isAdmin]);
 
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
@@ -75,7 +84,7 @@ function HistoricoPage() {
     }
   };
 
-  if (!canViewHistory) {
+  if (!isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center">
         <X className="h-16 w-16 text-destructive mb-4" />
@@ -177,7 +186,7 @@ function HistoricoPage() {
                   <tr>
                     <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground italic">
                       <FileText className="mx-auto h-12 w-12 opacity-10 mb-4" />
-                      Nenhum registro encontrado com os filtros atuais.
+                      Tem como ver todas as alterações já feitas?
                     </td>
                   </tr>
                 )}
