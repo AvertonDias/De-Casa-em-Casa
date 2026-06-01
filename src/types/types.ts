@@ -185,6 +185,17 @@ export interface AssignmentHistoryLog {
   isCompletion?: boolean; // Se foi concluído ou apenas transferido
 }
 
+// --- Audit Logs ---
+export interface AuditLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  details: string;
+  timestamp: Timestamp;
+  metadata?: any;
+}
+
 // --- Tipos para Campanhas de Notificação ---
 
 export interface Campaign {

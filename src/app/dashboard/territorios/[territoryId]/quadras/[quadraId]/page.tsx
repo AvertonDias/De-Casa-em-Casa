@@ -18,6 +18,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import { TutorialButton } from '@/components/TutorialButton';
 import { TUTORIAL_IDS } from '@/lib/tutorials';
+import { logEvent } from '@/lib/audit';
 
 
 interface QuadraDetailPageProps {
@@ -218,6 +219,16 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                 activityLogId: deleteField() 
             });
         }
+    }).then(() => {
+        // Registrar Auditoria Central
+        logEvent(
+            congregationId, 
+            user.uid, 
+            user.name, 
+            newStatus ? 'HOUSE_COMPLETED' : 'HOUSE_UNMARKED', 
+            `${newStatus ? 'Marcou' : 'Desmarcou'} a casa ${casa.number} na ${quadra?.name} do território ${territory?.number}.`,
+            { territoryId, quadraId, houseId: casa.id }
+        );
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: casaRef.path,
@@ -288,6 +299,15 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             totalHouses: congTotalHouses - 1,
             totalHousesDone: wasDone ? congTotalHousesDone - 1 : congTotalHousesDone
         });
+    }).then(() => {
+        logEvent(
+            congregationId, 
+            user.uid, 
+            user.name, 
+            'HOUSE_DELETED', 
+            `Excluiu a casa ${casaToDelete.number} da ${quadra?.name} do território ${territory?.number}.`,
+            { territoryId, quadraId, houseId: casaToDelete.id }
+        );
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: `congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}/casas/${casaToDelete.id}`,

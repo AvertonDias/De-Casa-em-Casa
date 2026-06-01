@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -8,6 +7,7 @@ import { useUser } from "@/contexts/UserContext";
 import { Territory } from "@/types/types";
 import { X, AlertCircle, FileImage, Loader } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { logEvent } from "@/lib/audit";
 
 interface EditTerritoryModalProps {
   territory: Territory;
@@ -103,9 +103,48 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
     }
 
     await onSave(territory.id, dataToSave);
+    
+    if (user?.congregationId) {
+        logEvent(
+            user.congregationId, 
+            user.uid, 
+            user.name, 
+            'TERRITORY_EDITED', 
+            `Editou os dados do território ${territory.number} - ${territory.name}.`,
+            { territoryId: territory.id }
+        );
+    }
 
     setIsProcessing(false);
     onClose();
+  };
+
+  const handleResetRequest = () => {
+      onReset(territory.id);
+      if (user?.congregationId) {
+          logEvent(
+              user.congregationId, 
+              user.uid, 
+              user.name, 
+              'TERRITORY_RESET', 
+              `Limpou o progresso e o histórico do território ${territory.number} - ${territory.name}.`,
+              { territoryId: territory.id }
+          );
+      }
+  };
+
+  const handleDeleteRequest = () => {
+      onDelete(territory.id);
+      if (user?.congregationId) {
+          logEvent(
+              user.congregationId, 
+              user.uid, 
+              user.name, 
+              'TERRITORY_DELETED', 
+              `Excluiu permanentemente o território ${territory.number} - ${territory.name}.`,
+              { territoryId: territory.id }
+          );
+      }
   };
 
   const handleClose = () => {
@@ -181,8 +220,8 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
               <div className="border-t border-red-500/30 pt-4 mt-4">
                 <h3 className="text-red-400 font-semibold flex items-center mb-2"><AlertCircle className="mr-2"/>Ações de Risco</h3>
                 <div className={`grid ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
-                  <button onClick={() => onReset(territory.id)} className="p-2 border border-yellow-500 text-yellow-500 rounded-md hover:bg-yellow-500/20">Limpar Território</button>
-                  {isAdmin && <button onClick={() => onDelete(territory.id)} className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700">Excluir Território</button>}
+                  <button onClick={handleResetRequest} className="p-2 border border-yellow-500 text-yellow-500 rounded-md hover:bg-yellow-500/20">Limpar Território</button>
+                  {isAdmin && <button onClick={handleDeleteRequest} className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700">Excluir Território</button>}
                 </div>
               </div>
             )}

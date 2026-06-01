@@ -52,6 +52,11 @@ service cloud.firestore {
                     allow read, write: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers()); 
                 }
             }
+            
+            match /auditLogs/{logId} {
+                allow read: if isUserInCongregation(congId) && isAdmin();
+                allow create: if isUserInCongregation(congId) && isAtivo();
+            }
         }
 
         match /users/{userId} {
