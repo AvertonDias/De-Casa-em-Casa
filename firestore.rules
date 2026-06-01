@@ -12,93 +12,66 @@ service cloud.firestore {
             return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
         }
         
-        // Verifica se o usuário tem um cargo específico
-        function hasRole(profile, role) {
-            return profile != null && profile.role == role;
+        // Verifica se o usuário pertence à congregação
+        function isOfCongregation(congId) {
+            return getProfile().congregationId == congId;
         }
 
-        // Verifica se o usuário é Administrador ou Dirigente
-        function isManager(profile) {
-            return profile != null && (profile.role == 'Administrador' || profile.role == 'Dirigente' || profile.role == 'Servo de Territórios' || profile.role == 'Ajudante de Servo de Territórios');
+        // Verifica se o usuário é Administrador
+        function isAdmin() {
+            return getProfile().role == 'Administrador';
+        }
+
+        // Verifica se o usuário tem cargo de gestão (Admin, Dirigente, Servo)
+        function isManager() {
+            return getProfile().role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'];
         }
 
         // --- REGRAS POR COLEÇÃO ---
 
         match /congregations/{congId} {
-            // Qualquer usuário autenticado pode ler os dados básicos da congregação
             allow read: if isAuth(); 
             allow create: if isAuth();
             
-            allow update: if isAuth() && 
-                (let profile = getProfile(); 
-                 profile.congregationId == congId && 
-                 (profile.status == 'ativo' || isManager(profile)));
-            
-            allow delete: if isAuth() && 
-                (let profile = getProfile(); 
-                 profile.congregationId == congId && profile.role == 'Administrador');
+            allow update: if isAuth() && isOfCongregation(congId) && (getProfile().status == 'ativo' || isManager());
+            allow delete: if isAuth() && isOfCongregation(congId) && isAdmin();
 
-            // Histórico de Auditoria: Apenas Administradores podem listar/ler
+            // Histórico de Auditoria: Apenas Administradores podem ler/listar
             match /auditLogs/{logId} {
-                allow read: if isAuth() && 
-                    (let profile = getProfile(); 
-                     profile.congregationId == congId && profile.role == 'Administrador');
-                
-                allow create: if isAuth() && 
-                    (let profile = getProfile(); 
-                     profile.congregationId == congId && profile.status == 'ativo');
+                allow read: if isAuth() && isOfCongregation(congId) && isAdmin();
+                allow create: if isAuth() && isOfCongregation(congId) && getProfile().status == 'ativo';
             }
 
             match /territories/{terrId} {
-                allow read: if isAuth() && 
-                    (let profile = getProfile(); 
-                     profile.congregationId == congId && (profile.status == 'ativo' || isManager(profile)));
+                allow read: if isAuth() && isOfCongregation(congId) && (getProfile().status == 'ativo' || isManager());
                 
-                allow create, delete: if isAuth() && 
-                    (let profile = getProfile(); 
-                     profile.congregationId == congId && (profile.role == 'Administrador' || profile.role == 'Servo de Territórios'));
+                allow create, delete: if isAuth() && isOfCongregation(congId) && (isAdmin() || getProfile().role == 'Servo de Territórios');
                 
-                allow update: if isAuth() && 
-                    (let profile = getProfile(); 
-                     profile.congregationId == congId && (profile.status == 'ativo' || isManager(profile)));
+                allow update: if isAuth() && isOfCongregation(congId) && (getProfile().status == 'ativo' || isManager());
 
                 match /quadras/{quadraId} {
-                    allow read, write: if isAuth() && 
-                        (let profile = getProfile(); 
-                         profile.congregationId == congId && (profile.status == 'ativo' || isManager(profile)));
+                    allow read, write: if isAuth() && isOfCongregation(congId) && (getProfile().status == 'ativo' || isManager());
                     
                     match /casas/{casaId} { 
-                        allow read, write: if isAuth() && 
-                            (let profile = getProfile(); 
-                             profile.congregationId == congId && (profile.status == 'ativo' || isManager(profile)));
+                        allow read, write: if isAuth() && isOfCongregation(congId) && (getProfile().status == 'ativo' || isManager());
                     }
                 }
                 match /activityHistory/{activityId} { 
-                    allow read, write: if isAuth() && 
-                        (let profile = getProfile(); 
-                         profile.congregationId == congId && (profile.status == 'ativo' || isManager(profile)));
+                    allow read, write: if isAuth() && isOfCongregation(congId) && (getProfile().status == 'ativo' || isManager());
                 }
             }
         }
 
         match /users/{userId} {
             allow create: if isAuth() && request.auth.uid == userId;
-            // Usuários autenticados podem ver perfis de outros da mesma congregação
-            allow get: if isAuth();
-            allow list: if isAuth();
+            allow get, list: if isAuth();
             
-            allow update: if isAuth() && 
-                (request.auth.uid == userId || 
-                 (let profile = getProfile(); isManager(profile)));
-            
-            allow delete: if isAuth() && 
-                (request.auth.uid == userId || 
-                 (let profile = getProfile(); profile.role == 'Administrador'));
+            allow update: if isAuth() && (request.auth.uid == userId || isManager());
+            allow delete: if isAuth() && (request.auth.uid == userId || isAdmin());
 
             match /notifications/{notifId} {
                 allow get, list, update, delete: if isAuth() && request.auth.uid == userId;
-                allow create: if isAuth() && 
-                    (request.auth.uid == userId || (let profile = getProfile(); isManager(profile)));
+                allow create: if isAuth() && (request.auth.uid == userId || isManager());
             }
         }
 
