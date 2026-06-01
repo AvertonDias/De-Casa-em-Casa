@@ -1,11 +1,12 @@
+
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import Link from 'next/link';
-import { Eye, EyeOff, Info, AlertTriangle, Loader } from 'lucide-react';
+import { Eye, EyeOff, AlertTriangle, Loader } from 'lucide-react';
 import Image from 'next/image';
 import { useUser } from '@/contexts/UserContext';
 import { Footer } from '@/components/Footer';
@@ -22,12 +23,8 @@ export default function UniversalLoginPage() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!userLoading && user?.congregationId && user?.status === 'ativo') {
-      const dest = user.role === 'Administrador' ? '/dashboard' : '/dashboard/territorios';
-      router.replace(dest);
-    }
-  }, [user, userLoading, router]);
+  // Removido o useEffect de redirecionamento daqui, 
+  // agora o UserContext cuida disso de forma centralizada e segura.
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -88,14 +85,6 @@ export default function UniversalLoginPage() {
         setGoogleLoading(false);
     }
   };
-
-  if (userLoading && !user) {
-    return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-            <Loader className="animate-spin text-primary" />
-        </div>
-    );
-  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">

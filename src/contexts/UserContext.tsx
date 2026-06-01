@@ -1,3 +1,4 @@
+
 "use client";
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
@@ -66,7 +67,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Tenta carregar do cache imediatamente para evitar tela de loading
     const cached = localStorage.getItem(USER_CACHE_KEY);
     if (cached) {
       try {
@@ -76,7 +76,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
         console.warn("Erro ao ler cache do usuário");
       }
     }
-
     setPersistence(auth, browserLocalPersistence).catch(console.error);
   }, []);
 
@@ -116,7 +115,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
             email: rawData?.email || firebaseUser.email,
           } as AppUser;
 
-          // Se o usuário foi bloqueado, faz logout silencioso
           if (appUser.status === 'bloqueado' || appUser.status === 'rejeitado') {
               unsubscribeAll();
               localStorage.removeItem(USER_CACHE_KEY);
@@ -132,9 +130,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
           if (appUser.congregationId) {
             const congRef = doc(db, 'congregations', appUser.congregationId);
-            
             if (listenersRef.current.congregation) listenersRef.current.congregation();
-            
             listenersRef.current.congregation = onSnapshot(congRef, 
               (congDoc) => {
                 if (congDoc.exists()) {
@@ -168,12 +164,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (loading && !user) return; 
+    // CRÍTICO: Não tenta redirecionar enquanto está carregando os dados reais.
+    // Isso evita o loop infinito causado pelo cache local divergente do servidor.
+    if (loading) return; 
   
-    const isAuthPage = ['/', '/cadastro', '/recuperar-senha', '/nova-congregacao'].some(p => p === pathname);
-    const isAuthActionPage = pathname?.startsWith('/auth/action');
-    const isWaitingPage = pathname === '/aguardando-aprovacao';
-    const isCompleteProfilePage = pathname === '/completar-perfil';
+    const currentPath = pathname || '/';
+    const isAuthPage = ['/', '/cadastro', '/recuperar-senha', '/nova-congregacao'].some(p => p === currentPath);
+    const isAuthActionPage = currentPath.startsWith('/auth/action');
+    const isWaitingPage = currentPath === '/aguardando-aprovacao';
+    const isCompleteProfilePage = currentPath === '/completar-perfil';
   
     if (!user) {
       if (!isAuthPage && !isAuthActionPage && !isCompleteProfilePage) {
@@ -208,7 +207,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const value = { user, congregation, loading, logout, updateUser };
 
-  if (loading && !user) {
+  if (loading) {
     return <LoadingScreen />;
   }
 
