@@ -3,59 +3,80 @@ rules_version = '2';
 service cloud.firestore {
     match /databases/{database}/documents {
 
+        // --- FUNÇÕES AUXILIARES ---
+        
         function isAuth() { return request.auth != null; }
         
-        function getUserData(userId) { 
-            let path = /databases/$(database)/documents/users/$(userId);
-            return exists(path) ? get(path).data : null; 
+        function getProfile() {
+            return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
         }
         
-        function isUserInCongregation(congId) { 
-            let userData = getUserData(request.auth.uid); 
-            return userData != null && userData.congregationId == congId; 
+        function isAtivo(profile) {
+            return profile != null && profile.status == 'ativo';
         }
         
-        function isAtivo() {
-            let userData = getUserData(request.auth.uid);
-            return userData != null && userData.status == 'ativo';
+        function isUserInCongregation(profile, congId) { 
+            return profile != null && profile.congregationId == congId; 
         }
         
-        function isRole(role) { 
-            let userData = getUserData(request.auth.uid); 
-            return userData != null && userData.role == role; 
+        function hasRole(profile, role) { 
+            return profile != null && profile.role == role; 
         }
-        
-        function isAdmin() { return isRole('Administrador'); }
-        function isDirigente() { return isRole('Dirigente'); }
-        function isServoTerritorios() { return isRole('Servo de Territórios'); }
-        function isAjudante() { return isRole('Ajudante de Servo de Territórios'); }
-        function canApproveUsers() { return isServoTerritorios() || isDirigente() || isAdmin() || isAjudante(); }
+
+        // --- REGRAS POR COLEÇÃO ---
 
         match /congregations/{congId} {
             allow read: if true; 
             allow create: if isAuth();
-            allow update: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers());
-            allow delete: if isUserInCongregation(congId) && isAdmin();
+            
+            allow update: if isAuth() && 
+                (let profile = getProfile(); 
+                 isUserInCongregation(profile, congId) && 
+                 (isAtivo(profile) || profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
+            
+            allow delete: if isAuth() && 
+                (let profile = getProfile(); 
+                 isUserInCongregation(profile, congId) && profile.role == 'Administrador');
 
             match /territories/{terrId} {
-                allow read: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers());
-                allow create, delete: if isUserInCongregation(congId) && (isAdmin() || isServoTerritorios());
-                allow update: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers());
+                allow read: if isAuth() && 
+                    (let profile = getProfile(); 
+                     isUserInCongregation(profile, congId) && (isAtivo(profile) || profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
+                
+                allow create, delete: if isAuth() && 
+                    (let profile = getProfile(); 
+                     isUserInCongregation(profile, congId) && profile.role in ['Administrador', 'Servo de Territórios']);
+                
+                allow update: if isAuth() && 
+                    (let profile = getProfile(); 
+                     isUserInCongregation(profile, congId) && (isAtivo(profile) || profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
 
                 match /quadras/{quadraId} {
-                    allow read, write: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers());
+                    allow read, write: if isAuth() && 
+                        (let profile = getProfile(); 
+                         isUserInCongregation(profile, congId) && (isAtivo(profile) || profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
+                    
                     match /casas/{casaId} { 
-                        allow read, write: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers()); 
+                        allow read, write: if isAuth() && 
+                            (let profile = getProfile(); 
+                             isUserInCongregation(profile, congId) && (isAtivo(profile) || profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
                     }
                 }
                 match /activityHistory/{activityId} { 
-                    allow read, write: if isUserInCongregation(congId) && (isAtivo() || canApproveUsers()); 
+                    allow read, write: if isAuth() && 
+                        (let profile = getProfile(); 
+                         isUserInCongregation(profile, congId) && (isAtivo(profile) || profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
                 }
             }
             
             match /auditLogs/{logId} {
-                allow read: if isUserInCongregation(congId) && isAdmin();
-                allow create: if isUserInCongregation(congId) && isAtivo();
+                allow read: if isAuth() && 
+                    (let profile = getProfile(); 
+                     isUserInCongregation(profile, congId) && profile.role == 'Administrador');
+                
+                allow create: if isAuth() && 
+                    (let profile = getProfile(); 
+                     isUserInCongregation(profile, congId) && isAtivo(profile));
             }
         }
 
@@ -63,12 +84,22 @@ service cloud.firestore {
             allow create: if isAuth() && request.auth.uid == userId;
             allow get: if isAuth();
             allow list: if isAuth();
-            allow update: if isAuth() && (request.auth.uid == userId || canApproveUsers());
-            allow delete: if isAuth() && (request.auth.uid == userId || isAdmin());
+            
+            allow update: if isAuth() && 
+                (request.auth.uid == userId || 
+                 (let profile = getProfile(); 
+                  profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
+            
+            allow delete: if isAuth() && 
+                (request.auth.uid == userId || 
+                 (let profile = getProfile(); profile.role == 'Administrador'));
 
             match /notifications/{notifId} {
                 allow get, list, update, delete: if isAuth() && request.auth.uid == userId;
-                allow create: if isAuth() && (request.auth.uid == userId || canApproveUsers());
+                allow create: if isAuth() && 
+                    (request.auth.uid == userId || 
+                     (let profile = getProfile(); 
+                      profile.role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios']));
             }
         }
 

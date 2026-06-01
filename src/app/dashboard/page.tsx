@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -48,9 +47,9 @@ function DashboardPage() {
       setRecentTerritories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory)));
     });
 
-    // Listener para logs de auditoria (apenas para admins/dirigentes)
+    // Listener para logs de auditoria (apenas para Administradores)
     let unsubLogs = () => {};
-    if (['Administrador', 'Dirigente'].includes(user.role)) {
+    if (user.role === 'Administrador') {
       const logsRef = collection(db, 'congregations', congregationId, 'auditLogs');
       const qLogs = query(logsRef, orderBy('timestamp', 'desc'), limit(5));
       unsubLogs = onSnapshot(qLogs, (snapshot) => {
@@ -91,7 +90,7 @@ function DashboardPage() {
     );
   }
 
-  const isAdminView = ['Administrador', 'Dirigente'].includes(user!.role);
+  const isFullAdmin = user!.role === 'Administrador';
 
   return (
     <div className="space-y-8">
@@ -130,8 +129,8 @@ function DashboardPage() {
           )}
         </div>
 
-        {/* Lado Direito: Histórico do App (Admin) ou Dicas (Publicador) */}
-        {isAdminView ? (
+        {/* Lado Direito: Histórico do App (Admin) ou Tarefas (Outros) */}
+        {isFullAdmin ? (
           <div className="space-y-4">
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <History className="text-primary" size={24} />
