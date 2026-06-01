@@ -10,6 +10,8 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { logEvent } from '@/lib/audit';
+import { useUser } from '@/contexts/UserContext';
 
 interface AddRuralTerritoryModalProps {
   isOpen: boolean;
@@ -19,6 +21,7 @@ interface AddRuralTerritoryModalProps {
 }
 
 export function AddRuralTerritoryModal({ isOpen, onClose, onTerritoryAdded, congregationId }: AddRuralTerritoryModalProps) {
+  const { user } = useUser();
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
   const [description, setObservations] = useState('');
@@ -71,7 +74,7 @@ export function AddRuralTerritoryModal({ isOpen, onClose, onTerritoryAdded, cong
 
     try {
       const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
-      await addDoc(territoriesRef, {
+      const docRef = await addDoc(territoriesRef, {
         number: number,
         name: name,
         description: description,
@@ -82,6 +85,8 @@ export function AddRuralTerritoryModal({ isOpen, onClose, onTerritoryAdded, cong
         lastUpdate: serverTimestamp(),
       });
       
+      logEvent(congregationId, user!.uid, user!.name, 'TERRITORY_CREATED', `Criou o território rural ${number} - ${name}.`, { territoryId: docRef.id, territoryNumber: number, type: 'rural' });
+
       onTerritoryAdded();
       handleClose();
 

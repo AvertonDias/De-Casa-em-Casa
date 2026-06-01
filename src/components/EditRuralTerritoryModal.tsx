@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { RuralTerritory, RuralLink } from '@/types/types';
+import { logEvent } from '@/lib/audit';
 
 
 interface EditRuralTerritoryModalProps {
@@ -108,6 +109,8 @@ export function EditRuralTerritoryModal({ isOpen, onClose, onTerritoryUpdated, o
         lastUpdate: serverTimestamp(),
       });
       
+      logEvent(congregationId, user!.uid, user!.name, 'TERRITORY_EDITED', `Editou os dados do território rural ${territory.number}.`, { territoryId: territory.id, type: 'rural' });
+
       onTerritoryUpdated();
       onClose();
 

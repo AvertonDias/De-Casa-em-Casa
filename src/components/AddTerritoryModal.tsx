@@ -10,6 +10,8 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { logEvent } from "@/lib/audit";
+import { useUser } from "@/contexts/UserContext";
 
 interface AddTerritoryModalProps {
   isOpen: boolean; 
@@ -19,6 +21,7 @@ interface AddTerritoryModalProps {
 }
 
 export default function AddTerritoryModal({ isOpen, onClose, onTerritoryAdded, congregationId }: AddTerritoryModalProps) {
+  const { user } = useUser();
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -89,7 +92,10 @@ export default function AddTerritoryModal({ isOpen, onClose, onTerritoryAdded, c
     
     try {
       const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
-      await addDoc(territoriesRef, newTerritoryData);
+      const docRef = await addDoc(territoriesRef, newTerritoryData);
+
+      logEvent(congregationId, user!.uid, user!.name, 'TERRITORY_CREATED', `Criou o território ${number} - ${name}.`, { territoryId: docRef.id, territoryNumber: number });
+
       onTerritoryAdded();
       handleClose();
     } catch (saveError: any) {

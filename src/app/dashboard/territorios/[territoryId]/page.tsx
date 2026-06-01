@@ -24,6 +24,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { GoogleMapEmbed } from "@/components/GoogleMapEmbed";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { logEvent } from "@/lib/audit";
 
 const ProgressSection = ({ territory }: { territory: Territory }) => {
     const totalHouses = territory.stats?.totalHouses || 0;
@@ -89,6 +90,8 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         const newQuadraRef = doc(collection(territoryRef, 'quadras'));
         transaction.set(newQuadraRef, { ...data, totalHouses: 0, housesDone: 0, createdAt: serverTimestamp() });
         transaction.update(territoryRef, { quadraCount: (terrDoc.data()?.quadraCount || 0) + 1 });
+    }).then(() => {
+        logEvent(user!.congregationId!, user!.uid, user!.name, 'QUADRA_CREATED', `Adicionou a quadra "${data.name}" ao território ${territory?.number}.`, { territoryId, quadraName: data.name });
     });
   };
 
@@ -157,6 +160,9 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           batch.delete(territoryRef);
           
           await batch.commit();
+
+          logEvent(user!.congregationId!, user!.uid, user!.name, 'TERRITORY_DELETED', `Excluiu o território ${territory?.number} - ${territory?.name} e todos os seus dados.`, { territoryId: tid, territoryNumber: territory?.number });
+
           router.push('/dashboard/territorios');
         } catch (error: any) {
           toast({ title: "Erro ao deletar", description: "Não foi possível excluir o território.", variant: "destructive" });
@@ -227,6 +233,9 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           }
 
           await batch.commit();
+
+          logEvent(user.congregationId, user.uid, user.name, 'TERRITORY_RESET', `Limpou o progresso e o histórico do território ${territory?.number}.`, { territoryId: tid });
+
           toast({ title: "Território Resetado", description: "O progresso e o histórico foram limpos com sucesso." });
         } catch (error: any) {
           toast({ title: "Erro ao resetar", description: "Falha na operação.", variant: "destructive" });

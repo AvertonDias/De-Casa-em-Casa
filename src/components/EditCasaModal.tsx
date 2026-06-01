@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -11,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Trash2, Loader } from 'lucide-react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { logEvent } from '@/lib/audit';
 
 
 interface EditCasaModalProps {
@@ -25,6 +27,7 @@ interface EditCasaModalProps {
 }
 
 export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, onCasaUpdated, congregationId, onDeleteRequest }: EditCasaModalProps) {
+  const { user } = useUser();
   const [formData, setFormData] = useState(casa);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -63,6 +66,7 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
       number: formData.number.toUpperCase(),
       observations: formData.observations,
     }).then(() => {
+      logEvent(congregationId, user!.uid, user!.name, 'HOUSE_EDITED', `Editou os dados da casa ${casa.number} (agora ${formData.number.toUpperCase()}) na quadra ${quadraId}.`, { territoryId, quadraId, houseId: casa.id });
       onClose();
       onCasaUpdated();
     }).catch(async (serverError) => {

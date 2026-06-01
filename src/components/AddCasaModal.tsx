@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
@@ -20,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { logEvent } from '@/lib/audit';
 
 interface AddCasaModalProps {
   territoryId: string;
@@ -91,7 +93,6 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
             order
         };
 
-        // If house is marked as done on creation, create an activity log
         if (status) {
             const activityHistoryRef = collection(territoryRef, 'activityHistory');
             const newActivityRef = doc(activityHistoryRef);
@@ -110,7 +111,6 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
 
         transaction.set(newCasaRef, casaData);
 
-        // Update Quadra stats
         const newQuadraTotalHouses = (quadraDoc.data().totalHouses || 0) + 1;
         const newQuadraHousesDone = (quadraDoc.data().housesDone || 0) + (status ? 1 : 0);
         transaction.update(quadraRef, {
@@ -118,7 +118,6 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
             housesDone: newQuadraHousesDone
         });
 
-        // Update Territory stats
         const newTerritoryTotalHouses = (territoryDoc.data().stats.totalHouses || 0) + 1;
         const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + (status ? 1 : 0);
         const newProgress = newTerritoryTotalHouses > 0 ? newTerritoryHousesDone / newTerritoryTotalHouses : 0;
@@ -133,13 +132,14 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
         }
         transaction.update(territoryRef, territoryUpdateData);
         
-        // Update Congregation stats
         const newCongTotalHouses = (congDoc.data().totalHouses || 0) + 1;
         const newCongTotalHousesDone = (congDoc.data().totalHousesDone || 0) + (status ? 1 : 0);
         transaction.update(congRef, {
             totalHouses: newCongTotalHouses,
             totalHousesDone: newCongTotalHousesDone
         });
+    }).then(() => {
+        logEvent(congregationId, user.uid, user.name, 'HOUSE_CREATED', `Adicionou a casa ${number.toUpperCase()} à quadra ${quadraId} do território ${territoryId}.`, { territoryId, quadraId, houseNumber: number });
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: quadraRef.path,

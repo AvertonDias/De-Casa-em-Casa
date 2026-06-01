@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -33,7 +34,7 @@ function HistoricoPage() {
     setLoading(true);
     const logsPath = `congregations/${user.congregationId}/auditLogs`;
     const logsRef = collection(db, logsPath);
-    const q = query(logsRef, orderBy('timestamp', 'desc'), limit(200));
+    const q = query(logsRef, orderBy('timestamp', 'desc'), limit(300));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const logsData = snapshot.docs.map(doc => ({
@@ -62,7 +63,9 @@ function HistoricoPage() {
         log.userName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
         log.details?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesAction = actionFilter === 'all' || log.action === actionFilter;
+      const matchesAction = actionFilter === 'all' || 
+        (actionFilter === 'deletions' && log.action.includes('DELETED')) ||
+        log.action === actionFilter;
 
       return matchesSearch && matchesAction;
     });
@@ -72,10 +75,16 @@ function HistoricoPage() {
     switch (action) {
       case 'HOUSE_COMPLETED': return <Badge className="bg-green-500">Conclusão</Badge>;
       case 'HOUSE_UNMARKED': return <Badge variant="outline" className="text-yellow-500 border-yellow-500">Desmarcado</Badge>;
+      case 'HOUSE_CREATED': return <Badge className="bg-blue-400">Novo Número</Badge>;
+      case 'HOUSE_EDITED': return <Badge variant="secondary">Edição Número</Badge>;
+      case 'HOUSE_DELETED': return <Badge variant="destructive">Exclusão Número</Badge>;
+      case 'TERRITORY_CREATED': return <Badge className="bg-blue-600">Novo Território</Badge>;
+      case 'TERRITORY_EDITED': return <Badge variant="secondary">Edição Terr.</Badge>;
       case 'TERRITORY_DELETED': return <Badge variant="destructive">Exclusão Terr.</Badge>;
       case 'TERRITORY_RESET': return <Badge className="bg-orange-500">Limpeza</Badge>;
       case 'TERRITORY_ASSIGNED': return <Badge className="bg-blue-500">Designação</Badge>;
       case 'TERRITORY_RETURNED': return <Badge className="bg-teal-500">Devolução</Badge>;
+      case 'QUADRA_CREATED': return <Badge className="bg-indigo-500">Nova Quadra</Badge>;
       case 'USER_DELETED': return <Badge variant="destructive">Exclusão Usuário</Badge>;
       case 'USER_APPROVED': return <Badge className="bg-green-600">Aprovação</Badge>;
       case 'USER_EDITED': return <Badge variant="secondary">Edição Perfil</Badge>;
@@ -124,15 +133,13 @@ function HistoricoPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas as ações</SelectItem>
+            <SelectItem value="deletions">Apenas Exclusões</SelectItem>
             <SelectItem value="HOUSE_COMPLETED">Conclusão de Casa</SelectItem>
-            <SelectItem value="HOUSE_UNMARKED">Desmarcação de Casa</SelectItem>
             <SelectItem value="TERRITORY_ASSIGNED">Designações</SelectItem>
             <SelectItem value="TERRITORY_RETURNED">Devoluções</SelectItem>
             <SelectItem value="TERRITORY_RESET">Limpeza de Território</SelectItem>
-            <SelectItem value="TERRITORY_DELETED">Exclusão de Território</SelectItem>
+            <SelectItem value="HOUSE_CREATED">Novos Números</SelectItem>
             <SelectItem value="USER_APPROVED">Aprovação de Usuário</SelectItem>
-            <SelectItem value="USER_EDITED">Edição de Perfil</SelectItem>
-            <SelectItem value="USER_DELETED">Exclusão de Usuário</SelectItem>
           </SelectContent>
         </Select>
       </div>
