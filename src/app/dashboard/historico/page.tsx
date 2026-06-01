@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -186,7 +185,7 @@ function HistoricoPage() {
                   <tr>
                     <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground italic">
                       <FileText className="mx-auto h-12 w-12 opacity-10 mb-4" />
-                      Tem como ver todas as alterações já feitas?
+                      Nenhum registro encontrado com os filtros atuais.
                     </td>
                   </tr>
                 )}
