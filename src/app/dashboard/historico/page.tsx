@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -12,6 +13,8 @@ import withAuth from '@/components/withAuth';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
 function HistoricoPage() {
   const { user } = useUser();
@@ -26,7 +29,8 @@ function HistoricoPage() {
       return;
     }
 
-    const logsRef = collection(db, 'congregations', user.congregationId, 'auditLogs');
+    const logsPath = `congregations/${user.congregationId}/auditLogs`;
+    const logsRef = collection(db, logsPath);
     const q = query(logsRef, orderBy('timestamp', 'desc'), limit(100));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -36,6 +40,15 @@ function HistoricoPage() {
       } as AuditLog));
       setLogs(logsData);
       setLoading(false);
+    }, async (error) => {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: logsPath,
+                operation: 'list',
+            } satisfies SecurityRuleContext);
+            errorEmitter.emit('permission-error', permissionError);
+        }
+        setLoading(false);
     });
 
     return () => unsubscribe();

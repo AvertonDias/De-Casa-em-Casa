@@ -16,7 +16,7 @@ import { subDays, subMonths, subHours } from 'date-fns';
 import type { AppUser } from '@/types/types';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
 import { logEvent } from '@/lib/audit';
 
@@ -44,7 +44,8 @@ export default function UserManagement() {
   useEffect(() => {
     if (currentUser?.congregationId) {
       setLoading(true);
-      const usersRef = collection(db, 'users');
+      const usersPath = 'users';
+      const usersRef = collection(db, usersPath);
       const q = query(usersRef, where("congregationId", "==", currentUser.congregationId));
       const unsubUsers = onSnapshot(q, (snapshot) => {
         const usersData = snapshot.docs.map(docSnap => ({ uid: docSnap.id, ...docSnap.data() } as AppUser));
@@ -53,11 +54,12 @@ export default function UserManagement() {
       }, async (error) => {
           if (error.code === 'permission-denied') {
               const permissionError = new FirestorePermissionError({
-                  path: usersRef.path,
+                  path: usersPath,
                   operation: 'list',
-              });
+              } satisfies SecurityRuleContext);
               errorEmitter.emit('permission-error', permissionError);
           }
+          setLoading(false);
       });
 
       const statusRef = ref(rtdb, 'status');
@@ -143,7 +145,11 @@ export default function UserManagement() {
         toast({ title: "Sucesso!", description: "Usuário atualizado." });
     }).catch(async (error) => {
         if (error.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({ path: userRef.path, operation: 'update', requestResourceData: dataToUpdate });
+            const permissionError = new FirestorePermissionError({
+                path: userRef.path,
+                operation: 'update',
+                requestResourceData: dataToUpdate,
+            } satisfies SecurityRuleContext);
             errorEmitter.emit('permission-error', permissionError);
         }
     });

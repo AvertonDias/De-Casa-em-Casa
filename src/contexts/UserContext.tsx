@@ -141,7 +141,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 setLoading(false); 
               }, 
               async (error) => {
-                console.error("Erro ao carregar congregação:", error);
+                if (error.code === 'permission-denied') {
+                  const permissionError = new FirestorePermissionError({
+                    path: congRef.path,
+                    operation: 'get',
+                  } satisfies SecurityRuleContext);
+                  errorEmitter.emit('permission-error', permissionError);
+                }
                 setLoading(false);
               }
             );
@@ -151,7 +157,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
           }
         }, 
         async (error) => {
-          console.error("Erro ao carregar perfil do usuário:", error);
+          if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+              path: userRef.path,
+              operation: 'get',
+            } satisfies SecurityRuleContext);
+            errorEmitter.emit('permission-error', permissionError);
+          }
           setLoading(false);
         }
       );
@@ -164,8 +176,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // CRÍTICO: Não tenta redirecionar enquanto está carregando os dados reais.
-    // Isso evita o loop infinito causado pelo cache local divergente do servidor.
     if (loading) return; 
   
     const currentPath = pathname || '/';
