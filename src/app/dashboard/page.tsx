@@ -6,7 +6,7 @@ import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import type { Territory } from '@/types/types';
-import { CheckSquare, HousePlus, Map, Loader, Trees, User } from 'lucide-react';
+import { CheckSquare, HousePlus, Map, Loader, Trees } from 'lucide-react';
 import RecentTerritoryCard from '@/components/dashboard/RecentTerritoryCard'; 
 import { StatCard } from '@/components/StatCard';
 import withAuth from '@/components/withAuth';
@@ -89,7 +89,7 @@ function DashboardPage() {
         <StatCard icon={CheckSquare} title="Casas Visitadas" value={stats.totalHousesDone} />
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="max-w-3xl">
         <div className="space-y-4">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Map className="text-primary" size={24} />
@@ -109,21 +109,6 @@ function DashboardPage() {
               <p className="text-muted-foreground">Nenhum território trabalhado recentemente.</p>
             </div>
           )}
-        </div>
-
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <User className="text-primary" size={24} />
-            Suas Tarefas
-          </h2>
-          <div className="bg-card p-6 rounded-lg border border-border/40 shadow-sm">
-             <p className="text-sm text-muted-foreground leading-relaxed">
-               Use o menu lateral para acessar <strong>"Meus Territórios"</strong> e ver o que está sob sua responsabilidade, ou explore os <strong>"Tutoriais"</strong> para aprender a usar as ferramentas de campo.
-             </p>
-             <Link href="/dashboard/meus-territorios" className="mt-4 inline-flex items-center justify-center w-full px-4 py-2 bg-primary text-white font-bold rounded-md hover:bg-primary/90 transition-all shadow-md">
-                Ir para Meus Territórios
-             </Link>
-          </div>
         </div>
       </div>
     </div>
