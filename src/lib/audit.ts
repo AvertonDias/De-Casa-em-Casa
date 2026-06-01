@@ -1,3 +1,4 @@
+
 // src/lib/audit.ts
 import { db } from './firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';

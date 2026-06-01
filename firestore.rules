@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -7,22 +8,18 @@ service cloud.firestore {
         
         function isAuth() { return request.auth != null; }
         
-        // Busca o perfil do usuário logado
         function getProfile() {
             return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
         }
         
-        // Verifica se o usuário pertence à congregação
         function isOfCongregation(congId) {
             return getProfile().congregationId == congId;
         }
 
-        // Verifica se o usuário é Administrador
         function isAdmin() {
             return getProfile().role == 'Administrador';
         }
 
-        // Verifica se o usuário tem cargo de gestão (Admin, Dirigente, Servo)
         function isManager() {
             return getProfile().role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'];
         }

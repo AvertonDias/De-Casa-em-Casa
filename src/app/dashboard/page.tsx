@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -49,17 +50,13 @@ function DashboardPage() {
       setRecentTerritories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory)));
     });
 
-    // Listener para logs de auditoria (apenas para Administradores Reais)
+    // Listener para logs de auditoria (apenas para Administradores)
     let unsubLogs = () => {};
     if (isFullAdmin) {
       const logsRef = collection(db, 'congregations', congregationId, 'auditLogs');
       const qLogs = query(logsRef, orderBy('timestamp', 'desc'), limit(5));
       unsubLogs = onSnapshot(qLogs, (snapshot) => {
         setRecentLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog)));
-      }, (err) => {
-          // Se der erro de permissão no Dashboard, apenas limpamos os logs
-          console.warn("Sem permissão para logs no Dashboard");
-          setRecentLogs([]);
       });
     }
 
