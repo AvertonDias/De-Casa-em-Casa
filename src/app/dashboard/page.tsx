@@ -37,7 +37,7 @@ function DashboardPage() {
       territoriesRef, 
       where("lastWorkedAt", "!=", null),
       orderBy("lastWorkedAt", "desc"), 
-      limit(4)
+      limit(8)
     );
     const unsubRecentTerritories = onSnapshot(qRecent, (snapshot) => {
       setRecentTerritories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory)));
@@ -89,21 +89,23 @@ function DashboardPage() {
         <StatCard icon={CheckSquare} title="Casas Visitadas" value={stats.totalHousesDone} />
       </div>
       
-      <div className="max-w-3xl">
+      <div className="max-w-5xl">
         <div className="space-y-4">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Map className="text-primary" size={24} />
             Trabalho Recente
           </h2>
           {recentTerritories.length > 0 ? (
-            <div className="space-y-4">
-              {recentTerritories.map(territory => (
-                <RecentTerritoryCard key={territory.id} territory={territory} />
-              ))}
-              <Link href="/dashboard/territorios" className="block text-center text-sm font-semibold text-primary hover:underline">
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {recentTerritories.map(territory => (
+                  <RecentTerritoryCard key={territory.id} territory={territory} />
+                ))}
+              </div>
+              <Link href="/dashboard/territorios" className="block text-center text-sm font-semibold text-primary hover:underline mt-4">
                 Ver todos os territórios
               </Link>
-            </div>
+            </>
           ) : (
             <div className="bg-card p-8 rounded-lg text-center border border-dashed border-border">
               <p className="text-muted-foreground">Nenhum território trabalhado recentemente.</p>
