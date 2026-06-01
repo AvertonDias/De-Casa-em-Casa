@@ -4,15 +4,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit, getDocs } from 'firebase/firestore';
 import { AuditLog } from '@/types/types';
-import { Loader, History, Search, Filter, X, Clock, User, Info, FileText } from 'lucide-react';
+import { Loader, History, Search, Filter, X, Clock, User, Info, FileText, RefreshCw, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import withAuth from '@/components/withAuth';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 
@@ -20,21 +21,21 @@ function HistoricoPage() {
   const { user } = useUser();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
 
   const isAdmin = user?.role === 'Administrador';
 
-  useEffect(() => {
-    if (!user?.congregationId || !isAdmin) {
-      if (user) setLoading(false);
-      return;
-    }
+  const fetchLogs = (isManualRefresh = false) => {
+    if (!user?.congregationId || !isAdmin) return;
 
-    setLoading(true);
+    if (isManualRefresh) setIsRefreshing(true);
+    else setLoading(true);
+
     const logsPath = `congregations/${user.congregationId}/auditLogs`;
     const logsRef = collection(db, logsPath);
-    const q = query(logsRef, orderBy('timestamp', 'desc'), limit(300));
+    const q = query(logsRef, orderBy('timestamp', 'desc'), limit(500));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const logsData = snapshot.docs.map(doc => ({
@@ -43,6 +44,7 @@ function HistoricoPage() {
       } as AuditLog));
       setLogs(logsData);
       setLoading(false);
+      setIsRefreshing(false);
     }, async (error) => {
         if (error.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
@@ -52,24 +54,48 @@ function HistoricoPage() {
             errorEmitter.emit('permission-error', permissionError);
         }
         setLoading(false);
+        setIsRefreshing(false);
     });
 
-    return () => unsubscribe();
+    return unsubscribe;
+  };
+
+  useEffect(() => {
+    const unsubscribe = fetchLogs();
+    return () => { if (unsubscribe) unsubscribe(); };
   }, [user?.congregationId, isAdmin]);
 
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
+      const term = searchTerm.toLowerCase();
       const matchesSearch = 
-        log.userName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        log.details?.toLowerCase().includes(searchTerm.toLowerCase());
+        log.userName?.toLowerCase().includes(term) || 
+        log.details?.toLowerCase().includes(term) ||
+        log.action?.toLowerCase().includes(term);
       
       const matchesAction = actionFilter === 'all' || 
         (actionFilter === 'deletions' && log.action.includes('DELETED')) ||
+        (actionFilter === 'creations' && log.action.includes('CREATED')) ||
         log.action === actionFilter;
 
       return matchesSearch && matchesAction;
     });
   }, [logs, searchTerm, actionFilter]);
+
+  const handleExport = () => {
+    const data = filteredLogs.map(log => ({
+      data: log.timestamp ? format(log.timestamp.toDate(), "dd/MM/yyyy HH:mm") : '',
+      usuario: log.userName,
+      acao: log.action,
+      detalhes: log.details
+    }));
+    
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
+    const link = document.createElement("a");
+    link.setAttribute("href", jsonString);
+    link.setAttribute("download", `historico_${format(new Date(), 'yyyy-MM-dd')}.json`);
+    link.click();
+  };
 
   const getActionBadge = (action: string) => {
     switch (action) {
@@ -88,6 +114,7 @@ function HistoricoPage() {
       case 'USER_DELETED': return <Badge variant="destructive">Exclusão Usuário</Badge>;
       case 'USER_APPROVED': return <Badge className="bg-green-600">Aprovação</Badge>;
       case 'USER_EDITED': return <Badge variant="secondary">Edição Perfil</Badge>;
+      case 'CASAS_REORDERED': return <Badge className="bg-purple-500">Reordenação</Badge>;
       default: return <Badge variant="outline">{action.replace(/_/g, ' ')}</Badge>;
     }
   };
@@ -97,7 +124,7 @@ function HistoricoPage() {
       <div className="flex flex-col items-center justify-center p-12 text-center">
         <X className="h-16 w-16 text-destructive mb-4" />
         <h1 className="text-2xl font-bold">Acesso Negado</h1>
-        <p className="text-muted-foreground">Apenas administradores podem visualizar o histórico de auditoria.</p>
+        <p className="text-muted-foreground">Apenas administradores podem visualizar o histórico completo.</p>
       </div>
     );
   }
@@ -108,47 +135,59 @@ function HistoricoPage() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <History className="text-primary" />
-            Histórico de Alterações
+            Histórico de Auditoria
           </h1>
-          <p className="text-muted-foreground">Rastreador de todas as atividades realizadas no aplicativo.</p>
+          <p className="text-muted-foreground text-sm">Consultando registros diretamente do banco de dados em tempo real.</p>
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Button variant="outline" size="sm" onClick={() => fetchLogs(true)} disabled={isRefreshing}>
+                <RefreshCw size={14} className={isRefreshing ? "animate-spin mr-2" : "mr-2"} />
+                Sincronizar
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={filteredLogs.length === 0}>
+                <Download size={14} className="mr-2" />
+                Exportar
+            </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="md:col-span-2 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
           <Input 
-            placeholder="Buscar por nome ou ação..." 
+            placeholder="Buscar por usuário, ação ou detalhe..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
         </div>
-        <Select value={actionFilter} onValueChange={setActionFilter}>
-          <SelectTrigger>
-            <div className="flex items-center gap-2">
-              <Filter size={16} />
-              <SelectValue placeholder="Filtrar tipo" />
-            </div>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as ações</SelectItem>
-            <SelectItem value="deletions">Apenas Exclusões</SelectItem>
-            <SelectItem value="HOUSE_COMPLETED">Conclusão de Casa</SelectItem>
-            <SelectItem value="TERRITORY_ASSIGNED">Designações</SelectItem>
-            <SelectItem value="TERRITORY_RETURNED">Devoluções</SelectItem>
-            <SelectItem value="TERRITORY_RESET">Limpeza de Território</SelectItem>
-            <SelectItem value="HOUSE_CREATED">Novos Números</SelectItem>
-            <SelectItem value="USER_APPROVED">Aprovação de Usuário</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="md:col-span-2">
+            <Select value={actionFilter} onValueChange={setActionFilter}>
+            <SelectTrigger>
+                <div className="flex items-center gap-2">
+                <Filter size={16} />
+                <SelectValue placeholder="Filtrar por tipo de alteração" />
+                </div>
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="all">Todas as alterações</SelectItem>
+                <SelectItem value="creations">Apenas Criações</SelectItem>
+                <SelectItem value="deletions">Apenas Exclusões</SelectItem>
+                <SelectItem value="HOUSE_COMPLETED">Marcação de Casas</SelectItem>
+                <SelectItem value="TERRITORY_ASSIGNED">Designações</SelectItem>
+                <SelectItem value="TERRITORY_RETURNED">Devoluções</SelectItem>
+                <SelectItem value="CASAS_REORDERED">Reordenação de Casas</SelectItem>
+                <SelectItem value="USER_APPROVED">Aprovação de Usuários</SelectItem>
+            </SelectContent>
+            </Select>
+        </div>
       </div>
 
       <div className="bg-card rounded-xl border border-border/40 shadow-md overflow-hidden">
         {loading ? (
            <div className="p-12 text-center">
               <Loader className="animate-spin text-primary mx-auto" size={32} />
-              <p className="text-muted-foreground mt-4">Sincronizando logs...</p>
+              <p className="text-muted-foreground mt-4">Consultando banco de dados...</p>
            </div>
         ) : (
           <div className="overflow-x-auto">
@@ -157,8 +196,8 @@ function HistoricoPage() {
                 <tr>
                   <th className="px-6 py-4">Data e Hora</th>
                   <th className="px-6 py-4">Usuário</th>
-                  <th className="px-6 py-4">Ação</th>
-                  <th className="px-6 py-4">Detalhes da Alteração</th>
+                  <th className="px-6 py-4">Ação Realizada</th>
+                  <th className="px-6 py-4">Detalhes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/20">
@@ -168,7 +207,7 @@ function HistoricoPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Clock size={14} />
-                          {log.timestamp ? format(log.timestamp.toDate(), "dd/MM/yy HH:mm", { locale: ptBR }) : 'Processando...'}
+                          {log.timestamp ? format(log.timestamp.toDate(), "dd/MM/yy HH:mm", { locale: ptBR }) : 'Sincronizando...'}
                         </div>
                       </td>
                       <td className="px-6 py-4 font-bold text-foreground">

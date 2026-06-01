@@ -16,6 +16,7 @@ import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { Button } from '@/components/ui/button';
 import { EditRuralTerritoryModal } from '@/components/EditRuralTerritoryModal';
 import withAuth from "@/components/withAuth";
+import { logEvent } from '@/lib/audit';
 
 interface RuralTerritoryDetailPageProps {
   params: {
@@ -34,7 +35,6 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
   const [workNote, setWorkNote] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Estados para modais
   const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
   const [isWorkLogModalOpen, setIsWorkLogModalOpen] = useState(false);
   const [workLogToEdit, setWorkLogToEdit] = useState<RuralWorkLog | null>(null);
@@ -45,14 +45,12 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
 
   useEffect(() => {
     if (userLoading) return;
-
     if (!territoryId || !user?.congregationId) {
         setLoading(false);
         return;
     }
     
     const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
-    
     const unsubscribe = onSnapshot(territoryRef, (docSnap) => {
       if (docSnap.exists() && docSnap.data().type === 'rural') {
         setTerritory({ id: docSnap.id, ...docSnap.data() } as RuralTerritory);
@@ -86,6 +84,16 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
         const newLogsArray = [...currentLogs, newLog];
         transaction.update(territoryRef, { workLogs: newLogsArray, lastUpdate: Timestamp.now() });
       });
+
+      logEvent(
+        user.congregationId!,
+        user.uid,
+        user.name,
+        'RURAL_WORK_LOGGED',
+        `Registrou trabalho no território rural ${territory.number}: "${workNote.trim()}"`,
+        { territoryId: territory.id }
+      );
+
       setWorkNote('');
     } catch (error) {
       console.error("Erro na transação de adicionar registro:", error);
@@ -109,6 +117,15 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
             );
             transaction.update(territoryRef, { workLogs: newLogsArray });
         });
+
+        logEvent(
+            user.congregationId,
+            user.uid,
+            user.name,
+            'RURAL_LOG_EDITED',
+            `Editou um registro de trabalho rural no território ${territory.number}.`,
+            { territoryId: territory.id, logId }
+        );
     } catch (error) {
         console.error("Erro na transação de editar registro:", error);
     }
@@ -127,6 +144,15 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
             const newLogsArray = currentLogs.filter(log => log.id !== workLogToDelete.id);
             transaction.update(territoryRef, { workLogs: newLogsArray });
         });
+
+        logEvent(
+            user.congregationId,
+            user.uid,
+            user.name,
+            'RURAL_LOG_DELETED',
+            `Excluiu um registro de trabalho rural no território ${territory.number}.`,
+            { territoryId: territory.id, logNote: workLogToDelete.notes }
+        );
     } catch (error) {
       console.error("Erro na transação de excluir registro:", error);
     } finally {
@@ -187,7 +213,7 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
           </div>
         </div>
 
-        <div className="bg-card p-6 rounded-lg">
+        <div className="bg-card p-6 rounded-lg shadow-md">
           <h2 className="font-semibold text-xl mb-4 flex items-center"><LinkIcon size={20} className="mr-3 text-primary" />Links Específicos</h2>
           <div className="space-y-3">
           {territory.links && territory.links.length > 0 ? (
@@ -289,4 +315,3 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
 }
 
 export default withAuth(RuralTerritoryDetailPage);
-    

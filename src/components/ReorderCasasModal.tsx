@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -9,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { ArrowUp, ArrowDown, GripVertical, Loader } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { logEvent } from '@/lib/audit';
+import { useUser } from '@/contexts/UserContext';
 
 interface ReorderCasasModalProps {
   isOpen: boolean;
@@ -20,23 +23,20 @@ interface ReorderCasasModalProps {
 }
 
 export function ReorderCasasModal({ isOpen, onClose, casas: initialCasas, territoryId, quadraId, congregationId }: ReorderCasasModalProps) {
+  const { user } = useUser();
   const [localCasas, setLocalCasas] = useState<Casa[]>([]);
   const [initialOrderIds, setInitialOrderIds] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   
-  // Ref para controlar se o modal acabou de ser aberto
   const hasInitialized = useRef(false);
 
   useEffect(() => {
     if (isOpen && !hasInitialized.current) {
-      // Ordena localmente para garantir que o usuário comece da ordem atual salva
       const sorted = [...initialCasas].sort((a, b) => (a.order || 0) - (b.order || 0));
       setLocalCasas(sorted);
-      // Armazena a ordem inicial dos IDs para comparação de mudanças
       setInitialOrderIds(sorted.map(c => c.id));
-      // Reseta a seleção
       setSelectedId(null);
       hasInitialized.current = true;
     } else if (!isOpen) {
@@ -44,7 +44,6 @@ export function ReorderCasasModal({ isOpen, onClose, casas: initialCasas, territ
     }
   }, [isOpen, initialCasas]);
 
-  // Verifica se a ordem atual é diferente da original
   const hasChanges = localCasas.some((casa, index) => casa.id !== initialOrderIds[index]);
 
   const moveHouse = (index: number, direction: 'up' | 'down') => {
@@ -54,13 +53,12 @@ export function ReorderCasasModal({ isOpen, onClose, casas: initialCasas, territ
     const newCasas = [...localCasas];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
 
-    // Realiza a troca (swap)
     [newCasas[index], newCasas[targetIndex]] = [newCasas[targetIndex], newCasas[index]];
     setLocalCasas(newCasas);
   };
 
   const handleSave = async () => {
-    if (!congregationId || !territoryId || !quadraId) return;
+    if (!congregationId || !territoryId || !quadraId || !user) return;
     
     setIsLoading(true);
     const batch = writeBatch(db);
@@ -72,6 +70,17 @@ export function ReorderCasasModal({ isOpen, onClose, casas: initialCasas, territ
 
     try {
       await batch.commit();
+      
+      // Registrar no Histórico de Auditoria
+      logEvent(
+        congregationId,
+        user.uid,
+        user.name,
+        'CASAS_REORDERED',
+        `Reordenou a sequência de casas na quadra ${quadraId} do território ${territoryId}.`,
+        { territoryId, quadraId }
+      );
+
       toast({ title: "Sucesso!", description: "A nova ordem das casas foi salva." });
       onClose();
     } catch (error) {
@@ -86,21 +95,19 @@ export function ReorderCasasModal({ isOpen, onClose, casas: initialCasas, territ
     <Dialog 
       open={isOpen} 
       onOpenChange={(open) => {
-        // Bloqueia o fechamento automático (clique fora/ESC) se houver mudanças
         if (!open && hasChanges) return;
         onClose();
       }}
     >
       <DialogContent 
         className="sm:max-w-md p-0 overflow-hidden border-none shadow-2xl"
-        // Reforço de bloqueio de interação externa se houver mudanças
         onPointerDownOutside={(e) => { if (hasChanges) e.preventDefault(); }}
         onEscapeKeyDown={(e) => { if (hasChanges) e.preventDefault(); }}
       >
         <DialogHeader className="p-6 pb-2 bg-background/95 backdrop-blur-md sticky top-0 z-10 border-b border-border/50">
           <DialogTitle className="text-xl font-bold">Reordenar Casas</DialogTitle>
           <DialogDescription>
-            Clique na casa que deseja mover e use as setas para ajustar.
+            Clique na casa que deseja mover e use as setas para ajustar o percurso.
           </DialogDescription>
         </DialogHeader>
 

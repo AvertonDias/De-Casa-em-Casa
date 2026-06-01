@@ -8,20 +8,24 @@ service cloud.firestore {
         
         function isAuth() { return request.auth != null; }
         
-        function getProfile() {
+        function getUserData() {
             return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
         }
         
         function isOfCongregation(congId) {
-            return getProfile().congregationId == congId;
+            return getUserData().congregationId == congId;
         }
 
         function isAdmin() {
-            return getProfile().role == 'Administrador';
+            return getUserData().role == 'Administrador';
         }
 
         function isManager() {
-            return getProfile().role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'];
+            return getUserData().role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'];
+        }
+
+        function isActive() {
+            return getUserData().status == 'ativo';
         }
 
         // --- REGRAS POR COLEÇÃO ---
@@ -30,32 +34,32 @@ service cloud.firestore {
             allow read: if isAuth(); 
             allow create: if isAuth();
             
-            allow update: if isAuth() && isOfCongregation(congId) && (getProfile().status == 'ativo' || isManager());
+            allow update: if isAuth() && isOfCongregation(congId) && (isActive() || isManager());
             allow delete: if isAuth() && isOfCongregation(congId) && isAdmin();
 
             // Histórico de Auditoria: Apenas Administradores podem ler/listar. 
             // Usuários ativos podem criar logs ao realizar ações.
             match /auditLogs/{logId} {
                 allow read: if isAuth() && isOfCongregation(congId) && isAdmin();
-                allow create: if isAuth() && isOfCongregation(congId) && getProfile().status == 'ativo';
+                allow create: if isAuth() && isOfCongregation(congId) && isActive();
             }
 
             match /territories/{terrId} {
-                allow read: if isAuth() && isOfCongregation(congId) && (getProfile().status == 'ativo' || isManager());
+                allow read: if isAuth() && isOfCongregation(congId) && (isActive() || isManager());
                 
-                allow create, delete: if isAuth() && isOfCongregation(congId) && (isAdmin() || getProfile().role == 'Servo de Territórios');
+                allow create, delete: if isAuth() && isOfCongregation(congId) && (isAdmin() || getUserData().role == 'Servo de Territórios');
                 
-                allow update: if isAuth() && isOfCongregation(congId) && (getProfile().status == 'ativo' || isManager());
+                allow update: if isAuth() && isOfCongregation(congId) && (isActive() || isManager());
 
                 match /quadras/{quadraId} {
-                    allow read, write: if isAuth() && isOfCongregation(congId) && (getProfile().status == 'ativo' || isManager());
+                    allow read, write: if isAuth() && isOfCongregation(congId) && (isActive() || isManager());
                     
                     match /casas/{casaId} { 
-                        allow read, write: if isAuth() && isOfCongregation(congId) && (getProfile().status == 'ativo' || isManager());
+                        allow read, write: if isAuth() && isOfCongregation(congId) && (isActive() || isManager());
                     }
                 }
                 match /activityHistory/{activityId} { 
-                    allow read, write: if isAuth() && isOfCongregation(congId) && (getProfile().status == 'ativo' || isManager());
+                    allow read, write: if isAuth() && isOfCongregation(congId) && (isActive() || isManager());
                 }
             }
         }
