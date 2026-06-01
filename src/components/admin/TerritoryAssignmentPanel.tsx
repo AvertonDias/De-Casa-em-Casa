@@ -1,12 +1,12 @@
+
 "use client";
 
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, app } from '@/lib/firebase';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
-import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, LayoutList, BookUser, MessageCircle, History, Loader, X, Filter } from 'lucide-react';
+import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, BookUser, MessageCircle, History, Loader, X, Filter } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -18,8 +18,8 @@ import type { Territory, AppUser, AssignmentHistoryLog } from '@/types/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { logEvent } from '@/lib/audit';
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   label: string;
@@ -72,14 +72,9 @@ export default function TerritoryAssignmentPanel() {
       setLoading(false);
     }, (error) => {
         console.error("Erro ao buscar territórios:", error);
-        toast({
-            title: "Erro ao carregar territórios",
-            description: error.message || "Verifique suas permissões.",
-            variant: "destructive"
-        });
     });
     return () => unsub();
-  }, [currentUser, toast]);
+  }, [currentUser]);
   
   useEffect(() => {
     if (!currentUser?.congregationId) return;
@@ -88,31 +83,20 @@ export default function TerritoryAssignmentPanel() {
     
     const unsub = onSnapshot(q, (snapshot) => {
       const usersData = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AppUser));
-      // Ordenação agora é feita no cliente
       usersData.sort((a, b) => a.name.localeCompare(b.name));
       setUsers(usersData);
-    }, (error) => {
-      console.error("Erro ao buscar usuários:", error); 
-      toast({
-          title: "Erro ao carregar usuários",
-          description: error.message || "Verifique suas permissões no Firestore para a coleção 'users'.",
-          variant: "destructive"
-      });
     });
 
     return () => unsub();
-  }, [currentUser, toast]);
+  }, [currentUser]);
 
   const handleSaveAssignment = async (territoryId: string, assignedUser: { uid: string; name: string }, assignmentDate: string, dueDate: string) => {
-    if (!currentUser?.congregationId) {
-        toast({ title: "Erro", description: "Dados do usuário atual incompletos.", variant: "destructive" });
-        return;
-    }
+    if (!currentUser?.congregationId) return;
     
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
-    
     const assignedAt = Timestamp.fromDate(new Date(assignmentDate + 'T12:00:00'));
     const dueDateObj = Timestamp.fromDate(new Date(dueDate + 'T12:00:00'));
+    const currentTerritory = territories.find(t => t.id === territoryId);
 
     setIsAssignModalOpen(false);
 
@@ -129,24 +113,22 @@ export default function TerritoryAssignmentPanel() {
                 assignment: {
                     uid: assignedUser.uid,
                     name: assignedUser.name,
-                    assignedAt: assignedAt, // Será a original se for reatribuição
+                    assignedAt: assignedAt,
                     dueDate: dueDateObj,
-                    isReassigned: isReassignment, // Marca se foi uma troca direta
-                    transferredAt: isReassignment ? Timestamp.now() : null // Data do ato da transferência
+                    isReassigned: isReassignment,
+                    transferredAt: isReassignment ? Timestamp.now() : null
                 },
                 lastUpdate: serverTimestamp()
             };
 
-            // Se já estava designado, movemos a designação anterior para o histórico (reatribuição)
             if (isReassignment) {
                 const historyLog: AssignmentHistoryLog = {
                     uid: data.assignment!.uid,
                     name: data.assignment!.name,
                     assignedAt: data.assignment!.assignedAt,
-                    completedAt: Timestamp.now(), // A transferência aconteceu hoje
-                    isCompletion: false // Marcar como transferência, não conclusão
+                    completedAt: Timestamp.now(),
+                    isCompletion: false
                 };
-                
                 const currentHistory = data.assignmentHistory || [];
                 updates.assignmentHistory = [...currentHistory, historyLog];
             }
@@ -154,9 +136,17 @@ export default function TerritoryAssignmentPanel() {
             transaction.update(territoryRef, updates);
         });
         
-        const assignedUserId = assignedUser.uid;
-        const currentTerritory = territories.find(t => t.id === territoryId);
+        // Registrar no Histórico de Auditoria
+        logEvent(
+            currentUser.congregationId,
+            currentUser.uid,
+            currentUser.name,
+            'TERRITORY_ASSIGNED',
+            `Designou o território ${currentTerritory?.number} para ${assignedUser.name}.`,
+            { territoryId, assignedTo: assignedUser.name }
+        );
 
+        const assignedUserId = assignedUser.uid;
         if (!assignedUserId.startsWith('custom_')) {
             const notificationRef = collection(db, `users/${assignedUserId}/notifications`);
             const territoryLink = currentTerritory?.type === 'rural' ? `/dashboard/rural/${territoryId}` : `/dashboard/territorios/${territoryId}`;
@@ -175,7 +165,6 @@ export default function TerritoryAssignmentPanel() {
         if (congregation?.whatsappEnabled !== false && userForWhatsapp?.whatsapp && !assignedUser.uid.startsWith('custom_')) {
             const formattedDueDate = format(dueDateObj.toDate(), 'dd/MM/yyyy');
             const link = `${window.location.origin}/dashboard/meus-territorios`;
-            
             const defaultTemplate = "Olá, o território *[Território]* foi designado para você! Devolva até [Data de Devolução]. Acesse o app para ver os detalhes: [Link]";
             const template = congregation?.whatsappTemplates?.assignment || defaultTemplate;
             const message = template
@@ -188,39 +177,28 @@ export default function TerritoryAssignmentPanel() {
             window.open(whatsappUrl, '_blank');
         }
 
-        toast({
-          title: "Sucesso!",
-          description: "Atribuição do território salva.",
-        });
+        toast({ title: "Sucesso!", description: "Atribuição salva." });
 
     } catch (error: any) {
       console.error("Erro ao salvar atribuição:", error);
-      toast({
-        title: "Erro",
-        description: error.message || "Ocorreu um erro ao salvar a atribuição.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Falha ao salvar atribuição.", variant: "destructive" });
     }
 };
 
-  const handleOpenAssignModal = (territory: Territory) => {
-    setSelectedTerritory(territory);
-    setIsAssignModalOpen(true);
-  };
-  
   const handleConfirmReturn = async (territoryId: string, returnDate: string) => {
     if (!currentUser?.congregationId) return;
     const territoryToReturn = territories.find(t => t.id === territoryId);
     if (!territoryToReturn || !territoryToReturn.assignment) return;
     
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
+    const returnDateObj = new Date(returnDate + 'T12:00:00');
     
     const historyLog = {
       uid: territoryToReturn.assignment.uid,
       name: territoryToReturn.assignment.name,
       assignedAt: territoryToReturn.assignment.assignedAt,
-      completedAt: Timestamp.fromDate(new Date(returnDate + 'T12:00:00')),
-      isCompletion: true // Marcar como conclusão real
+      completedAt: Timestamp.fromDate(returnDateObj),
+      isCompletion: true
     };
 
     try {
@@ -229,11 +207,22 @@ export default function TerritoryAssignmentPanel() {
             assignment: deleteField(),
             assignmentHistory: arrayUnion(historyLog)
         });
-        toast({ title: "Sucesso!", description: "Território devolvido e histórico atualizado." });
+
+        // Registrar Auditoria
+        logEvent(
+            currentUser.congregationId,
+            currentUser.uid,
+            currentUser.name,
+            'TERRITORY_RETURNED',
+            `Recebeu a devolução do território ${territoryToReturn.number} de ${territoryToReturn.assignment.name}.`,
+            { territoryId, returnedBy: territoryToReturn.assignment.name }
+        );
+
+        toast({ title: "Sucesso!", description: "Território devolvido." });
         setIsReturnModalOpen(false);
     } catch (error: any) {
         console.error("Erro ao devolver território:", error);
-        toast({ title: "Erro", description: error.message || "Falha ao devolver território.", variant: "destructive" });
+        toast({ title: "Erro", description: "Falha ao devolver território.", variant: "destructive" });
     }
   };
 
@@ -243,19 +232,15 @@ export default function TerritoryAssignmentPanel() {
   };
 
   const handleSaveHistoryLog = async (originalLog: AssignmentHistoryLog, updatedData: { name: string; assignedAt: Date; completedAt: Date; }) => {
-    if (!currentUser?.congregationId || !selectedTerritory) {
-        toast({ title: "Erro", description: "Dados incompletos para salvar o log.", variant: "destructive" });
-        return;
-    }
+    if (!currentUser?.congregationId || !selectedTerritory) return;
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', selectedTerritory.id);
 
     try {
         await runTransaction(db, async (transaction) => {
             const territoryDoc = await transaction.get(territoryRef);
-            if (!territoryDoc.exists()) throw new Error("Território não encontrado para atualizar histórico.");
+            if (!territoryDoc.exists()) throw new Error("Território não encontrado.");
             
             const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
-            
             const newHistory = currentHistory.map(log => {
                 if (log.uid === originalLog.uid && log.assignedAt.isEqual(originalLog.assignedAt)) {
                     return {
@@ -269,11 +254,20 @@ export default function TerritoryAssignmentPanel() {
             });
             transaction.update(territoryRef, { assignmentHistory: newHistory });
         });
-        toast({ title: "Sucesso!", description: "Registro do histórico atualizado." });
+
+        logEvent(
+            currentUser.congregationId,
+            currentUser.uid,
+            currentUser.name,
+            'HISTORY_EDITED',
+            `Editou um registro de histórico do território ${selectedTerritory.number}.`,
+            { territoryId: selectedTerritory.id }
+        );
+
+        toast({ title: "Sucesso!", description: "Histórico atualizado." });
         setIsEditLogModalOpen(false);
     } catch (e: any) {
-        console.error("Erro ao salvar histórico:", e);
-        toast({ title: "Erro", description: e.message || "Falha ao salvar o registro do histórico.", variant: "destructive" });
+        toast({ title: "Erro", description: "Falha ao salvar histórico.", variant: "destructive" });
     }
   };
   
@@ -283,34 +277,37 @@ export default function TerritoryAssignmentPanel() {
   };
 
   const handleConfirmDeleteLog = async () => {
-    if (!logToDelete || !currentUser?.congregationId) {
-        toast({ title: "Erro", description: "Dados incompletos para deletar o log.", variant: "destructive" });
-        return;
-    }
+    if (!logToDelete || !currentUser?.congregationId) return;
 
-    const { territoryId, log: logToDeleteData } = logToDelete;
+    const { territoryId, log: logToRemoveData } = logToDelete;
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
     
     try {
         const territoryDoc = await getDoc(territoryRef);
         if (territoryDoc.exists()) {
             const currentHistory: AssignmentHistoryLog[] = territoryDoc.data().assignmentHistory || [];
-            
             const logToRemove = currentHistory.find(log => 
-                log.uid === logToDeleteData.uid && 
-                log.assignedAt.isEqual(logToDeleteData.assignedAt)
+                log.uid === logToRemoveData.uid && 
+                log.assignedAt.isEqual(logToRemoveData.assignedAt)
             );
             
             if (logToRemove) {
-                await updateDoc(territoryRef, {
-                    assignmentHistory: arrayRemove(logToRemove)
-                });
-                toast({ title: "Sucesso!", description: "Registro do histórico excluído." });
+                await updateDoc(territoryRef, { assignmentHistory: arrayRemove(logToRemove) });
+                
+                logEvent(
+                    currentUser.congregationId,
+                    currentUser.uid,
+                    currentUser.name,
+                    'HISTORY_DELETED',
+                    `Excluiu um registro de histórico do território ${territoryDoc.data().number}.`,
+                    { territoryId }
+                );
+
+                toast({ title: "Sucesso!", description: "Registro removido." });
             }
         }
     } catch (e: any) {
-        console.error("Erro ao deletar o registro do histórico:", e);
-        toast({ title: "Erro", description: e.message || "Falha ao deletar o registro do histórico.", variant: "destructive" });
+        toast({ title: "Erro", description: "Falha ao deletar registro.", variant: "destructive" });
     } finally {
         setIsConfirmDeleteOpen(false);
         setLogToDelete(null);
@@ -319,87 +316,49 @@ export default function TerritoryAssignmentPanel() {
   
   const handleNotifyOverdue = async (territory: Territory) => {
     if (!territory.assignment) return;
-
     if (congregation?.whatsappEnabled === false) {
-        toast({
-            title: "WhatsApp Desativado",
-            description: "As notificações via WhatsApp estão desativadas nas configurações da congregação.",
-            variant: "destructive",
-        });
+        toast({ title: "WhatsApp Desativado", variant: "destructive" });
         return;
     }
-    
     const assignedUser = users.find(u => u.uid === territory.assignment!.uid);
     if (!assignedUser || !assignedUser.whatsapp) {
-      toast({
-        title: "Usuário sem WhatsApp",
-        description: `Não foi possível notificar ${territory.assignment.name} pois não há um número de WhatsApp cadastrado.`,
-        variant: "destructive",
-      });
+      toast({ title: "Usuário sem WhatsApp", variant: "destructive" });
       return;
     }
 
-    try {
-        const link = `${window.location.origin}/dashboard/meus-territorios`;
-        
-        const defaultTemplate = "Olá, este é um lembrete de que o território *[Território]* está com a devolução atrasada. Por favor, atualize o quanto antes. Acesse o app: [Link]";
-        const template = congregation?.whatsappTemplates?.overdueReminder || defaultTemplate;
+    const link = `${window.location.origin}/dashboard/meus-territorios`;
+    const defaultTemplate = "Olá, este é um lembrete de que o território *[Território]* está com a devolução atrasada. Por favor, atualize o quanto antes. Acesse o app: [Link]";
+    const template = congregation?.whatsappTemplates?.overdueReminder || defaultTemplate;
+    const message = template.replace(/\[Território\]/g, territory.name).replace(/\[Nome do Publicador\]/g, assignedUser.name).replace(/\[Link\]/g, link);
 
-        const message = template
-            .replace(/\[Território\]/g, territory.name)
-            .replace(/\[Nome do Publicador\]/g, assignedUser.name)
-            .replace(/\[Link\]/g, link);
-
-        const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
-        const whatsappUrl = `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, '_blank');
-        
-        toast({
-          title: "WhatsApp Aberto",
-          description: `A mensagem para ${assignedUser.name} está pronta para ser enviada.`,
-          variant: "default",
-        });
-
-    } catch (error: any) {
-      console.error("Erro ao abrir WhatsApp:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível abrir o WhatsApp.",
-        variant: "destructive",
-      });
-    }
+    const whatsappNumber = assignedUser.whatsapp.replace(/\D/g, '');
+    window.open(`https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
+    
+    logEvent(
+        currentUser!.congregationId!,
+        currentUser!.uid,
+        currentUser!.name,
+        'OVERDUE_NOTIFIED',
+        `Cobrou a devolução do território ${territory.number} de ${assignedUser.name} via WhatsApp.`
+    );
   };
   
   const filteredTerritories = territories.filter(t => {
       const type = t.type || 'urban';
       const matchesType = typeFilter === 'all' || type === typeFilter;
-      
       let matchesStatus = true;
-      let isOverdue: boolean = false;
-      
-      if (t.status === 'designado' && t.assignment?.dueDate) {
-          isOverdue = t.assignment.dueDate.toDate() < new Date();
-      }
+      let isOverdue = false;
+      if (t.status === 'designado' && t.assignment?.dueDate) isOverdue = t.assignment.dueDate.toDate() < new Date();
 
-      if (filterStatus === 'disponivel') {
-          matchesStatus = t.status !== 'designado';
-      } else if (filterStatus === 'designado') {
-          matchesStatus = t.status === 'designado' && !isOverdue;
-      } else if (filterStatus === 'atrasado') {
-          matchesStatus = isOverdue;
-      }
+      if (filterStatus === 'disponivel') matchesStatus = t.status !== 'designado';
+      else if (filterStatus === 'designado') matchesStatus = t.status === 'designado' && !isOverdue;
+      else if (filterStatus === 'atrasado') matchesStatus = isOverdue;
 
       const matchesSearch = searchTerm === '' || t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.number.toLowerCase().includes(searchTerm.toLowerCase());
-      
       return matchesType && matchesStatus && matchesSearch;
   });
 
   const canManageAssignments = currentUser?.role === 'Administrador' || currentUser?.role === 'Servo de Territórios' || currentUser?.role === 'Ajudante de Servo de Territórios';
-
-  const handleOpenReturnModal = (territory: Territory) => {
-    setSelectedTerritory(territory);
-    setIsReturnModalOpen(true);
-  };
 
   if(loading) return <div className="text-center p-8"><Loader className="animate-spin mx-auto text-primary" /></div>
 
@@ -423,16 +382,9 @@ export default function TerritoryAssignmentPanel() {
                   placeholder="Buscar por nome ou número..." 
                   value={searchTerm} 
                   onChange={e => setSearchTerm(e.target.value)} 
-                  className="w-full bg-input/50 rounded-md p-2.5 pl-10 pr-10 border border-border focus:ring-2 focus:ring-primary/50 outline-none transition-all"
+                  className="w-full bg-input/50 rounded-md p-2.5 pl-10 pr-10 border border-border focus:ring-2 focus:ring-primary/50 outline-none"
                 />
-                 {searchTerm && (
-                  <button 
-                    onClick={() => setSearchTerm('')} 
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    <X size={20} />
-                  </button>
-                )}
+                {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X size={20} /></button>}
               </div>
               
               <div className="min-w-[200px]">
@@ -459,49 +411,40 @@ export default function TerritoryAssignmentPanel() {
             {filteredTerritories.map(t => {
                 const isDesignado = t.status === 'designado' && t.assignment;
                 const isOverdue = isDesignado && t.assignment && t.assignment.dueDate.toDate() < new Date();
-                
                 return (
                   <AccordionItem value={t.id} key={t.id} className="border-b border-border/40 last:border-b-0">
                     <div className="flex items-center hover:bg-white/[0.02] transition-colors px-4 py-4">
                        <div className="flex-grow grid grid-cols-1 sm:grid-cols-12 items-center gap-y-2 gap-x-4">
-                          <div className="col-span-12 sm:col-span-4 font-bold text-left">
+                          <div className="col-span-12 sm:col-span-4 font-bold">
                               <Link href={t.type === 'rural' ? `/dashboard/rural/${t.id}` : `/dashboard/territorios/${t.id}`} className="hover:text-primary transition-colors text-base">
                                   {t.number} - {t.name}
                               </Link>
                           </div>
-                          <div className="col-span-6 sm:col-span-2 text-xs font-bold text-left">
-                              <span className="flex w-full uppercase tracking-wider">
-                                  {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-500">Designado</span> : <span className="text-green-500">Disponível</span>)}
-                              </span>
+                          <div className="col-span-6 sm:col-span-2 text-xs font-bold uppercase tracking-wider">
+                               {isOverdue ? <span className="text-red-500">Atrasado</span> : (isDesignado ? <span className="text-yellow-500">Designado</span> : <span className="text-green-500">Disponível</span>)}
                           </div>
-                          <div className="col-span-12 sm:col-span-4 text-sm text-muted-foreground text-left italic">
+                          <div className="col-span-12 sm:col-span-4 text-sm text-muted-foreground italic">
                               {t.assignment ? `${t.assignment.name} (até ${format(t.assignment.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR })})` : ''}
                           </div>
                        </div>
-                       <div className="flex items-center justify-end flex-shrink-0 ml-2 sm:col-span-2 gap-1">
+                       <div className="flex items-center justify-end gap-1 ml-2">
                            {canManageAssignments && (
                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                <button className="p-2 rounded-full hover:bg-white/10 transition-colors">
-                                    <MoreVertical size={20} />
-                                </button>
-                                </DropdownMenuTrigger>
+                                <DropdownMenuTrigger asChild><button className="p-2 rounded-full hover:bg-white/10"><MoreVertical size={20} /></button></DropdownMenuTrigger>
                                 <DropdownMenuContent className="w-56" align="end">
                                 {isDesignado ? (
                                     <>
-                                        <DropdownMenuItem onClick={() => handleOpenReturnModal(t)}> <CheckCircle size={16} className="mr-2"/>Devolver</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleOpenAssignModal(t)}> <RotateCw size={16} className="mr-2"/>Reatribuir</DropdownMenuItem>
-                                        {isOverdue && <DropdownMenuItem onClick={() => handleNotifyOverdue(t)} className="text-yellow-500 font-bold focus:text-yellow-500"> <MessageCircle size={16} className="mr-2"/>Notificar atraso</DropdownMenuItem>}
+                                        <DropdownMenuItem onClick={() => { setSelectedTerritory(t); setIsReturnModalOpen(true); }}> <CheckCircle size={16} className="mr-2"/>Devolver</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => { setSelectedTerritory(t); setIsAssignModalOpen(true); }}> <RotateCw size={16} className="mr-2"/>Reatribuir</DropdownMenuItem>
+                                        {isOverdue && <DropdownMenuItem onClick={() => handleNotifyOverdue(t)} className="text-yellow-500 font-bold"> <MessageCircle size={16} className="mr-2"/>Notificar atraso</DropdownMenuItem>}
                                     </>
                                 ) : (
-                                    <DropdownMenuItem onClick={() => handleOpenAssignModal(t)}> <BookUser size={16} className="mr-2"/>Designar</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => { setSelectedTerritory(t); setIsAssignModalOpen(true); }}> <BookUser size={16} className="mr-2"/>Designar</DropdownMenuItem>
                                 )}
                                 </DropdownMenuContent>
                             </DropdownMenu>
                            )}
-                           <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full transition-colors [&_svg]:h-4 [&_svg]:w-4">
-                              <History />
-                            </AccordionTrigger>
+                           <AccordionTrigger className="p-2 hover:bg-white/10 rounded-full transition-colors [&_svg]:h-4 [&_svg]:w-4"><History /></AccordionTrigger>
                        </div>
                     </div>
                     <AccordionContent className="bg-muted/10">
@@ -516,42 +459,14 @@ export default function TerritoryAssignmentPanel() {
                 )
             })}
           </Accordion>
-          
-          {filteredTerritories.length === 0 && (
-              <div className="p-12 text-center text-muted-foreground bg-muted/20">
-                  <X className="mx-auto h-12 w-12 opacity-20 mb-4" />
-                  <p className="text-lg">Nenhum território corresponde aos filtros.</p>
-              </div>
-          )}
+          {filteredTerritories.length === 0 && <div className="p-12 text-center text-muted-foreground bg-muted/20"><X className="mx-auto h-12 w-12 opacity-20 mb-4" /><p className="text-lg">Nenhum território encontrado.</p></div>}
         </div>
       </div>
       
-      <AssignTerritoryModal 
-        isOpen={isAssignModalOpen} 
-        onClose={() => setIsAssignModalOpen(false)} 
-        onSave={handleSaveAssignment} 
-        territory={selectedTerritory} 
-        users={users} 
-      />
-      <ReturnTerritoryModal
-        isOpen={isReturnModalOpen}
-        onClose={() => setIsReturnModalOpen(false)}
-        onConfirm={handleConfirmReturn}
-        territory={selectedTerritory}
-      />
-      <AddEditAssignmentLogModal
-        isOpen={isEditLogModalOpen}
-        onClose={() => setIsEditLogModalOpen(false)}
-        onSave={handleSaveHistoryLog}
-        logToEdit={logToEdit}
-      />
-       <ConfirmationModal
-        isOpen={isConfirmDeleteOpen}
-        onClose={() => setIsConfirmDeleteOpen(false)}
-        onConfirm={handleConfirmDeleteLog}
-        title="Confirmar Exclusão"
-        message={`Tem certeza que deseja excluir o registro de ${logToDelete?.log.name}? Esta ação não pode ser desfeita.`}
-      />
+      <AssignTerritoryModal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} onSave={handleSaveAssignment} territory={selectedTerritory} users={users} />
+      <ReturnTerritoryModal isOpen={isReturnModalOpen} onClose={() => setIsReturnModalOpen(false)} onConfirm={handleConfirmReturn} territory={selectedTerritory} />
+      <AddEditAssignmentLogModal isOpen={isEditLogModalOpen} onClose={() => setIsEditLogModalOpen(false)} onSave={handleSaveHistoryLog} logToEdit={logToEdit} />
+      <ConfirmationModal isOpen={isConfirmDeleteOpen} onClose={() => setIsConfirmDeleteOpen(false)} onConfirm={handleConfirmDeleteLog} title="Confirmar Exclusão" message={`Tem certeza que deseja excluir o registro de ${logToDelete?.log.name}?`} />
     </>
   );
 }
