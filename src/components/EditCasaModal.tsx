@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -13,6 +12,7 @@ import { Trash2, Loader } from 'lucide-react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import { logEvent } from '@/lib/audit';
+import { useUser } from '@/contexts/UserContext';
 
 
 interface EditCasaModalProps {
