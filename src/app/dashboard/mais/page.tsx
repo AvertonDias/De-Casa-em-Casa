@@ -25,7 +25,8 @@ import {
   Edit3,
   Trash2,
   RefreshCcw,
-  UserPlus
+  UserPlus,
+  Trees
 } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
