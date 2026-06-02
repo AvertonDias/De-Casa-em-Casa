@@ -16,7 +16,10 @@ import {
   Loader,
   RefreshCw,
   X,
-  Info
+  Info,
+  UserCheck,
+  MapPin,
+  Users
 } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
@@ -27,8 +30,8 @@ import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesR
 import S13ReportPage from '../administracao/relatorio-s13/page';
 import CongregationEditForm from '@/components/admin/CongregationEditForm';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, doc, Timestamp, runTransaction } from 'firebase/firestore';
-import { AuditLog } from '@/types/types';
+import { collection, query, orderBy, onSnapshot, limit, doc, Timestamp, runTransaction, where } from 'firebase/firestore';
+import { AuditLog, Territory } from '@/types/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +50,7 @@ function MaisPage() {
   
   // Estados do Histórico
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [territoryMap, setTerritoryMap] = useState<Record<string, string>>({}); // ID -> Number
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [isRefreshingLogs, setIsRefreshingLogs] = useState(false);
   const [revertingIds, setRevertingIds] = useState<Set<string>>(new Set());
@@ -56,7 +60,21 @@ function MaisPage() {
   const isAdmin = user?.role === 'Administrador';
   const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
 
-  // Lógica de busca de logs (Limitado a 1000 para performance)
+  // Buscar territórios para mapear IDs para números no histórico
+  useEffect(() => {
+    if (!user?.congregationId || !isManager) return;
+    const terRef = collection(db, 'congregations', user.congregationId, 'territories');
+    const unsub = onSnapshot(terRef, (snap) => {
+        const mapping: Record<string, string> = {};
+        snap.docs.forEach(doc => {
+            mapping[doc.id] = doc.data().number;
+        });
+        setTerritoryMap(mapping);
+    });
+    return () => unsub();
+  }, [user?.congregationId, isManager]);
+
+  // Lógica de busca de logs
   const fetchLogs = useCallback((isManualRefresh = false) => {
     if (!user?.congregationId || !isAdmin) return;
     if (isManualRefresh) setIsRefreshingLogs(true);
@@ -83,7 +101,6 @@ function MaisPage() {
     }
   }, [activeSection, fetchLogs]);
 
-  // Funções de reversão de logs
   const handleRevertAction = async (log: AuditLog) => {
     if (!isAdmin || !user?.congregationId || !log.metadata?.revertData) return;
     setRevertingIds(prev => new Set(prev).add(log.id));
@@ -91,7 +108,6 @@ function MaisPage() {
     const congregationId = user.congregationId;
 
     try {
-        // Correção de Transação: Leituras devem vir antes das escritas
         if (log.action === 'HOUSE_DELETED') {
             const { territoryId, quadraId } = log.metadata;
             const { id, ...casaData } = revertData;
@@ -186,24 +202,49 @@ function MaisPage() {
 
   const filteredLogs = useMemo(() => {
     const term = searchTermLogs.toLowerCase();
+    
+    // 1. Filtragem e Limpeza de IDs
     const filtered = logs.filter(log => {
-      // Limpeza de descrição para busca: remove prefixos técnicos
-      const details = (log.details || '').replace(/^\[Recuperado\]\s*/i, '');
-      const matchesSearch = log.userName?.toLowerCase().includes(term) || details?.toLowerCase().includes(term) || log.action?.toLowerCase().includes(term);
-      const matchesAction = actionFilterLogs === 'all' || (actionFilterLogs === 'deletions' && (log.action.includes('DELETED') || log.action.includes('UNMARKED'))) || log.action === actionFilterLogs;
+      let details = (log.details || '').replace(/^\[Recuperado\]\s*/i, '');
+      
+      // Tentar substituir IDs técnicos por números de territórios na descrição para a busca
+      Object.entries(territoryMap).forEach(([id, number]) => {
+          if (details.includes(id)) {
+              details = details.replace(new RegExp(id, 'g'), number);
+          }
+      });
+
+      const matchesSearch = 
+          log.userName?.toLowerCase().includes(term) || 
+          details.toLowerCase().includes(term) || 
+          log.action?.toLowerCase().includes(term);
+      
+      let matchesAction = true;
+      if (actionFilterLogs === 'all') matchesAction = true;
+      else if (actionFilterLogs === 'deletions') matchesAction = log.action.includes('DELETED') || log.action.includes('UNMARKED');
+      else if (actionFilterLogs === 'creation') matchesAction = log.action.includes('CREATED');
+      else if (actionFilterLogs === 'users') matchesAction = log.action.includes('USER_');
+      else matchesAction = log.action === actionFilterLogs;
+
       return matchesSearch && matchesAction;
     });
 
-    // Deduplicação inteligente: Remove registros idênticos disparados no mesmo segundo
+    // 2. Deduplicação inteligente
     const uniqueLogs: AuditLog[] = [];
     const seen = new Set<string>();
     filtered.forEach(log => {
         const timeKey = Math.floor(log.timestamp.toMillis() / 1000);
-        const uniqueKey = `${log.userId}-${log.action}-${log.details}-${timeKey}`;
-        if (!seen.has(uniqueKey)) { uniqueLogs.push(log); seen.add(uniqueKey); }
+        // Chave única baseada em usuário, ação e primeiros 50 caracteres do detalhe (para ignorar pequenas variações de ID)
+        const detailsSnippet = (log.details || '').substring(0, 50);
+        const uniqueKey = `${log.userId}-${log.action}-${detailsSnippet}-${timeKey}`;
+        
+        if (!seen.has(uniqueKey)) { 
+            uniqueLogs.push(log); 
+            seen.add(uniqueKey); 
+        }
     });
     return uniqueLogs;
-  }, [logs, searchTermLogs, actionFilterLogs]);
+  }, [logs, searchTermLogs, actionFilterLogs, territoryMap]);
 
   const MenuCard = ({ id, label, description, icon: Icon, colorClass, adminOnly = false }: { id: Section, label: string, description: string, icon: any, colorClass: string, adminOnly?: boolean }) => {
     if (adminOnly && !isAdmin) return null;
@@ -314,16 +355,18 @@ function MaisPage() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="md:col-span-2 relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                        <Input placeholder="Buscar no histórico..." value={searchTermLogs} onChange={(e) => setSearchTermLogs(e.target.value)} className="pl-10" />
+                        <Input placeholder="Buscar por usuário ou território..." value={searchTermLogs} onChange={(e) => setSearchTermLogs(e.target.value)} className="pl-10" />
                     </div>
                     <div className="md:col-span-2">
                         <Select value={actionFilterLogs} onValueChange={setActionFilterLogs}>
-                            <SelectTrigger><SelectValue placeholder="Filtrar por ação" /></SelectTrigger>
+                            <SelectTrigger className="bg-card"><SelectValue placeholder="Filtrar por ação" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">Todas as ações</SelectItem>
-                                <SelectItem value="deletions">Exclusões e Desmarcações</SelectItem>
                                 <SelectItem value="HOUSE_COMPLETED">Marcação de Casas</SelectItem>
                                 <SelectItem value="TERRITORY_ASSIGNED">Designações</SelectItem>
+                                <SelectItem value="creation">Novos Territórios/Quadras</SelectItem>
+                                <SelectItem value="users">Gestão de Usuários</SelectItem>
+                                <SelectItem value="deletions">Exclusões e Desmarcações</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -340,25 +383,37 @@ function MaisPage() {
                                 </thead>
                                 <tbody className="divide-y divide-border/20">
                                     {filteredLogs.length > 0 ? (
-                                        filteredLogs.map((log) => (
-                                            <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
-                                                <td className="px-6 py-4 whitespace-nowrap text-muted-foreground text-xs">{log.timestamp ? format(log.timestamp.toDate(), "dd/MM HH:mm", { locale: ptBR }) : '...'}</td>
-                                                <td className="px-6 py-4 font-bold">{log.userName}</td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex flex-col gap-2 items-start">
-                                                        {getActionBadge(log.action)}
-                                                        {log.metadata?.revertData && isAdmin && (
-                                                            <Button variant="info" size="sm" className="h-7 text-[10px] font-bold" disabled={revertingIds.has(log.id)} onClick={() => handleRevertAction(log)}>
-                                                                {revertingIds.has(log.id) ? <Loader className="animate-spin mr-1 h-3 w-3"/> : <Undo2 size={12} className="mr-1"/>} Reverter
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 text-muted-foreground text-xs leading-relaxed">
-                                                    {(log.details || '').replace(/^\[Recuperado\]\s*/i, '')}
-                                                </td>
-                                            </tr>
-                                        ))
+                                        filteredLogs.map((log) => {
+                                            // Processar descrição para remover IDs técnicos na exibição
+                                            let displayDetails = (log.details || '').replace(/^\[Recuperado\]\s*/i, '');
+                                            Object.entries(territoryMap).forEach(([id, number]) => {
+                                                if (displayDetails.includes(id)) {
+                                                    displayDetails = displayDetails.replace(new RegExp(id, 'g'), number);
+                                                }
+                                            });
+
+                                            return (
+                                                <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-muted-foreground text-[10px]">
+                                                        {log.timestamp ? format(log.timestamp.toDate(), "dd/MM HH:mm", { locale: ptBR }) : '...'}
+                                                    </td>
+                                                    <td className="px-6 py-4 font-bold">{log.userName}</td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex flex-col gap-2 items-start">
+                                                            {getActionBadge(log.action)}
+                                                            {log.metadata?.revertData && isAdmin && (
+                                                                <Button variant="info" size="sm" className="h-7 text-[10px] font-bold" disabled={revertingIds.has(log.id)} onClick={() => handleRevertAction(log)}>
+                                                                    {revertingIds.has(log.id) ? <Loader className="animate-spin mr-1 h-3 w-3"/> : <Undo2 size={12} className="mr-1"/>} Reverter
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-muted-foreground text-xs leading-relaxed">
+                                                        {displayDetails}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
                                     ) : (<tr><td colSpan={4} className="px-6 py-12 text-center text-muted-foreground italic">Nenhum registro encontrado.</td></tr>)}
                                 </tbody>
                             </table>
@@ -377,13 +432,13 @@ const getActionBadge = (action: string) => {
     switch (action) {
       case 'HOUSE_COMPLETED': return <Badge className="bg-green-500">Conclusão</Badge>;
       case 'HOUSE_UNMARKED': return <Badge variant="outline" className="text-yellow-500 border-yellow-500">Desmarcado</Badge>;
-      case 'HOUSE_CREATED': return <Badge className="bg-blue-400">Novo Número</Badge>;
+      case 'HOUSE_CREATED': return <Badge className="bg-blue-400"><MapPin size={10} className="mr-1"/>Novo Número</Badge>;
       case 'HOUSE_EDITED': return <Badge variant="outline">Casa Editada</Badge>;
       case 'HOUSE_DELETED': return <Badge variant="destructive">Casa Excluída</Badge>;
-      case 'QUADRA_CREATED': return <Badge className="bg-blue-400">Nova Quadra</Badge>;
+      case 'QUADRA_CREATED': return <Badge className="bg-blue-500"><LayoutGrid size={10} className="mr-1"/>Nova Quadra</Badge>;
       case 'QUADRA_EDITED': return <Badge variant="outline">Quadra Editada</Badge>;
       case 'QUADRA_DELETED': return <Badge variant="destructive">Quadra Excluída</Badge>;
-      case 'TERRITORY_CREATED': return <Badge className="bg-blue-600">Novo Território</Badge>;
+      case 'TERRITORY_CREATED': return <Badge className="bg-blue-700">Novo Território</Badge>;
       case 'TERRITORY_EDITED': return <Badge variant="outline">Território Editado</Badge>;
       case 'TERRITORY_DELETED': return <Badge variant="destructive">Território Excluído</Badge>;
       case 'TERRITORY_RESET': return <Badge variant="destructive">Progresso Resetado</Badge>;
@@ -391,7 +446,7 @@ const getActionBadge = (action: string) => {
       case 'TERRITORY_ASSIGNED': return <Badge className="bg-blue-500">Designação</Badge>;
       case 'TERRITORY_RETURNED': return <Badge className="bg-emerald-500">Devolução</Badge>;
       case 'CASAS_REORDERED': return <Badge variant="outline">Ordem Alterada</Badge>;
-      case 'USER_APPROVED': return <Badge className="bg-green-500">Usuário Aprovado</Badge>;
+      case 'USER_APPROVED': return <Badge className="bg-green-600"><Users size={10} className="mr-1"/>Usuário Aprovado</Badge>;
       case 'USER_EDITED': return <Badge variant="outline">Perfil Editado</Badge>;
       case 'USER_DELETED': return <Badge variant="destructive">Usuário Excluído</Badge>;
       case 'RURAL_WORK_LOGGED': return <Badge className="bg-green-500">Trabalho Rural</Badge>;
