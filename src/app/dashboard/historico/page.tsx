@@ -90,7 +90,7 @@ function HistoricoPage() {
                         userId: history.uid,
                         userName: history.name,
                         action: 'TERRITORY_RETURNED',
-                        details: `[Recuperado] Devolveu o território ${territory.number} - ${territory.name}.`,
+                        details: `Devolveu o território ${territory.number} - ${territory.name}.`,
                         timestamp: ts,
                         metadata: { reconstructed: true, territoryId: territory.id }
                     });
@@ -100,7 +100,7 @@ function HistoricoPage() {
                         userId: 'system_reconstruction',
                         userName: 'Sistema (Histórico)',
                         action: 'TERRITORY_ASSIGNED',
-                        details: `[Recuperado] O território ${territory.number} foi designado para ${history.name}.`,
+                        details: `O território ${territory.number} foi designado para ${history.name}.`,
                         timestamp: history.assignedAt,
                         metadata: { reconstructed: true, territoryId: territory.id }
                     });
@@ -118,7 +118,7 @@ function HistoricoPage() {
                     userId: activity.userId,
                     userName: activity.userName,
                     action: activity.type === 'work' ? 'HOUSE_COMPLETED' : 'MANUAL_LOG',
-                    details: `[Recuperado] ${activity.description || activity.notes}`,
+                    details: `${activity.description || activity.notes}`,
                     timestamp: activity.activityDate,
                     metadata: { reconstructed: true, territoryId: territory.id }
                 });
