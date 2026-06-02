@@ -40,8 +40,12 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
   const [isLoading, setIsLoading] = useState(false);
   const numberInputRef = useRef<HTMLInputElement>(null);
 
+  // Garante que os campos estejam sempre vazios ao abrir o modal
   useEffect(() => {
     if (isOpen) {
+      setNumber('');
+      setObservations('');
+      setStatus(false);
       setTimeout(() => {
         numberInputRef.current?.focus();
       }, 100);
@@ -130,6 +134,13 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
             houseNumber: number, 
             territoryNumber: finalTerritoryNumber 
         });
+        
+        // Limpa os campos após o sucesso
+        setNumber('');
+        setObservations('');
+        setStatus(false);
+        setIsOpen(false);
+        onCasaAdded();
     }).catch(async (error) => {
         const permissionError = new FirestorePermissionError({
             path: quadraRef.path,
@@ -137,11 +148,9 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
             requestResourceData: { number, status },
         } satisfies SecurityRuleContext);
         errorEmitter.emit('permission-error', permissionError);
+    }).finally(() => {
+        setIsLoading(false);
     });
-
-    setIsOpen(false);
-    onCasaAdded();
-    setIsLoading(false);
   };
 
   return (
@@ -160,7 +169,15 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                 <div>
                   <label htmlFor="house-number" className="text-sm font-medium text-muted-foreground">Número</label>
-                  <Input id="house-number" ref={numberInputRef} value={number} onChange={(e) => setNumber(e.target.value)} required placeholder="Ex: 2414" className="mt-1 uppercase" />
+                  <Input 
+                    id="house-number" 
+                    ref={numberInputRef} 
+                    value={number} 
+                    onChange={(e) => setNumber(e.target.value)} 
+                    required 
+                    placeholder="Ex: 2414" 
+                    className="mt-1 uppercase" 
+                  />
                 </div>
                 <div>
                   <label htmlFor="observacoes" className="text-sm font-medium text-muted-foreground">Observações</label>
