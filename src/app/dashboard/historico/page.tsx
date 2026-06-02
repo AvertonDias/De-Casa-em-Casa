@@ -63,7 +63,7 @@ function HistoricoPage() {
                             userId: hData.userId || 'system',
                             userName: hData.userName || 'Sistema',
                             action: 'HOUSE_COMPLETED',
-                            details: `[Recuperado] Marcou casa no território ${tData.number}. ${hData.description || ''}`,
+                            details: `Marcou casa no território ${tData.number}. ${hData.description || ''}`,
                             timestamp: hData.activityDate,
                             metadata: { 
                                 territoryId: tDoc.id, 
@@ -311,7 +311,7 @@ function HistoricoPage() {
                             )}
                         </div>
                       </td>
-                      <td className="px-6 py-4"><div className="flex items-start gap-2"><Info size={14} className="mt-0.5 shrink-0 text-muted-foreground" /><span className="leading-relaxed text-muted-foreground">{log.details}</span></div></td>
+                      <td className="px-6 py-4"><div className="flex items-start gap-2"><Info size={14} className="mt-0.5 shrink-0 text-muted-foreground" /><span className="leading-relaxed text-muted-foreground">{log.details.replace('[Recuperado] ', '')}</span></div></td>
                     </tr>
                   ))
                 ) : (<tr><td colSpan={4} className="px-6 py-12 text-center text-muted-foreground italic">Nenhum registro encontrado.</td></tr>)}
