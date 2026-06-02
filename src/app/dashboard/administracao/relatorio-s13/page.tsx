@@ -1,4 +1,3 @@
-
 "use client";
 
 import S13Report from '@/components/admin/S13Report';
