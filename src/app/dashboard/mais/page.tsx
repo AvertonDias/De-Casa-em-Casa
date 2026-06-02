@@ -8,7 +8,6 @@ import {
   ClipboardList, 
   FileText, 
   History, 
-  Settings, 
   ArrowLeft, 
   LayoutGrid,
   Search,
@@ -27,7 +26,8 @@ import {
   Trees,
   DatabaseBackup,
   ArrowDownUp,
-  MessageCircle
+  MessageCircle,
+  Settings
 } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
@@ -122,13 +122,16 @@ function MaisPage() {
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
-                const [qSnap, terrSnap] = await Promise.all([
+                // LEITURAS PRIMEIRO
+                const [qSnap, terrSnap, congSnap] = await Promise.all([
                     transaction.get(quadraRef),
-                    transaction.get(territoryRef)
+                    transaction.get(territoryRef),
+                    transaction.get(congRef)
                 ]);
 
                 if (!qSnap.exists()) throw new Error("A quadra desta casa não existe mais.");
                 
+                // ESCRITAS DEPOIS
                 transaction.set(houseRef, casaData);
                 
                 transaction.update(quadraRef, { 
@@ -247,7 +250,11 @@ function MaisPage() {
             
             await runTransaction(db, async (transaction) => {
                 // LEITURA PRIMEIRO
-                const terrSnap = await transaction.get(territoryRef);
+                const [terrSnap, congSnap] = await Promise.all([
+                    transaction.get(territoryRef),
+                    transaction.get(congRef)
+                ]);
+
                 if (!terrSnap.exists()) throw new Error("O território não existe mais.");
 
                 let totalIncrement = 0;
@@ -435,12 +442,14 @@ function MaisPage() {
                 <div className="flex justify-between items-center px-2">
                     <div>
                         <h2 className="text-3xl font-bold flex items-center gap-2"><History className="text-primary" /> Histórico</h2>
-                        <div className="mt-2 p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-start gap-3 max-w-2xl">
-                          <Info size={16} className="text-primary mt-0.5 shrink-0" />
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            O sistema mantém as últimas <strong>1.000 ações</strong> para reversão imediata. 
-                            Você pode reverter qualquer exclusão ou reset de progresso enquanto a ação estiver visível nesta lista.
-                          </p>
+                        <div className="mt-2 p-4 bg-blue-500/10 border-l-4 border-blue-500 rounded-r-lg flex items-start gap-3 max-w-2xl shadow-sm">
+                          <Info size={20} className="text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                          <div className="space-y-1">
+                            <p className="text-sm font-bold text-blue-600 dark:text-blue-400">Capacidade do Histórico</p>
+                            <p className="text-sm text-foreground/90 leading-relaxed">
+                              O sistema armazena as últimas <strong>1.000 ações</strong>. Enquanto uma exclusão ou reset de progresso estiver visível aqui, você poderá revertê-la instantaneamente.
+                            </p>
+                          </div>
                         </div>
                     </div>
                 </div>
