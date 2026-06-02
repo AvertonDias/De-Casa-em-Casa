@@ -6,7 +6,7 @@ import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, limit, getDocs, doc, Timestamp, writeBatch } from 'firebase/firestore';
 import { AuditLog, Territory, Activity } from '@/types/types';
-import { Loader, History, Search, Filter, X, Clock, User, Info, FileText, RefreshCw, Download, database as DatabaseIcon, Sparkles } from 'lucide-react';
+import { Loader, History, Search, Filter, X, Clock, User, Info, FileText, RefreshCw, Download, Sparkles, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import withAuth from '@/components/withAuth';
@@ -68,12 +68,11 @@ function HistoricoPage() {
     return () => { if (unsubscribe) unsubscribe(); };
   }, [user?.congregationId, isAdmin]);
 
-  // Função para reconstruir o histórico a partir de dados espalhados nos territórios
   const handleReconstructHistory = async () => {
     if (!user?.congregationId || !isAdmin) return;
     
     setIsReconstructing(true);
-    toast({ title: "Iniciando varredura...", description: "Buscando atividades antigas em todos os territórios." });
+    toast({ title: "Iniciando varredura...", description: "Buscando atividades antigas em territórios ativos." });
 
     try {
         const congregationId = user.congregationId;
@@ -88,20 +87,19 @@ function HistoricoPage() {
             // 1. Recuperar do assignmentHistory (Designações)
             if (territory.assignmentHistory && territory.assignmentHistory.length > 0) {
                 territory.assignmentHistory.forEach(history => {
-                    // Log de Devolução/Conclusão
+                    const ts = history.completedAt instanceof Timestamp ? history.completedAt : Timestamp.now();
                     reconstructedLogs.push({
-                        id: `reconstructed_return_${territory.id}_${history.assignedAt.toMillis()}`,
+                        id: `rec_ret_${territory.id}_${history.assignedAt.toMillis()}`,
                         userId: history.uid,
                         userName: history.name,
                         action: 'TERRITORY_RETURNED',
                         details: `[Recuperado] Devolveu o território ${territory.number} - ${territory.name}.`,
-                        timestamp: history.completedAt,
+                        timestamp: ts,
                         metadata: { reconstructed: true, territoryId: territory.id }
                     });
                     
-                    // Log de Designação
                     reconstructedLogs.push({
-                        id: `reconstructed_assign_${territory.id}_${history.assignedAt.toMillis()}`,
+                        id: `rec_ass_${territory.id}_${history.assignedAt.toMillis()}`,
                         userId: 'system_reconstruction',
                         userName: 'Sistema (Histórico)',
                         action: 'TERRITORY_ASSIGNED',
@@ -119,7 +117,7 @@ function HistoricoPage() {
             activitySnap.forEach(aDoc => {
                 const activity = aDoc.data() as Activity;
                 reconstructedLogs.push({
-                    id: `reconstructed_activity_${aDoc.id}`,
+                    id: `rec_act_${aDoc.id}`,
                     userId: activity.userId,
                     userName: activity.userName,
                     action: activity.type === 'work' ? 'HOUSE_COMPLETED' : 'MANUAL_LOG',
@@ -130,21 +128,19 @@ function HistoricoPage() {
             });
         }
 
-        // Mesclar com os logs atuais e remover duplicatas aproximadas por timestamp e detalhes
         setLogs(prev => {
             const combined = [...prev, ...reconstructedLogs];
-            // Filtro de unicidade simples baseado no ID gerado
             const unique = combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
             return unique.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
         });
 
         toast({ 
             title: "Varredura concluída!", 
-            description: `Encontramos ${reconstructedLogs.length} atividades que não estavam no log central.` 
+            description: `Recuperamos ${reconstructedLogs.length} atividades de territórios existentes. Exclusões antigas não puderam ser recuperadas.` 
         });
     } catch (error: any) {
         console.error("Erro na reconstrução:", error);
-        toast({ title: "Erro na varredura", description: "Não foi possível recuperar todo o histórico.", variant: "destructive" });
+        toast({ title: "Erro na varredura", variant: "destructive" });
     } finally {
         setIsReconstructing(false);
     }
@@ -159,7 +155,7 @@ function HistoricoPage() {
         log.action?.toLowerCase().includes(term);
       
       const matchesAction = actionFilter === 'all' || 
-        (actionFilter === 'deletions' && log.action.includes('DELETED')) ||
+        (actionFilter === 'deletions' && (log.action.includes('DELETED') || log.action.includes('UNMARKED'))) ||
         (actionFilter === 'creations' && log.action.includes('CREATED')) ||
         log.action === actionFilter;
 
@@ -174,11 +170,10 @@ function HistoricoPage() {
       acao: log.action,
       detalhes: log.details
     }));
-    
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
     const link = document.createElement("a");
     link.setAttribute("href", jsonString);
-    link.setAttribute("download", `historico_${format(new Date(), 'yyyy-MM-dd')}.json`);
+    link.setAttribute("download", `audit_${format(new Date(), 'yyyy-MM-dd')}.json`);
     link.click();
   };
 
@@ -187,32 +182,18 @@ function HistoricoPage() {
       case 'HOUSE_COMPLETED': return <Badge className="bg-green-500">Conclusão</Badge>;
       case 'HOUSE_UNMARKED': return <Badge variant="outline" className="text-yellow-500 border-yellow-500">Desmarcado</Badge>;
       case 'HOUSE_CREATED': return <Badge className="bg-blue-400">Novo Número</Badge>;
-      case 'HOUSE_EDITED': return <Badge variant="secondary">Edição Número</Badge>;
-      case 'HOUSE_DELETED': return <Badge variant="destructive">Exclusão Número</Badge>;
+      case 'HOUSE_DELETED': return <Badge variant="destructive"><Trash2 size={10} className="mr-1"/> Casa Excluída</Badge>;
       case 'TERRITORY_CREATED': return <Badge className="bg-blue-600">Novo Território</Badge>;
-      case 'TERRITORY_EDITED': return <Badge variant="secondary">Edição Terr.</Badge>;
-      case 'TERRITORY_DELETED': return <Badge variant="destructive">Exclusão Terr.</Badge>;
+      case 'TERRITORY_DELETED': return <Badge variant="destructive"><Trash2 size={10} className="mr-1"/> Território Excluído</Badge>;
       case 'TERRITORY_RESET': return <Badge className="bg-orange-500">Limpeza</Badge>;
       case 'TERRITORY_ASSIGNED': return <Badge className="bg-blue-500">Designação</Badge>;
       case 'TERRITORY_RETURNED': return <Badge className="bg-teal-500">Devolução</Badge>;
-      case 'QUADRA_CREATED': return <Badge className="bg-indigo-500">Nova Quadra</Badge>;
-      case 'USER_DELETED': return <Badge variant="destructive">Exclusão Usuário</Badge>;
+      case 'USER_DELETED': return <Badge variant="destructive"><Trash2 size={10} className="mr-1"/> Usuário Excluído</Badge>;
       case 'USER_APPROVED': return <Badge className="bg-green-600">Aprovação</Badge>;
-      case 'USER_EDITED': return <Badge variant="secondary">Edição Perfil</Badge>;
       case 'CASAS_REORDERED': return <Badge className="bg-purple-500">Reordenação</Badge>;
       default: return <Badge variant="outline">{action.replace(/_/g, ' ')}</Badge>;
     }
   };
-
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 text-center">
-        <X className="h-16 w-16 text-destructive mb-4" />
-        <h1 className="text-2xl font-bold">Acesso Negado</h1>
-        <p className="text-muted-foreground">Apenas administradores podem visualizar o histórico completo.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -260,12 +241,11 @@ function HistoricoPage() {
             </SelectTrigger>
             <SelectContent>
                 <SelectItem value="all">Todas as alterações</SelectItem>
-                <SelectItem value="creations">Apenas Criações</SelectItem>
                 <SelectItem value="deletions">Apenas Exclusões</SelectItem>
+                <SelectItem value="creations">Apenas Criações</SelectItem>
                 <SelectItem value="HOUSE_COMPLETED">Marcação de Casas</SelectItem>
                 <SelectItem value="TERRITORY_ASSIGNED">Designações</SelectItem>
                 <SelectItem value="TERRITORY_RETURNED">Devoluções</SelectItem>
-                <SelectItem value="CASAS_REORDERED">Reordenação de Casas</SelectItem>
                 <SelectItem value="USER_APPROVED">Aprovação de Usuários</SelectItem>
             </SelectContent>
             </Select>
@@ -296,7 +276,7 @@ function HistoricoPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Clock size={14} />
-                          {log.timestamp ? format(log.timestamp.toDate(), "dd/MM/yy HH:mm", { locale: ptBR }) : 'Sincronizando...'}
+                          {log.timestamp ? format(log.timestamp.toDate(), "dd/MM/yy HH:mm", { locale: ptBR }) : '...'}
                         </div>
                       </td>
                       <td className="px-6 py-4 font-bold text-foreground">

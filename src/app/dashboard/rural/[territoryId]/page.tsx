@@ -166,6 +166,17 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
 
     try {
       const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
+      
+      // Registrar no histórico ANTES de deletar
+      await logEvent(
+        user.congregationId,
+        user.uid,
+        user.name,
+        'TERRITORY_DELETED',
+        `Excluiu permanentemente o território rural ${territory.number} - ${territory.name}.`,
+        { territoryId: territory.id, territoryNumber: territory.number, type: 'rural' }
+      );
+
       await deleteDoc(territoryRef);
       router.push('/dashboard/rural');
     } catch (error) {
