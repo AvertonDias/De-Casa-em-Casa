@@ -1,2 +1,2 @@
-
-// Este arquivo foi movido para /public/sw.js
+// O Service Worker foi movido para /public/sw.js para conformidade com o Next.js.
+export {};
