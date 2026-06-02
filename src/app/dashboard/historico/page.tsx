@@ -4,9 +4,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, getDocs, doc, Timestamp, writeBatch, setDoc, updateDoc, getDoc, deleteField } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit, getDocs, doc, Timestamp, writeBatch, setDoc, updateDoc, getDoc, deleteField, runTransaction } from 'firebase/firestore';
 import { AuditLog, Territory, Activity, Quadra, Casa } from '@/types/types';
-import { Loader, History, Search, Filter, Clock, User, Info, RefreshCw, Download, Trash2, Undo2 } from 'lucide-react';
+import { Loader, History, Search, Filter, Clock, User, Info, RefreshCw, Trash2, Undo2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import withAuth from '@/components/withAuth';
@@ -189,20 +189,6 @@ function HistoricoPage() {
     });
   }, [logs, searchTerm, actionFilter]);
 
-  const handleExport = () => {
-    const data = filteredLogs.map(log => ({
-      data: log.timestamp ? format(log.timestamp.toDate(), "dd/MM/yyyy HH:mm") : '',
-      usuario: log.userName,
-      acao: log.action,
-      detalhes: log.details
-    }));
-    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
-    const link = document.createElement("a");
-    link.setAttribute("href", jsonString);
-    link.setAttribute("download", `audit_${format(new Date(), 'yyyy-MM-dd')}.json`);
-    link.click();
-  };
-
   const getActionBadge = (action: string) => {
     switch (action) {
       case 'HOUSE_COMPLETED': return <Badge className="bg-green-500">Conclusão</Badge>;
@@ -239,10 +225,6 @@ function HistoricoPage() {
             <Button variant="outline" size="sm" onClick={() => fetchLogs(true)} disabled={isRefreshing}>
                 <RefreshCw size={14} className={isRefreshing ? "animate-spin mr-2" : "mr-2"} />
                 Sincronizar
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleExport} disabled={filteredLogs.length === 0}>
-                <Download size={14} className="mr-2" />
-                Exportar
             </Button>
         </div>
       </div>
@@ -302,7 +284,7 @@ function HistoricoPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Clock size={14} />
-                          {log.timestamp ? format(log.timestamp.toDate(), "dd/MM/yy HH:mm", { locale: ptBR }) : '...'}
+                          {log.timestamp ? format(log.timestamp.toDate(), "dd/yy HH:mm", { locale: ptBR }) : '...'}
                         </div>
                       </td>
                       <td className="px-6 py-4 font-bold text-foreground">
