@@ -36,7 +36,12 @@ export default function RestoreBackupTool() {
 
       // 1. Buscar Território
       const sourceTerrRef = doc(sourceDb, 'congregations', congregationId, 'territories', territoryId);
-      const territorySnap = await getDoc(sourceTerrRef);
+      const territorySnap = await getDoc(sourceTerrRef).catch(e => {
+          if (e.code === 'permission-denied') {
+              throw new Error("Permissão negada no banco de backup. Verifique se o nome do banco está correto e se você tem acesso.");
+          }
+          throw e;
+      });
 
       if (!territorySnap.exists()) {
         throw new Error("Território não encontrado no banco de backup.");
@@ -99,8 +104,9 @@ export default function RestoreBackupTool() {
 
     } catch (error: any) {
       console.error("Erro na restauração:", error);
-      toast({ title: "Falha na Restauração", description: error.message, variant: "destructive" });
-      setStatus('Erro: ' + error.message);
+      const msg = error.message || "Falha desconhecida.";
+      toast({ title: "Falha na Restauração", description: msg, variant: "destructive" });
+      setStatus('Erro: ' + msg);
     } finally {
       setIsRestoring(false);
     }

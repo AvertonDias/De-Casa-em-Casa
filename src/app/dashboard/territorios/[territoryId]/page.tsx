@@ -5,14 +5,13 @@ import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
-import { Territory, Activity, Quadra, AssignmentHistoryLog, Casa } from "@/types/types"; 
-import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, History, Loader, Navigation } from "lucide-react";
+import { Territory, Activity, Quadra, AssignmentHistoryLog } from "@/types/types"; 
+import { ArrowLeft, Edit, Plus, LayoutGrid, BarChart, History, Loader } from "lucide-react";
 import Link from 'next/link';
 
 import ActivityHistory from '@/components/ActivityHistory';
 import AssignmentHistory from '@/components/AssignmentHistory';
 import QuadraCard from '@/components/QuadraCard';
-import QuadraListItem from '@/components/QuadraListItem';
 import EditTerritoryModal from '@/components/EditTerritoryModal';
 import AddQuadraModal from '@/components/AddQuadraModal';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
@@ -20,7 +19,6 @@ import ImagePreviewModal from "@/components/ImagePreviewModal";
 import withAuth from "@/components/withAuth";
 import AddEditAssignmentLogModal from "@/components/admin/AddEditAssignmentLogModal";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { GoogleMapEmbed } from "@/components/GoogleMapEmbed";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { logEvent } from "@/lib/audit";
@@ -50,12 +48,11 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const router = useRouter();
   const { toast } = useToast();
 
+  // Estados declarados SEMPRE no topo para evitar erros de renderização (Hooks)
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
   const [quadras, setQuadras] = useState<Quadra[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Hooks de Estado declarados sempre no topo para evitar erros de renderização
   const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
   const [isAddQuadraModalOpen, setIsAddQuadraModalOpen] = useState(false);
   const [isEditQuadraModalOpen, setIsEditQuadraModalOpen] = useState(false);

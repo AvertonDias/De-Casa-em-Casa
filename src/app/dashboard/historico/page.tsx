@@ -3,9 +3,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, getDocs, doc, Timestamp, writeBatch, runTransaction, where, getDoc } from 'firebase/firestore';
-import { AuditLog, Territory, Quadra, Casa } from '@/types/types';
-import { Loader, History, Search, Filter, Clock, User, Info, RefreshCw, Undo2, Trash2, X } from 'lucide-react';
+import { collection, query, orderBy, onSnapshot, limit, doc, Timestamp, runTransaction } from 'firebase/firestore';
+import { AuditLog } from '@/types/types';
+import { Loader, History, Search, Trash2, RefreshCw, Undo2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import withAuth from '@/components/withAuth';
@@ -15,7 +15,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { logEvent } from '@/lib/audit';
-import { cn } from '@/lib/utils';
 
 function HistoricoPage() {
   const { user } = useUser();
@@ -72,18 +71,19 @@ function HistoricoPage() {
             const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', houseId);
             const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
             
+            // TRANSACTION: Reads must be before writes
             await runTransaction(db, async (transaction) => {
                 const qSnap = await transaction.get(quadraRef);
+                if (!qSnap.exists()) throw new Error("Quadra não encontrada.");
+
                 transaction.set(houseRef, casaData);
-                if (qSnap.exists()) {
-                    transaction.update(quadraRef, { 
-                        totalHouses: (qSnap.data().totalHouses || 0) + 1,
-                        housesDone: (qSnap.data().housesDone || 0) + (casaData.status ? 1 : 0)
-                    });
-                }
+                transaction.update(quadraRef, { 
+                    totalHouses: (qSnap.data().totalHouses || 0) + 1,
+                    housesDone: (qSnap.data().housesDone || 0) + (casaData.status ? 1 : 0)
+                });
             });
 
-            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a casa ${casaData.number} no território ${log.metadata.territoryNumber}.`);
+            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a casa ${casaData.number} no território ${log.metadata.territoryNumber || territoryId}.`);
             toast({ title: "Casa Restaurada!" });
         } 
         else if (log.action === 'QUADRA_DELETED') {
@@ -98,11 +98,10 @@ function HistoricoPage() {
                 const congSnap = await transaction.get(congRef);
 
                 transaction.set(quadraRef, quadra);
-                for (const c of casas) {
-                    const cRef = doc(quadraRef, 'casas', c.id);
+                casas.forEach((c: any) => {
                     const { id, ...cData } = c;
-                    transaction.set(cRef, cData);
-                }
+                    transaction.set(doc(quadraRef, 'casas', id), cData);
+                });
 
                 if (terrSnap.exists()) {
                     const tData = terrSnap.data();
@@ -125,7 +124,7 @@ function HistoricoPage() {
                 }
             });
 
-            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a quadra "${quadra.name}" no território ${log.metadata.territoryNumber}.`);
+            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a quadra "${quadra.name}" no território ${log.metadata.territoryNumber || territoryId}.`);
             toast({ title: "Quadra Restaurada!" });
         }
         else if (log.action === 'TERRITORY_DELETED') {
@@ -138,16 +137,15 @@ function HistoricoPage() {
                 
                 transaction.set(territoryRef, territory);
 
-                for (const q of quadras) {
-                    const qRef = doc(territoryRef, 'quadras', q.id);
-                    const { casas, ...qMeta } = q;
+                quadras.forEach((q: any) => {
+                    const { casas, id, ...qMeta } = q;
+                    const qRef = doc(territoryRef, 'quadras', id);
                     transaction.set(qRef, qMeta);
-                    for (const c of casas) {
-                        const cRef = doc(qRef, 'casas', c.id);
-                        const { id, ...cData } = c;
-                        transaction.set(cRef, cData);
-                    }
-                }
+                    casas.forEach((c: any) => {
+                        const { id: cId, ...cData } = c;
+                        transaction.set(doc(qRef, 'casas', cId), cData);
+                    });
+                });
 
                 if (congSnap.exists()) {
                     const cData = congSnap.data();
@@ -179,10 +177,10 @@ function HistoricoPage() {
   };
 
   const formatDetails = (log: AuditLog) => {
-    // Remove o prefixo [Recuperado] se existir
+    // Remove prefixos técnicos
     let details = (log.details || '').replace(/^\[Recuperado\]\s*/i, '');
     
-    // Substitui a ID do território pelo número se disponível no metadado
+    // Substitui ID por número se disponível
     if (log.metadata?.territoryNumber) {
       const id = log.metadata.territoryId;
       if (id && details.includes(id)) {
@@ -195,7 +193,6 @@ function HistoricoPage() {
   const filteredLogs = useMemo(() => {
     const term = searchTerm.toLowerCase();
     
-    // 1. Filtrar registros básicos
     const filtered = logs.filter(log => {
       const details = formatDetails(log);
       const matchesSearch = 
@@ -210,12 +207,11 @@ function HistoricoPage() {
       return matchesSearch && matchesAction;
     });
 
-    // 2. Deduplicação inteligente (remove ações idênticas no mesmo segundo)
+    // Deduplicação inteligente
     const uniqueLogs: AuditLog[] = [];
     const seen = new Set<string>();
 
     filtered.forEach(log => {
-        // Chave baseada em Usuário + Ação + Detalhes + Segundo do timestamp
         const timeKey = Math.floor(log.timestamp.toMillis() / 1000);
         const uniqueKey = `${log.userId}-${log.action}-${log.details}-${timeKey}`;
         
@@ -306,7 +302,11 @@ function HistoricoPage() {
                             )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-muted-foreground">{formatDetails(log)}</td>
+                      <td className="px-6 py-4">
+                        <span className="leading-relaxed text-muted-foreground">
+                          {formatDetails(log)}
+                        </span>
+                      </td>
                     </tr>
                   ))
                 ) : (<tr><td colSpan={4} className="px-6 py-12 text-center text-muted-foreground italic">Nenhum registro encontrado.</td></tr>)}
