@@ -177,10 +177,10 @@ function HistoricoPage() {
   };
 
   const formatDetails = (log: AuditLog) => {
-    // Remove prefixos técnicos e solicitações do usuário
+    // Remove prefixos técnicos
     let details = (log.details || '').replace(/^\[Recuperado\]\s*/i, '');
     
-    // Substitui ID por número se disponível
+    // Substitui ID por número se disponível no metadado
     if (log.metadata?.territoryNumber) {
       const id = log.metadata.territoryId;
       if (id && details.includes(id)) {

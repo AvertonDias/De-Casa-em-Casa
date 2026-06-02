@@ -49,7 +49,6 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const router = useRouter();
   const { toast } = useToast();
 
-  // ATENÇÃO: Todos os States devem vir antes de qualquer return condicional (Hooks Rule)
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
   const [quadras, setQuadras] = useState<Quadra[]>([]);
