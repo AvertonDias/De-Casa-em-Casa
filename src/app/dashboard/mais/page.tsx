@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -265,6 +264,7 @@ function MaisPage() {
       'TERRITORY_ASSIGNED': { label: 'Designação', icon: UserCheck, color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20' },
       'TERRITORY_RETURNED': { label: 'Devolução', icon: CheckCircle, color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' },
       'USER_APPROVED': { label: 'Usuário Aprovado', icon: UserPlus, color: 'bg-green-600/15 text-green-500 border-green-600/20' },
+      'USER_EDITED': { label: 'Perfil Alterado', icon: Edit3, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
       'USER_DELETED': { label: 'Usuário Removido', icon: Trash2, color: 'bg-red-600/15 text-red-500 border-red-600/20' },
       'RURAL_WORK_LOGGED': { label: 'Trabalho Rural', icon: Trees, color: 'bg-green-500/15 text-green-500 border-green-500/20' },
     };
