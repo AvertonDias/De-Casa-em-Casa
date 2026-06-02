@@ -147,7 +147,6 @@ function MaisPage() {
                 });
                 
                 if (terrSnap.exists()) {
-                    const tData = terrSnap.data()!;
                     transaction.update(territoryRef, {
                         "stats.totalHouses": increment(quadra.totalHouses || 0),
                         "stats.housesDone": increment(quadra.housesDone || 0),
@@ -214,7 +213,7 @@ function MaisPage() {
       });
       const matchesSearch = log.userName?.toLowerCase().includes(term) || details.toLowerCase().includes(term);
       let matchesAction = true;
-      if (actionFilterLogs === 'deletions') matchesAction = log.action.includes('DELETED') || log.action.includes('UNMARKED');
+      if (actionFilterLogs === 'deletions') matchesAction = log.action.includes('DELETED');
       else if (actionFilterLogs === 'creation') matchesAction = log.action.includes('CREATED');
       else if (actionFilterLogs === 'users') matchesAction = log.action.includes('USER_');
       else if (actionFilterLogs !== 'all') matchesAction = log.action === actionFilterLogs;
@@ -225,7 +224,7 @@ function MaisPage() {
     const uniqueLogs: AuditLog[] = [];
     const seen = new Set<string>();
     filtered.forEach(log => {
-        const timestampMillis = log.timestamp?.toMillis ? log.timestamp.toMillis() : Date.now();
+        const timestampMillis = log.timestamp?.toMillis ? log.timestamp.toMillis() : 0;
         const timeKey = Math.floor(timestampMillis / 1000);
         const uniqueKey = `${log.userId}-${log.action}-${(log.details || '').substring(0, 40)}-${timeKey}`;
         
@@ -390,7 +389,7 @@ function MaisPage() {
                                                     <td className="px-6 py-5 align-top">
                                                         <div className="flex flex-col gap-2 items-start">
                                                             {getActionBadge(log.action)}
-                                                            {log.metadata?.revertData && isAdmin && (
+                                                            {log.metadata?.revertData && isAdmin && log.action.includes('DELETED') && (
                                                                 <Button 
                                                                     variant="outline" 
                                                                     size="sm" 
