@@ -32,7 +32,7 @@ function HistoricoPage() {
 
   const isAdmin = user?.role === 'Administrador';
 
-  // --- ARQUEOLOGIA DE DADOS (Detectar exclusões da semana passada via Notificações) ---
+  // --- ARQUEOLOGIA DE DADOS (Recuperar registros perdidos do passado) ---
   useEffect(() => {
     const runReconstruction = async () => {
         if (!user?.congregationId || !isAdmin || hasReconstructed) return;
@@ -40,14 +40,45 @@ function HistoricoPage() {
         setIsReconstructing(true);
         try {
             const congregationId = user.congregationId;
+            const batch = writeBatch(db);
+            let addedCount = 0;
+
+            // 1. Buscar territórios existentes para ver o que tem neles
             const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
             const territoriesSnap = await getDocs(territoriesRef);
             const existingTerritoryIds = new Set(territoriesSnap.docs.map(d => d.id));
             
-            const batch = writeBatch(db);
-            let addedCount = 0;
+            // Verificamos logs atuais para não duplicar
+            const currentLogsRef = collection(db, 'congregations', congregationId, 'auditLogs');
+            const currentLogsSnap = await getDocs(query(currentLogsRef, where('action', '==', 'HOUSE_COMPLETED')));
+            const existingDetails = new Set(currentLogsSnap.docs.map(d => d.data().details));
 
-            // Vasculhar notificações de todos os usuários para achar rastros de territórios que sumiram
+            for (const tDoc of territoriesSnap.docs) {
+                const tData = tDoc.data();
+                const historyRef = collection(tDoc.ref, 'activityHistory');
+                const historySnap = await getDocs(historyRef);
+
+                historySnap.forEach(hDoc => {
+                    const hData = hDoc.data();
+                    const detailText = hData.description || hData.notes || `Casa marcada no território ${tData.number}.`;
+                    
+                    // Se o registro não estiver no log central, nós o levamos para lá
+                    if (!existingDetails.has(detailText)) {
+                        const newLogRef = doc(currentLogsRef);
+                        batch.set(newLogRef, {
+                            userId: hData.userId || 'past_sync',
+                            userName: hData.userName || 'Sistema',
+                            action: 'HOUSE_COMPLETED',
+                            details: detailText.includes('território') ? detailText : `Marcou casa no território ${tData.number}. ${detailText}`,
+                            timestamp: hData.activityDate || hData.createdAt || Timestamp.now(),
+                            metadata: { territoryId: tDoc.id, isRecovered: true }
+                        });
+                        addedCount++;
+                    }
+                });
+            }
+
+            // 2. Detectar exclusões da semana passada via Notificações
             const usersRef = collection(db, 'users');
             const usersSnap = await getDocs(query(usersRef, where('congregationId', '==', congregationId)));
             
@@ -62,17 +93,19 @@ function HistoricoPage() {
                     const tId = tIdMatch ? tIdMatch[1] : null;
 
                     if (tId && !existingTerritoryIds.has(tId)) {
-                        const logRef = doc(collection(db, 'congregations', congregationId, 'auditLogs'));
-                        // Verificamos se já não criamos esse log de suspeita
-                        batch.set(logRef, {
-                            userId: 'system_archaeology',
-                            userName: 'Sistema',
-                            action: 'TERRITORY_DELETED_SUSPECT',
-                            details: `Exclusão Detectada: O território vinculado a uma designação para ${uDoc.data().name} não existe mais no banco de dados.`,
-                            timestamp: nData.createdAt || Timestamp.now(),
-                            metadata: { territoryId: tId, isRecovered: true, suspect: true }
-                        });
-                        addedCount++;
+                        const detail = `Exclusão Detectada: O território vinculado a uma designação para ${uDoc.data().name} não existe mais.`;
+                        if (!existingDetails.has(detail)) {
+                          const logRef = doc(currentLogsRef);
+                          batch.set(logRef, {
+                              userId: 'system_archaeology',
+                              userName: 'Sistema',
+                              action: 'TERRITORY_DELETED_SUSPECT',
+                              details: detail,
+                              timestamp: nData.createdAt || Timestamp.now(),
+                              metadata: { territoryId: tId, isRecovered: true, suspect: true }
+                          });
+                          addedCount++;
+                        }
                     }
                 });
             }

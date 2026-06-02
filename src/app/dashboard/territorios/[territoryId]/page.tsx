@@ -294,7 +294,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
     <div className="bg-card p-6 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold flex items-center"><LayoutGrid className="mr-3 text-primary" />Quadras</h2>
-            {isManagerView && <Button onClick={() => setIsAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
+            {isManagerView && <Button onClick={() => setIsAddAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
         </div>
         {isPublicador ? (
             <div className="divide-y divide-border -mx-6 px-6">
@@ -395,6 +395,8 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
     </div>
   );
 
+  const [isAddAddQuadraModalOpen, setIsAddAddQuadraModalOpen] = useState(false);
+
   return (
     <div className="p-4 space-y-6">
         {headerSection}
@@ -428,9 +430,9 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           onReset={handleResetTerritory} 
         />
         
-        <AddAddQuadraModal 
-            isOpen={isAddQuadraModalOpen} 
-            onClose={() => setIsAddQuadraModalOpen(false)} 
+        <AddQuadraModal 
+            isOpen={isAddAddQuadraModalOpen} 
+            onClose={() => setIsAddAddQuadraModalOpen(false)} 
             onSave={handleAddQuadra} 
             existingQuadrasCount={quadras.length} 
         />
@@ -461,7 +463,5 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
     </div>
   );
 }
-
-function AddAddQuadraModal(props: any) { return <AddQuadraModal {...props} />; }
 
 export default withAuth(TerritoryDetailPage);

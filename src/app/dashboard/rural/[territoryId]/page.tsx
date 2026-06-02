@@ -151,7 +151,7 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
             user.name,
             'RURAL_LOG_DELETED',
             `Excluiu um registro de trabalho rural no território ${territory.number}.`,
-            { territoryId: territory.id, logNote: workLogToDelete.notes }
+            { territoryId: territory.id, logNote: workLogToDelete.notes, revertData: workLogToDelete }
         );
     } catch (error) {
       console.error("Erro na transação de excluir registro:", error);
@@ -167,14 +167,14 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
     try {
       const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
       
-      // Registrar no histórico ANTES de deletar
+      // Registrar no histórico ANTES de deletar (LIXEIRA)
       await logEvent(
         user.congregationId,
         user.uid,
         user.name,
         'TERRITORY_DELETED',
         `Excluiu permanentemente o território rural ${territory.number} - ${territory.name}.`,
-        { territoryId: territory.id, territoryNumber: territory.number, type: 'rural' }
+        { territoryId: territory.id, territoryNumber: territory.number, type: 'rural', revertData: { territory: { ...territory, id: territory.id }, quadras: [] } }
       );
 
       await deleteDoc(territoryRef);
