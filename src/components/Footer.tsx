@@ -8,12 +8,12 @@ export function Footer() {
 
   return (
     <footer className="w-full py-6 px-4 border-t border-border/40 mt-auto bg-background/50 backdrop-blur-sm">
-      <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 text-xs sm:text-sm text-muted-foreground text-center">
+      <div className="max-w-4xl mx-auto flex flex-row items-center justify-center gap-4 sm:gap-8 text-[10px] sm:text-sm text-muted-foreground text-center">
         <a 
           href="https://aplicativos-ton.vercel.app/" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 hover:text-primary transition-colors group"
+          className="flex items-center gap-1.5 hover:text-primary transition-colors group whitespace-nowrap"
         >
           <ExternalLink size={14} className="group-hover:scale-110 transition-transform" />
           Conheça meus aplicativos
@@ -22,7 +22,7 @@ export function Footer() {
           href={whatsappUrl} 
           target="_blank" 
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 hover:text-green-500 transition-colors group"
+          className="flex items-center gap-1.5 hover:text-green-500 transition-colors group whitespace-nowrap"
         >
           <MessageCircle size={14} className="group-hover:scale-110 transition-transform text-green-500" />
           Suporte
