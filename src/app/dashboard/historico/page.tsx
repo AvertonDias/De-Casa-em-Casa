@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -5,7 +6,7 @@ import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, limit, getDocs, doc, Timestamp, writeBatch, runTransaction, where, getDoc } from 'firebase/firestore';
 import { AuditLog, Territory, Quadra, Casa } from '@/types/types';
-import { Loader, History, Search, Filter, Clock, User, Info, RefreshCw, Undo2, Trash2, AlertCircle, Map, CheckCircle2, X } from 'lucide-react';
+import { Loader, History, Search, Filter, Clock, User, Info, RefreshCw, Undo2, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import withAuth from '@/components/withAuth';
@@ -23,70 +24,11 @@ function HistoricoPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isReconstructing, setIsReconstructing] = useState(false);
-  const [hasReconstructed, setHasReconstructed] = useState(false);
   const [revertingIds, setRevertingIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
 
   const isAdmin = user?.role === 'Administrador';
-
-  // --- ARQUEOLOGIA DE DADOS (Recuperar registros perdidos do passado) ---
-  useEffect(() => {
-    const runReconstruction = async () => {
-        if (!user?.congregationId || !isAdmin || hasReconstructed) return;
-        
-        setIsReconstructing(true);
-        try {
-            const congregationId = user.congregationId;
-            const batch = writeBatch(db);
-            let addedCount = 0;
-
-            const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
-            const territoriesSnap = await getDocs(territoriesRef);
-            
-            const currentLogsRef = collection(db, 'congregations', congregationId, 'auditLogs');
-            // Buscamos apenas os detalhes para evitar duplicar o que já está lá
-            const currentLogsSnap = await getDocs(query(currentLogsRef, where('action', '==', 'HOUSE_COMPLETED')));
-            const existingDetails = new Set(currentLogsSnap.docs.map(d => d.data().details));
-
-            for (const tDoc of territoriesSnap.docs) {
-                const tData = tDoc.data();
-                const historyRef = collection(tDoc.ref, 'activityHistory');
-                const historySnap = await getDocs(historyRef);
-
-                historySnap.forEach(hDoc => {
-                    const hData = hDoc.data();
-                    // Limpar o prefixo recuperado se ele vier do banco legado
-                    const rawDetail = (hData.description || hData.notes || `Casa marcada no território ${tData.number}.`).replace(/^\[Recuperado\]\s*/i, '');
-                    
-                    if (!existingDetails.has(rawDetail)) {
-                        const newLogRef = doc(currentLogsRef);
-                        batch.set(newLogRef, {
-                            userId: hData.userId || 'past_sync',
-                            userName: hData.userName || 'Sistema',
-                            action: 'HOUSE_COMPLETED',
-                            details: rawDetail.includes('território') ? rawDetail : `Marcou casa no território ${tData.number}. ${rawDetail}`,
-                            timestamp: hData.activityDate || hData.createdAt || Timestamp.now(),
-                            metadata: { territoryId: tDoc.id, territoryNumber: tData.number, isRecovered: true }
-                        });
-                        addedCount++;
-                    }
-                });
-            }
-
-            if (addedCount > 0) await batch.commit();
-        } catch (error) {
-            console.error("Erro na arqueologia de dados:", error);
-        } finally {
-            setIsReconstructing(false);
-            setHasReconstructed(true);
-        }
-    };
-
-    runReconstruction();
-  }, [user?.congregationId, isAdmin, hasReconstructed]);
-
 
   const fetchLogs = useCallback((isManualRefresh = false) => {
     if (!user?.congregationId || !isAdmin) return;
@@ -127,13 +69,12 @@ function HistoricoPage() {
             const { territoryId, quadraId } = log.metadata;
             const { id, ...casaData } = revertData;
             const houseId = log.metadata.houseId || id;
+            
             const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', houseId);
             const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
             
-            // CORREÇÃO: Transações exigem que TODAS as leituras venham antes das escritas
             await runTransaction(db, async (transaction) => {
                 const qSnap = await transaction.get(quadraRef);
-                
                 transaction.set(houseRef, casaData);
                 if (qSnap.exists()) {
                     transaction.update(quadraRef, { 
@@ -143,7 +84,7 @@ function HistoricoPage() {
                 }
             });
 
-            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a casa ${casaData.number} (do território ${log.metadata.territoryNumber}) que havia sido excluída.`);
+            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a casa ${casaData.number} no território ${log.metadata.territoryNumber}.`);
             toast({ title: "Casa Restaurada!" });
         } 
         else if (log.action === 'QUADRA_DELETED') {
@@ -196,10 +137,8 @@ function HistoricoPage() {
             await runTransaction(db, async (transaction) => {
                 const congSnap = await transaction.get(congRef);
                 
-                // Restaurar o documento do território
                 transaction.set(territoryRef, territory);
 
-                // Restaurar quadras e casas
                 for (const q of quadras) {
                     const qRef = doc(territoryRef, 'quadras', q.id);
                     const { casas, ...qMeta } = q;
@@ -211,7 +150,6 @@ function HistoricoPage() {
                     }
                 }
 
-                // Atualizar totais da congregação
                 if (congSnap.exists()) {
                     const cData = congSnap.data();
                     const housesToAdd = territory.stats?.totalHouses || 0;
@@ -226,25 +164,9 @@ function HistoricoPage() {
                 }
             });
 
-            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o território ${territory.number} da lixeira.`);
+            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o território ${territory.number}.`);
             toast({ title: "Território Restaurado!" });
         }
-        else if (log.action === 'HOUSE_COMPLETED' || log.action === 'HOUSE_UNMARKED') {
-            const { territoryId, quadraId, houseId, previousStatus } = log.metadata;
-            const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', houseId);
-            const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
-            
-            await runTransaction(db, async (transaction) => {
-                const qSnap = await transaction.get(quadraRef);
-                transaction.update(houseRef, { status: previousStatus });
-                const increment = previousStatus ? 1 : -1;
-                if (qSnap.exists()) {
-                    transaction.update(quadraRef, { housesDone: Math.max(0, (qSnap.data().housesDone || 0) + increment) });
-                }
-            });
-            toast({ title: "Marcação Revertida!" });
-        }
-
     } catch (e: any) {
         console.error("Erro ao reverter:", e);
         toast({ title: "Erro ao reverter", description: e.message, variant: "destructive" });
@@ -258,9 +180,7 @@ function HistoricoPage() {
   };
 
   const formatDetails = (log: AuditLog) => {
-    let details = log.details.replace(/^\[Recuperado\]\s*/i, '');
-    
-    // Se tivermos o número do território no metadata, tentamos substituir o ID se ele aparecer
+    let details = (log.details || '').replace(/^\[Recuperado\]\s*/i, '');
     if (log.metadata?.territoryNumber) {
       const id = log.metadata.territoryId;
       if (id && details.includes(id)) {
@@ -271,7 +191,6 @@ function HistoricoPage() {
   };
 
   const filteredLogs = useMemo(() => {
-    // 1. Filtrar registros por busca e tipo
     const filtered = logs.filter(log => {
       const term = searchTerm.toLowerCase();
       const details = formatDetails(log);
@@ -287,13 +206,11 @@ function HistoricoPage() {
       return matchesSearch && matchesAction;
     });
 
-    // 2. Lógica de Deduplicação Inteligente
-    // Remove registros idênticos disparados no mesmo segundo
     const uniqueLogs: AuditLog[] = [];
     const seen = new Set<string>();
 
     filtered.forEach(log => {
-        const timeKey = Math.floor(log.timestamp.toMillis() / 1000); // Agrupar por segundo
+        const timeKey = Math.floor(log.timestamp.toMillis() / 1000);
         const uniqueKey = `${log.userId}-${log.action}-${log.details}-${timeKey}`;
         
         if (!seen.has(uniqueKey)) {
@@ -314,12 +231,8 @@ function HistoricoPage() {
       case 'QUADRA_DELETED': return <Badge variant="destructive"><Trash2 size={10} className="mr-1"/> Quadra Excluída</Badge>;
       case 'TERRITORY_CREATED': return <Badge className="bg-blue-600">Novo Território</Badge>;
       case 'TERRITORY_DELETED': return <Badge variant="destructive"><Trash2 size={10} className="mr-1"/> Território Excluído</Badge>;
-      case 'TERRITORY_DELETED_SUSPECT': return <Badge variant="destructive" className="animate-pulse">Exclusão Detectada</Badge>;
-      case 'USER_DELETED': return <Badge variant="destructive">Usuário Excluído</Badge>;
       case 'USER_APPROVED': return <Badge className="bg-green-600">Aprovação</Badge>;
       case 'USER_EDITED': return <Badge variant="outline">Usuário Editado</Badge>;
-      case 'TERRITORY_EDITED': return <Badge variant="outline">Território Editado</Badge>;
-      case 'HOUSE_EDITED': return <Badge variant="outline">Casa Editada</Badge>;
       case 'REVERT_ACTION': return <Badge className="bg-indigo-500">Ação Revertida</Badge>;
       case 'TERRITORY_ASSIGNED': return <Badge className="bg-blue-500">Designação</Badge>;
       case 'TERRITORY_RETURNED': return <Badge className="bg-emerald-500">Devolução</Badge>;
@@ -337,34 +250,26 @@ function HistoricoPage() {
           </h1>
           <p className="text-muted-foreground text-sm">Consultando registros em tempo real.</p>
         </div>
-        <div className="flex items-center gap-2">
-            {isReconstructing && (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">
-                    <Loader className="animate-spin h-3 w-3" /> Sincronizando Passado...
-                </div>
-            )}
-            <Button variant="outline" size="sm" onClick={() => fetchLogs(true)} disabled={isRefreshing}>
-                <RefreshCw size={14} className={isRefreshing ? "animate-spin mr-2" : "mr-2"} /> Sincronizar
-            </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={() => fetchLogs(true)} disabled={isRefreshing}>
+            <RefreshCw size={14} className={isRefreshing ? "animate-spin mr-2" : "mr-2"} /> Sincronizar
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="md:col-span-2 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-          <Input placeholder="Buscar por usuário, ação ou detalhe..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+          <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
         </div>
         <div className="md:col-span-2">
             <Select value={actionFilter} onValueChange={setActionFilter}>
             <SelectTrigger>
-                <div className="flex items-center gap-2"><Filter size={16} /><SelectValue placeholder="Filtrar por ação" /></div>
+                <SelectValue placeholder="Filtrar por ação" />
             </SelectTrigger>
             <SelectContent>
                 <SelectItem value="all">Todas as ações</SelectItem>
-                <SelectItem value="deletions">Exclusões e Desmarcações</SelectItem>
+                <SelectItem value="deletions">Exclusões</SelectItem>
                 <SelectItem value="HOUSE_COMPLETED">Marcação de Casas</SelectItem>
                 <SelectItem value="TERRITORY_ASSIGNED">Designações</SelectItem>
-                <SelectItem value="TERRITORY_RETURNED">Devoluções</SelectItem>
             </SelectContent>
             </Select>
         </div>
@@ -382,9 +287,9 @@ function HistoricoPage() {
               <tbody className="divide-y divide-border/20">
                 {filteredLogs.length > 0 ? (
                   filteredLogs.map((log) => (
-                    <tr key={log.id} className={cn("hover:bg-white/[0.02] transition-colors", log.metadata?.isRecovered && "bg-blue-500/5")}>
-                      <td className="px-6 py-4 whitespace-nowrap"><div className="flex items-center gap-2 text-muted-foreground"><Clock size={14} />{log.timestamp ? format(log.timestamp.toDate(), "dd/MM HH:mm", { locale: ptBR }) : '...'}</div></td>
-                      <td className="px-6 py-4 font-bold"><div className="flex items-center gap-2"><User size={14} className="text-primary" />{log.userName}</div></td>
+                    <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">{log.timestamp ? format(log.timestamp.toDate(), "dd/MM HH:mm", { locale: ptBR }) : '...'}</td>
+                      <td className="px-6 py-4 font-bold">{log.userName}</td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-2 items-start">
                             {getActionBadge(log.action)}
@@ -395,16 +300,7 @@ function HistoricoPage() {
                             )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-start gap-2">
-                           <Info size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
-                           <div className="flex flex-col gap-1">
-                               <span className="leading-relaxed text-muted-foreground">
-                                 {formatDetails(log)}
-                               </span>
-                           </div>
-                        </div>
-                      </td>
+                      <td className="px-6 py-4 text-muted-foreground">{formatDetails(log)}</td>
                     </tr>
                   ))
                 ) : (<tr><td colSpan={4} className="px-6 py-12 text-center text-muted-foreground italic">Nenhum registro encontrado.</td></tr>)}

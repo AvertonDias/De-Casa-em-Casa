@@ -32,12 +32,11 @@ interface AddCasaModalProps {
 }
 
 export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationId, territoryNumber }: AddCasaModalProps) {
-  const { user, congregation } = useUser();
+  const { user } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   const [number, setNumber] = useState('');
   const [observations, setObservations] = useState('');
   const [status, setStatus] = useState(false);
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const numberInputRef = useRef<HTMLInputElement>(null);
 
@@ -52,10 +51,8 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
     
     if (!congregationId || !user) {
-      setError("Dados não encontrados.");
       setIsLoading(false);
       return;
     }
@@ -66,18 +63,16 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
     const casasRef = collection(quadraRef, 'casas');
 
     runTransaction(db, async (transaction) => {
-        const [quadraDoc, territoryDoc, congDoc, casasSnapshot] = await Promise.all([
+        const [quadraDoc, territoryDoc, congDoc] = await Promise.all([
             transaction.get(quadraRef),
             transaction.get(territoryRef),
             transaction.get(congRef),
-            getDocs(casasRef),
         ]);
 
         if (!quadraDoc.exists() || !territoryDoc.exists() || !congDoc.exists()) {
             throw new Error("Documento não encontrado.");
         }
         
-        const order = casasSnapshot.size;
         const newCasaRef = doc(casasRef); 
         const currentTerritoryNumber = territoryDoc.data().number;
 
@@ -86,7 +81,7 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
             observations, 
             status, 
             createdAt: serverTimestamp(),
-            order
+            order: (quadraDoc.data().totalHouses || 0)
         };
 
         if (status) {
@@ -130,7 +125,7 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
     }).then(() => {
         const finalTerritoryNumber = territoryNumber || territoryId;
         logEvent(congregationId, user.uid, user.name, 'HOUSE_CREATED', `Adicionou a casa ${number.toUpperCase()} no território ${finalTerritoryNumber}.`, { territoryId, quadraId, houseNumber: number, territoryNumber: finalTerritoryNumber });
-    }).catch(async (serverError) => {
+    }).catch(async (error) => {
         const permissionError = new FirestorePermissionError({
             path: quadraRef.path,
             operation: 'create',
@@ -157,41 +152,21 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
               <DialogTitle>Adicionar Item</DialogTitle>
               <DialogDescription>Preencha os detalhes do novo número.</DialogDescription>
             </DialogHeader>
-            
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                 <div>
                   <label htmlFor="house-number" className="text-sm font-medium text-muted-foreground">Número</label>
-                  <Input 
-                      id="house-number" 
-                      ref={numberInputRef}
-                      value={number} 
-                      onChange={(e) => setNumber(e.target.value)} 
-                      required 
-                      placeholder="Ex: 2414"
-                      className="mt-1 uppercase"
-                  />
+                  <Input id="house-number" ref={numberInputRef} value={number} onChange={(e) => setNumber(e.target.value)} required placeholder="Ex: 2414" className="mt-1 uppercase" />
                 </div>
                 <div>
                   <label htmlFor="observacoes" className="text-sm font-medium text-muted-foreground">Observações</label>
-                  <Textarea 
-                      id="observacoes" 
-                      value={observations} 
-                      onChange={(e) => setObservations(e.target.value)} 
-                      rows={3} 
-                      className="w-full mt-1" 
-                  />
+                  <Textarea id="observacoes" value={observations} onChange={(e) => setObservations(e.target.value)} rows={3} className="w-full mt-1" />
                 </div>
                 <div className="flex items-center justify-between pt-2">
                   <label className="font-medium">Marcar como feito</label>
-                  <button 
-                      type="button" 
-                      onClick={() => setStatus(!status)} 
-                      className={`${status ? 'bg-primary' : 'bg-muted'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
-                  >
+                  <button type="button" onClick={() => setStatus(!status)} className={`${status ? 'bg-primary' : 'bg-muted'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}>
                       <span className={`${status ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`} />
                   </button>
                 </div>
-                
                 <DialogFooter className="gap-2 sm:gap-0">
                   <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
                   <Button type="submit" disabled={isLoading}>{isLoading ? 'Salvando...' : 'Salvar'}</Button>

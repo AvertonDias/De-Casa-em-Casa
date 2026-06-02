@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { MouseEvent } from 'react';
@@ -18,17 +19,20 @@ export default function QuadraCard({ quadra, isManagerView, onEdit, hideStats = 
   const progresso = totalCasas > 0 ? Math.round((casasFeitas / totalCasas) * 100) : 0;
 
   return (
-    <div className="bg-card p-6 rounded-lg shadow-md flex flex-col space-y-4 border border-border transition-all hover:shadow-lg">
-      {/* Cabeçalho do Card */}
+    <div className="bg-card p-6 rounded-lg shadow-md flex flex-col space-y-4 border border-border transition-all hover:shadow-lg relative">
       <div className="flex justify-between items-start">
-        <div className="flex-1">
+        <div className="flex-1 pr-8">
             <h3 className="font-bold text-lg">{quadra.name || "Quadra sem nome"}</h3>
             <p className="text-sm text-muted-foreground truncate">{quadra.description || "Sem descrição"}</p>
         </div>
         {isManagerView && (
             <button 
-                onClick={onEdit} 
-                className="p-2 text-muted-foreground hover:text-primary transition-colors"
+                onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onEdit(e);
+                }} 
+                className="p-2 text-muted-foreground hover:text-primary transition-colors absolute top-4 right-4 z-10"
                 aria-label={`Editar ${quadra.name}`}
             >
               <Edit size={16} />
@@ -36,7 +40,6 @@ export default function QuadraCard({ quadra, isManagerView, onEdit, hideStats = 
         )}
       </div>
 
-      {/* Estatísticas */}
       {!hideStats && (
         <>
           <div className="grid grid-cols-4 gap-2 text-center">
