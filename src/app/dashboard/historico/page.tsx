@@ -72,7 +72,6 @@ function HistoricoPage() {
             const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', houseId);
             const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
             
-            // Correção: Executar todas as leituras ANTES das escritas
             await runTransaction(db, async (transaction) => {
                 const qSnap = await transaction.get(quadraRef);
                 if (!qSnap.exists()) throw new Error("Quadra não encontrada.");
@@ -208,7 +207,6 @@ function HistoricoPage() {
       return matchesSearch && matchesAction;
     });
 
-    // Deduplicação inteligente: remove ações idênticas no mesmo segundo
     const uniqueLogs: AuditLog[] = [];
     const seen = new Set<string>();
 
