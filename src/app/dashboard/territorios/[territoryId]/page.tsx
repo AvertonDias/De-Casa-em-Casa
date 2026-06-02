@@ -1,4 +1,3 @@
-
 "use client";
 
 import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, deleteField, getDoc, arrayRemove } from "firebase/firestore";
@@ -25,6 +24,7 @@ import { GoogleMapEmbed } from "@/components/GoogleMapEmbed";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { logEvent } from "@/lib/audit";
+import { EditQuadraModal } from "@/components/EditQuadraModal";
 
 const ProgressSection = ({ territory }: { territory: Territory }) => {
     const totalHouses = territory.stats?.totalHouses || 0;
@@ -50,6 +50,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const router = useRouter();
   const { toast } = useToast();
 
+  // Todos os hooks de estado devem ser declarados no topo, antes de qualquer retorno antecipado.
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
   const [quadras, setQuadras] = useState<Quadra[]>([]);
@@ -57,7 +58,9 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
 
   const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
   const [isAddQuadraModalOpen, setIsAddQuadraModalOpen] = useState(false);
-  const [isAddAddQuadraModalOpen, setIsAddAddQuadraModalOpen] = useState(false);
+  const [isEditQuadraModalOpen, setIsEditQuadraModalOpen] = useState(false);
+  const [selectedQuadra, setSelectedQuadra] = useState<Quadra | null>(null);
+  
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ action: () => Promise<void>; title: string; message: string; } | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
@@ -95,6 +98,85 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
     }).then(() => {
         logEvent(user!.congregationId!, user!.uid, user!.name, 'QUADRA_CREATED', `Adicionou a quadra "${data.name}" ao território ${territory?.number}.`, { territoryId, quadraName: data.name });
     });
+  };
+
+  const handleEditQuadraClick = (e: React.MouseEvent, quadra: Quadra) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedQuadra(quadra);
+    setIsEditQuadraModalOpen(true);
+  };
+
+  const handleSaveQuadra = async (quadraId: string, updatedData: { name: string; description: string }) => {
+    if (!user?.congregationId || !territoryId) return;
+    const quadraRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId);
+    await updateDoc(quadraRef, updatedData);
+    logEvent(user.congregationId, user.uid, user.name, 'QUADRA_EDITED', `Editou a quadra "${updatedData.name}" no território ${territory?.number}.`, { territoryId, quadraId });
+    toast({ title: "Quadra atualizada" });
+  };
+
+  const handleDeleteQuadra = async (quadraId: string) => {
+    setConfirmAction({
+      title: "Excluir Quadra",
+      message: "Isso apagará todas as casas desta quadra. Esta ação é irreversível.",
+      action: async () => {
+        setIsProcessingAction(true);
+        try {
+          if (!user?.congregationId || !territoryId) return;
+          const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
+          const quadraRef = doc(territoryRef, 'quadras', quadraId);
+          
+          const quadraDoc = await getDoc(quadraRef);
+          if (quadraDoc.exists()) {
+            const qData = quadraDoc.data();
+            const housesDoneInQuadra = qData.housesDone || 0;
+            const totalHousesInQuadra = qData.totalHouses || 0;
+            
+            const terrDoc = await getDoc(territoryRef);
+            if (terrDoc.exists()) {
+              const tData = terrDoc.data();
+              const newTotalHouses = Math.max(0, (tData.stats?.totalHouses || 0) - totalHousesInQuadra);
+              const newHousesDone = Math.max(0, (tData.stats?.housesDone || 0) - housesDoneInQuadra);
+              const newProgress = newTotalHouses > 0 ? newHousesDone / newTotalHouses : 0;
+
+              await updateDoc(territoryRef, {
+                "stats.totalHouses": newTotalHouses,
+                "stats.housesDone": newHousesDone,
+                progress: newProgress,
+                quadraCount: Math.max(0, (tData.quadraCount || 0) - 1)
+              });
+
+              const congRef = doc(db, 'congregations', user.congregationId);
+              const congDoc = await getDoc(congRef);
+              if (congDoc.exists()) {
+                const cData = congDoc.data();
+                await updateDoc(congRef, {
+                    totalHouses: Math.max(0, (cData.totalHouses || 0) - totalHousesInQuadra),
+                    totalHousesDone: Math.max(0, (cData.totalHousesDone || 0) - housesDoneInQuadra)
+                });
+              }
+            }
+          }
+
+          const housesSnap = await getDocs(collection(quadraRef, 'casas'));
+          const batch = writeBatch(db);
+          housesSnap.forEach(h => batch.delete(h.ref));
+          batch.delete(quadraRef);
+          await batch.commit();
+
+          logEvent(user.congregationId, user.uid, user.name, 'QUADRA_DELETED', `Excluiu a quadra "${quadraDoc.data()?.name}" do território ${territory?.number}.`, { territoryId, quadraId });
+          toast({ title: "Quadra excluída" });
+        } catch (error) {
+          console.error("Erro ao deletar quadra:", error);
+          toast({ title: "Erro ao deletar", variant: "destructive" });
+        } finally {
+          setIsProcessingAction(false);
+          setIsConfirmModalOpen(false);
+          setIsEditQuadraModalOpen(false);
+        }
+      }
+    });
+    setIsConfirmModalOpen(true);
   };
 
   const handleSaveHistoryLog = async (originalLog: AssignmentHistoryLog, updatedData: { name: string; assignedAt: Date; completedAt: Date; }) => {
@@ -295,7 +377,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
     <div className="bg-card p-6 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold flex items-center"><LayoutGrid className="mr-3 text-primary" />Quadras</h2>
-            {isManagerView && <Button onClick={() => setIsAddAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
+            {isManagerView && <Button onClick={() => setIsAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
         </div>
         {isPublicador ? (
             <div className="divide-y divide-border -mx-6 px-6">
@@ -309,7 +391,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {quadras.map(q => (
                     <Link key={q.id} href={`/dashboard/territorios/${territoryId}/quadras/${q.id}`} className="block">
-                        <QuadraCard quadra={q} isManagerView={isManagerView} onEdit={(e) => { e.preventDefault(); }} hideStats={isPublicador} />
+                        <QuadraCard quadra={q} isManagerView={isManagerView} onEdit={(e) => handleEditQuadraClick(e, q)} hideStats={isPublicador} />
                     </Link>
                 ))}
             </div>
@@ -430,10 +512,18 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         />
         
         <AddQuadraModal 
-            isOpen={isAddAddQuadraModalOpen} 
-            onClose={() => setIsAddAddQuadraModalOpen(false)} 
+            isOpen={isAddQuadraModalOpen} 
+            onClose={() => setIsAddQuadraModalOpen(false)} 
             onSave={handleAddQuadra} 
             existingQuadrasCount={quadras.length} 
+        />
+
+        <EditQuadraModal
+            isOpen={isEditQuadraModalOpen}
+            onClose={() => setIsEditQuadraModalOpen(false)}
+            quadra={selectedQuadra}
+            onSave={handleSaveQuadra}
+            onDelete={handleDeleteQuadra}
         />
 
         <AddEditAssignmentLogModal
