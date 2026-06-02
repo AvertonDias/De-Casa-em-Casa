@@ -62,7 +62,7 @@ export default function S13Report() {
         filename: `S13-${typeFilter}-${serviceYear}.pdf`,
         image: { type: "jpeg", quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } // S-13 costuma ser melhor em paisagem
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
       });
 
       if (Capacitor.isNativePlatform()) {
@@ -120,18 +120,18 @@ export default function S13Report() {
 
         <Button onClick={handlePrint} disabled={isPrinting} className="font-bold">
           {isPrinting ? <Loader className="animate-spin mr-2" /> : <Printer size={16} className="mr-2" />} 
-          Gerar PDF (Paisagem)
+          Salvar PDF
         </Button>
       </div>
 
       {/* Área do Relatório (Simulando Papel) */}
       <div className="bg-white text-black p-4 md:p-10 shadow-2xl rounded-sm border border-gray-300 overflow-x-auto">
-        <div id="s13-printable-area" className="min-w-[1000px] bg-white p-4">
+        <div id="s13-printable-area" className="min-w-[800px] max-w-[900px] mx-auto bg-white p-4">
           
           {/* Cabeçalho Oficial */}
           <div className="text-center mb-8 border-b-4 border-black pb-4">
-            <h1 className="text-3xl font-black uppercase tracking-widest mb-4">Registro de Designação de Território ({typeFilter === 'urban' ? 'Urbano' : 'Rural'})</h1>
-            <div className="flex justify-between items-end px-2">
+            <h1 className="text-2xl font-black uppercase tracking-widest mb-4 text-black">Registro de Designação de Território ({typeFilter === 'urban' ? 'Urbano' : 'Rural'})</h1>
+            <div className="flex justify-between items-end px-2 text-black">
                 <div className="text-left">
                     <p className="text-sm font-bold">Ano de Serviço: <span className="ml-2 font-normal text-lg border-b border-black px-4">{serviceYear}</span></p>
                 </div>
@@ -142,33 +142,30 @@ export default function S13Report() {
           </div>
 
           {/* Tabela em Grade */}
-          <table className="w-full border-collapse border-2 border-black text-[11px]">
+          <table className="w-full border-collapse border-2 border-black text-[10px] text-black">
             <thead>
               <tr className="bg-gray-100">
                 <th className="border-2 border-black p-2 w-12 text-center font-black" rowSpan={2}>Terr.</th>
                 <th className="border-2 border-black p-1 text-center font-black uppercase tracking-tighter" colSpan={2}>Designado a</th>
                 <th className="border-2 border-black p-1 text-center font-black uppercase tracking-tighter" colSpan={2}>Designado a</th>
                 <th className="border-2 border-black p-1 text-center font-black uppercase tracking-tighter" colSpan={2}>Designado a</th>
-                <th className="border-2 border-black p-1 text-center font-black uppercase tracking-tighter" colSpan={2}>Designado a</th>
               </tr>
               <tr className="bg-gray-50">
-                <th className="border border-black p-1 w-28 text-center font-bold">Designação</th>
-                <th className="border border-black p-1 w-28 text-center font-bold">Conclusão</th>
-                <th className="border border-black p-1 w-28 text-center font-bold">Designação</th>
-                <th className="border border-black p-1 w-28 text-center font-bold">Conclusão</th>
-                <th className="border border-black p-1 w-28 text-center font-bold">Designação</th>
-                <th className="border border-black p-1 w-28 text-center font-bold">Conclusão</th>
-                <th className="border border-black p-1 w-28 text-center font-bold">Designação</th>
-                <th className="border border-black p-1 w-28 text-center font-bold">Conclusão</th>
+                <th className="border border-black p-1 w-24 text-center font-bold">Designação</th>
+                <th className="border border-black p-1 w-24 text-center font-bold">Conclusão</th>
+                <th className="border border-black p-1 w-24 text-center font-bold">Designação</th>
+                <th className="border border-black p-1 w-24 text-center font-bold">Conclusão</th>
+                <th className="border border-black p-1 w-24 text-center font-bold">Designação</th>
+                <th className="border border-black p-1 w-24 text-center font-bold">Conclusão</th>
               </tr>
             </thead>
             <tbody>
               {filteredTerritories.map((t) => {
-                // Pega o histórico e inverte para os mais recentes (limitado a 4 para caber na linha)
+                // Pega o histórico e inverte para os mais recentes (limitado a 3 para caber melhor em Portrait)
                 const history = [...(t.assignmentHistory || [])]
-                    .filter(h => h.isCompletion !== false) // Apenas conclusões reais para o S-13
+                    .filter(h => h.isCompletion !== false) 
                     .sort((a, b) => b.completedAt.toMillis() - a.completedAt.toMillis())
-                    .slice(0, 4);
+                    .slice(0, 3);
 
                 return (
                   <React.Fragment key={t.id}>
@@ -177,7 +174,7 @@ export default function S13Report() {
                       <td className="border-2 border-black p-1 text-center font-black text-sm bg-gray-50" rowSpan={2}>
                         {t.number}
                       </td>
-                      {[0, 1, 2, 3].map(i => (
+                      {[0, 1, 2].map(i => (
                         <td key={`name-${i}`} className="border-x border-t border-black p-1 text-center font-semibold bg-gray-100/50" colSpan={2}>
                           {history[i]?.name || ""}
                         </td>
@@ -185,7 +182,7 @@ export default function S13Report() {
                     </tr>
                     {/* Linha de Datas */}
                     <tr className="h-8">
-                      {[0, 1, 2, 3].map(i => (
+                      {[0, 1, 2].map(i => (
                         <React.Fragment key={`dates-${i}`}>
                            <td className="border border-black p-1 text-center">
                              {history[i] ? format(history[i].assignedAt.toDate(), "dd/MM/yyyy") : ""}
@@ -201,16 +198,16 @@ export default function S13Report() {
               })}
 
               {/* Linhas Vazias para Preencher a Folha se houver poucos territórios */}
-              {filteredTerritories.length < 15 && Array.from({ length: 15 - filteredTerritories.length }).map((_, idx) => (
+              {filteredTerritories.length < 10 && Array.from({ length: 10 - filteredTerritories.length }).map((_, idx) => (
                   <React.Fragment key={`empty-${idx}`}>
-                    <tr className="h-10"><td className="border-2 border-black" rowSpan={2}></td><td className="border-x border-t border-black bg-gray-50" colSpan={2}></td><td className="border-x border-t border-black bg-gray-50" colSpan={2}></td><td className="border-x border-t border-black bg-gray-50" colSpan={2}></td><td className="border-x border-t border-black bg-gray-50" colSpan={2}></td></tr>
-                    <tr className="h-8"><td className="border border-black"></td><td className="border border-black"></td><td className="border border-black"></td><td className="border border-black"></td><td className="border border-black"></td><td className="border border-black"></td><td className="border border-black"></td><td className="border border-black"></td></tr>
+                    <tr className="h-10"><td className="border-2 border-black" rowSpan={2}></td><td className="border-x border-t border-black bg-gray-50" colSpan={2}></td><td className="border-x border-t border-black bg-gray-50" colSpan={2}></td><td className="border-x border-t border-black bg-gray-50" colSpan={2}></td></tr>
+                    <tr className="h-8"><td className="border border-black"></td><td className="border border-black"></td><td className="border border-black"></td><td className="border border-black"></td><td className="border border-black"></td><td className="border border-black"></td></tr>
                   </React.Fragment>
               ))}
             </tbody>
           </table>
 
-          <div className="mt-6 flex justify-between text-[9px] text-gray-500 italic uppercase font-bold">
+          <div className="mt-6 flex justify-between text-[8px] text-gray-500 italic uppercase font-bold">
             <span>* Documento gerado eletronicamente pelo app De Casa em Casa</span>
             <span>S-13-P</span>
           </div>
