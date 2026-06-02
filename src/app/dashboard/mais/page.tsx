@@ -194,6 +194,59 @@ function MaisPage() {
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou um registro de trabalho no território rural.`);
             toast({ title: "Registro Rural Restaurado!" });
         }
+        // RESTAURAR RESET DE TERRITÓRIO (LIMPAR TUDO)
+        else if (log.action === 'TERRITORY_RESET') {
+            const { territoryId } = log.metadata;
+            const { quadras: quadrasData, history: historyData } = revertData;
+            const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
+            
+            await runTransaction(db, async (transaction) => {
+                let totalIncrement = 0;
+                
+                // Restaurar Casas que estavam feitas
+                for (const qData of quadrasData) {
+                    const quadraRef = doc(territoryRef, 'quadras', qData.id);
+                    let quadraIncrement = 0;
+                    
+                    for (const h of qData.houses) {
+                        const { id, ...hMeta } = h;
+                        transaction.set(doc(quadraRef, 'casas', id), hMeta);
+                        quadraIncrement++;
+                        totalIncrement++;
+                    }
+                    
+                    transaction.update(quadraRef, { housesDone: increment(quadraIncrement) });
+                }
+                
+                // Restaurar Histórico de Atividade deletado
+                if (historyData) {
+                    for (const h of historyData) {
+                        const { id, ...hMeta } = h;
+                        transaction.set(doc(territoryRef, 'activityHistory', id), hMeta);
+                    }
+                }
+                
+                // Atualizar Território
+                const terrSnap = await transaction.get(territoryRef);
+                if (terrSnap.exists()) {
+                    const tData = terrSnap.data();
+                    const newDone = (tData.stats?.housesDone || 0) + totalIncrement;
+                    const total = tData.stats?.totalHouses || 1;
+                    transaction.update(territoryRef, {
+                        "stats.housesDone": newDone,
+                        progress: newDone / total,
+                        lastUpdate: Timestamp.now()
+                    });
+                }
+                
+                // Atualizar Congregação
+                const congRef = doc(db, 'congregations', congregationId);
+                transaction.update(congRef, { totalHousesDone: increment(totalIncrement) });
+            });
+            
+            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o progresso do território ${log.metadata.territoryNumber || territoryId}.`);
+            toast({ title: "Progresso Restaurado!" });
+        }
     } catch (e: any) {
         console.error("Erro ao reverter:", e);
         toast({ title: "Erro ao reverter", description: e.message, variant: "destructive" });
@@ -389,7 +442,7 @@ function MaisPage() {
                                                     <td className="px-6 py-5 align-top">
                                                         <div className="flex flex-col gap-2 items-start">
                                                             {getActionBadge(log.action)}
-                                                            {log.metadata?.revertData && isAdmin && log.action.includes('DELETED') && (
+                                                            {log.metadata?.revertData && isAdmin && (log.action.includes('DELETED') || log.action === 'TERRITORY_RESET') && (
                                                                 <Button 
                                                                     variant="outline" 
                                                                     size="sm" 

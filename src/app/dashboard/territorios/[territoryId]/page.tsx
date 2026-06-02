@@ -1,7 +1,7 @@
 
 "use client";
 
-import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, deleteField, getDoc, arrayRemove } from "firebase/firestore";
+import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, deleteField, getDoc, arrayRemove, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
@@ -266,17 +266,38 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', tid);
           const quadrasSnap = await getDocs(collection(territoryRef, 'quadras'));
           const historySnap = await getDocs(collection(territoryRef, 'activityHistory'));
+          
+          // Preparamos os dados para reversão
+          const revertData: any = {
+              quadras: [],
+              history: historySnap.docs.map(d => ({ id: d.id, ...d.data() }))
+          };
+
           const batch = writeBatch(db);
           let totalDecrement = 0;
 
           for (const qDoc of quadrasSnap.docs) {
             const housesSnap = await getDocs(collection(qDoc.ref, 'casas'));
+            const doneHousesInQuadra: any[] = [];
+            
             housesSnap.forEach(hDoc => {
-              if (hDoc.data().status === true) {
+              const hData = hDoc.data();
+              if (hData.status === true) {
+                // Guardamos apenas as casas que estavam feitas
+                doneHousesInQuadra.push({ id: hDoc.id, ...hData });
+                
                 batch.update(hDoc.ref, { status: false, lastWorkedBy: deleteField(), activityLogId: deleteField() });
                 totalDecrement++;
               }
             });
+            
+            if (doneHousesInQuadra.length > 0) {
+                revertData.quadras.push({
+                    id: qDoc.id,
+                    houses: doneHousesInQuadra
+                });
+            }
+
             batch.update(qDoc.ref, { housesDone: 0 });
           }
 
@@ -292,7 +313,13 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           }
 
           await batch.commit();
-          logEvent(user.congregationId, user.uid, user.name, 'TERRITORY_RESET', `Limpou o progresso e o histórico do território ${territory?.number} - ${territory?.name}.`, { territoryId: tid, territoryNumber: territory?.number });
+          
+          logEvent(user.congregationId, user.uid, user.name, 'TERRITORY_RESET', `Limpou o progresso e o histórico do território ${territory?.number} - ${territory?.name}.`, { 
+              territoryId: tid, 
+              territoryNumber: territory?.number,
+              revertData: revertData 
+          });
+
           toast({ title: "Território Resetado" });
         } catch (error: any) {
           toast({ title: "Erro ao resetar", variant: "destructive" });
