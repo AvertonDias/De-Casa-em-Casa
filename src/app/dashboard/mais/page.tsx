@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -18,9 +17,7 @@ import {
   Info,
   UserCheck,
   MapPin,
-  Users,
   CheckCircle,
-  AlertTriangle,
   PlusCircle,
   Edit3,
   Trash2,
@@ -37,7 +34,7 @@ import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesR
 import S13ReportPage from '../administracao/relatorio-s13/page';
 import CongregationEditForm from '@/components/admin/CongregationEditForm';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, doc, Timestamp, runTransaction } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit, doc, runTransaction } from 'firebase/firestore';
 import { AuditLog } from '@/types/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -196,7 +193,6 @@ function MaisPage() {
       return matchesSearch && matchesAction;
     });
 
-    // Deduplicação por segundo (evita triplicidade do Firebase)
     const uniqueLogs: AuditLog[] = [];
     const seen = new Set<string>();
     filtered.forEach(log => {
@@ -302,7 +298,7 @@ function MaisPage() {
                 <div className="flex justify-between items-center px-2">
                     <div>
                         <h2 className="text-3xl font-bold flex items-center gap-2"><History className="text-primary" /> Histórico</h2>
-                        <p className="text-xs text-muted-foreground mt-1">Auditando os últimos 1000 registros de atividade.</p>
+                        <p className="text-xs text-muted-foreground mt-1">Mostrando os últimos 1000 registros para garantir a velocidade do sistema.</p>
                     </div>
                 </div>
 
@@ -318,6 +314,7 @@ function MaisPage() {
                                 <SelectItem value="all">Todas as ações</SelectItem>
                                 <SelectItem value="HOUSE_COMPLETED">Marcação de Casas</SelectItem>
                                 <SelectItem value="TERRITORY_ASSIGNED">Designações</SelectItem>
+                                <SelectItem value="TERRITORY_RETURNED">Devoluções</SelectItem>
                                 <SelectItem value="creation">Criações</SelectItem>
                                 <SelectItem value="users">Usuários</SelectItem>
                                 <SelectItem value="deletions">Exclusões</SelectItem>

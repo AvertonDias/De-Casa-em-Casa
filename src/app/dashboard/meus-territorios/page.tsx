@@ -3,18 +3,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, deleteField, arrayUnion, Timestamp, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, deleteField, arrayUnion, Timestamp } from 'firebase/firestore';
 import { Territory } from '@/types/types';
-import { Map, Clock, CheckCircle, Loader, AlertTriangle, ArrowDownUp } from 'lucide-react';
+import { Clock, CheckCircle, Loader, AlertTriangle, ArrowDownUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import withAuth from '@/components/withAuth';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { logEvent } from '@/lib/audit';
+import { useToast } from '@/hooks/use-toast';
 
 function MyTerritoriesPage() {
   const { user } = useUser();
+  const { toast } = useToast();
   const [assignedTerritories, setAssignedTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -69,7 +72,7 @@ function MyTerritoriesPage() {
       name: territoryToReturn.assignment.name,
       assignedAt: territoryToReturn.assignment.assignedAt,
       completedAt: Timestamp.now(), 
-      isCompletion: true // Marcado como concluído ao devolver
+      isCompletion: true 
     };
 
     try {
@@ -78,8 +81,29 @@ function MyTerritoriesPage() {
         assignment: deleteField(),
         assignmentHistory: arrayUnion(historyLog)
       });
+
+      // Registrar Auditoria (Agora aparece no histórico de "Mais")
+      logEvent(
+          user.congregationId,
+          user.uid,
+          user.name,
+          'TERRITORY_RETURNED',
+          `Devolveu o território ${territoryToReturn.number} - ${territoryToReturn.name}.`,
+          { territoryId: territoryToReturn.id }
+      );
+
+      toast({
+        title: "Território Devolvido!",
+        description: `O território ${territoryToReturn.number} está disponível para outros agora.`,
+      });
+
     } catch(error) {
       console.error("Erro ao devolver o território:", error);
+      toast({
+          title: "Erro ao devolver",
+          description: "Não foi possível processar a devolução no momento.",
+          variant: "destructive"
+      });
     } finally {
       setIsConfirmModalOpen(false);
       setTerritoryToReturn(null);
