@@ -34,7 +34,7 @@ import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesR
 import S13ReportPage from '../administracao/relatorio-s13/page';
 import CongregationEditForm from '@/components/admin/CongregationEditForm';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, doc, runTransaction } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit, doc, runTransaction, Timestamp, updateDoc, increment, setDoc } from 'firebase/firestore';
 import { AuditLog } from '@/types/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -106,7 +106,49 @@ function MaisPage() {
     const congregationId = user.congregationId;
 
     try {
-        if (log.action === 'HOUSE_DELETED') {
+        // REVERTER MARCAÇÃO DE CASA (FEITA/DESMARCADA)
+        if (log.action === 'HOUSE_COMPLETED' || log.action === 'HOUSE_UNMARKED') {
+            const { territoryId, quadraId, houseId } = log.metadata;
+            const previousStatus = revertData.previousStatus;
+            
+            const congRef = doc(db, 'congregations', congregationId);
+            const territoryRef = doc(congRef, 'territories', territoryId);
+            const quadraRef = doc(territoryRef, 'quadras', quadraId);
+            const houseRef = doc(quadraRef, 'casas', houseId);
+
+            await runTransaction(db, async (transaction) => {
+                const [congSnap, terrSnap, qSnap, hSnap] = await Promise.all([
+                    transaction.get(congRef),
+                    transaction.get(territoryRef),
+                    transaction.get(quadraRef),
+                    transaction.get(houseRef)
+                ]);
+
+                if (!hSnap.exists()) throw new Error("A casa não existe mais para ser alterada.");
+
+                const currentStatus = hSnap.data().status;
+                if (currentStatus === previousStatus) return; // Já está no estado desejado
+
+                const diff = previousStatus ? 1 : -1;
+                
+                transaction.update(houseRef, { status: previousStatus });
+                transaction.update(quadraRef, { housesDone: increment(diff) });
+                
+                const tData = terrSnap.data()!;
+                const newHousesDone = (tData.stats?.housesDone || 0) + diff;
+                const totalHouses = tData.stats?.totalHouses || 1;
+                transaction.update(territoryRef, { 
+                    "stats.housesDone": newHousesDone,
+                    progress: newHousesDone / totalHouses
+                });
+                
+                transaction.update(congRef, { totalHousesDone: increment(diff) });
+            });
+            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Reverteu a marcação da casa no território ${log.metadata.territoryNumber || territoryId}.`);
+            toast({ title: "Ação Revertida!" });
+        }
+        // RESTAURAR CASA EXCLUÍDA
+        else if (log.action === 'HOUSE_DELETED') {
             const { territoryId, quadraId } = log.metadata;
             const { id, ...casaData } = revertData;
             const houseId = log.metadata.houseId || id;
@@ -116,17 +158,19 @@ function MaisPage() {
             
             await runTransaction(db, async (transaction) => {
                 const qSnap = await transaction.get(quadraRef);
-                if (!qSnap.exists()) throw new Error("Quadra não encontrada.");
+                if (!qSnap.exists()) throw new Error("A quadra desta casa não existe mais.");
                 
                 transaction.set(houseRef, casaData);
                 transaction.update(quadraRef, { 
-                    totalHouses: (qSnap.data().totalHouses || 0) + 1,
-                    housesDone: (qSnap.data().housesDone || 0) + (casaData.status ? 1 : 0)
+                    totalHouses: increment(1),
+                    housesDone: increment(casaData.status ? 1 : 0)
                 });
+                // Note: O sync de território/congregação é complexo aqui, simplificamos para a quadra
             });
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a casa ${casaData.number} no território ${log.metadata.territoryNumber || territoryId}.`);
             toast({ title: "Casa Restaurada!" });
         } 
+        // RESTAURAR QUADRA EXCLUÍDA
         else if (log.action === 'QUADRA_DELETED') {
             const { territoryId, quadraId } = log.metadata;
             const { quadra, casas } = revertData;
@@ -137,37 +181,62 @@ function MaisPage() {
             await runTransaction(db, async (transaction) => {
                 const terrSnap = await transaction.get(territoryRef);
                 transaction.set(quadraRef, quadra);
-                casas.forEach((c: any) => transaction.set(doc(quadraRef, 'casas', c.id), c));
+                casas.forEach((c: any) => {
+                    const { id, ...cData } = c;
+                    transaction.set(doc(quadraRef, 'casas', id), cData);
+                });
                 
                 if (terrSnap.exists()) {
-                    const tData = terrSnap.data();
+                    const tData = terrSnap.data()!;
                     transaction.update(territoryRef, {
-                        "stats.totalHouses": (tData.stats?.totalHouses || 0) + (quadra.totalHouses || 0),
-                        "stats.housesDone": (tData.stats?.housesDone || 0) + (quadra.housesDone || 0),
-                        quadraCount: (tData.quadraCount || 0) + 1
+                        "stats.totalHouses": increment(quadra.totalHouses || 0),
+                        "stats.housesDone": increment(quadra.housesDone || 0),
+                        quadraCount: increment(1)
                     });
                 }
             });
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a quadra "${quadra.name}" no território ${log.metadata.territoryNumber || territoryId}.`);
             toast({ title: "Quadra Restaurada!" });
         }
+        // RESTAURAR TERRITÓRIO EXCLUÍDO
         else if (log.action === 'TERRITORY_DELETED') {
             const { territory: terrData, quadras: quadrasData } = revertData;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', terrData.id);
             
             await runTransaction(db, async (transaction) => {
-                transaction.set(territoryRef, terrData);
+                const { id, ...tFinal } = terrData;
+                transaction.set(territoryRef, tFinal);
+                
                 quadrasData.forEach((q: any) => {
-                    const { casas, id, ...qMeta } = q;
-                    const qRef = doc(territoryRef, 'quadras', id);
+                    const { casas, id: qId, ...qMeta } = q;
+                    const qRef = doc(territoryRef, 'quadras', qId);
                     transaction.set(qRef, qMeta);
-                    casas.forEach((c: any) => transaction.set(doc(qRef, 'casas', c.id), c));
+                    casas.forEach((c: any) => {
+                        const { id: cId, ...cMeta } = c;
+                        transaction.set(doc(qRef, 'casas', cId), cMeta);
+                    });
                 });
             });
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o território ${terrData.number}.`);
             toast({ title: "Território Restaurado!" });
         }
+        // RESTAURAR REGISTRO RURAL EXCLUÍDO
+        else if (log.action === 'RURAL_LOG_DELETED') {
+            const { territoryId } = log.metadata;
+            const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
+            
+            await runTransaction(db, async (transaction) => {
+                const terrSnap = await transaction.get(territoryRef);
+                if (!terrSnap.exists()) throw new Error("O território rural não existe mais.");
+                
+                const currentLogs = terrSnap.data().workLogs || [];
+                transaction.update(territoryRef, { workLogs: [...currentLogs, revertData] });
+            });
+            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou um registro de trabalho no território rural.`);
+            toast({ title: "Registro Rural Restaurado!" });
+        }
     } catch (e: any) {
+        console.error("Erro ao reverter:", e);
         toast({ title: "Erro ao reverter", description: e.message, variant: "destructive" });
     } finally {
         setRevertingIds(prev => { const next = new Set(prev); next.delete(log.id); return next; });
@@ -231,7 +300,7 @@ function MaisPage() {
       'HOUSE_UNMARKED': { label: 'Desmarcado', icon: X, color: 'bg-yellow-500/15 text-yellow-500 border-yellow-500/20' },
       'HOUSE_CREATED': { label: 'Novo Número', icon: PlusCircle, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
       'HOUSE_EDITED': { label: 'Edição', icon: Edit3, color: 'bg-gray-500/15 text-gray-400 border-gray-500/20' },
-      'HOUSE_DELETED': { label: 'Exclusão', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
+      'HOUSE_DELETED': { label: 'Casa Excluída', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
       'QUADRA_CREATED': { label: 'Nova Quadra', icon: LayoutGrid, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
       'QUADRA_DELETED': { label: 'Quadra Excluída', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
       'TERRITORY_CREATED': { label: 'Novo Território', icon: MapPin, color: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20' },
@@ -244,6 +313,7 @@ function MaisPage() {
       'USER_EDITED': { label: 'Perfil Alterado', icon: Edit3, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
       'USER_DELETED': { label: 'Usuário Removido', icon: Trash2, color: 'bg-red-600/15 text-red-500 border-red-600/20' },
       'RURAL_WORK_LOGGED': { label: 'Trabalho Rural', icon: Trees, color: 'bg-green-500/15 text-green-500 border-green-500/20' },
+      'RURAL_LOG_DELETED': { label: 'Log Rural Excluído', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
       'BACKUP_RESTORED': { label: 'Backup Restaurado', icon: CheckCircle, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
     };
 
