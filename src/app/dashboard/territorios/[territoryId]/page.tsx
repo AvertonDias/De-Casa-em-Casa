@@ -117,7 +117,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
                 }
                 return log;
             });
-            transaction.update(territoryRef, { assignmentHistory: newHistory });
+            transaction.update(territoryRef, newHistory);
         });
         toast({ title: "Sucesso!", description: "Histórico atualizado." });
     } catch (e: any) {
@@ -146,19 +146,20 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
       action: async () => {
         setIsProcessingAction(true);
         try {
-          const territoryRef = doc(db, 'congregations', user!.congregationId!, 'territories', tid);
+          const congregationId = user!.congregationId!;
+          const territoryRef = doc(db, 'congregations', congregationId, 'territories', tid);
           const quadrasSnap = await getDocs(collection(territoryRef, 'quadras'));
-          const batch = writeBatch(db);
           
-          // Preparar backup completo para reversão
+          // Preparar backup completo para reversão (LIXEIRA)
           const revertData: any = {
             territory: { ...territory, id: tid },
             quadras: []
           };
 
+          const batch = writeBatch(db);
+
           for (const qDoc of quadrasSnap.docs) {
               const housesSnap = await getDocs(collection(qDoc.ref, 'casas'));
-              const qData = qDoc.data();
               const housesData: any[] = [];
 
               housesSnap.forEach(h => {
@@ -168,12 +169,13 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
 
               revertData.quadras.push({
                 id: qDoc.id,
-                ...qData,
+                ...qDoc.data(),
                 casas: housesData
               });
 
               batch.delete(qDoc.ref);
           }
+          
           const histSnap = await getDocs(collection(territoryRef, 'activityHistory'));
           histSnap.forEach(h => batch.delete(h.ref));
           batch.delete(territoryRef);
@@ -181,7 +183,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           await batch.commit();
 
           logEvent(
-            user!.congregationId!, 
+            congregationId, 
             user!.uid, 
             user!.name, 
             'TERRITORY_DELETED', 
@@ -189,6 +191,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             { territoryId: tid, territoryNumber: territory?.number, revertData }
           );
 
+          toast({ title: "Território Excluído" });
           router.push('/dashboard/territorios');
         } catch (error: any) {
           toast({ title: "Erro ao deletar", description: "Não foi possível excluir o território.", variant: "destructive" });
@@ -218,16 +221,12 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           const batch = writeBatch(db);
           let totalDecrement = 0;
 
-          // Backup do estado das casas para reversão (status: true)
-          const housesToRestore: string[] = [];
-
           for (const qDoc of quadrasSnap.docs) {
             const housesSnap = await getDocs(collection(qDoc.ref, 'casas'));
             let quadraDecrement = 0;
             
             housesSnap.forEach(hDoc => {
               if (hDoc.data().status === true) {
-                housesToRestore.push(`${qDoc.id}/${hDoc.id}`);
                 batch.update(hDoc.ref, { 
                   status: false, 
                   lastWorkedBy: deleteField(), 
@@ -270,7 +269,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             user.name, 
             'TERRITORY_RESET', 
             `Limpou o progresso e o histórico do território ${territory?.number}.`, 
-            { territoryId: tid, revertData: { housesToRestore } }
+            { territoryId: tid }
           );
 
           toast({ title: "Território Resetado", description: "O progresso e o histórico foram limpos com sucesso." });
@@ -353,9 +352,6 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         <div className="aspect-video w-full overflow-hidden rounded-lg border border-border/50 bg-muted">
             <GoogleMapEmbed mapLink={territory.mapLink} />
         </div>
-        <p className="text-[10px] text-muted-foreground mt-2 text-center">
-            Dica: Para ver sua localização em tempo real sobre o mapa, clique no botão acima e use o app oficial do Google Maps.
-        </p>
     </div>
   );
 
@@ -466,7 +462,6 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   );
 }
 
-// Renomeando para evitar conflito de importação
 function AddAddQuadraModal(props: any) { return <AddQuadraModal {...props} />; }
 
 export default withAuth(TerritoryDetailPage);

@@ -41,7 +41,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const router = useRouter();
   
 
-  // Estados para modais
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isReorderModalOpen, setIsReorderModalOpen] = useState(false);
   const [selectedCasa, setSelectedCasa] = useState<Casa | null>(null);
@@ -164,7 +163,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         ]);
 
         if (!congDoc.exists() || !territoryDoc.exists() || !quadraDoc.exists() || !casaDoc.exists()) {
-            throw new Error("Um dos documentos necessários não foi encontrado.");
+            throw new Error("Documento não encontrado.");
         }
 
         const wasDone = casaDoc.data().status === true;
@@ -185,9 +184,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             progress: newTerritoryProgress,
             lastUpdate: serverTimestamp()
         };
-        if(newStatus){
-            territoryUpdateData.lastWorkedAt = serverTimestamp();
-        }
+        if(newStatus) territoryUpdateData.lastWorkedAt = serverTimestamp();
         transaction.update(territoryRef, territoryUpdateData);
         
         transaction.update(congRef, { totalHousesDone: newCongTotalHousesDone });
@@ -197,7 +194,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             transaction.set(newActivityRef, {
                 type: "work",
                 activityDate: Timestamp.now(),
-                description: `Casa ${casa.number} (da ${quadraDoc.data().name}) do território ${territoryDoc.data().number} foi feita.`,
+                description: `Casa ${casa.number} do território ${territoryDoc.data().number} foi feita.`,
                 userId: 'automatic_system_log',
                 userName: user.name,
             });
@@ -221,13 +218,12 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             });
         }
     }).then(() => {
-        // Registrar Auditoria Central
         logEvent(
             congregationId, 
             user.uid, 
             user.name, 
             newStatus ? 'HOUSE_COMPLETED' : 'HOUSE_UNMARKED', 
-            `${newStatus ? 'Marcou' : 'Desmarcou'} a casa ${casa.number} na ${quadra?.name} do território ${territory?.number}.`,
+            `${newStatus ? 'Marcou' : 'Desmarcou'} a casa ${casa.number} no território ${territory?.number}.`,
             { territoryId, quadraId, houseId: casa.id, revertData: { houseId: casa.id, previousStatus: !newStatus } }
         );
     }).catch(async (serverError) => {
@@ -270,7 +266,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         ]);
 
         if (!quadraDoc.exists() || !territoryDoc.exists() || !casaDoc.exists() || !congDoc.exists()) {
-            throw new Error("Documento não encontrado para a transação de exclusão.");
+            throw new Error("Documento não encontrado.");
         }
 
         transaction.delete(casaRef);
@@ -279,14 +275,14 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         const quadraTotal = quadraDoc.data().totalHouses || 0;
         const quadraDone = quadraDoc.data().housesDone || 0;
         transaction.update(quadraRef, {
-            totalHouses: quadraTotal - 1,
-            housesDone: wasDone ? quadraDone - 1 : quadraDone
+            totalHouses: Math.max(0, quadraTotal - 1),
+            housesDone: wasDone ? Math.max(0, quadraDone - 1) : quadraDone
         });
         
         const territoryTotal = territoryDoc.data().stats.totalHouses || 0;
         const territoryDone = territoryDoc.data().stats.housesDone || 0;
-        const newTerritoryTotal = territoryTotal - 1;
-        const newTerritoryDone = wasDone ? territoryDone - 1 : territoryDone;
+        const newTerritoryTotal = Math.max(0, territoryTotal - 1);
+        const newTerritoryDone = wasDone ? Math.max(0, territoryDone - 1) : territoryDone;
         const newProgress = newTerritoryTotal > 0 ? newTerritoryDone / newTerritoryTotal : 0;
         transaction.update(territoryRef, {
             "stats.totalHouses": newTerritoryTotal,
@@ -297,8 +293,8 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         const congTotalHouses = congDoc.data().totalHouses || 0;
         const congTotalHousesDone = congDoc.data().totalHousesDone || 0;
         transaction.update(congRef, {
-            totalHouses: congTotalHouses - 1,
-            totalHousesDone: wasDone ? congTotalHousesDone - 1 : congTotalHousesDone
+            totalHouses: Math.max(0, congTotalHouses - 1),
+            totalHousesDone: wasDone ? Math.max(0, congTotalHousesDone - 1) : congTotalHousesDone
         });
     }).then(() => {
         logEvent(
@@ -306,9 +302,10 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             user.uid, 
             user.name, 
             'HOUSE_DELETED', 
-            `Excluiu a casa ${casaToDelete.number} da ${quadra?.name} do território ${territory?.number}.`,
-            { territoryId, quadraId, houseId: casaToDelete.id, revertData: { ...casaToDelete, id: casaToDelete.id } }
+            `Excluiu a casa ${casaToDelete.number} no território ${territory?.number}.`,
+            { territoryId, quadraId, houseId: casaToDelete.id, territoryNumber: territory?.number, revertData: { ...casaToDelete, id: casaToDelete.id } }
         );
+        toast({ title: "Casa excluída" });
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: `congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}/casas/${casaToDelete.id}`,
@@ -337,21 +334,12 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const nextQuadra = currentQuadraIndex < allQuadras.length - 1 ? allQuadras[currentQuadraIndex + 1] : null;
 
   
-  if (userLoading || loading) {
-    return <div className="flex h-full w-full items-center justify-center"><Loader className="animate-spin text-purple-600" size={48} /></div>;
-  }
+  if (userLoading || loading) return <div className="flex h-full w-full items-center justify-center"><Loader className="animate-spin text-purple-600" size={48} /></div>;
   
-  if (!quadra || !territoryId) {
-    return (
-        <div className="flex flex-col items-center justify-center h-full text-center p-8">
-            <h1 className="text-2xl font-bold text-destructive">Quadra Excluída</h1>
-            <p className="text-muted-foreground mt-2">Esta quadra não existe mais. Você será redirecionado...</p>
-        </div>
-    );
-  }
+  if (!quadra || !territoryId) return null;
 
   if (!user || !user.congregationId) {
-    return <div className="text-center p-10 text-red-500">Erro: Usuário não associado a uma congregação. Contate o administrador.</div>;
+    return <div className="text-center p-10 text-red-500">Erro: Usuário não associado a uma congregação.</div>;
   }
   
   return (

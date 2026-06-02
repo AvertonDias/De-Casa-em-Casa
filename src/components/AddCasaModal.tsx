@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { Plus, X } from 'lucide-react';
-import { addDoc, collection, doc, runTransaction, serverTimestamp, getDocs, Timestamp } from 'firebase/firestore';
+import { Plus } from 'lucide-react';
+import { collection, doc, runTransaction, serverTimestamp, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 import {
@@ -31,7 +31,7 @@ interface AddCasaModalProps {
 }
 
 export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationId }: AddCasaModalProps) {
-  const { user } = useUser();
+  const { user, congregation } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   const [number, setNumber] = useState('');
   const [observations, setObservations] = useState('');
@@ -54,15 +54,9 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
     setError('');
     
     if (!congregationId || !user) {
-      setError("ID da congregação ou dados do usuário não encontrados. Ação bloqueada.");
+      setError("Dados não encontrados.");
       setIsLoading(false);
       return;
-    }
-
-    if (!number) {
-        setError('O número da casa é obrigatório.');
-        setIsLoading(false);
-        return;
     }
 
     const congRef = doc(db, 'congregations', congregationId);
@@ -79,11 +73,12 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
         ]);
 
         if (!quadraDoc.exists() || !territoryDoc.exists() || !congDoc.exists()) {
-            throw new Error("Quadra, Território ou Congregação não encontrado.");
+            throw new Error("Documento não encontrado.");
         }
         
         const order = casasSnapshot.size;
         const newCasaRef = doc(casasRef); 
+        const territoryNumber = territoryDoc.data().number;
 
         const casaData: any = {
             number: number.toUpperCase(),
@@ -99,7 +94,7 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
             transaction.set(newActivityRef, {
                 type: "work",
                 activityDate: Timestamp.now(),
-                description: `Casa ${number.toUpperCase()} (da ${quadraDoc.data().name}) do território ${territoryDoc.data().number} foi feita ao ser adicionada.`,
+                description: `Casa ${number.toUpperCase()} do território ${territoryNumber} foi feita.`,
                 userId: 'automatic_system_log',
                 userName: user.name,
                 createdAt: serverTimestamp(),
@@ -111,35 +106,28 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
 
         transaction.set(newCasaRef, casaData);
 
-        const newQuadraTotalHouses = (quadraDoc.data().totalHouses || 0) + 1;
-        const newQuadraHousesDone = (quadraDoc.data().housesDone || 0) + (status ? 1 : 0);
         transaction.update(quadraRef, {
-            totalHouses: newQuadraTotalHouses,
-            housesDone: newQuadraHousesDone
+            totalHouses: (quadraDoc.data().totalHouses || 0) + 1,
+            housesDone: (quadraDoc.data().housesDone || 0) + (status ? 1 : 0)
         });
 
-        const newTerritoryTotalHouses = (territoryDoc.data().stats.totalHouses || 0) + 1;
         const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + (status ? 1 : 0);
-        const newProgress = newTerritoryTotalHouses > 0 ? newTerritoryHousesDone / newTerritoryTotalHouses : 0;
+        const newTerritoryTotalHouses = (territoryDoc.data().stats.totalHouses || 0) + 1;
         const territoryUpdateData: any = {
             "stats.totalHouses": newTerritoryTotalHouses,
             "stats.housesDone": newTerritoryHousesDone,
-            progress: newProgress,
+            progress: newTerritoryTotalHouses > 0 ? newTerritoryHousesDone / newTerritoryTotalHouses : 0,
             lastUpdate: serverTimestamp()
         };
-        if (status) {
-            territoryUpdateData.lastWorkedAt = serverTimestamp();
-        }
+        if (status) territoryUpdateData.lastWorkedAt = serverTimestamp();
         transaction.update(territoryRef, territoryUpdateData);
         
-        const newCongTotalHouses = (congDoc.data().totalHouses || 0) + 1;
-        const newCongTotalHousesDone = (congDoc.data().totalHousesDone || 0) + (status ? 1 : 0);
         transaction.update(congRef, {
-            totalHouses: newCongTotalHouses,
-            totalHousesDone: newCongTotalHousesDone
+            totalHouses: (congDoc.data().totalHouses || 0) + 1,
+            totalHousesDone: (congDoc.data().totalHousesDone || 0) + (status ? 1 : 0)
         });
     }).then(() => {
-        logEvent(congregationId, user.uid, user.name, 'HOUSE_CREATED', `Adicionou a casa ${number.toUpperCase()} à quadra ${quadraId} do território ${territoryId}.`, { territoryId, quadraId, houseNumber: number });
+        logEvent(congregationId, user.uid, user.name, 'HOUSE_CREATED', `Adicionou a casa ${number.toUpperCase()} no território ${territoryId}.`, { territoryId, quadraId, houseNumber: number });
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: quadraRef.path,
@@ -154,19 +142,8 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
     setIsLoading(false);
   };
 
-  const onOpenChange = (open: boolean) => {
-    setIsOpen(open);
-    if (open) {
-      setNumber('');
-      setObservations('');
-      setStatus(false);
-      setError('');
-      setIsLoading(false);
-    }
-  }
-
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button className="flex items-center justify-center font-bold text-sm">
           <Plus className="h-5 w-5 mr-2" />
@@ -176,21 +153,19 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
         <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
             <DialogHeader>
               <DialogTitle>Adicionar Item</DialogTitle>
-              <DialogDescription>
-                Preencha os detalhes do novo número a ser adicionado nesta quadra.
-              </DialogDescription>
+              <DialogDescription>Preencha os detalhes do novo número.</DialogDescription>
             </DialogHeader>
             
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                 <div>
-                  <label htmlFor="house-number" className="text-sm font-medium text-muted-foreground">Número (Necessário)</label>
+                  <label htmlFor="house-number" className="text-sm font-medium text-muted-foreground">Número</label>
                   <Input 
                       id="house-number" 
                       ref={numberInputRef}
                       value={number} 
                       onChange={(e) => setNumber(e.target.value)} 
                       required 
-                      placeholder="Ex: 2414 ou 100A"
+                      placeholder="Ex: 2414"
                       className="mt-1 uppercase"
                   />
                 </div>
@@ -202,11 +177,10 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
                       onChange={(e) => setObservations(e.target.value)} 
                       rows={3} 
                       className="w-full mt-1" 
-                      placeholder="Ex: Casa de esquina na Rua dos Pioneiros"
                   />
                 </div>
                 <div className="flex items-center justify-between pt-2">
-                  <label htmlFor="feito" className="font-medium text-foreground">Feito</label>
+                  <label className="font-medium">Marcar como feito</label>
                   <button 
                       type="button" 
                       onClick={() => setStatus(!status)} 
@@ -216,15 +190,9 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
                   </button>
                 </div>
                 
-                {error && <p className="text-destructive text-sm">{error}</p>}
-                
                 <DialogFooter className="gap-2 sm:gap-0">
-                  <DialogClose asChild>
-                      <Button type="button" variant="secondary">Cancelar</Button>
-                  </DialogClose>
-                  <Button type="submit" disabled={isLoading}>
-                      {isLoading ? 'Salvando...' : 'Salvar'}
-                  </Button>
+                  <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
+                  <Button type="submit" disabled={isLoading}>{isLoading ? 'Salvando...' : 'Salvar'}</Button>
                 </DialogFooter>
             </form>
         </DialogContent>
