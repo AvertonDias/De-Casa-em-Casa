@@ -4,9 +4,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, getDocs, doc, Timestamp, writeBatch, updateDoc, deleteField, runTransaction, where } from 'firebase/firestore';
-import { AuditLog, AssignmentHistoryLog } from '@/types/types';
-import { Loader, History, Search, Filter, Clock, User, Info, RefreshCw, Undo2, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
+import { collection, query, orderBy, onSnapshot, limit, getDocs, doc, Timestamp, writeBatch, runTransaction, where } from 'firebase/firestore';
+import { AuditLog, Territory, Quadra, Casa } from '@/types/types';
+import { Loader, History, Search, Filter, Clock, User, Info, RefreshCw, Undo2, Trash2, AlertCircle, Map, CheckCircle2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import withAuth from '@/components/withAuth';
@@ -14,8 +14,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import { useToast } from '@/hooks/use-toast';
 import { logEvent } from '@/lib/audit';
 import { cn } from '@/lib/utils';
@@ -34,7 +32,7 @@ function HistoricoPage() {
 
   const isAdmin = user?.role === 'Administrador';
 
-  // --- ARQUEOLOGIA DE DADOS E RECONSTRUÇÃO ---
+  // --- ARQUEOLOGIA DE DADOS (Recuperar o que aconteceu antes do log existir) ---
   useEffect(() => {
     const runReconstruction = async () => {
         if (!user?.congregationId || !isAdmin || hasReconstructed) return;
@@ -49,7 +47,7 @@ function HistoricoPage() {
             const batch = writeBatch(db);
             let addedCount = 0;
 
-            // 1. Recuperar Histórico de Atividade (Marcas de Casa)
+            // 1. Recuperar marcas de casa do histórico de cada território
             for (const tDoc of territoriesSnap.docs) {
                 const tData = tDoc.data();
                 const historyRef = collection(tDoc.ref, 'activityHistory');
@@ -63,49 +61,43 @@ function HistoricoPage() {
                             userId: hData.userId || 'system',
                             userName: hData.userName || 'Sistema',
                             action: 'HOUSE_COMPLETED',
-                            details: `Marcou casa no território ${tData.number}. ${hData.description || ''}`,
+                            details: hData.description || `Casa feita no território ${tData.number}.`,
                             timestamp: hData.activityDate,
-                            metadata: { 
-                                territoryId: tDoc.id, 
-                                isRecovered: true
-                            }
+                            metadata: { territoryId: tDoc.id, isRecovered: true }
                         });
                         addedCount++;
                     }
                 });
-                if (addedCount >= 450) break; 
+                if (addedCount >= 400) break; 
             }
 
-            // 2. Arqueologia de Notificações (Detectar Exclusões da semana passada)
-            if (addedCount < 450) {
-                const usersRef = collection(db, 'users');
-                const usersSnap = await getDocs(query(usersRef, where('congregationId', '==', congregationId)));
+            // 2. Vasculhar notificações antigas para detectar territórios apagados
+            const usersRef = collection(db, 'users');
+            const usersSnap = await getDocs(query(usersRef, where('congregationId', '==', congregationId)));
+            
+            for (const uDoc of usersSnap.docs) {
+                const notifRef = collection(uDoc.ref, 'notifications');
+                const notifSnap = await getDocs(query(notifRef, where('type', '==', 'territory_assigned')));
                 
-                for (const uDoc of usersSnap.docs) {
-                    const notifRef = collection(uDoc.ref, 'notifications');
-                    const notifSnap = await getDocs(query(notifRef, where('type', '==', 'territory_assigned')));
-                    
-                    notifSnap.forEach(nDoc => {
-                        const nData = nDoc.data();
-                        const link = nData.link || '';
-                        const tIdMatch = link.match(/territorios\/([^/]+)/) || link.match(/rural\/([^/]+)/);
-                        const tId = tIdMatch ? tIdMatch[1] : null;
+                notifSnap.forEach(nDoc => {
+                    const nData = nDoc.data();
+                    const link = nData.link || '';
+                    const tIdMatch = link.match(/territorios\/([^/]+)/) || link.match(/rural\/([^/]+)/);
+                    const tId = tIdMatch ? tIdMatch[1] : null;
 
-                        if (tId && !existingTerritoryIds.has(tId)) {
-                            const logRef = doc(collection(db, 'congregations', congregationId, 'auditLogs'));
-                            batch.set(logRef, {
-                                userId: 'system_archaeology',
-                                userName: 'Sistema',
-                                action: 'TERRITORY_DELETED_SUSPECT',
-                                details: `Exclusão Detectada: O território vinculado a uma designação para ${uDoc.data().name} sumiu do mapa.`,
-                                timestamp: nData.createdAt || Timestamp.now(),
-                                metadata: { territoryId: tId, isRecovered: true, suspect: true }
-                            });
-                            addedCount++;
-                        }
-                    });
-                    if (addedCount >= 450) break;
-                }
+                    if (tId && !existingTerritoryIds.has(tId)) {
+                        const logRef = doc(collection(db, 'congregations', congregationId, 'auditLogs'));
+                        batch.set(logRef, {
+                            userId: 'system_archaeology',
+                            userName: 'Sistema',
+                            action: 'TERRITORY_DELETED_SUSPECT',
+                            details: `Exclusão Detectada: O território vinculado a uma designação para ${uDoc.data().name} sumiu.`,
+                            timestamp: nData.createdAt || Timestamp.now(),
+                            metadata: { territoryId: tId, isRecovered: true, suspect: true }
+                        });
+                        addedCount++;
+                    }
+                });
             }
 
             if (addedCount > 0) await batch.commit();
@@ -135,6 +127,7 @@ function HistoricoPage() {
       setLoading(false);
       setIsRefreshing(false);
     }, (error) => {
+        console.error("Erro no listener de logs:", error);
         setLoading(false);
         setIsRefreshing(false);
     });
@@ -156,12 +149,12 @@ function HistoricoPage() {
 
     try {
         if (log.action === 'HOUSE_DELETED') {
-            const { territoryId, quadraId, id, ...casaData } = revertData;
+            const { territoryId, quadraId } = log.metadata;
+            const { id, ...casaData } = revertData;
             const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', log.metadata.houseId);
             
             await runTransaction(db, async (transaction) => {
                 transaction.set(houseRef, casaData);
-                // Atualizar contadores simplificados para o MVP de reversão
                 const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
                 const qSnap = await transaction.get(quadraRef);
                 if (qSnap.exists()) {
@@ -196,8 +189,24 @@ function HistoricoPage() {
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o território ${territory.number} da lixeira.`);
             toast({ title: "Território Restaurado!" });
         }
+        else if (log.action === 'HOUSE_COMPLETED' || log.action === 'HOUSE_UNMARKED') {
+            const { territoryId, quadraId, houseId, previousStatus } = log.metadata;
+            const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', houseId);
+            
+            await runTransaction(db, async (transaction) => {
+                transaction.update(houseRef, { status: previousStatus });
+                const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
+                const qSnap = await transaction.get(quadraRef);
+                const increment = previousStatus ? 1 : -1;
+                if (qSnap.exists()) {
+                    transaction.update(quadraRef, { housesDone: (qSnap.data().housesDone || 0) + increment });
+                }
+            });
+            toast({ title: "Marcação Revertida!" });
+        }
 
     } catch (e: any) {
+        console.error("Erro ao reverter:", e);
         toast({ title: "Erro ao reverter", description: e.message, variant: "destructive" });
     } finally {
         setRevertingIds(prev => {
@@ -239,6 +248,8 @@ function HistoricoPage() {
       case 'TERRITORY_EDITED': return <Badge variant="outline">Território Editado</Badge>;
       case 'HOUSE_EDITED': return <Badge variant="outline">Casa Editada</Badge>;
       case 'REVERT_ACTION': return <Badge className="bg-indigo-500">Ação Revertida</Badge>;
+      case 'TERRITORY_ASSIGNED': return <Badge className="bg-blue-500">Designação</Badge>;
+      case 'TERRITORY_RETURNED': return <Badge className="bg-emerald-500">Devolução</Badge>;
       default: return <Badge variant="outline">{action.replace(/_/g, ' ')}</Badge>;
     }
   };
@@ -251,12 +262,12 @@ function HistoricoPage() {
             <History className="text-primary" />
             Histórico de Alterações
           </h1>
-          <p className="text-muted-foreground text-sm">Consultando registros em tempo real.</p>
+          <p className="text-muted-foreground text-sm">Monitorando atividade em tempo real.</p>
         </div>
         <div className="flex items-center gap-2">
             {isReconstructing && (
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">
-                    <Loader className="animate-spin h-3 w-3" /> Sincronizando...
+                    <Loader className="animate-spin h-3 w-3" /> Sincronizando Passado...
                 </div>
             )}
             <Button variant="outline" size="sm" onClick={() => fetchLogs(true)} disabled={isRefreshing}>
@@ -277,7 +288,7 @@ function HistoricoPage() {
             </SelectTrigger>
             <SelectContent>
                 <SelectItem value="all">Todas as ações</SelectItem>
-                <SelectItem value="deletions">Exclusões</SelectItem>
+                <SelectItem value="deletions">Exclusões e Desmarcações</SelectItem>
                 <SelectItem value="HOUSE_COMPLETED">Marcação de Casas</SelectItem>
                 <SelectItem value="TERRITORY_ASSIGNED">Designações</SelectItem>
                 <SelectItem value="TERRITORY_RETURNED">Devoluções</SelectItem>
@@ -311,7 +322,19 @@ function HistoricoPage() {
                             )}
                         </div>
                       </td>
-                      <td className="px-6 py-4"><div className="flex items-start gap-2"><Info size={14} className="mt-0.5 shrink-0 text-muted-foreground" /><span className="leading-relaxed text-muted-foreground">{log.details.replace('[Recuperado] ', '')}</span></div></td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-start gap-2">
+                           <Info size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
+                           <div className="flex flex-col gap-1">
+                               <span className="leading-relaxed text-muted-foreground">{log.details.replace('[Recuperado] ', '')}</span>
+                               {log.action === 'TERRITORY_DELETED_SUSPECT' && (
+                                   <div className="text-[10px] bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 p-2 rounded border border-yellow-500/20 mt-1">
+                                       <strong>Dica de Recuperação:</strong> Como este território foi excluído antes do sistema de lixeira, você pode usar a <strong>Recuperação Pontual (PITR)</strong> no console do Firebase para restaurar o banco para a data acima.
+                                   </div>
+                               )}
+                           </div>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 ) : (<tr><td colSpan={4} className="px-6 py-12 text-center text-muted-foreground italic">Nenhum registro encontrado.</td></tr>)}
