@@ -352,13 +352,26 @@ const getActionBadge = (action: string) => {
       case 'HOUSE_COMPLETED': return <Badge className="bg-green-500">Conclusão</Badge>;
       case 'HOUSE_UNMARKED': return <Badge variant="outline" className="text-yellow-500 border-yellow-500">Desmarcado</Badge>;
       case 'HOUSE_CREATED': return <Badge className="bg-blue-400">Novo Número</Badge>;
+      case 'HOUSE_EDITED': return <Badge variant="outline">Casa Editada</Badge>;
       case 'HOUSE_DELETED': return <Badge variant="destructive">Casa Excluída</Badge>;
+      case 'QUADRA_CREATED': return <Badge className="bg-blue-400">Nova Quadra</Badge>;
+      case 'QUADRA_EDITED': return <Badge variant="outline">Quadra Editada</Badge>;
       case 'QUADRA_DELETED': return <Badge variant="destructive">Quadra Excluída</Badge>;
       case 'TERRITORY_CREATED': return <Badge className="bg-blue-600">Novo Território</Badge>;
+      case 'TERRITORY_EDITED': return <Badge variant="outline">Território Editado</Badge>;
       case 'TERRITORY_DELETED': return <Badge variant="destructive">Território Excluído</Badge>;
+      case 'TERRITORY_RESET': return <Badge variant="destructive">Progresso Resetado</Badge>;
       case 'REVERT_ACTION': return <Badge className="bg-indigo-500">Ação Revertida</Badge>;
       case 'TERRITORY_ASSIGNED': return <Badge className="bg-blue-500">Designação</Badge>;
       case 'TERRITORY_RETURNED': return <Badge className="bg-emerald-500">Devolução</Badge>;
+      case 'CASAS_REORDERED': return <Badge variant="outline">Ordem Alterada</Badge>;
+      case 'USER_APPROVED': return <Badge className="bg-green-500">Usuário Aprovado</Badge>;
+      case 'USER_EDITED': return <Badge variant="outline">Perfil Editado</Badge>;
+      case 'USER_DELETED': return <Badge variant="destructive">Usuário Excluído</Badge>;
+      case 'RURAL_WORK_LOGGED': return <Badge className="bg-green-500">Trabalho Rural</Badge>;
+      case 'RURAL_LOG_EDITED': return <Badge variant="outline">Log Editado</Badge>;
+      case 'RURAL_LOG_DELETED': return <Badge variant="destructive">Log Excluído</Badge>;
+      case 'OVERDUE_NOTIFIED': return <Badge className="bg-yellow-500 text-black">Cobrança WhatsApp</Badge>;
       default: return <Badge variant="outline">{action.replace(/_/g, ' ')}</Badge>;
     }
 };
