@@ -38,8 +38,8 @@ import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesR
 import S13ReportPage from '../administracao/relatorio-s13/page';
 import CongregationEditForm from '@/components/admin/CongregationEditForm';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, doc, runTransaction, Timestamp, updateDoc, increment, setDoc } from 'firebase/firestore';
-import { AuditLog } from '@/types/types';
+import { collection, query, orderBy, onSnapshot, limit, doc, runTransaction, Timestamp, updateDoc, increment, setDoc, serverTimestamp } from 'firebase/firestore';
+import { AuditLog, Territory } from '@/types/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -116,17 +116,40 @@ function MaisPage() {
             const { id, ...casaData } = revertData;
             const houseId = log.metadata.houseId || id;
             
-            const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', houseId);
-            const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
+            const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
+            const houseRef = doc(territoryRef, 'quadras', quadraId, 'casas', houseId);
+            const quadraRef = doc(territoryRef, 'quadras', quadraId);
+            const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
-                const qSnap = await transaction.get(quadraRef);
+                const [qSnap, terrSnap] = await Promise.all([
+                    transaction.get(quadraRef),
+                    transaction.get(territoryRef)
+                ]);
+
                 if (!qSnap.exists()) throw new Error("A quadra desta casa não existe mais.");
                 
                 transaction.set(houseRef, casaData);
+                
                 transaction.update(quadraRef, { 
                     totalHouses: increment(1),
                     housesDone: increment(casaData.status ? 1 : 0)
+                });
+
+                if (terrSnap.exists()) {
+                    const tData = terrSnap.data() as Territory;
+                    const newTotal = (tData.stats?.totalHouses || 0) + 1;
+                    const newDone = (tData.stats?.housesDone || 0) + (casaData.status ? 1 : 0);
+                    transaction.update(territoryRef, {
+                        "stats.totalHouses": newTotal,
+                        "stats.housesDone": newDone,
+                        progress: newTotal > 0 ? newDone / newTotal : 0
+                    });
+                }
+
+                transaction.update(congRef, { 
+                    totalHouses: increment(1),
+                    totalHousesDone: increment(casaData.status ? 1 : 0)
                 });
             });
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a casa ${casaData.number} no território ${log.metadata.territoryNumber || territoryId}.`);
@@ -139,9 +162,11 @@ function MaisPage() {
             
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
             const quadraRef = doc(territoryRef, 'quadras', quadraId);
+            const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
                 const terrSnap = await transaction.get(territoryRef);
+                
                 transaction.set(quadraRef, quadra);
                 casas.forEach((c: any) => {
                     const { id, ...cData } = c;
@@ -149,12 +174,21 @@ function MaisPage() {
                 });
                 
                 if (terrSnap.exists()) {
+                    const tData = terrSnap.data() as Territory;
+                    const newTotal = (tData.stats?.totalHouses || 0) + (quadra.totalHouses || 0);
+                    const newDone = (tData.stats?.housesDone || 0) + (quadra.housesDone || 0);
                     transaction.update(territoryRef, {
-                        "stats.totalHouses": increment(quadra.totalHouses || 0),
-                        "stats.housesDone": increment(quadra.housesDone || 0),
+                        "stats.totalHouses": newTotal,
+                        "stats.housesDone": newDone,
+                        progress: newTotal > 0 ? newDone / newTotal : 0,
                         quadraCount: increment(1)
                     });
                 }
+
+                transaction.update(congRef, {
+                    totalHouses: increment(quadra.totalHouses || 0),
+                    totalHousesDone: increment(quadra.housesDone || 0)
+                });
             });
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a quadra "${quadra.name}" no território ${log.metadata.territoryNumber || territoryId}.`);
             toast({ title: "Quadra Restaurada!" });
@@ -163,6 +197,7 @@ function MaisPage() {
         else if (log.action === 'TERRITORY_DELETED') {
             const { territory: terrData, quadras: quadrasData } = revertData;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', terrData.id);
+            const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
                 const { id, ...tFinal } = terrData;
@@ -176,6 +211,13 @@ function MaisPage() {
                         const { id: cId, ...cMeta } = c;
                         transaction.set(doc(qRef, 'casas', cId), cMeta);
                     });
+                });
+
+                transaction.update(congRef, {
+                    territoryCount: increment(terrData.type === 'rural' ? 0 : 1),
+                    ruralTerritoryCount: increment(terrData.type === 'rural' ? 1 : 0),
+                    totalHouses: increment(terrData.stats?.totalHouses || 0),
+                    totalHousesDone: increment(terrData.stats?.housesDone || 0)
                 });
             });
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o território ${terrData.number}.`);
@@ -201,8 +243,13 @@ function MaisPage() {
             const { territoryId } = log.metadata;
             const { quadras: quadrasData, history: historyData } = revertData;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
+            const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
+                // LEITURA PRIMEIRO
+                const terrSnap = await transaction.get(territoryRef);
+                if (!terrSnap.exists()) throw new Error("O território não existe mais.");
+
                 let totalIncrement = 0;
                 
                 // Restaurar Casas que estavam feitas
@@ -228,21 +275,17 @@ function MaisPage() {
                     }
                 }
                 
-                // Atualizar Território
-                const terrSnap = await transaction.get(territoryRef);
-                if (terrSnap.exists()) {
-                    const tData = terrSnap.data();
-                    const newDone = (tData.stats?.housesDone || 0) + totalIncrement;
-                    const total = tData.stats?.totalHouses || 1;
-                    transaction.update(territoryRef, {
-                        "stats.housesDone": newDone,
-                        progress: newDone / total,
-                        lastUpdate: serverTimestamp()
-                    });
-                }
+                // Atualizar Território (usando o snap lido no início)
+                const tData = terrSnap.data() as Territory;
+                const newDone = (tData.stats?.housesDone || 0) + totalIncrement;
+                const total = tData.stats?.totalHouses || 1;
+                transaction.update(territoryRef, {
+                    "stats.housesDone": newDone,
+                    progress: newDone / total,
+                    lastUpdate: serverTimestamp()
+                });
                 
                 // Atualizar Congregação
-                const congRef = doc(db, 'congregations', congregationId);
                 transaction.update(congRef, { totalHousesDone: increment(totalIncrement) });
             });
             
