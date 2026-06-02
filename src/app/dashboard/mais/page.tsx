@@ -236,7 +236,7 @@ function MaisPage() {
             />
             <MenuCard 
                 id="overview" 
-                label="Visão Geral" 
+                label="Estatísticas" 
                 description="Estatísticas detalhadas de cobertura e progresso anual."
                 icon={BarChart3}
                 colorClass="bg-purple-500/10 text-purple-500"
