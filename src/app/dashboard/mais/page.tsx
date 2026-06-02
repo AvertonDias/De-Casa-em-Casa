@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -23,7 +24,8 @@ import {
   Trash2,
   RefreshCcw,
   UserPlus,
-  Trees
+  Trees,
+  DatabaseBackup
 } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
@@ -106,49 +108,8 @@ function MaisPage() {
     const congregationId = user.congregationId;
 
     try {
-        // REVERTER MARCAÇÃO DE CASA (FEITA/DESMARCADA)
-        if (log.action === 'HOUSE_COMPLETED' || log.action === 'HOUSE_UNMARKED') {
-            const { territoryId, quadraId, houseId } = log.metadata;
-            const previousStatus = revertData.previousStatus;
-            
-            const congRef = doc(db, 'congregations', congregationId);
-            const territoryRef = doc(congRef, 'territories', territoryId);
-            const quadraRef = doc(territoryRef, 'quadras', quadraId);
-            const houseRef = doc(quadraRef, 'casas', houseId);
-
-            await runTransaction(db, async (transaction) => {
-                const [congSnap, terrSnap, qSnap, hSnap] = await Promise.all([
-                    transaction.get(congRef),
-                    transaction.get(territoryRef),
-                    transaction.get(quadraRef),
-                    transaction.get(houseRef)
-                ]);
-
-                if (!hSnap.exists()) throw new Error("A casa não existe mais para ser alterada.");
-
-                const currentStatus = hSnap.data().status;
-                if (currentStatus === previousStatus) return; // Já está no estado desejado
-
-                const diff = previousStatus ? 1 : -1;
-                
-                transaction.update(houseRef, { status: previousStatus });
-                transaction.update(quadraRef, { housesDone: increment(diff) });
-                
-                const tData = terrSnap.data()!;
-                const newHousesDone = (tData.stats?.housesDone || 0) + diff;
-                const totalHouses = tData.stats?.totalHouses || 1;
-                transaction.update(territoryRef, { 
-                    "stats.housesDone": newHousesDone,
-                    progress: newHousesDone / totalHouses
-                });
-                
-                transaction.update(congRef, { totalHousesDone: increment(diff) });
-            });
-            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Reverteu a marcação da casa no território ${log.metadata.territoryNumber || territoryId}.`);
-            toast({ title: "Ação Revertida!" });
-        }
         // RESTAURAR CASA EXCLUÍDA
-        else if (log.action === 'HOUSE_DELETED') {
+        if (log.action === 'HOUSE_DELETED') {
             const { territoryId, quadraId } = log.metadata;
             const { id, ...casaData } = revertData;
             const houseId = log.metadata.houseId || id;
@@ -264,7 +225,6 @@ function MaisPage() {
     const uniqueLogs: AuditLog[] = [];
     const seen = new Set<string>();
     filtered.forEach(log => {
-        // Correção crítica: Verificação de existência do timestamp e fallback seguro
         const timestampMillis = log.timestamp?.toMillis ? log.timestamp.toMillis() : Date.now();
         const timeKey = Math.floor(timestampMillis / 1000);
         const uniqueKey = `${log.userId}-${log.action}-${(log.details || '').substring(0, 40)}-${timeKey}`;
@@ -316,7 +276,7 @@ function MaisPage() {
       'USER_DELETED': { label: 'Usuário Removido', icon: Trash2, color: 'bg-red-600/15 text-red-500 border-red-600/20' },
       'RURAL_WORK_LOGGED': { label: 'Trabalho Rural', icon: Trees, color: 'bg-green-500/15 text-green-500 border-green-500/20' },
       'RURAL_LOG_DELETED': { label: 'Log Rural Excluído', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
-      'BACKUP_RESTORED': { label: 'Backup Restaurado', icon: CheckCircle, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
+      'BACKUP_RESTORED': { label: 'Backup Restaurado', icon: DatabaseBackup, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
     };
 
     const item = config[action] || { label: action.replace(/_/g, ' '), icon: Info, color: 'bg-muted text-muted-foreground' };

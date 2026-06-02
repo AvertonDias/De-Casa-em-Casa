@@ -218,13 +218,14 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             });
         }
     }).then(() => {
+        // Log sem revertData para marcar como concluído/desmarcado (ação simples de UI)
         logEvent(
             congregationId, 
             user.uid, 
             user.name, 
             newStatus ? 'HOUSE_COMPLETED' : 'HOUSE_UNMARKED', 
             `${newStatus ? 'Marcou' : 'Desmarcou'} a casa ${casa.number} no território ${territory?.number}.`,
-            { territoryId, quadraId, houseId: casa.id, revertData: { houseId: casa.id, previousStatus: !newStatus } }
+            { territoryId, quadraId, houseId: casa.id }
         );
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
