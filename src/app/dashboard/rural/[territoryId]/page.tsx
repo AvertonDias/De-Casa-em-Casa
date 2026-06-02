@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { doc, onSnapshot, Timestamp, runTransaction, deleteDoc, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, Timestamp, runTransaction, deleteDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 import { RuralTerritory, RuralWorkLog } from '@/types/types';
@@ -166,6 +166,9 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
 
     try {
       const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
+      const congRef = doc(db, 'congregations', user.congregationId);
+      
+      const congSnap = await getDoc(congRef);
       
       // Registrar no histórico ANTES de deletar (LIXEIRA)
       await logEvent(
@@ -177,7 +180,16 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
         { territoryId: territory.id, territoryNumber: territory.number, type: 'rural', revertData: { territory: { ...territory, id: territory.id }, quadras: [] } }
       );
 
-      await deleteDoc(territoryRef);
+      await runTransaction(db, async (transaction) => {
+          transaction.delete(territoryRef);
+          if (congSnap.exists()) {
+              const cData = congSnap.data();
+              transaction.update(congRef, {
+                  ruralTerritoryCount: Math.max(0, (cData.ruralTerritoryCount || 0) - 1)
+              });
+          }
+      });
+      
       router.push('/dashboard/rural');
     } catch (error) {
       console.error("Erro ao excluir território:", error);

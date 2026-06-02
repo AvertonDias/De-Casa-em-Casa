@@ -189,21 +189,41 @@ function HistoricoPage() {
         else if (log.action === 'TERRITORY_DELETED') {
             const { territory, quadras } = revertData;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territory.id);
-            
-            const batch = writeBatch(db);
-            batch.set(territoryRef, territory);
+            const congRef = doc(db, 'congregations', congregationId);
 
-            for (const q of quadras) {
-                const qRef = doc(territoryRef, 'quadras', q.id);
-                const { casas, ...qMeta } = q;
-                batch.set(qRef, qMeta);
-                for (const c of casas) {
-                    const cRef = doc(qRef, 'casas', c.id);
-                    batch.set(cRef, c);
+            await runTransaction(db, async (transaction) => {
+                const congSnap = await transaction.get(congRef);
+                
+                // Restaurar o documento do território
+                transaction.set(territoryRef, territory);
+
+                // Restaurar quadras e casas
+                for (const q of quadras) {
+                    const qRef = doc(territoryRef, 'quadras', q.id);
+                    const { casas, ...qMeta } = q;
+                    transaction.set(qRef, qMeta);
+                    for (const c of casas) {
+                        const cRef = doc(qRef, 'casas', c.id);
+                        const { id, ...cData } = c;
+                        transaction.set(cRef, cData);
+                    }
                 }
-            }
 
-            await batch.commit();
+                // Atualizar totais da congregação
+                if (congSnap.exists()) {
+                    const cData = congSnap.data();
+                    const housesToAdd = territory.stats?.totalHouses || 0;
+                    const housesDoneToAdd = territory.stats?.housesDone || 0;
+                    
+                    transaction.update(congRef, {
+                        territoryCount: (cData.territoryCount || 0) + (territory.type === 'rural' ? 0 : 1),
+                        ruralTerritoryCount: (cData.ruralTerritoryCount || 0) + (territory.type === 'rural' ? 1 : 0),
+                        totalHouses: (cData.totalHouses || 0) + housesToAdd,
+                        totalHousesDone: (cData.totalHousesDone || 0) + housesDoneToAdd
+                    });
+                }
+            });
+
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o território ${territory.number} da lixeira.`);
             toast({ title: "Território Restaurado!" });
         }

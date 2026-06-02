@@ -57,7 +57,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const [loading, setLoading] = useState(true);
 
   const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
-  const [isAddQuadraModalOpen, setIsAddAddQuadraModalOpen] = useState(false);
+  const [isAddAddQuadraModalOpen, setIsAddAddQuadraModalOpen] = useState(false);
   const [isEditQuadraModalOpen, setIsEditQuadraModalOpen] = useState(false);
   const [selectedQuadra, setSelectedQuadra] = useState<Quadra | null>(null);
   
@@ -271,6 +271,22 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           const histSnap = await getDocs(collection(territoryRef, 'activityHistory'));
           histSnap.forEach(h => batch.delete(h.ref));
           batch.delete(territoryRef);
+
+          // Atualizar totais da congregação
+          const congRef = doc(db, 'congregations', congregationId);
+          const congSnap = await getDoc(congRef);
+          if (congSnap.exists()) {
+              const cData = congSnap.data();
+              const housesToRemove = territory?.stats?.totalHouses || 0;
+              const housesDoneToRemove = territory?.stats?.housesDone || 0;
+              
+              batch.update(congRef, {
+                  territoryCount: Math.max(0, (cData.territoryCount || 0) - (territory?.type === 'rural' ? 0 : 1)),
+                  ruralTerritoryCount: Math.max(0, (cData.ruralTerritoryCount || 0) - (territory?.type === 'rural' ? 1 : 0)),
+                  totalHouses: Math.max(0, (cData.totalHouses || 0) - housesToRemove),
+                  totalHousesDone: Math.max(0, (cData.totalHousesDone || 0) - housesDoneToRemove)
+              });
+          }
           
           await batch.commit();
 
@@ -523,7 +539,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         <AddQuadraModal 
             isOpen={isAddAddQuadraModalOpen} 
             onClose={() => setIsAddAddQuadraModalOpen(false)} 
-            onSave={handleAddQuadra} 
+            onSave={handleAddAddQuadra} 
             existingQuadrasCount={quadras.length} 
         />
 
