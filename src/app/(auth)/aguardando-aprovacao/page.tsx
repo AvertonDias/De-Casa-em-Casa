@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUser } from "@/contexts/UserContext";
-import { Loader, MailCheck, Users, MessageSquare } from "lucide-react";
+import { Loader, MailCheck, Users, MessageCircle } from "lucide-react";
 import withAuth from "@/components/withAuth";
 import { Button } from '@/components/ui/button';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
@@ -119,7 +119,7 @@ function AguardandoAprovacaoPage() {
                                         <span className="font-medium">{manager.name}</span>
                                         {manager.whatsapp ? (
                                             <Button size="sm" variant="ghost" onClick={() => handleWhatsAppClick(manager.whatsapp)} className="text-green-500 hover:text-green-600 hover:bg-green-500/10">
-                                                <MessageSquare size={16} className="mr-2" /> WhatsApp
+                                                <MessageCircle size={16} className="mr-2" /> WhatsApp
                                             </Button>
                                         ) : (
                                             <span className="text-xs text-muted-foreground">Sem contato</span>
