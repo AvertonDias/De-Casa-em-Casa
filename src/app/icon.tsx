@@ -16,19 +16,19 @@ export default function Icon() {
     (
       <div
         style={{
-          fontSize: 22,
-          background: '#8E44AD',
+          fontSize: 20,
+          background: '#7C3AED', // Cor primária (Purple 600)
           width: '100%',
           height: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: 'white',
-          borderRadius: '4px',
-          fontWeight: 'bold',
+          borderRadius: '8px',
+          fontWeight: '900',
         }}
       >
-        D
+        DC
       </div>
     ),
     {
