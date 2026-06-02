@@ -72,6 +72,7 @@ function HistoricoPage() {
             const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', houseId);
             const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
             
+            // Correção: Executar todas as leituras ANTES das escritas
             await runTransaction(db, async (transaction) => {
                 const qSnap = await transaction.get(quadraRef);
                 if (!qSnap.exists()) throw new Error("Quadra não encontrada.");

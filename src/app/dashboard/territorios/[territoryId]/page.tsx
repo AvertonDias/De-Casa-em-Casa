@@ -49,6 +49,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const router = useRouter();
   const { toast } = useToast();
 
+  // Hooks de estado movidos para o topo absoluto para evitar erro de renderização
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
   const [quadras, setQuadras] = useState<Quadra[]>([]);
@@ -89,14 +90,15 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   };
 
   const handleAddQuadra = async (data: { name: string, description: string }) => {
-    const territoryRef = doc(db, 'congregations', user!.congregationId!, 'territories', territoryId);
+    if (!user?.congregationId) return;
+    const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId);
     await runTransaction(db, async (transaction) => {
         const terrDoc = await transaction.get(territoryRef);
         const newQuadraRef = doc(collection(territoryRef, 'quadras'));
         transaction.set(newQuadraRef, { ...data, totalHouses: 0, housesDone: 0, createdAt: serverTimestamp() });
         transaction.update(territoryRef, { quadraCount: (terrDoc.data()?.quadraCount || 0) + 1 });
     }).then(() => {
-        logEvent(user!.congregationId!, user!.uid, user!.name, 'QUADRA_CREATED', `Adicionou a quadra "${data.name}" ao território ${territory?.number}.`, { territoryId, quadraName: data.name, territoryNumber: territory?.number });
+        logEvent(user.congregationId!, user.uid, user.name, 'QUADRA_CREATED', `Adicionou a quadra "${data.name}" ao território ${territory?.number}.`, { territoryId, quadraName: data.name, territoryNumber: territory?.number });
     });
   };
 
