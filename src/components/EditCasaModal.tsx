@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -25,9 +24,10 @@ interface EditCasaModalProps {
   onCasaUpdated: () => void;
   congregationId: string;
   onDeleteRequest: (house: Casa) => void;
+  territoryNumber?: string;
 }
 
-export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, onCasaUpdated, congregationId, onDeleteRequest }: EditCasaModalProps) {
+export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, onCasaUpdated, congregationId, onDeleteRequest, territoryNumber }: EditCasaModalProps) {
   const { user } = useUser();
   const [formData, setFormData] = useState(casa);
   const [error, setError] = useState('');
@@ -68,7 +68,12 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
       observations: formData.observations,
     }).then(() => {
       if (user) {
-        logEvent(congregationId, user.uid, user.name, 'HOUSE_EDITED', `Editou os dados da casa ${casa.number} (agora ${formData.number.toUpperCase()}) na quadra ${quadraId}.`, { territoryId, quadraId, houseId: casa.id });
+        logEvent(congregationId, user.uid, user.name, 'HOUSE_EDITED', `Editou os dados da casa ${casa.number} (agora ${formData.number.toUpperCase()}) na quadra ${quadraId}.`, { 
+            territoryId, 
+            quadraId, 
+            houseId: casa.id,
+            territoryNumber: territoryNumber
+        });
       }
       onClose();
       onCasaUpdated();

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
@@ -124,7 +123,12 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
         });
     }).then(() => {
         const finalTerritoryNumber = territoryNumber || territoryId;
-        logEvent(congregationId, user.uid, user.name, 'HOUSE_CREATED', `Adicionou a casa ${number.toUpperCase()} no território ${finalTerritoryNumber}.`, { territoryId, quadraId, houseNumber: number, territoryNumber: finalTerritoryNumber });
+        logEvent(congregationId, user.uid, user.name, 'HOUSE_CREATED', `Adicionou a casa ${number.toUpperCase()} no território ${finalTerritoryNumber}.`, { 
+            territoryId, 
+            quadraId, 
+            houseNumber: number, 
+            territoryNumber: finalTerritoryNumber 
+        });
     }).catch(async (error) => {
         const permissionError = new FirestorePermissionError({
             path: quadraRef.path,

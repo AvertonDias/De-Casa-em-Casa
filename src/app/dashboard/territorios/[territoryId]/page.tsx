@@ -55,7 +55,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const [quadras, setQuadras] = useState<Quadra[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Hooks de Estado movidos para o topo para evitar erros de renderização
+  // Hooks de Estado declarados sempre no topo para evitar erros de renderização
   const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
   const [isAddQuadraModalOpen, setIsAddQuadraModalOpen] = useState(false);
   const [isEditQuadraModalOpen, setIsEditQuadraModalOpen] = useState(false);
@@ -99,7 +99,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         transaction.set(newQuadraRef, { ...data, totalHouses: 0, housesDone: 0, createdAt: serverTimestamp() });
         transaction.update(territoryRef, { quadraCount: (terrDoc.data()?.quadraCount || 0) + 1 });
     }).then(() => {
-        logEvent(user!.congregationId!, user!.uid, user!.name, 'QUADRA_CREATED', `Adicionou a quadra "${data.name}" ao território ${territory?.number}.`, { territoryId, quadraName: data.name });
+        logEvent(user!.congregationId!, user!.uid, user!.name, 'QUADRA_CREATED', `Adicionou a quadra "${data.name}" ao território ${territory?.number}.`, { territoryId, quadraName: data.name, territoryNumber: territory?.number });
     });
   };
 
@@ -114,7 +114,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
     if (!user?.congregationId || !territoryId) return;
     const quadraRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', quadraId);
     await updateDoc(quadraRef, updatedData);
-    logEvent(user.congregationId, user.uid, user.name, 'QUADRA_EDITED', `Editou a quadra "${updatedData.name}" no território ${territory?.number}.`, { territoryId, quadraId });
+    logEvent(user.congregationId, user.uid, user.name, 'QUADRA_EDITED', `Editou a quadra "${updatedData.name}" no território ${territory?.number}.`, { territoryId, quadraId, territoryNumber: territory?.number });
     toast({ title: "Quadra atualizada" });
   };
 
@@ -291,7 +291,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           }
 
           await batch.commit();
-          logEvent(user.congregationId, user.uid, user.name, 'TERRITORY_RESET', `Limpou o progresso do território ${territory?.number}.`, { territoryId: tid });
+          logEvent(user.congregationId, user.uid, user.name, 'TERRITORY_RESET', `Limpou o progresso do território ${territory?.number}.`, { territoryId: tid, territoryNumber: territory?.number });
           toast({ title: "Território Resetado" });
         } catch (error: any) {
           toast({ title: "Erro ao resetar", variant: "destructive" });

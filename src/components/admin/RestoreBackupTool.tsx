@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader, DatabaseBackup, CheckCircle, AlertTriangle } from 'lucide-react';
 import { logEvent } from '@/lib/audit';
+import { cn } from '@/lib/utils';
 
 export default function RestoreBackupTool() {
   const { user } = useUser();
