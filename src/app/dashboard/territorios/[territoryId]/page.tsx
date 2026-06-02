@@ -46,13 +46,14 @@ const ProgressSection = ({ territory }: { territory: Territory }) => {
 
 function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const { territoryId } = params;
+  const { user, loading: userLoading } = useUser();
+  const router = useRouter();
+  const { toast } = useToast();
+
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
   const [quadras, setQuadras] = useState<Quadra[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user, loading: userLoading } = useUser();
-  const router = useRouter();
-  const { toast } = useToast();
 
   const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
   const [isAddQuadraModalOpen, setIsAddQuadraModalOpen] = useState(false);
@@ -151,7 +152,6 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           const territoryRef = doc(db, 'congregations', congregationId, 'territories', tid);
           const quadrasSnap = await getDocs(collection(territoryRef, 'quadras'));
           
-          // Preparar backup completo para reversão (LIXEIRA)
           const revertData: any = {
             territory: { ...territory, id: tid },
             quadras: []

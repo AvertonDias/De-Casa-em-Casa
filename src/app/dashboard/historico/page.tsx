@@ -46,7 +46,6 @@ function HistoricoPage() {
             // 1. Buscar territórios existentes para ver o que tem neles
             const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
             const territoriesSnap = await getDocs(territoriesRef);
-            const existingTerritoryIds = new Set(territoriesSnap.docs.map(d => d.id));
             
             // Verificamos logs atuais para não duplicar
             const currentLogsRef = collection(db, 'congregations', congregationId, 'auditLogs');
@@ -60,7 +59,9 @@ function HistoricoPage() {
 
                 historySnap.forEach(hDoc => {
                     const hData = hDoc.data();
-                    const detailText = (hData.description || hData.notes || `Casa marcada no território ${tData.number}.`).replace(/^\[Recuperado\]\s*/i, '');
+                    // Limpar prefixo recuperado se existir nos dados brutos
+                    const rawDetail = hData.description || hData.notes || `Casa marcada no território ${tData.number}.`;
+                    const detailText = rawDetail.replace(/^\[Recuperado\]\s*/i, '');
                     
                     // Se o registro não estiver no log central, nós o levamos para lá
                     if (!existingDetails.has(detailText)) {
@@ -74,38 +75,6 @@ function HistoricoPage() {
                             metadata: { territoryId: tDoc.id, isRecovered: true }
                         });
                         addedCount++;
-                    }
-                });
-            }
-
-            // 2. Detectar exclusões da semana passada via Notificações
-            const usersRef = collection(db, 'users');
-            const usersSnap = await getDocs(query(usersRef, where('congregationId', '==', congregationId)));
-            
-            for (const uDoc of usersSnap.docs) {
-                const notifRef = collection(uDoc.ref, 'notifications');
-                const notifSnap = await getDocs(query(notifRef, where('type', '==', 'territory_assigned')));
-                
-                notifSnap.forEach(nDoc => {
-                    const nData = nDoc.data();
-                    const link = nData.link || '';
-                    const tIdMatch = link.match(/territorios\/([^/]+)/) || link.match(/rural\/([^/]+)/);
-                    const tId = tIdMatch ? tIdMatch[1] : null;
-
-                    if (tId && !existingTerritoryIds.has(tId)) {
-                        const detail = `Exclusão Detectada: O território vinculado a uma designação para ${uDoc.data().name} não existe mais.`;
-                        if (!existingDetails.has(detail)) {
-                          const logRef = doc(currentLogsRef);
-                          batch.set(logRef, {
-                              userId: 'system_archaeology',
-                              userName: 'Sistema',
-                              action: 'TERRITORY_DELETED_SUSPECT',
-                              details: detail,
-                              timestamp: nData.createdAt || Timestamp.now(),
-                              metadata: { territoryId: tId, isRecovered: true, suspect: true }
-                          });
-                          addedCount++;
-                        }
                     }
                 });
             }
@@ -161,7 +130,8 @@ function HistoricoPage() {
         if (log.action === 'HOUSE_DELETED') {
             const { territoryId, quadraId } = log.metadata;
             const { id, ...casaData } = revertData;
-            const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', log.metadata.houseId);
+            const houseId = log.metadata.houseId || id;
+            const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', houseId);
             
             await runTransaction(db, async (transaction) => {
                 transaction.set(houseRef, casaData);
@@ -209,7 +179,7 @@ function HistoricoPage() {
                 const qSnap = await transaction.get(quadraRef);
                 const increment = previousStatus ? 1 : -1;
                 if (qSnap.exists()) {
-                    transaction.update(quadraRef, { housesDone: (qSnap.data().housesDone || 0) + increment });
+                    transaction.update(quadraRef, { housesDone: Math.max(0, (qSnap.data().housesDone || 0) + increment) });
                 }
             });
             toast({ title: "Marcação Revertida!" });
@@ -277,7 +247,7 @@ function HistoricoPage() {
         <div className="flex items-center gap-2">
             {isReconstructing && (
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">
-                    <Loader className="animate-spin h-3 w-3" /> Analisando o Passado...
+                    <Loader className="animate-spin h-3 w-3" /> Sincronizando Passado...
                 </div>
             )}
             <Button variant="outline" size="sm" onClick={() => fetchLogs(true)} disabled={isRefreshing}>
