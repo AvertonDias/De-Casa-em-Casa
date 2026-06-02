@@ -205,6 +205,9 @@ function HistoricoPage() {
       case 'TERRITORY_RETURNED': return <Badge className="bg-teal-500">Devolução</Badge>;
       case 'USER_DELETED': return <Badge variant="destructive"><Trash2 size={10} className="mr-1"/> Usuário Excluído</Badge>;
       case 'USER_APPROVED': return <Badge className="bg-green-600">Aprovação</Badge>;
+      case 'USER_EDITED': return <Badge variant="outline">Usuário Editado</Badge>;
+      case 'TERRITORY_EDITED': return <Badge variant="outline">Território Editado</Badge>;
+      case 'HOUSE_EDITED': return <Badge variant="outline">Casa Editada</Badge>;
       case 'CASAS_REORDERED': return <Badge className="bg-purple-500">Reordenação</Badge>;
       default: return <Badge variant="outline">{action.replace(/_/g, ' ')}</Badge>;
     }
