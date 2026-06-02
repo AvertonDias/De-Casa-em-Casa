@@ -435,7 +435,13 @@ function MaisPage() {
                 <div className="flex justify-between items-center px-2">
                     <div>
                         <h2 className="text-3xl font-bold flex items-center gap-2"><History className="text-primary" /> Histórico</h2>
-                        <p className="text-xs text-muted-foreground mt-1">Mostrando os últimos 1000 registros para garantir a velocidade do sistema.</p>
+                        <div className="mt-2 p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-start gap-3 max-w-2xl">
+                          <Info size={16} className="text-primary mt-0.5 shrink-0" />
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            O sistema mantém as últimas <strong>1.000 ações</strong> para reversão imediata. 
+                            Você pode reverter qualquer exclusão ou reset de progresso enquanto a ação estiver visível nesta lista.
+                          </p>
+                        </div>
                     </div>
                 </div>
 
