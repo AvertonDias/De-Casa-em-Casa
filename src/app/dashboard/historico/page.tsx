@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -47,6 +46,7 @@ function HistoricoPage() {
             const territoriesSnap = await getDocs(territoriesRef);
             
             const currentLogsRef = collection(db, 'congregations', congregationId, 'auditLogs');
+            // Buscamos apenas os detalhes para evitar duplicar o que já está lá
             const currentLogsSnap = await getDocs(query(currentLogsRef, where('action', '==', 'HOUSE_COMPLETED')));
             const existingDetails = new Set(currentLogsSnap.docs.map(d => d.data().details));
 
@@ -57,6 +57,7 @@ function HistoricoPage() {
 
                 historySnap.forEach(hDoc => {
                     const hData = hDoc.data();
+                    // Limpar o prefixo recuperado se ele vier do banco legado
                     const rawDetail = (hData.description || hData.notes || `Casa marcada no território ${tData.number}.`).replace(/^\[Recuperado\]\s*/i, '');
                     
                     if (!existingDetails.has(rawDetail)) {
@@ -129,8 +130,10 @@ function HistoricoPage() {
             const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', houseId);
             const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
             
+            // CORREÇÃO: Transações exigem que TODAS as leituras venham antes das escritas
             await runTransaction(db, async (transaction) => {
                 const qSnap = await transaction.get(quadraRef);
+                
                 transaction.set(houseRef, casaData);
                 if (qSnap.exists()) {
                     transaction.update(quadraRef, { 
@@ -268,7 +271,8 @@ function HistoricoPage() {
   };
 
   const filteredLogs = useMemo(() => {
-    return logs.filter(log => {
+    // 1. Filtrar registros por busca e tipo
+    const filtered = logs.filter(log => {
       const term = searchTerm.toLowerCase();
       const details = formatDetails(log);
       const matchesSearch = 
@@ -282,6 +286,23 @@ function HistoricoPage() {
 
       return matchesSearch && matchesAction;
     });
+
+    // 2. Lógica de Deduplicação Inteligente
+    // Remove registros idênticos disparados no mesmo segundo
+    const uniqueLogs: AuditLog[] = [];
+    const seen = new Set<string>();
+
+    filtered.forEach(log => {
+        const timeKey = Math.floor(log.timestamp.toMillis() / 1000); // Agrupar por segundo
+        const uniqueKey = `${log.userId}-${log.action}-${log.details}-${timeKey}`;
+        
+        if (!seen.has(uniqueKey)) {
+            uniqueLogs.push(log);
+            seen.add(uniqueKey);
+        }
+    });
+
+    return uniqueLogs;
   }, [logs, searchTerm, actionFilter]);
 
   const getActionBadge = (action: string) => {
@@ -314,7 +335,7 @@ function HistoricoPage() {
             <History className="text-primary" />
             Histórico de Alterações
           </h1>
-          <p className="text-muted-foreground text-sm">Monitorando atividade em tempo real.</p>
+          <p className="text-muted-foreground text-sm">Consultando registros em tempo real.</p>
         </div>
         <div className="flex items-center gap-2">
             {isReconstructing && (
@@ -368,7 +389,7 @@ function HistoricoPage() {
                         <div className="flex flex-col gap-2 items-start">
                             {getActionBadge(log.action)}
                             {log.metadata?.revertData && isAdmin && (
-                                <Button variant="info" size="xs" className="h-7 text-[10px] font-bold" disabled={revertingIds.has(log.id)} onClick={() => handleRevertAction(log)}>
+                                <Button variant="info" size="sm" className="h-7 text-[10px] font-bold" disabled={revertingIds.has(log.id)} onClick={() => handleRevertAction(log)}>
                                     {revertingIds.has(log.id) ? <Loader className="animate-spin mr-1 h-3 w-3"/> : <Undo2 size={12} className="mr-1"/>} Reverter
                                 </Button>
                             )}
@@ -381,11 +402,6 @@ function HistoricoPage() {
                                <span className="leading-relaxed text-muted-foreground">
                                  {formatDetails(log)}
                                </span>
-                               {log.action === 'TERRITORY_DELETED_SUSPECT' && (
-                                   <div className="text-[10px] bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 p-2 rounded border border-yellow-500/20 mt-1">
-                                       <strong>Dica de Recuperação:</strong> Como este território foi excluído antes do sistema de lixeira, você pode usar a <strong>Recuperação Pontual (PITR)</strong> no console do Firebase para restaurar o banco para a data acima.
-                                   </div>
-                               )}
                            </div>
                         </div>
                       </td>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, deleteField, getDoc, arrayRemove } from "firebase/firestore";
@@ -51,6 +50,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const router = useRouter();
   const { toast } = useToast();
 
+  // Estados declarados no topo para evitar erro de Hooks
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
   const [quadras, setQuadras] = useState<Quadra[]>([]);
@@ -235,7 +235,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const handleDeleteTerritory = (tid: string) => {
     setConfirmAction({
       title: "Excluir Território",
-      message: "Isso apagará todas as quadras e casas deste território. Esta ação é lenta e irreversível.",
+      message: "Isso apagará todas as quadras e casas deste território. Esta ação é irreversível.",
       action: async () => {
         setIsProcessingAction(true);
         try {
@@ -272,7 +272,6 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           histSnap.forEach(h => batch.delete(h.ref));
           batch.delete(territoryRef);
 
-          // Atualizar totais da congregação
           const congRef = doc(db, 'congregations', congregationId);
           const congSnap = await getDoc(congRef);
           if (congSnap.exists()) {
@@ -290,14 +289,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           
           await batch.commit();
 
-          logEvent(
-            congregationId, 
-            user!.uid, 
-            user!.name, 
-            'TERRITORY_DELETED', 
-            `Excluiu o território ${territory?.number} - ${territory?.name} e todos os seus dados.`, 
-            { territoryId: tid, territoryNumber: territory?.number, revertData }
-          );
+          logEvent(congregationId, user!.uid, user!.name, 'TERRITORY_DELETED', `Excluiu o território ${territory?.number} - ${territory?.name}.`, { territoryId: tid, territoryNumber: territory?.number, revertData });
 
           toast({ title: "Território Excluído" });
           router.push('/dashboard/territorios');
@@ -371,16 +363,8 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
 
           await batch.commit();
 
-          logEvent(
-            user.congregationId, 
-            user.uid, 
-            user.name, 
-            'TERRITORY_RESET', 
-            `Limpou o progresso e o histórico do território ${territory?.number}.`, 
-            { territoryId: tid }
-          );
-
-          toast({ title: "Território Resetado", description: "O progresso e o histórico foram limpos com sucesso." });
+          logEvent(user.congregationId, user.uid, user.name, 'TERRITORY_RESET', `Limpou o progresso e o histórico do território ${territory?.number}.`, { territoryId: tid });
+          toast({ title: "Território Resetado" });
         } catch (error: any) {
           toast({ title: "Erro ao resetar", description: "Falha na operação.", variant: "destructive" });
         } finally {
@@ -398,182 +382,91 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const isManagerView = ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'].includes(user!.role);
   const isPublicador = user!.role === 'Publicador';
 
-  const quadrasSection = (
-    <div className="bg-card p-6 rounded-lg shadow-md">
-        <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold flex items-center"><LayoutGrid className="mr-3 text-primary" />Quadras</h2>
-            {isManagerView && <Button onClick={() => setIsAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
-        </div>
-        {isPublicador ? (
-            <div className="divide-y divide-border -mx-6 px-6">
-                {quadras.map(q => (
-                    <Link key={q.id} href={`/dashboard/territorios/${territoryId}/quadras/${q.id}`} className="block">
-                        <QuadraListItem quadra={q} />
-                    </Link>
-                ))}
-            </div>
-        ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {quadras.map(q => (
-                    <Link key={q.id} href={`/dashboard/territorios/${territoryId}/quadras/${q.id}`} className="block">
-                        <QuadraCard quadra={q} isManagerView={isManagerView} onEdit={(e) => handleEditQuadraClick(e, q)} hideStats={isPublicador} />
-                    </Link>
-                ))}
-            </div>
-        )}
-    </div>
-  );
-
-  const cardSection = territory.cardUrl && (
-    <div className="bg-card p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-bold mb-4 flex items-center gap-3">
-            <FileImage className="text-primary" />
-            Cartão do Território
-        </h2>
-        <div 
-            className="cursor-pointer overflow-hidden rounded-lg border border-border/50 hover:opacity-90 transition-opacity"
-            onClick={() => { setSelectedImageUrl(territory.cardUrl!); setIsPreviewModalOpen(true); }}
-        >
-            <img 
-                src={territory.cardUrl} 
-                alt="Cartão do Mapa" 
-                className="w-full h-auto max-h-[400px] object-contain mx-auto"
-            />
-        </div>
-    </div>
-  );
-
-  const mapSection = territory.mapLink && (
-    <div className="bg-card p-6 rounded-lg shadow-md">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-            <h2 className="text-xl font-bold flex items-center gap-3">
-                <Map className="text-primary" />
-                Mapa do Território
-            </h2>
-            <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
-                <a href={territory.mapLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
-                    <Navigation size={14} className="text-blue-500" />
-                    <span>Usar GPS (Abrir App)</span>
-                </a>
-            </Button>
-        </div>
-        <div className="aspect-video w-full overflow-hidden rounded-lg border border-border/50 bg-muted">
-            <GoogleMapEmbed mapLink={territory.mapLink} />
-        </div>
-    </div>
-  );
-
-  const assignmentHistorySection = (
-    <div className="w-full">
-        <Accordion type="single" collapsible className="w-full bg-card rounded-lg shadow-md overflow-hidden">
-            <AccordionItem value="assignment-history" className="border-b-0">
-                <AccordionTrigger className="px-6 hover:no-underline font-semibold text-lg">
-                    <div className="flex items-center gap-3">
-                        <History className="text-primary" />
-                        <span>Histórico e Designação Atual</span>
-                    </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                    <AssignmentHistory 
-                        currentAssignment={territory.assignment}
-                        pastAssignments={territory.assignmentHistory || []}
-                        onEdit={(log) => { setHistoryLogToEdit(log); setIsEditLogModalOpen(true); }}
-                        onDelete={(log) => {
-                            setConfirmAction({
-                                title: "Excluir Registro",
-                                message: `Tem certeza que deseja excluir o registro de ${log.name}?`,
-                                action: async () => handleDeleteHistoryLog(log)
-                            });
-                            setIsConfirmModalOpen(true);
-                        }}
-                    />
-                </AccordionContent>
-            </AccordionItem>
-        </Accordion>
-    </div>
-  );
-
-  const headerSection = (
-    <div className="space-y-6">
-        <Link href="/dashboard/territorios" className="text-sm flex items-center"><ArrowLeft className="mr-2 h-4" /> Voltar</Link>
-        <div className="flex justify-between items-start">
-            <div><h1 className="text-3xl font-bold">{territory.number} - {territory.name}</h1><p className="text-muted-foreground">{territory.description}</p></div>
-            {isManagerView && <Button onClick={() => setIsEditTerritoryModalOpen(true)}><Edit className="mr-2 h-4" /> Editar</Button>}
-        </div>
-    </div>
-  );
-
   return (
     <div className="p-4 space-y-6">
-        {headerSection}
+        <div className="space-y-6">
+            <Link href="/dashboard/territorios" className="text-sm flex items-center"><ArrowLeft className="mr-2 h-4" /> Voltar</Link>
+            <div className="flex justify-between items-start">
+                <div><h1 className="text-3xl font-bold">{territory.number} - {territory.name}</h1><p className="text-muted-foreground">{territory.description}</p></div>
+                {isManagerView && <Button onClick={() => setIsEditTerritoryModalOpen(true)}><Edit className="mr-2 h-4" /> Editar</Button>}
+            </div>
+        </div>
         
         {isPublicador ? (
             <>
-                {quadrasSection}
-                {cardSection}
-                {mapSection}
+                <div className="bg-card p-6 rounded-lg shadow-md">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold flex items-center"><LayoutGrid className="mr-3 text-primary" />Quadras</h2>
+                    </div>
+                    <div className="divide-y divide-border -mx-6 px-6">
+                        {quadras.map(q => (
+                            <Link key={q.id} href={`/dashboard/territorios/${territoryId}/quadras/${q.id}`} className="block">
+                                <QuadraListItem quadra={q} />
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+                {territory.cardUrl && (
+                    <div className="bg-card p-6 rounded-lg shadow-md">
+                        <h2 className="text-xl font-bold mb-4 flex items-center gap-3"><FileImage className="text-primary" />Cartão do Território</h2>
+                        <div className="cursor-pointer overflow-hidden rounded-lg border border-border/50" onClick={() => { setSelectedImageUrl(territory.cardUrl!); setIsPreviewModalOpen(true); }}>
+                            <img src={territory.cardUrl} alt="Cartão" className="w-full h-auto max-h-[400px] object-contain mx-auto"/>
+                        </div>
+                    </div>
+                )}
+                {territory.mapLink && (
+                    <div className="bg-card p-6 rounded-lg shadow-md">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold flex items-center gap-3"><Map className="text-primary" />Mapa</h2>
+                            <Button variant="outline" size="sm" asChild><a href={territory.mapLink} target="_blank" rel="noopener noreferrer"><Navigation size={14} className="mr-2 text-blue-500" />Abrir GPS</a></Button>
+                        </div>
+                        <div className="aspect-video w-full rounded-lg overflow-hidden border bg-muted"><GoogleMapEmbed mapLink={territory.mapLink} /></div>
+                    </div>
+                )}
                 <ActivityHistory territoryId={territory.id} history={activityHistory} />
-                {assignmentHistorySection}
                 <ProgressSection territory={territory} />
             </>
         ) : (
             <>
                 <ProgressSection territory={territory} />
                 <ActivityHistory territoryId={territory.id} history={activityHistory} />
-                {assignmentHistorySection}
-                {cardSection}
-                {mapSection}
-                {quadrasSection}
+                <div className="w-full">
+                    <Accordion type="single" collapsible className="w-full bg-card rounded-lg shadow-md overflow-hidden">
+                        <AccordionItem value="assignment-history" className="border-b-0">
+                            <AccordionTrigger className="px-6 hover:no-underline font-semibold text-lg"><div className="flex items-center gap-3"><History className="text-primary" /><span>Histórico</span></div></AccordionTrigger>
+                            <AccordionContent>
+                                <AssignmentHistory 
+                                    currentAssignment={territory.assignment}
+                                    pastAssignments={territory.assignmentHistory || []}
+                                    onEdit={(log) => { setHistoryLogToEdit(log); setIsEditLogModalOpen(true); }}
+                                    onDelete={(log) => { setConfirmAction({ title: "Excluir Registro", message: `Excluir o registro de ${log.name}?`, action: async () => handleDeleteHistoryLog(log) }); setIsConfirmModalOpen(true); }}
+                                />
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+                </div>
+                <div className="bg-card p-6 rounded-lg shadow-md">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold flex items-center"><LayoutGrid className="mr-3 text-primary" />Quadras</h2>
+                        {isManagerView && <Button onClick={() => setIsAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {quadras.map(q => (
+                            <Link key={q.id} href={`/dashboard/territorios/${territoryId}/quadras/${q.id}`} className="block">
+                                <QuadraCard quadra={q} isManagerView={isManagerView} onEdit={(e) => handleEditQuadraClick(e, q)} />
+                            </Link>
+                        ))}
+                    </div>
+                </div>
             </>
         )}
 
-        <EditTerritoryModal 
-          isOpen={isEditTerritoryModalOpen} 
-          onClose={() => setIsEditTerritoryModalOpen(false)} 
-          territory={territory} 
-          onSave={handleSaveTerritory} 
-          onDelete={handleDeleteTerritory} 
-          onReset={handleResetTerritory} 
-        />
-        
-        <AddQuadraModal 
-            isOpen={isAddQuadraModalOpen} 
-            onClose={() => setIsAddQuadraModalOpen(false)} 
-            onSave={handleAddQuadra} 
-            existingQuadrasCount={quadras.length} 
-        />
-
-        <EditQuadraModal
-            isOpen={isEditQuadraModalOpen}
-            onClose={() => setIsEditQuadraModalOpen(false)}
-            quadra={selectedQuadra}
-            onSave={handleSaveQuadra}
-            onDelete={handleDeleteQuadra}
-        />
-
-        <AddEditAssignmentLogModal
-            isOpen={isEditLogModalOpen}
-            onClose={() => setIsEditLogModalOpen(false)}
-            onSave={handleSaveHistoryLog}
-            logToEdit={historyLogToEdit}
-        />
-
-        <ImagePreviewModal 
-            isOpen={isPreviewModalOpen} 
-            onClose={() => setIsPreviewModalOpen(false)} 
-            imageUrl={selectedImageUrl} 
-        />
-
-        {confirmAction && (
-            <ConfirmationModal 
-                isOpen={isConfirmModalOpen} 
-                onClose={() => setIsConfirmModalOpen(false)} 
-                onConfirm={confirmAction.action} 
-                title={confirmAction.title} 
-                message={confirmAction.message} 
-                isLoading={isProcessingAction} 
-            />
-        )}
+        <EditTerritoryModal isOpen={isEditTerritoryModalOpen} onClose={() => setIsEditTerritoryModalOpen(false)} territory={territory} onSave={handleSaveTerritory} onDelete={handleDeleteTerritory} onReset={handleResetTerritory} />
+        <AddQuadraModal isOpen={isAddQuadraModalOpen} onClose={() => setIsAddQuadraModalOpen(false)} onSave={handleAddQuadra} existingQuadrasCount={quadras.length} />
+        <EditQuadraModal isOpen={isEditQuadraModalOpen} onClose={() => setIsEditQuadraModalOpen(false)} quadra={selectedQuadra} onSave={handleSaveQuadra} onDelete={handleDeleteQuadra} />
+        <AddEditAssignmentLogModal isOpen={isEditLogModalOpen} onClose={() => setIsEditLogModalOpen(false)} onSave={handleSaveHistoryLog} logToEdit={historyLogToEdit} />
+        <ImagePreviewModal isOpen={isPreviewModalOpen} onClose={() => setIsPreviewModalOpen(false)} imageUrl={selectedImageUrl} />
+        {confirmAction && <ConfirmationModal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} onConfirm={confirmAction.action} title={confirmAction.title} message={confirmAction.message} isLoading={isProcessingAction} />}
     </div>
   );
 }
