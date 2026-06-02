@@ -49,7 +49,6 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const router = useRouter();
   const { toast } = useToast();
 
-  // Hooks de estado movidos para o topo absoluto para evitar erro de renderização
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
   const [quadras, setQuadras] = useState<Quadra[]>([]);
@@ -86,7 +85,10 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   }, [territoryId, user]);
 
   const handleSaveTerritory = async (tid: string, data: Partial<Territory>) => {
-      await updateDoc(doc(db, 'congregations', user!.congregationId!, 'territories', tid), { ...data, lastUpdate: serverTimestamp() });
+      if (!user?.congregationId) return;
+      await updateDoc(doc(db, 'congregations', user.congregationId, 'territories', tid), { ...data, lastUpdate: serverTimestamp() });
+      logEvent(user.congregationId, user.uid, user.name, 'TERRITORY_EDITED', `Editou os dados do território ${territory?.number} - ${territory?.name}.`, { territoryId: tid });
+      toast({ title: "Território atualizado" });
   };
 
   const handleAddQuadra = async (data: { name: string, description: string }) => {
@@ -290,7 +292,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           }
 
           await batch.commit();
-          logEvent(user.congregationId, user.uid, user.name, 'TERRITORY_RESET', `Limpou o progresso do território ${territory?.number}.`, { territoryId: tid, territoryNumber: territory?.number });
+          logEvent(user.congregationId, user.uid, user.name, 'TERRITORY_RESET', `Limpou o progresso e o histórico do território ${territory?.number} - ${territory?.name}.`, { territoryId: tid, territoryNumber: territory?.number });
           toast({ title: "Território Resetado" });
         } catch (error: any) {
           toast({ title: "Erro ao resetar", variant: "destructive" });

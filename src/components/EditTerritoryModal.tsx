@@ -8,7 +8,6 @@ import { useUser } from "@/contexts/UserContext";
 import { Territory } from "@/types/types";
 import { X, AlertCircle, FileImage, Loader } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { logEvent } from "@/lib/audit";
 
 interface EditTerritoryModalProps {
   territory: Territory;
@@ -22,9 +21,7 @@ interface EditTerritoryModalProps {
 export default function EditTerritoryModal({ territory, isOpen, onClose, onSave, onReset, onDelete }: EditTerritoryModalProps) {
   const { user } = useUser();
   const isAdmin = user?.role === 'Administrador';
-  const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios';
-  const { toast } = useToast();
-
+  
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -103,49 +100,21 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
       dataToSave.cardUrl = previewUrl || cardUrl;
     }
 
+    // O log do evento agora é disparado apenas na função onSave da página pai
     await onSave(territory.id, dataToSave);
-    
-    if (user?.congregationId) {
-        logEvent(
-            user.congregationId, 
-            user.uid, 
-            user.name, 
-            'TERRITORY_EDITED', 
-            `Editou os dados do território ${territory.number} - ${territory.name}.`,
-            { territoryId: territory.id }
-        );
-    }
 
     setIsProcessing(false);
     onClose();
   };
 
   const handleResetRequest = () => {
+      // O log do evento agora é disparado apenas na função onReset da página pai
       onReset(territory.id);
-      if (user?.congregationId) {
-          logEvent(
-              user.congregationId, 
-              user.uid, 
-              user.name, 
-              'TERRITORY_RESET', 
-              `Limpou o progresso e o histórico do território ${territory.number} - ${territory.name}.`,
-              { territoryId: territory.id }
-          );
-      }
   };
 
   const handleDeleteRequest = () => {
+      // O log do evento agora é disparado apenas na função onDelete da página pai
       onDelete(territory.id);
-      if (user?.congregationId) {
-          logEvent(
-              user.congregationId, 
-              user.uid, 
-              user.name, 
-              'TERRITORY_DELETED', 
-              `Excluiu permanentemente o território ${territory.number} - ${territory.name}.`,
-              { territoryId: territory.id }
-          );
-      }
   };
 
   const handleClose = () => {
