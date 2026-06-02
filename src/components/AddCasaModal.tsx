@@ -28,9 +28,10 @@ interface AddCasaModalProps {
   quadraId: string;
   onCasaAdded: () => void;
   congregationId: string;
+  territoryNumber?: string;
 }
 
-export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationId }: AddCasaModalProps) {
+export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationId, territoryNumber }: AddCasaModalProps) {
   const { user, congregation } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   const [number, setNumber] = useState('');
@@ -78,7 +79,7 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
         
         const order = casasSnapshot.size;
         const newCasaRef = doc(casasRef); 
-        const territoryNumber = territoryDoc.data().number;
+        const currentTerritoryNumber = territoryDoc.data().number;
 
         const casaData: any = {
             number: number.toUpperCase(),
@@ -94,7 +95,7 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
             transaction.set(newActivityRef, {
                 type: "work",
                 activityDate: Timestamp.now(),
-                description: `Casa ${number.toUpperCase()} do território ${territoryNumber} foi feita.`,
+                description: `Casa ${number.toUpperCase()} do território ${currentTerritoryNumber} foi feita.`,
                 userId: 'automatic_system_log',
                 userName: user.name,
                 createdAt: serverTimestamp(),
@@ -127,7 +128,8 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
             totalHousesDone: (congDoc.data().totalHousesDone || 0) + (status ? 1 : 0)
         });
     }).then(() => {
-        logEvent(congregationId, user.uid, user.name, 'HOUSE_CREATED', `Adicionou a casa ${number.toUpperCase()} no território ${territoryId}.`, { territoryId, quadraId, houseNumber: number });
+        const finalTerritoryNumber = territoryNumber || territoryId;
+        logEvent(congregationId, user.uid, user.name, 'HOUSE_CREATED', `Adicionou a casa ${number.toUpperCase()} no território ${finalTerritoryNumber}.`, { territoryId, quadraId, houseNumber: number, territoryNumber: finalTerritoryNumber });
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: quadraRef.path,

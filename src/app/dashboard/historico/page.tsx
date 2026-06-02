@@ -57,18 +57,17 @@ function HistoricoPage() {
 
                 historySnap.forEach(hDoc => {
                     const hData = hDoc.data();
-                    const rawDetail = hData.description || hData.notes || `Casa marcada no território ${tData.number}.`;
-                    const detailText = rawDetail.replace(/^\[Recuperado\]\s*/i, '');
+                    const rawDetail = (hData.description || hData.notes || `Casa marcada no território ${tData.number}.`).replace(/^\[Recuperado\]\s*/i, '');
                     
-                    if (!existingDetails.has(detailText)) {
+                    if (!existingDetails.has(rawDetail)) {
                         const newLogRef = doc(currentLogsRef);
                         batch.set(newLogRef, {
                             userId: hData.userId || 'past_sync',
                             userName: hData.userName || 'Sistema',
                             action: 'HOUSE_COMPLETED',
-                            details: detailText.includes('território') ? detailText : `Marcou casa no território ${tData.number}. ${detailText}`,
+                            details: rawDetail.includes('território') ? rawDetail : `Marcou casa no território ${tData.number}. ${rawDetail}`,
                             timestamp: hData.activityDate || hData.createdAt || Timestamp.now(),
-                            metadata: { territoryId: tDoc.id, isRecovered: true }
+                            metadata: { territoryId: tDoc.id, territoryNumber: tData.number, isRecovered: true }
                         });
                         addedCount++;
                     }
@@ -149,10 +148,10 @@ function HistoricoPage() {
             const { quadra, casas } = revertData;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
             const quadraRef = doc(territoryRef, 'quadras', quadraId);
+            const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
                 const terrSnap = await transaction.get(territoryRef);
-                const congRef = doc(db, 'congregations', congregationId);
                 const congSnap = await transaction.get(congRef);
 
                 transaction.set(quadraRef, quadra);
@@ -255,12 +254,26 @@ function HistoricoPage() {
     }
   };
 
+  const formatDetails = (log: AuditLog) => {
+    let details = log.details.replace(/^\[Recuperado\]\s*/i, '');
+    
+    // Se tivermos o número do território no metadata, tentamos substituir o ID se ele aparecer
+    if (log.metadata?.territoryNumber) {
+      const id = log.metadata.territoryId;
+      if (id && details.includes(id)) {
+        details = details.split(id).join(log.metadata.territoryNumber);
+      }
+    }
+    return details;
+  };
+
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
       const term = searchTerm.toLowerCase();
+      const details = formatDetails(log);
       const matchesSearch = 
         log.userName?.toLowerCase().includes(term) || 
-        log.details?.toLowerCase().includes(term) ||
+        details?.toLowerCase().includes(term) ||
         log.action?.toLowerCase().includes(term);
       
       const matchesAction = actionFilter === 'all' || 
@@ -366,7 +379,7 @@ function HistoricoPage() {
                            <Info size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
                            <div className="flex flex-col gap-1">
                                <span className="leading-relaxed text-muted-foreground">
-                                 {log.details.replace(/^\[Recuperado\]\s*/i, '')}
+                                 {formatDetails(log)}
                                </span>
                                {log.action === 'TERRITORY_DELETED_SUSPECT' && (
                                    <div className="text-[10px] bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 p-2 rounded border border-yellow-500/20 mt-1">

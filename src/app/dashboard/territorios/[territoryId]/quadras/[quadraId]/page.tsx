@@ -406,7 +406,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                 )}
               </div>
               <div className="flex gap-2">
-                <AddCasaModal territoryId={territoryId} quadraId={quadraId} congregationId={user.congregationId} onCasaAdded={() => {}} />
+                <AddCasaModal territoryId={territoryId} quadraId={quadraId} congregationId={user.congregationId} territoryNumber={territory?.number} onCasaAdded={() => {}} />
                 <Button onClick={() => setIsReorderModalOpen(true)} variant="info">
                   <ArrowUpDown className="h-4 w-4 mr-2" />
                   Reordenar
