@@ -99,7 +99,7 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
             transaction.set(newActivityRef, {
                 type: "work",
                 activityDate: Timestamp.now(),
-                description: `Casa ${number.toUpperCase()} (da ${quadraDoc.data().name}) foi feita ao ser adicionada.`,
+                description: `Casa ${number.toUpperCase()} (da ${quadraDoc.data().name}) do território ${territoryDoc.data().number} foi feita ao ser adicionada.`,
                 userId: 'automatic_system_log',
                 userName: user.name,
                 createdAt: serverTimestamp(),

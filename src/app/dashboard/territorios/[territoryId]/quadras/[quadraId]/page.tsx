@@ -197,7 +197,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             transaction.set(newActivityRef, {
                 type: "work",
                 activityDate: Timestamp.now(),
-                description: `Casa ${casa.number} (da ${quadraDoc.data().name}) foi feita.`,
+                description: `Casa ${casa.number} (da ${quadraDoc.data().name}) do território ${territoryDoc.data().number} foi feita.`,
                 userId: 'automatic_system_log',
                 userName: user.name,
             });

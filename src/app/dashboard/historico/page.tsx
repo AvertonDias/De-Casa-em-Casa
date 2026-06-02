@@ -113,12 +113,19 @@ function HistoricoPage() {
             
             activitySnap.forEach(aDoc => {
                 const activity = aDoc.data() as Activity;
+                let details = activity.description || activity.notes || '';
+                
+                // Adiciona informação do território se não estiver presente
+                if (activity.type === 'work' && !details.toLowerCase().includes('território')) {
+                    details = `${details.replace(/\.$/, '')} do território ${territory.number}.`;
+                }
+
                 reconstructedLogs.push({
                     id: `rec_act_${aDoc.id}`,
                     userId: activity.userId,
                     userName: activity.userName,
                     action: activity.type === 'work' ? 'HOUSE_COMPLETED' : 'MANUAL_LOG',
-                    details: `${activity.description || activity.notes}`,
+                    details: details,
                     timestamp: activity.activityDate,
                     metadata: { reconstructed: true, territoryId: territory.id }
                 });
