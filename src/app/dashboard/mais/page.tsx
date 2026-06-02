@@ -25,7 +25,9 @@ import {
   RefreshCcw,
   UserPlus,
   Trees,
-  DatabaseBackup
+  DatabaseBackup,
+  ArrowDownUp,
+  MessageCircle
 } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
@@ -235,7 +237,7 @@ function MaisPage() {
                     transaction.update(territoryRef, {
                         "stats.housesDone": newDone,
                         progress: newDone / total,
-                        lastUpdate: Timestamp.now()
+                        lastUpdate: serverTimestamp()
                     });
                 }
                 
@@ -277,7 +279,8 @@ function MaisPage() {
     const uniqueLogs: AuditLog[] = [];
     const seen = new Set<string>();
     filtered.forEach(log => {
-        const timestampMillis = log.timestamp?.toMillis ? log.timestamp.toMillis() : 0;
+        if (!log.timestamp) return;
+        const timestampMillis = log.timestamp.toMillis();
         const timeKey = Math.floor(timestampMillis / 1000);
         const uniqueKey = `${log.userId}-${log.action}-${(log.details || '').substring(0, 40)}-${timeKey}`;
         
@@ -316,8 +319,10 @@ function MaisPage() {
       'HOUSE_EDITED': { label: 'Edição', icon: Edit3, color: 'bg-gray-500/15 text-gray-400 border-gray-500/20' },
       'HOUSE_DELETED': { label: 'Casa Excluída', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
       'QUADRA_CREATED': { label: 'Nova Quadra', icon: LayoutGrid, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
+      'QUADRA_EDITED': { label: 'Quadra Editada', icon: Edit3, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
       'QUADRA_DELETED': { label: 'Quadra Excluída', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
       'TERRITORY_CREATED': { label: 'Novo Território', icon: MapPin, color: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20' },
+      'TERRITORY_EDITED': { label: 'Território Editado', icon: Edit3, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
       'TERRITORY_DELETED': { label: 'Território Excluído', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
       'TERRITORY_RESET': { label: 'Progresso Resetado', icon: RefreshCcw, color: 'bg-orange-500/15 text-orange-500 border-orange-500/20' },
       'REVERT_ACTION': { label: 'Ação Revertida', icon: Undo2, color: 'bg-purple-500/15 text-purple-400 border-purple-500/20' },
@@ -327,8 +332,13 @@ function MaisPage() {
       'USER_EDITED': { label: 'Perfil Alterado', icon: Edit3, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
       'USER_DELETED': { label: 'Usuário Removido', icon: Trash2, color: 'bg-red-600/15 text-red-500 border-red-600/20' },
       'RURAL_WORK_LOGGED': { label: 'Trabalho Rural', icon: Trees, color: 'bg-green-500/15 text-green-500 border-green-500/20' },
+      'RURAL_LOG_EDITED': { label: 'Log Rural Editado', icon: Edit3, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
       'RURAL_LOG_DELETED': { label: 'Log Rural Excluído', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
       'BACKUP_RESTORED': { label: 'Backup Restaurado', icon: DatabaseBackup, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
+      'CASAS_REORDERED': { label: 'Reordenamento', icon: ArrowDownUp, color: 'bg-purple-500/15 text-purple-400 border-purple-500/20' },
+      'HISTORY_EDITED': { label: 'Histórico Editado', icon: Edit3, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
+      'HISTORY_DELETED': { label: 'Histórico Excluído', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
+      'OVERDUE_NOTIFIED': { label: 'Cobrança WhatsApp', icon: MessageCircle, color: 'bg-yellow-500/15 text-yellow-500 border-yellow-500/20' },
     };
 
     const item = config[action] || { label: action.replace(/_/g, ' '), icon: Info, color: 'bg-muted text-muted-foreground' };
