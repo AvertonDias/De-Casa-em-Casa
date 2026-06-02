@@ -14,12 +14,18 @@ import {
   Search,
   Undo2,
   Loader,
-  RefreshCw,
   X,
   Info,
   UserCheck,
   MapPin,
-  Users
+  Users,
+  CheckCircle,
+  AlertTriangle,
+  PlusCircle,
+  Edit3,
+  Trash2,
+  RefreshCcw,
+  UserPlus
 } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
@@ -50,7 +56,7 @@ function MaisPage() {
   
   // Estados do Histórico
   const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [territoryMap, setTerritoryMap] = useState<Record<string, string>>({}); // ID -> Number
+  const [territoryMap, setTerritoryMap] = useState<Record<string, string>>({}); 
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [revertingIds, setRevertingIds] = useState<Set<string>>(new Set());
   const [searchTermLogs, setSearchTermLogs] = useState('');
@@ -59,7 +65,6 @@ function MaisPage() {
   const isAdmin = user?.role === 'Administrador';
   const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
 
-  // Buscar territórios para mapear IDs para números no histórico
   useEffect(() => {
     if (!user?.congregationId || !isManager) return;
     const terRef = collection(db, 'congregations', user.congregationId, 'territories');
@@ -73,7 +78,6 @@ function MaisPage() {
     return () => unsub();
   }, [user?.congregationId, isManager]);
 
-  // Lógica de busca de logs
   const fetchLogs = useCallback(() => {
     if (!user?.congregationId || !isAdmin) return;
     setLoadingLogs(true);
@@ -198,46 +202,29 @@ function MaisPage() {
 
   const filteredLogs = useMemo(() => {
     const term = searchTermLogs.toLowerCase();
-    
-    // 1. Filtragem e Limpeza de IDs
     const filtered = logs.filter(log => {
-      let details = (log.details || '').replace(/^\[Recuperado\]\s*/i, '');
-      
-      // Tentar substituir IDs técnicos por números de territórios na descrição para a busca
+      let details = (log.details || '');
       Object.entries(territoryMap).forEach(([id, number]) => {
           if (details.includes(id)) {
               details = details.replace(new RegExp(id, 'g'), number);
           }
       });
-
-      const matchesSearch = 
-          log.userName?.toLowerCase().includes(term) || 
-          details.toLowerCase().includes(term) || 
-          log.action?.toLowerCase().includes(term);
-      
+      const matchesSearch = log.userName?.toLowerCase().includes(term) || details.toLowerCase().includes(term);
       let matchesAction = true;
-      if (actionFilterLogs === 'all') matchesAction = true;
-      else if (actionFilterLogs === 'deletions') matchesAction = log.action.includes('DELETED') || log.action.includes('UNMARKED');
+      if (actionFilterLogs === 'deletions') matchesAction = log.action.includes('DELETED') || log.action.includes('UNMARKED');
       else if (actionFilterLogs === 'creation') matchesAction = log.action.includes('CREATED');
       else if (actionFilterLogs === 'users') matchesAction = log.action.includes('USER_');
-      else matchesAction = log.action === actionFilterLogs;
+      else if (actionFilterLogs !== 'all') matchesAction = log.action === actionFilterLogs;
 
       return matchesSearch && matchesAction;
     });
 
-    // 2. Deduplicação inteligente
     const uniqueLogs: AuditLog[] = [];
     const seen = new Set<string>();
     filtered.forEach(log => {
         const timeKey = Math.floor(log.timestamp.toMillis() / 1000);
-        // Chave única baseada em usuário, ação e primeiros 50 caracteres do detalhe (para ignorar pequenas variações de ID)
-        const detailsSnippet = (log.details || '').substring(0, 50);
-        const uniqueKey = `${log.userId}-${log.action}-${detailsSnippet}-${timeKey}`;
-        
-        if (!seen.has(uniqueKey)) { 
-            uniqueLogs.push(log); 
-            seen.add(uniqueKey); 
-        }
+        const uniqueKey = `${log.userId}-${log.action}-${(log.details || '').substring(0, 40)}-${timeKey}`;
+        if (!seen.has(uniqueKey)) { uniqueLogs.push(log); seen.add(uniqueKey); }
     });
     return uniqueLogs;
   }, [logs, searchTermLogs, actionFilterLogs, territoryMap]);
@@ -261,6 +248,37 @@ function MaisPage() {
     );
   };
 
+  const getActionBadge = (action: string) => {
+    const config: Record<string, { label: string, icon: any, color: string }> = {
+      'HOUSE_COMPLETED': { label: 'Conclusão', icon: CheckCircle, color: 'bg-green-500/15 text-green-500 border-green-500/20' },
+      'HOUSE_UNMARKED': { label: 'Desmarcado', icon: X, color: 'bg-yellow-500/15 text-yellow-500 border-yellow-500/20' },
+      'HOUSE_CREATED': { label: 'Novo Número', icon: PlusCircle, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
+      'HOUSE_EDITED': { label: 'Edição', icon: Edit3, color: 'bg-gray-500/15 text-gray-400 border-gray-500/20' },
+      'HOUSE_DELETED': { label: 'Exclusão', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
+      'QUADRA_CREATED': { label: 'Nova Quadra', icon: LayoutGrid, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
+      'QUADRA_DELETED': { label: 'Quadra Excluída', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
+      'TERRITORY_CREATED': { label: 'Novo Território', icon: MapPin, color: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20' },
+      'TERRITORY_DELETED': { label: 'Território Excluído', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
+      'TERRITORY_RESET': { label: 'Reset de Progresso', icon: RefreshCcw, color: 'bg-orange-500/15 text-orange-500 border-orange-500/20' },
+      'REVERT_ACTION': { label: 'Ação Revertida', icon: Undo2, color: 'bg-purple-500/15 text-purple-400 border-purple-500/20' },
+      'TERRITORY_ASSIGNED': { label: 'Designação', icon: UserCheck, color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20' },
+      'TERRITORY_RETURNED': { label: 'Devolução', icon: CheckCircle, color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' },
+      'USER_APPROVED': { label: 'Usuário Aprovado', icon: UserPlus, color: 'bg-green-600/15 text-green-500 border-green-600/20' },
+      'USER_DELETED': { label: 'Usuário Removido', icon: Trash2, color: 'bg-red-600/15 text-red-500 border-red-600/20' },
+      'RURAL_WORK_LOGGED': { label: 'Trabalho Rural', icon: Trees, color: 'bg-green-500/15 text-green-500 border-green-500/20' },
+    };
+
+    const item = config[action] || { label: action.replace(/_/g, ' '), icon: Info, color: 'bg-muted text-muted-foreground' };
+    const Icon = item.icon;
+
+    return (
+      <Badge variant="outline" className={cn("flex items-center gap-1.5 px-2 py-0.5 font-bold text-[10px] uppercase tracking-wider rounded-md", item.color)}>
+        <Icon size={12} />
+        {item.label}
+      </Badge>
+    );
+  };
+
   if (!user || !isManager) return <div className="p-8 text-center"><h1 className="font-bold text-xl">Acesso Negado</h1></div>;
 
   return (
@@ -276,56 +294,18 @@ function MaisPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <MenuCard 
-                id="assignment" 
-                label="Designar" 
-                description="Atribuir territórios aos publicadores e gerenciar prazos."
-                icon={BookUser}
-                colorClass="bg-blue-500/10 text-blue-500"
-            />
-            <MenuCard 
-                id="overview" 
-                label="Estatísticas" 
-                description="Estatísticas detalhadas de cobertura e progresso anual."
-                icon={BarChart3}
-                colorClass="bg-purple-500/10 text-purple-500"
-            />
-            <MenuCard 
-                id="available" 
-                label="Disponíveis" 
-                description="Relatório de territórios prontos para serem designados."
-                icon={ClipboardList}
-                colorClass="bg-green-500/10 text-green-500"
-            />
-            <MenuCard 
-                id="s13" 
-                label="Relatório S-13" 
-                description="Gerar o formulário oficial de designação de territórios."
-                icon={FileText}
-                colorClass="bg-orange-500/10 text-orange-500"
-            />
-            <MenuCard 
-                id="history" 
-                label="Histórico" 
-                description="Consultar logs de auditoria e reverter exclusões acidentais."
-                icon={History}
-                colorClass="bg-indigo-500/10 text-indigo-500"
-                adminOnly
-            />
-            <MenuCard 
-                id="settings" 
-                label="Configurações" 
-                description="Gerenciar dados da congregação e modelos do WhatsApp."
-                icon={Settings}
-                colorClass="bg-gray-500/10 text-gray-400"
-                adminOnly
-            />
+            <MenuCard id="assignment" label="Designar" description="Atribuir territórios aos publicadores." icon={BookUser} colorClass="bg-blue-500/10 text-blue-500" />
+            <MenuCard id="overview" label="Estatísticas" description="Estatísticas detalhadas de cobertura." icon={BarChart3} colorClass="bg-purple-500/10 text-purple-500" />
+            <MenuCard id="available" label="Disponíveis" description="Territórios prontos para designação." icon={ClipboardList} colorClass="bg-green-500/10 text-green-500" />
+            <MenuCard id="s13" label="Relatório S-13" description="Gerar formulário oficial de territórios." icon={FileText} colorClass="bg-orange-500/10 text-orange-500" />
+            <MenuCard id="history" label="Histórico" description="Logs de auditoria e reversão de ações." icon={History} colorClass="bg-indigo-500/10 text-indigo-500" adminOnly />
+            <MenuCard id="settings" label="Configurações" description="Gerenciar dados da congregação." icon={Settings} colorClass="bg-gray-500/10 text-gray-400" adminOnly />
           </div>
         </>
       ) : (
         <div className="space-y-6">
           <Button variant="ghost" onClick={() => setActiveSection('menu')} className="mb-4 text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="mr-2" size={18} /> Voltar ao Menu Principal
+            <ArrowLeft className="mr-2" size={18} /> Voltar ao Menu
           </Button>
 
           {activeSection === 'assignment' && <TerritoryAssignmentPanel />}
@@ -336,78 +316,90 @@ function MaisPage() {
           
           {activeSection === 'history' && (
             <div className="space-y-6">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center px-2">
                     <div>
                         <h2 className="text-3xl font-bold flex items-center gap-2"><History className="text-primary" /> Histórico</h2>
-                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                            <Info size={12} /> Mostrando os últimos 1000 registros para garantir a velocidade do sistema.
-                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">Auditando os últimos 1000 registros de atividade.</p>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="md:col-span-2 relative">
+                <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-grow relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                        <Input placeholder="Buscar por usuário ou território..." value={searchTermLogs} onChange={(e) => setSearchTermLogs(e.target.value)} className="pl-10" />
+                        <Input placeholder="Buscar por usuário ou território..." value={searchTermLogs} onChange={(e) => setSearchTermLogs(e.target.value)} className="pl-10 h-11 bg-card border-border/40" />
                     </div>
-                    <div className="md:col-span-2">
+                    <div className="min-w-[220px]">
                         <Select value={actionFilterLogs} onValueChange={setActionFilterLogs}>
-                            <SelectTrigger className="bg-card"><SelectValue placeholder="Filtrar por ação" /></SelectTrigger>
+                            <SelectTrigger className="bg-card h-11 border-border/40"><SelectValue placeholder="Filtrar por ação" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">Todas as ações</SelectItem>
                                 <SelectItem value="HOUSE_COMPLETED">Marcação de Casas</SelectItem>
                                 <SelectItem value="TERRITORY_ASSIGNED">Designações</SelectItem>
-                                <SelectItem value="creation">Novos Territórios/Quadras</SelectItem>
-                                <SelectItem value="users">Gestão de Usuários</SelectItem>
-                                <SelectItem value="deletions">Exclusões e Desmarcações</SelectItem>
+                                <SelectItem value="creation">Criações</SelectItem>
+                                <SelectItem value="users">Usuários</SelectItem>
+                                <SelectItem value="deletions">Exclusões</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                 </div>
 
-                <div className="bg-card rounded-xl border border-border/40 shadow-md overflow-hidden">
+                <div className="bg-card/50 rounded-2xl border border-border/40 shadow-xl overflow-hidden">
                     {loadingLogs ? (
-                        <div className="p-12 text-center"><Loader className="animate-spin text-primary mx-auto" size={32} /></div>
+                        <div className="p-20 text-center"><Loader className="animate-spin text-primary mx-auto" size={40} /></div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className="bg-muted/50 text-muted-foreground font-semibold uppercase text-xs">
-                                    <tr><th className="px-6 py-4">Data</th><th className="px-6 py-4">Usuário</th><th className="px-6 py-4">Ação</th><th className="px-6 py-4">Detalhes</th></tr>
+                            <table className="w-full text-left">
+                                <thead className="bg-muted/40 text-muted-foreground font-bold uppercase text-[10px] tracking-widest border-b border-border/40">
+                                    <tr>
+                                        <th className="px-6 py-4">Data</th>
+                                        <th className="px-6 py-4">Usuário</th>
+                                        <th className="px-6 py-4">Ação</th>
+                                        <th className="px-6 py-4">Detalhes</th>
+                                    </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border/20">
                                     {filteredLogs.length > 0 ? (
                                         filteredLogs.map((log) => {
-                                            // Processar descrição para remover IDs técnicos na exibição
-                                            let displayDetails = (log.details || '').replace(/^\[Recuperado\]\s*/i, '');
+                                            let displayDetails = log.details || '';
                                             Object.entries(territoryMap).forEach(([id, number]) => {
-                                                if (displayDetails.includes(id)) {
-                                                    displayDetails = displayDetails.replace(new RegExp(id, 'g'), number);
-                                                }
+                                                if (displayDetails.includes(id)) displayDetails = displayDetails.replace(new RegExp(id, 'g'), number);
                                             });
 
                                             return (
-                                                <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
-                                                    <td className="px-6 py-4 whitespace-nowrap text-muted-foreground text-[10px]">
-                                                        {log.timestamp ? format(log.timestamp.toDate(), "dd/MM HH:mm", { locale: ptBR }) : '...'}
+                                                <tr key={log.id} className="hover:bg-white/[0.03] transition-colors group">
+                                                    <td className="px-6 py-5 whitespace-nowrap align-top">
+                                                        <p className="text-muted-foreground text-[11px] font-mono">
+                                                            {log.timestamp ? format(log.timestamp.toDate(), "dd/MM HH:mm", { locale: ptBR }) : '...'}
+                                                        </p>
                                                     </td>
-                                                    <td className="px-6 py-4 font-bold">{log.userName}</td>
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-6 py-5 align-top">
+                                                        <p className="font-bold text-sm text-foreground/90">{log.userName}</p>
+                                                    </td>
+                                                    <td className="px-6 py-5 align-top">
                                                         <div className="flex flex-col gap-2 items-start">
                                                             {getActionBadge(log.action)}
                                                             {log.metadata?.revertData && isAdmin && (
-                                                                <Button variant="info" size="sm" className="h-7 text-[10px] font-bold" disabled={revertingIds.has(log.id)} onClick={() => handleRevertAction(log)}>
-                                                                    {revertingIds.has(log.id) ? <Loader className="animate-spin mr-1 h-3 w-3"/> : <Undo2 size={12} className="mr-1"/>} Reverter
+                                                                <Button 
+                                                                    variant="outline" 
+                                                                    size="sm" 
+                                                                    className="h-7 text-[10px] font-black border-primary/30 text-primary hover:bg-primary/10"
+                                                                    disabled={revertingIds.has(log.id)}
+                                                                    onClick={() => handleRevertAction(log)}
+                                                                >
+                                                                    {revertingIds.has(log.id) ? <Loader className="animate-spin mr-1 h-3 w-3"/> : <Undo2 size={12} className="mr-1"/>} REVERTER
                                                                 </Button>
                                                             )}
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-4 text-muted-foreground text-xs leading-relaxed">
-                                                        {displayDetails}
+                                                    <td className="px-6 py-5 align-top">
+                                                        <p className="text-muted-foreground text-xs leading-relaxed max-w-md">
+                                                            {displayDetails}
+                                                        </p>
                                                     </td>
                                                 </tr>
                                             );
                                         })
-                                    ) : (<tr><td colSpan={4} className="px-6 py-12 text-center text-muted-foreground italic">Nenhum registro encontrado.</td></tr>)}
+                                    ) : (<tr><td colSpan={4} className="px-6 py-20 text-center text-muted-foreground italic">Nenhum registro encontrado.</td></tr>)}
                                 </tbody>
                             </table>
                         </div>
@@ -420,34 +412,5 @@ function MaisPage() {
     </div>
   );
 }
-
-const getActionBadge = (action: string) => {
-    switch (action) {
-      case 'HOUSE_COMPLETED': return <Badge className="bg-green-500">Conclusão</Badge>;
-      case 'HOUSE_UNMARKED': return <Badge variant="outline" className="text-yellow-500 border-yellow-500">Desmarcado</Badge>;
-      case 'HOUSE_CREATED': return <Badge className="bg-blue-400"><MapPin size={10} className="mr-1"/>Novo Número</Badge>;
-      case 'HOUSE_EDITED': return <Badge variant="outline">Casa Editada</Badge>;
-      case 'HOUSE_DELETED': return <Badge variant="destructive">Casa Excluída</Badge>;
-      case 'QUADRA_CREATED': return <Badge className="bg-blue-500"><LayoutGrid size={10} className="mr-1"/>Nova Quadra</Badge>;
-      case 'QUADRA_EDITED': return <Badge variant="outline">Quadra Editada</Badge>;
-      case 'QUADRA_DELETED': return <Badge variant="destructive">Quadra Excluída</Badge>;
-      case 'TERRITORY_CREATED': return <Badge className="bg-blue-700">Novo Território</Badge>;
-      case 'TERRITORY_EDITED': return <Badge variant="outline">Território Editado</Badge>;
-      case 'TERRITORY_DELETED': return <Badge variant="destructive">Território Excluído</Badge>;
-      case 'TERRITORY_RESET': return <Badge variant="destructive">Progresso Resetado</Badge>;
-      case 'REVERT_ACTION': return <Badge className="bg-indigo-500">Ação Revertida</Badge>;
-      case 'TERRITORY_ASSIGNED': return <Badge className="bg-blue-500">Designação</Badge>;
-      case 'TERRITORY_RETURNED': return <Badge className="bg-emerald-500">Devolução</Badge>;
-      case 'CASAS_REORDERED': return <Badge variant="outline">Ordem Alterada</Badge>;
-      case 'USER_APPROVED': return <Badge className="bg-green-600"><Users size={10} className="mr-1"/>Usuário Aprovado</Badge>;
-      case 'USER_EDITED': return <Badge variant="outline">Perfil Editado</Badge>;
-      case 'USER_DELETED': return <Badge variant="destructive">Usuário Excluído</Badge>;
-      case 'RURAL_WORK_LOGGED': return <Badge className="bg-green-500">Trabalho Rural</Badge>;
-      case 'RURAL_LOG_EDITED': return <Badge variant="outline">Log Editado</Badge>;
-      case 'RURAL_LOG_DELETED': return <Badge variant="destructive">Log Excluído</Badge>;
-      case 'OVERDUE_NOTIFIED': return <Badge className="bg-yellow-500 text-black">Cobrança WhatsApp</Badge>;
-      default: return <Badge variant="outline">{action.replace(/_/g, ' ')}</Badge>;
-    }
-};
 
 export default withAuth(MaisPage);
