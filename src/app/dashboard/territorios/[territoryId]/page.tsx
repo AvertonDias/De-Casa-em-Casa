@@ -1,3 +1,4 @@
+
 "use client";
 
 import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, deleteField, getDoc, arrayRemove } from "firebase/firestore";
@@ -50,14 +51,13 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const router = useRouter();
   const { toast } = useToast();
 
-  // Todos os hooks de estado devem ser declarados no topo, antes de qualquer retorno antecipado.
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
   const [quadras, setQuadras] = useState<Quadra[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
-  const [isAddQuadraModalOpen, setIsAddQuadraModalOpen] = useState(false);
+  const [isAddQuadraModalOpen, setIsAddAddQuadraModalOpen] = useState(false);
   const [isEditQuadraModalOpen, setIsEditQuadraModalOpen] = useState(false);
   const [selectedQuadra, setSelectedQuadra] = useState<Quadra | null>(null);
   
@@ -132,6 +132,11 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             const housesDoneInQuadra = qData.housesDone || 0;
             const totalHousesInQuadra = qData.totalHouses || 0;
             
+            // Backup das casas para permitir reversão
+            const housesSnap = await getDocs(collection(quadraRef, 'casas'));
+            const housesData: any[] = [];
+            housesSnap.forEach(h => housesData.push({ id: h.id, ...h.data() }));
+
             const terrDoc = await getDoc(territoryRef);
             if (terrDoc.exists()) {
               const tData = terrDoc.data();
@@ -156,16 +161,20 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
                 });
               }
             }
+
+            const batch = writeBatch(db);
+            housesSnap.forEach(h => batch.delete(h.ref));
+            batch.delete(quadraRef);
+            await batch.commit();
+
+            logEvent(user.congregationId, user.uid, user.name, 'QUADRA_DELETED', `Excluiu a quadra "${qData.name}" do território ${territory?.number}.`, { 
+                territoryId, 
+                quadraId, 
+                territoryNumber: territory?.number,
+                revertData: { quadra: qData, casas: housesData }
+            });
+            toast({ title: "Quadra excluída" });
           }
-
-          const housesSnap = await getDocs(collection(quadraRef, 'casas'));
-          const batch = writeBatch(db);
-          housesSnap.forEach(h => batch.delete(h.ref));
-          batch.delete(quadraRef);
-          await batch.commit();
-
-          logEvent(user.congregationId, user.uid, user.name, 'QUADRA_DELETED', `Excluiu a quadra "${quadraDoc.data()?.name}" do território ${territory?.number}.`, { territoryId, quadraId });
-          toast({ title: "Quadra excluída" });
         } catch (error) {
           console.error("Erro ao deletar quadra:", error);
           toast({ title: "Erro ao deletar", variant: "destructive" });
@@ -377,7 +386,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
     <div className="bg-card p-6 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold flex items-center"><LayoutGrid className="mr-3 text-primary" />Quadras</h2>
-            {isManagerView && <Button onClick={() => setIsAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
+            {isManagerView && <Button onClick={() => setIsAddAddQuadraModalOpen(true)}><Plus className="mr-2 h-4" /> Nova Quadra</Button>}
         </div>
         {isPublicador ? (
             <div className="divide-y divide-border -mx-6 px-6">
@@ -512,8 +521,8 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         />
         
         <AddQuadraModal 
-            isOpen={isAddQuadraModalOpen} 
-            onClose={() => setIsAddQuadraModalOpen(false)} 
+            isOpen={isAddAddQuadraModalOpen} 
+            onClose={() => setIsAddAddQuadraModalOpen(false)} 
             onSave={handleAddQuadra} 
             existingQuadrasCount={quadras.length} 
         />

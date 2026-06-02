@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, getDocs, doc, Timestamp, writeBatch, runTransaction, where } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit, getDocs, doc, Timestamp, writeBatch, runTransaction, where, getDoc } from 'firebase/firestore';
 import { AuditLog, Territory, Quadra, Casa } from '@/types/types';
 import { Loader, History, Search, Filter, Clock, User, Info, RefreshCw, Undo2, Trash2, AlertCircle, Map, CheckCircle2, X } from 'lucide-react';
 import { format } from 'date-fns';
@@ -43,11 +43,9 @@ function HistoricoPage() {
             const batch = writeBatch(db);
             let addedCount = 0;
 
-            // 1. Buscar territórios existentes para ver o que tem neles
             const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
             const territoriesSnap = await getDocs(territoriesRef);
             
-            // Verificamos logs atuais para não duplicar
             const currentLogsRef = collection(db, 'congregations', congregationId, 'auditLogs');
             const currentLogsSnap = await getDocs(query(currentLogsRef, where('action', '==', 'HOUSE_COMPLETED')));
             const existingDetails = new Set(currentLogsSnap.docs.map(d => d.data().details));
@@ -59,11 +57,9 @@ function HistoricoPage() {
 
                 historySnap.forEach(hDoc => {
                     const hData = hDoc.data();
-                    // Limpar prefixo recuperado se existir nos dados brutos
                     const rawDetail = hData.description || hData.notes || `Casa marcada no território ${tData.number}.`;
                     const detailText = rawDetail.replace(/^\[Recuperado\]\s*/i, '');
                     
-                    // Se o registro não estiver no log central, nós o levamos para lá
                     if (!existingDetails.has(detailText)) {
                         const newLogRef = doc(currentLogsRef);
                         batch.set(newLogRef, {
@@ -135,10 +131,7 @@ function HistoricoPage() {
             const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
             
             await runTransaction(db, async (transaction) => {
-                // LEITURA PRIMEIRO
                 const qSnap = await transaction.get(quadraRef);
-                
-                // ESCRITA DEPOIS
                 transaction.set(houseRef, casaData);
                 if (qSnap.exists()) {
                     transaction.update(quadraRef, { 
@@ -151,6 +144,48 @@ function HistoricoPage() {
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a casa ${casaData.number} (do território ${log.metadata.territoryNumber}) que havia sido excluída.`);
             toast({ title: "Casa Restaurada!" });
         } 
+        else if (log.action === 'QUADRA_DELETED') {
+            const { territoryId, quadraId } = log.metadata;
+            const { quadra, casas } = revertData;
+            const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
+            const quadraRef = doc(territoryRef, 'quadras', quadraId);
+            
+            await runTransaction(db, async (transaction) => {
+                const terrSnap = await transaction.get(territoryRef);
+                const congRef = doc(db, 'congregations', congregationId);
+                const congSnap = await transaction.get(congRef);
+
+                transaction.set(quadraRef, quadra);
+                for (const c of casas) {
+                    const cRef = doc(quadraRef, 'casas', c.id);
+                    const { id, ...cData } = c;
+                    transaction.set(cRef, cData);
+                }
+
+                if (terrSnap.exists()) {
+                    const tData = terrSnap.data();
+                    const newTotal = (tData.stats?.totalHouses || 0) + (quadra.totalHouses || 0);
+                    const newDone = (tData.stats?.housesDone || 0) + (quadra.housesDone || 0);
+                    transaction.update(territoryRef, {
+                        "stats.totalHouses": newTotal,
+                        "stats.housesDone": newDone,
+                        progress: newTotal > 0 ? newDone / newTotal : 0,
+                        quadraCount: (tData.quadraCount || 0) + 1
+                    });
+                }
+
+                if (congSnap.exists()) {
+                    const cData = congSnap.data();
+                    transaction.update(congRef, {
+                        totalHouses: (cData.totalHouses || 0) + (quadra.totalHouses || 0),
+                        totalHousesDone: (cData.totalHousesDone || 0) + (quadra.housesDone || 0)
+                    });
+                }
+            });
+
+            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a quadra "${quadra.name}" no território ${log.metadata.territoryNumber}.`);
+            toast({ title: "Quadra Restaurada!" });
+        }
         else if (log.action === 'TERRITORY_DELETED') {
             const { territory, quadras } = revertData;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territory.id);
@@ -178,10 +213,7 @@ function HistoricoPage() {
             const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
             
             await runTransaction(db, async (transaction) => {
-                // LEITURA PRIMEIRO
                 const qSnap = await transaction.get(quadraRef);
-                
-                // ESCRITA DEPOIS
                 transaction.update(houseRef, { status: previousStatus });
                 const increment = previousStatus ? 1 : -1;
                 if (qSnap.exists()) {
@@ -225,6 +257,7 @@ function HistoricoPage() {
       case 'HOUSE_UNMARKED': return <Badge variant="outline" className="text-yellow-500 border-yellow-500">Desmarcado</Badge>;
       case 'HOUSE_CREATED': return <Badge className="bg-blue-400">Novo Número</Badge>;
       case 'HOUSE_DELETED': return <Badge variant="destructive"><Trash2 size={10} className="mr-1"/> Casa Excluída</Badge>;
+      case 'QUADRA_DELETED': return <Badge variant="destructive"><Trash2 size={10} className="mr-1"/> Quadra Excluída</Badge>;
       case 'TERRITORY_CREATED': return <Badge className="bg-blue-600">Novo Território</Badge>;
       case 'TERRITORY_DELETED': return <Badge variant="destructive"><Trash2 size={10} className="mr-1"/> Território Excluído</Badge>;
       case 'TERRITORY_DELETED_SUSPECT': return <Badge variant="destructive" className="animate-pulse">Exclusão Detectada</Badge>;
