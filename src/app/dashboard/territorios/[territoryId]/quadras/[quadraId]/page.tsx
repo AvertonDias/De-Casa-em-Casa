@@ -228,7 +228,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             user.name, 
             newStatus ? 'HOUSE_COMPLETED' : 'HOUSE_UNMARKED', 
             `${newStatus ? 'Marcou' : 'Desmarcou'} a casa ${casa.number} na ${quadra?.name} do território ${territory?.number}.`,
-            { territoryId, quadraId, houseId: casa.id }
+            { territoryId, quadraId, houseId: casa.id, revertData: { houseId: casa.id, previousStatus: !newStatus } }
         );
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -307,7 +307,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             user.name, 
             'HOUSE_DELETED', 
             `Excluiu a casa ${casaToDelete.number} da ${quadra?.name} do território ${territory?.number}.`,
-            { territoryId, quadraId, houseId: casaToDelete.id }
+            { territoryId, quadraId, houseId: casaToDelete.id, revertData: { ...casaToDelete, id: casaToDelete.id } }
         );
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({

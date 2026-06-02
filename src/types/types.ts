@@ -185,5 +185,11 @@ export interface AuditLog {
   action: string;
   details: string;
   timestamp: Timestamp;
-  metadata?: any;
+  metadata?: {
+    territoryId?: string;
+    quadraId?: string;
+    houseId?: string;
+    revertData?: any; // Dados para permitir desfazer a ação
+    [key: string]: any;
+  };
 }
