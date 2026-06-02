@@ -56,6 +56,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
 
   const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
   const [isAddQuadraModalOpen, setIsAddQuadraModalOpen] = useState(false);
+  const [isAddAddQuadraModalOpen, setIsAddAddQuadraModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ action: () => Promise<void>; title: string; message: string; } | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
@@ -117,7 +118,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
                 }
                 return log;
             });
-            transaction.update(territoryRef, newHistory);
+            transaction.update(territoryRef, { assignmentHistory: newHistory });
         });
         toast({ title: "Sucesso!", description: "Histórico atualizado." });
     } catch (e: any) {
@@ -394,8 +395,6 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         </div>
     </div>
   );
-
-  const [isAddAddQuadraModalOpen, setIsAddAddQuadraModalOpen] = useState(false);
 
   return (
     <div className="p-4 space-y-6">

@@ -60,7 +60,7 @@ function HistoricoPage() {
 
                 historySnap.forEach(hDoc => {
                     const hData = hDoc.data();
-                    const detailText = hData.description || hData.notes || `Casa marcada no território ${tData.number}.`;
+                    const detailText = (hData.description || hData.notes || `Casa marcada no território ${tData.number}.`).replace(/^\[Recuperado\]\s*/i, '');
                     
                     // Se o registro não estiver no log central, nós o levamos para lá
                     if (!existingDetails.has(detailText)) {
@@ -336,7 +336,9 @@ function HistoricoPage() {
                         <div className="flex items-start gap-2">
                            <Info size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
                            <div className="flex flex-col gap-1">
-                               <span className="leading-relaxed text-muted-foreground">{log.details}</span>
+                               <span className="leading-relaxed text-muted-foreground">
+                                 {log.details.replace(/^\[Recuperado\]\s*/i, '')}
+                               </span>
                                {log.action === 'TERRITORY_DELETED_SUSPECT' && (
                                    <div className="text-[10px] bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 p-2 rounded border border-yellow-500/20 mt-1">
                                        <strong>Dica de Recuperação:</strong> Como este território foi excluído antes do sistema de lixeira, você pode usar a <strong>Recuperação Pontual (PITR)</strong> no console do Firebase para restaurar o banco para a data acima.
