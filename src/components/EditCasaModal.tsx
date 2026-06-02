@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -66,7 +67,9 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
       number: formData.number.toUpperCase(),
       observations: formData.observations,
     }).then(() => {
-      logEvent(congregationId, user!.uid, user!.name, 'HOUSE_EDITED', `Editou os dados da casa ${casa.number} (agora ${formData.number.toUpperCase()}) na quadra ${quadraId}.`, { territoryId, quadraId, houseId: casa.id });
+      if (user) {
+        logEvent(congregationId, user.uid, user.name, 'HOUSE_EDITED', `Editou os dados da casa ${casa.number} (agora ${formData.number.toUpperCase()}) na quadra ${quadraId}.`, { territoryId, quadraId, houseId: casa.id });
+      }
       onClose();
       onCasaUpdated();
     }).catch(async (serverError) => {

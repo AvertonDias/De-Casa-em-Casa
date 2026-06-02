@@ -4,9 +4,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, getDocs } from 'firebase/firestore';
-import { AuditLog } from '@/types/types';
-import { Loader, History, Search, Filter, X, Clock, User, Info, FileText, RefreshCw, Download } from 'lucide-react';
+import { collection, query, orderBy, onSnapshot, limit, getDocs, doc, Timestamp, writeBatch } from 'firebase/firestore';
+import { AuditLog, Territory, Activity } from '@/types/types';
+import { Loader, History, Search, Filter, X, Clock, User, Info, FileText, RefreshCw, Download, database as DatabaseIcon, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import withAuth from '@/components/withAuth';
@@ -16,12 +16,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { useToast } from '@/hooks/use-toast';
 
 function HistoricoPage() {
   const { user } = useUser();
+  const { toast } = useToast();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isReconstructing, setIsReconstructing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
 
@@ -35,7 +38,7 @@ function HistoricoPage() {
 
     const logsPath = `congregations/${user.congregationId}/auditLogs`;
     const logsRef = collection(db, logsPath);
-    const q = query(logsRef, orderBy('timestamp', 'desc'), limit(500));
+    const q = query(logsRef, orderBy('timestamp', 'desc'), limit(1000));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const logsData = snapshot.docs.map(doc => ({
@@ -64,6 +67,88 @@ function HistoricoPage() {
     const unsubscribe = fetchLogs();
     return () => { if (unsubscribe) unsubscribe(); };
   }, [user?.congregationId, isAdmin]);
+
+  // Função para reconstruir o histórico a partir de dados espalhados nos territórios
+  const handleReconstructHistory = async () => {
+    if (!user?.congregationId || !isAdmin) return;
+    
+    setIsReconstructing(true);
+    toast({ title: "Iniciando varredura...", description: "Buscando atividades antigas em todos os territórios." });
+
+    try {
+        const congregationId = user.congregationId;
+        const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
+        const territoriesSnap = await getDocs(territoriesRef);
+        
+        const reconstructedLogs: AuditLog[] = [];
+        
+        for (const tDoc of territoriesSnap.docs) {
+            const territory = { id: tDoc.id, ...tDoc.data() } as Territory;
+            
+            // 1. Recuperar do assignmentHistory (Designações)
+            if (territory.assignmentHistory && territory.assignmentHistory.length > 0) {
+                territory.assignmentHistory.forEach(history => {
+                    // Log de Devolução/Conclusão
+                    reconstructedLogs.push({
+                        id: `reconstructed_return_${territory.id}_${history.assignedAt.toMillis()}`,
+                        userId: history.uid,
+                        userName: history.name,
+                        action: 'TERRITORY_RETURNED',
+                        details: `[Recuperado] Devolveu o território ${territory.number} - ${territory.name}.`,
+                        timestamp: history.completedAt,
+                        metadata: { reconstructed: true, territoryId: territory.id }
+                    });
+                    
+                    // Log de Designação
+                    reconstructedLogs.push({
+                        id: `reconstructed_assign_${territory.id}_${history.assignedAt.toMillis()}`,
+                        userId: 'system_reconstruction',
+                        userName: 'Sistema (Histórico)',
+                        action: 'TERRITORY_ASSIGNED',
+                        details: `[Recuperado] O território ${territory.number} foi designado para ${history.name}.`,
+                        timestamp: history.assignedAt,
+                        metadata: { reconstructed: true, territoryId: territory.id }
+                    });
+                });
+            }
+
+            // 2. Recuperar do activityHistory (Marcação de Casas)
+            const activityRef = collection(db, 'congregations', congregationId, 'territories', territory.id, 'activityHistory');
+            const activitySnap = await getDocs(activityRef);
+            
+            activitySnap.forEach(aDoc => {
+                const activity = aDoc.data() as Activity;
+                reconstructedLogs.push({
+                    id: `reconstructed_activity_${aDoc.id}`,
+                    userId: activity.userId,
+                    userName: activity.userName,
+                    action: activity.type === 'work' ? 'HOUSE_COMPLETED' : 'MANUAL_LOG',
+                    details: `[Recuperado] ${activity.description || activity.notes}`,
+                    timestamp: activity.activityDate,
+                    metadata: { reconstructed: true, territoryId: territory.id }
+                });
+            });
+        }
+
+        // Mesclar com os logs atuais e remover duplicatas aproximadas por timestamp e detalhes
+        setLogs(prev => {
+            const combined = [...prev, ...reconstructedLogs];
+            // Filtro de unicidade simples baseado no ID gerado
+            const unique = combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+            return unique.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+        });
+
+        toast({ 
+            title: "Varredura concluída!", 
+            description: `Encontramos ${reconstructedLogs.length} atividades que não estavam no log central.` 
+        });
+    } catch (error: any) {
+        console.error("Erro na reconstrução:", error);
+        toast({ title: "Erro na varredura", description: "Não foi possível recuperar todo o histórico.", variant: "destructive" });
+    } finally {
+        setIsReconstructing(false);
+    }
+  };
 
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
@@ -135,11 +220,15 @@ function HistoricoPage() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <History className="text-primary" />
-            Histórico de Auditoria
+            Histórico de Alterações
           </h1>
           <p className="text-muted-foreground text-sm">Consultando registros diretamente do banco de dados em tempo real.</p>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <Button variant="info" size="sm" onClick={handleReconstructHistory} disabled={isReconstructing}>
+                {isReconstructing ? <Loader className="animate-spin mr-2" size={14}/> : <Sparkles size={14} className="mr-2" />}
+                Recuperar Histórico Antigo
+            </Button>
             <Button variant="outline" size="sm" onClick={() => fetchLogs(true)} disabled={isRefreshing}>
                 <RefreshCw size={14} className={isRefreshing ? "animate-spin mr-2" : "mr-2"} />
                 Sincronizar
@@ -196,7 +285,7 @@ function HistoricoPage() {
                 <tr>
                   <th className="px-6 py-4">Data e Hora</th>
                   <th className="px-6 py-4">Usuário</th>
-                  <th className="px-6 py-4">Ação Realizada</th>
+                  <th className="px-6 py-4">Ação</th>
                   <th className="px-6 py-4">Detalhes</th>
                 </tr>
               </thead>
@@ -230,7 +319,6 @@ function HistoricoPage() {
                 ) : (
                   <tr>
                     <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground italic">
-                      <FileText className="mx-auto h-12 w-12 opacity-10 mb-4" />
                       Nenhum registro encontrado com os filtros atuais.
                     </td>
                   </tr>
