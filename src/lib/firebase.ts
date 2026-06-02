@@ -4,6 +4,7 @@ import {
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
+  getFirestore as getFirestoreInstance,
   type Firestore 
 } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
@@ -11,7 +12,6 @@ import { getFunctions, type Functions } from "firebase/functions";
 import { getMessaging, type Messaging } from "firebase/messaging";
 import { getDatabase, type Database } from "firebase/database";
 
-// Usando variáveis de ambiente para evitar exposição de chaves no GitHub (GitGuardian)
 const firebaseConfig = {
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "appterritorios-e5bb5",
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:83629039662:web:42d410f411b2e9b33fffbf",
@@ -51,4 +51,5 @@ if (typeof window !== 'undefined') {
     }
 }
 
-export { app, auth, db, storage, functions, messaging, rtdb, GoogleAuthProvider };
+// Exportando getFirestoreInstance para permitir conexão com bancos nomeados (backup)
+export { app, auth, db, storage, functions, messaging, rtdb, GoogleAuthProvider, getFirestoreInstance as getFirestore };

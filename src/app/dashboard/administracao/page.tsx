@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { BarChart3, BookUser, FileText, ClipboardList, Settings } from 'lucide-react';
+import { BarChart3, BookUser, FileText, ClipboardList, Settings, DatabaseBackup } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
 import { cn } from '@/lib/utils';
@@ -10,9 +10,10 @@ import TerritoryCoverageStats from '@/components/admin/TerritoryCoverageStats';
 import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesReport';
 import S13ReportPage from './relatorio-s13/page';
 import CongregationEditForm from '@/components/admin/CongregationEditForm';
+import RestoreBackupTool from '@/components/admin/RestoreBackupTool';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 
-type Tab = 'assignment' | 'overview' | 'report' | 'available' | 'settings';
+type Tab = 'assignment' | 'overview' | 'available' | 'report' | 'recovery' | 'settings';
 
 function AdminPage() {
   const { user } = useUser();
@@ -82,6 +83,7 @@ function AdminPage() {
           <TabButton tabId="overview" label="Visão Geral" icon={BarChart3} />
           <TabButton tabId="available" label="Disponíveis" icon={ClipboardList} />
           <TabButton tabId="report" label="S-13" icon={FileText} />
+          {isAdmin && <TabButton tabId="recovery" label="Recuperação" icon={DatabaseBackup} />}
           {isAdmin && (
             <TabButton tabId="settings" label="Configurações" icon={Settings} />
           )}
@@ -96,6 +98,7 @@ function AdminPage() {
         {activeTab === 'overview' && <TerritoryCoverageStats />}
         {activeTab === 'available' && <AvailableTerritoriesReport />}
         {activeTab === 'report' && <S13ReportPage />}
+        {activeTab === 'recovery' && isAdmin && <RestoreBackupTool />}
         {activeTab === 'settings' && isAdmin && (
           <div className="max-w-2xl mx-auto">
              <CongregationEditForm 

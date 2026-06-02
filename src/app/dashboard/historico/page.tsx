@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -180,7 +179,10 @@ function HistoricoPage() {
   };
 
   const formatDetails = (log: AuditLog) => {
+    // Remove o prefixo [Recuperado] se existir
     let details = (log.details || '').replace(/^\[Recuperado\]\s*/i, '');
+    
+    // Substitui a ID do território pelo número se disponível no metadado
     if (log.metadata?.territoryNumber) {
       const id = log.metadata.territoryId;
       if (id && details.includes(id)) {
@@ -191,8 +193,10 @@ function HistoricoPage() {
   };
 
   const filteredLogs = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    
+    // 1. Filtrar registros básicos
     const filtered = logs.filter(log => {
-      const term = searchTerm.toLowerCase();
       const details = formatDetails(log);
       const matchesSearch = 
         log.userName?.toLowerCase().includes(term) || 
@@ -206,10 +210,12 @@ function HistoricoPage() {
       return matchesSearch && matchesAction;
     });
 
+    // 2. Deduplicação inteligente (remove ações idênticas no mesmo segundo)
     const uniqueLogs: AuditLog[] = [];
     const seen = new Set<string>();
 
     filtered.forEach(log => {
+        // Chave baseada em Usuário + Ação + Detalhes + Segundo do timestamp
         const timeKey = Math.floor(log.timestamp.toMillis() / 1000);
         const uniqueKey = `${log.userId}-${log.action}-${log.details}-${timeKey}`;
         
