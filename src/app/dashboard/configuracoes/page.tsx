@@ -1,34 +1,17 @@
+
 "use client";
 
-import withAuth from "@/components/withAuth";
-import CongregationEditForm from "@/components/admin/CongregationEditForm";
-import { useUser } from "@/contexts/UserContext";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { LoadingScreen } from '@/components/LoadingScreen';
 
-function CongregationSettingsPage() {
-    const { user } = useUser();
+export default function RedirectSettingsPage() {
+  const router = useRouter();
 
-    if (user?.role !== 'Administrador') {
-        return (
-            <div className="text-center p-8">
-                <h1 className="text-2xl font-bold">Acesso Negado</h1>
-                <p className="text-muted-foreground">Apenas administradores podem acessar esta página.</p>
-            </div>
-        )
-    }
-  
-    return (
-        <div className="p-4 md:p-6 lg:p-8 space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold">Configurações da Congregação</h1>
-                <p className="text-muted-foreground">Gerencie as informações e modelos de mensagem da sua congregação.</p>
-            </div>
+  useEffect(() => {
+    // Redireciona para o novo hub centralizado
+    router.replace('/dashboard/mais');
+  }, [router]);
 
-            <CongregationEditForm onSaveSuccess={() => {
-                // Ação opcional após salvar com sucesso
-                console.log("Configurações salvas!");
-            }} />
-        </div>
-    );
+  return <LoadingScreen />;
 }
-
-export default withAuth(CongregationSettingsPage);

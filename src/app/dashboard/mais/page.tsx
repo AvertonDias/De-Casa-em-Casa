@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -14,7 +15,8 @@ import {
   Undo2,
   Loader,
   RefreshCw,
-  X
+  X,
+  Info
 } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
@@ -54,7 +56,7 @@ function MaisPage() {
   const isAdmin = user?.role === 'Administrador';
   const isManager = user?.role === 'Administrador' || user?.role === 'Dirigente' || user?.role === 'Servo de Territórios' || user?.role === 'Ajudante de Servo de Territórios';
 
-  // Lógica de busca de logs
+  // Lógica de busca de logs (Limitado a 1000 para performance)
   const fetchLogs = useCallback((isManualRefresh = false) => {
     if (!user?.congregationId || !isAdmin) return;
     if (isManualRefresh) setIsRefreshingLogs(true);
@@ -89,15 +91,19 @@ function MaisPage() {
     const congregationId = user.congregationId;
 
     try {
+        // Correção de Transação: Leituras devem vir antes das escritas
         if (log.action === 'HOUSE_DELETED') {
             const { territoryId, quadraId } = log.metadata;
             const { id, ...casaData } = revertData;
             const houseId = log.metadata.houseId || id;
+            
             const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', houseId);
             const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
+            
             await runTransaction(db, async (transaction) => {
                 const qSnap = await transaction.get(quadraRef);
                 if (!qSnap.exists()) throw new Error("Quadra não encontrada.");
+                
                 transaction.set(houseRef, casaData);
                 transaction.update(quadraRef, { 
                     totalHouses: (qSnap.data().totalHouses || 0) + 1,
@@ -110,14 +116,18 @@ function MaisPage() {
         else if (log.action === 'QUADRA_DELETED') {
             const { territoryId, quadraId } = log.metadata;
             const { quadra, casas } = revertData;
+            
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
             const quadraRef = doc(territoryRef, 'quadras', quadraId);
             const congRef = doc(db, 'congregations', congregationId);
+            
             await runTransaction(db, async (transaction) => {
                 const terrSnap = await transaction.get(territoryRef);
                 const congSnap = await transaction.get(congRef);
+                
                 transaction.set(quadraRef, quadra);
                 casas.forEach((c: any) => transaction.set(doc(quadraRef, 'casas', c.id), c));
+                
                 if (terrSnap.exists()) {
                     const tData = terrSnap.data();
                     transaction.update(territoryRef, {
@@ -126,6 +136,7 @@ function MaisPage() {
                         quadraCount: (tData.quadraCount || 0) + 1
                     });
                 }
+                
                 if (congSnap.exists()) {
                     const cData = congSnap.data();
                     transaction.update(congRef, {
@@ -141,8 +152,10 @@ function MaisPage() {
             const { territory: terrData, quadras: quadrasData } = revertData;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', terrData.id);
             const congRef = doc(db, 'congregations', congregationId);
+            
             await runTransaction(db, async (transaction) => {
                 const congSnap = await transaction.get(congRef);
+                
                 transaction.set(territoryRef, terrData);
                 quadrasData.forEach((q: any) => {
                     const { casas, id, ...qMeta } = q;
@@ -150,6 +163,7 @@ function MaisPage() {
                     transaction.set(qRef, qMeta);
                     casas.forEach((c: any) => transaction.set(doc(qRef, 'casas', c.id), c));
                 });
+                
                 if (congSnap.exists()) {
                     const cData = congSnap.data();
                     transaction.update(congRef, {
@@ -173,11 +187,14 @@ function MaisPage() {
   const filteredLogs = useMemo(() => {
     const term = searchTermLogs.toLowerCase();
     const filtered = logs.filter(log => {
+      // Limpeza de descrição para busca: remove prefixos técnicos
       const details = (log.details || '').replace(/^\[Recuperado\]\s*/i, '');
       const matchesSearch = log.userName?.toLowerCase().includes(term) || details?.toLowerCase().includes(term) || log.action?.toLowerCase().includes(term);
       const matchesAction = actionFilterLogs === 'all' || (actionFilterLogs === 'deletions' && (log.action.includes('DELETED') || log.action.includes('UNMARKED'))) || log.action === actionFilterLogs;
       return matchesSearch && matchesAction;
     });
+
+    // Deduplicação inteligente: Remove registros idênticos disparados no mesmo segundo
     const uniqueLogs: AuditLog[] = [];
     const seen = new Set<string>();
     filtered.forEach(log => {
@@ -283,11 +300,17 @@ function MaisPage() {
           {activeSection === 'history' && (
             <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                    <h2 className="text-3xl font-bold flex items-center gap-2"><History className="text-primary" /> Histórico</h2>
+                    <div>
+                        <h2 className="text-3xl font-bold flex items-center gap-2"><History className="text-primary" /> Histórico</h2>
+                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                            <Info size={12} /> Mostrando os últimos 1000 registros para garantir a velocidade do sistema.
+                        </p>
+                    </div>
                     <Button variant="outline" size="sm" onClick={() => fetchLogs(true)} disabled={isRefreshingLogs}>
                         <RefreshCw size={14} className={isRefreshingLogs ? "animate-spin mr-2" : "mr-2"} /> Sincronizar
                     </Button>
                 </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="md:col-span-2 relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
@@ -298,13 +321,14 @@ function MaisPage() {
                             <SelectTrigger><SelectValue placeholder="Filtrar por ação" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">Todas as ações</SelectItem>
-                                <SelectItem value="deletions">Exclusões</SelectItem>
+                                <SelectItem value="deletions">Exclusões e Desmarcações</SelectItem>
                                 <SelectItem value="HOUSE_COMPLETED">Marcação de Casas</SelectItem>
                                 <SelectItem value="TERRITORY_ASSIGNED">Designações</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                 </div>
+
                 <div className="bg-card rounded-xl border border-border/40 shadow-md overflow-hidden">
                     {loadingLogs ? (
                         <div className="p-12 text-center"><Loader className="animate-spin text-primary mx-auto" size={32} /></div>
@@ -330,7 +354,9 @@ function MaisPage() {
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 text-muted-foreground text-xs">{(log.details || '').replace(/^\[Recuperado\]\s*/i, '')}</td>
+                                                <td className="px-6 py-4 text-muted-foreground text-xs leading-relaxed">
+                                                    {(log.details || '').replace(/^\[Recuperado\]\s*/i, '')}
+                                                </td>
                                             </tr>
                                         ))
                                     ) : (<tr><td colSpan={4} className="px-6 py-12 text-center text-muted-foreground italic">Nenhum registro encontrado.</td></tr>)}
