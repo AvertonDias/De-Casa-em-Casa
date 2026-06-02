@@ -1,3 +1,4 @@
+
 "use client";
 
 import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, deleteField, getDoc, arrayRemove } from "firebase/firestore";
@@ -48,7 +49,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const router = useRouter();
   const { toast } = useToast();
 
-  // Estados declarados SEMPRE no topo para evitar erros de renderização (Hooks)
+  // ATENÇÃO: Todos os States devem vir antes de qualquer return condicional (Hooks Rule)
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
   const [quadras, setQuadras] = useState<Quadra[]>([]);

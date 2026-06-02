@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -71,7 +72,6 @@ function HistoricoPage() {
             const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', houseId);
             const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
             
-            // TRANSACTION: Reads must be before writes
             await runTransaction(db, async (transaction) => {
                 const qSnap = await transaction.get(quadraRef);
                 if (!qSnap.exists()) throw new Error("Quadra não encontrada.");
@@ -128,16 +128,16 @@ function HistoricoPage() {
             toast({ title: "Quadra Restaurada!" });
         }
         else if (log.action === 'TERRITORY_DELETED') {
-            const { territory, quadras } = revertData;
-            const territoryRef = doc(db, 'congregations', congregationId, 'territories', territory.id);
+            const { territory: terrData, quadras: quadrasData } = revertData;
+            const territoryRef = doc(db, 'congregations', congregationId, 'territories', terrData.id);
             const congRef = doc(db, 'congregations', congregationId);
 
             await runTransaction(db, async (transaction) => {
                 const congSnap = await transaction.get(congRef);
                 
-                transaction.set(territoryRef, territory);
+                transaction.set(territoryRef, terrData);
 
-                quadras.forEach((q: any) => {
+                quadrasData.forEach((q: any) => {
                     const { casas, id, ...qMeta } = q;
                     const qRef = doc(territoryRef, 'quadras', id);
                     transaction.set(qRef, qMeta);
@@ -149,19 +149,19 @@ function HistoricoPage() {
 
                 if (congSnap.exists()) {
                     const cData = congSnap.data();
-                    const housesToAdd = territory.stats?.totalHouses || 0;
-                    const housesDoneToAdd = territory.stats?.housesDone || 0;
+                    const housesToAdd = terrData.stats?.totalHouses || 0;
+                    const housesDoneToAdd = terrData.stats?.housesDone || 0;
                     
                     transaction.update(congRef, {
-                        territoryCount: (cData.territoryCount || 0) + (territory.type === 'rural' ? 0 : 1),
-                        ruralTerritoryCount: (cData.ruralTerritoryCount || 0) + (territory.type === 'rural' ? 1 : 0),
+                        territoryCount: (cData.territoryCount || 0) + (terrData.type === 'rural' ? 0 : 1),
+                        ruralTerritoryCount: (cData.ruralTerritoryCount || 0) + (terrData.type === 'rural' ? 1 : 0),
                         totalHouses: (cData.totalHouses || 0) + housesToAdd,
                         totalHousesDone: (cData.totalHousesDone || 0) + housesDoneToAdd
                     });
                 }
             });
 
-            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o território ${territory.number}.`);
+            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o território ${terrData.number}.`);
             toast({ title: "Território Restaurado!" });
         }
     } catch (e: any) {
@@ -177,7 +177,7 @@ function HistoricoPage() {
   };
 
   const formatDetails = (log: AuditLog) => {
-    // Remove prefixos técnicos
+    // Remove prefixos técnicos e solicitações do usuário
     let details = (log.details || '').replace(/^\[Recuperado\]\s*/i, '');
     
     // Substitui ID por número se disponível
@@ -207,7 +207,7 @@ function HistoricoPage() {
       return matchesSearch && matchesAction;
     });
 
-    // Deduplicação inteligente
+    // Deduplicação inteligente: remove ações idênticas no mesmo segundo
     const uniqueLogs: AuditLog[] = [];
     const seen = new Set<string>();
 
@@ -234,7 +234,6 @@ function HistoricoPage() {
       case 'TERRITORY_CREATED': return <Badge className="bg-blue-600">Novo Território</Badge>;
       case 'TERRITORY_DELETED': return <Badge variant="destructive"><Trash2 size={10} className="mr-1"/> Território Excluído</Badge>;
       case 'USER_APPROVED': return <Badge className="bg-green-600">Aprovação</Badge>;
-      case 'USER_EDITED': return <Badge variant="outline">Usuário Editado</Badge>;
       case 'REVERT_ACTION': return <Badge className="bg-indigo-500">Ação Revertida</Badge>;
       case 'TERRITORY_ASSIGNED': return <Badge className="bg-blue-500">Designação</Badge>;
       case 'TERRITORY_RETURNED': return <Badge className="bg-emerald-500">Devolução</Badge>;
