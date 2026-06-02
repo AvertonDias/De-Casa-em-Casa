@@ -12,18 +12,26 @@ import {
   Loader,
 } from "lucide-react";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Capacitor } from "@capacitor/core";
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-export default function S13Report() {
+export default function S13ReportPage() {
   const { user, congregation } = useUser();
   const { toast } = useToast();
   const [allTerritories, setAllTerritories] = useState<Territory[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
-  const [serviceYear] = useState(new Date().getFullYear().toString());
+  const [serviceYear, setServiceYear] = useState(new Date().getFullYear().toString());
   const [typeFilter, setTypeFilter] = useState<"urban" | "rural">("urban");
   const [scale, setScale] = useState(1);
 
@@ -33,6 +41,9 @@ export default function S13Report() {
   const dragStartRef = useRef({ x: 0, y: 0 });
   const positionRef = useRef({ x: 0, y: 0 });
 
+  // Lista de anos para o seletor (2 anos atrás e 2 à frente)
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => (currentYear - 2 + i).toString());
 
   useEffect(() => {
     if (!user?.congregationId) {
@@ -64,6 +75,7 @@ export default function S13Report() {
     const element = document.getElementById("pdf-area-s13");
     if (!element) {
       setIsPrinting(false);
+      // Restaurar a escala e posição originais
       setScale(originalScale);
       setPosition(originalPosition);
       return;
@@ -95,6 +107,7 @@ export default function S13Report() {
             });
 
         } else {
+            // Comportamento padrão para web
             await worker.save();
         }
     } catch (err: any) {
@@ -106,6 +119,7 @@ export default function S13Report() {
       });
     } finally {
       setIsPrinting(false);
+      // Restaurar a escala e posição originais após a impressão
       setScale(originalScale);
       setPosition(originalPosition);
     }
@@ -145,19 +159,19 @@ export default function S13Report() {
 
   const ReportHeader = () => (
     <>
-      <h1 className="text-xl font-bold text-center uppercase mb-4 text-black">
+      <h1 className="text-xl font-bold text-center uppercase mb-4">
         REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO ({typeFilter === "urban" ? "URBANO" : "RURAL"})
       </h1>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center my-4 text-sm gap-2 text-black">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center my-4 text-sm gap-2">
         <div className="flex items-center">
-          <label className="font-semibold whitespace-nowrap">Ano de Serviço:</label>
-          <span className="ml-2 px-4 flex-grow min-w-[60px] text-center">
+          <label className="font-semibold whitespace-nowrap text-black">Ano de Serviço:</label>
+          <span className="ml-2 px-4 flex-grow min-w-[60px] text-center text-black">
             <u>{serviceYear}</u>
           </span>
         </div>
         <div className="flex items-center">
-          <span className="font-semibold whitespace-nowrap">Congregação:</span>
-          <span className="ml-2 px-4 flex-grow min-w-[150px] text-center">
+          <span className="font-semibold whitespace-nowrap text-black">Congregação:</span>
+          <span className="ml-2 px-4 flex-grow min-w-[150px] text-center text-black">
             <u>{congregation?.name || user?.congregationName || "..."}</u>
           </span>
         </div>
@@ -165,23 +179,23 @@ export default function S13Report() {
     </>
   );
 
-  const ReportForPrint = () => (
+  const ReportForPrint = ({ inPdf = false }: { inPdf?: boolean }) => (
     <>
       <ReportHeader />
       <div className="overflow-x-auto text-black">
         <table className="w-full text-xs border-collapse min-w-[700px] text-black">
           <thead>
-            <tr className="text-center font-semibold">
-              <th rowSpan={2} className="border border-black p-1">Terr.</th>
+            <tr className="text-center font-semibold border-black">
+              <th rowSpan={2} className="border border-black p-1 text-black" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Terr.</th>
               {Array(4).fill(null).map((_, i) => (
-                <th key={i} colSpan={2} className="border border-black p-1">Designado a</th>
+                <th key={i} colSpan={2} className="border border-black p-1 text-black" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Designado a</th>
               ))}
             </tr>
-            <tr className="text-center font-semibold">
+            <tr className="text-center font-semibold border-black">
               {Array(4).fill(null).map((_, i) => (
                 <React.Fragment key={i}>
-                  <th className="border border-black p-1">Designação</th>
-                  <th className="border border-black p-1">Conclusão</th>
+                  <th className="border border-black p-1 text-black" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Designação</th>
+                  <th className="border border-black p-1 text-black" style={{ textAlign: 'center', verticalAlign: 'middle' }}>Conclusão</th>
                 </React.Fragment>
               ))}
             </tr>
@@ -194,9 +208,12 @@ export default function S13Report() {
             </tbody>
           ) : (
             filteredTerritories.map((t, index) => {
+              // Filtrar histórico para incluir apenas conclusões (isCompletion !== false)
               const historyCompletions = (t.assignmentHistory || []).filter(h => h.isCompletion !== false);
+              
               const allAssignments: Partial<AssignmentHistoryLog>[] = [...historyCompletions];
               
+              // Incluir o atual se houver
               if (t.status === "designado" && t.assignment) {
                 allAssignments.push({
                   name: t.assignment.name,
@@ -204,16 +221,22 @@ export default function S13Report() {
                 });
               }
               
+              // Ordenar cronologicamente para preencher as colunas corretamente
               allAssignments.sort((a, b) => (a.assignedAt?.toMillis() || 0) - (b.assignedAt?.toMillis() || 0));
+
+              // Pegamos as 4 mais recentes para caber nas colunas do formulário S-13
               const recentAssignments = allAssignments.slice(-4);
               const display = Array(4).fill(null).map((_, i) => recentAssignments[i] || null);
               
               const isEven = index % 2 === 0;
+              const bgColor = isEven ? '#e5e7eb' : 'transparent';
+              
               const cellStyle: React.CSSProperties = {
                   textAlign: 'center',
                   verticalAlign: 'middle',
-                  backgroundColor: isEven ? '#f3f4f6' : 'transparent',
-                  color: 'black'
+                  backgroundColor: bgColor,
+                  color: 'black',
+                  borderColor: 'black'
               };
 
               return (
@@ -252,9 +275,10 @@ export default function S13Report() {
       <ReportHeader />
       <div className="space-y-4">
         {loading ? (
-          <div className="flex justify-center items-center h-full py-12"><Loader className="animate-spin text-primary" /></div>
+          <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-primary" /></div>
         ) : (
           filteredTerritories.map(t => {
+            // Filtrar histórico para incluir apenas conclusões
             const historyCompletions = (t.assignmentHistory || []).filter(h => h.isCompletion !== false);
             const allAssignments: Partial<AssignmentHistoryLog>[] = [...historyCompletions];
             
@@ -290,22 +314,40 @@ export default function S13Report() {
 
   return (
     <>
-      <div className="p-4 bg-card print-hidden border-b">
+      <div className="p-4 bg-card print-hidden border-b border-border/50">
         <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="flex gap-2">
-            <Button onClick={() => setTypeFilter("urban")} variant={typeFilter === 'urban' ? 'default' : 'outline'} size="sm">
-              <Map size={14} className="mr-1" /> Urbanos
-            </Button>
-            <Button onClick={() => setTypeFilter("rural")} variant={typeFilter === 'rural' ? 'default' : 'outline'} size="sm">
-              <Trees size={14} className="mr-1" /> Rurais
-            </Button>
+          <div className="flex items-center gap-4 w-full sm:w-auto">
+            <div className="flex gap-2">
+              <Button onClick={() => setTypeFilter("urban")} variant={typeFilter === 'urban' ? 'default' : 'outline'} size="sm">
+                <Map size={14} className="mr-1" /> Urbanos
+              </Button>
+              <Button onClick={() => setTypeFilter("rural")} variant={typeFilter === 'rural' ? 'default' : 'outline'} size="sm">
+                <Trees size={14} className="mr-1" /> Rurais
+              </Button>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase text-muted-foreground whitespace-nowrap hidden md:inline">Ano:</span>
+              <Select value={serviceYear} onValueChange={setServiceYear}>
+                <SelectTrigger className="w-[100px] h-9">
+                  <SelectValue placeholder="Ano" />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map(year => (
+                    <SelectItem key={year} value={year}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+
           <Button onClick={handlePrint} disabled={isPrinting} className="w-full sm:w-auto justify-center font-bold">
             {isPrinting ? <Loader className="animate-spin mr-2" /> : <Printer size={16} className="mr-2" />} Salvar PDF
           </Button>
         </div>
       </div>
       
+      {/* Visualização para Desktop */}
       <div className="hidden md:block">
         <div 
           className="p-4 flex justify-center bg-muted print-hidden w-full overflow-hidden touch-none"
@@ -334,13 +376,15 @@ export default function S13Report() {
         </div>
       </div>
 
+      {/* Visualização para Mobile */}
       <div className="md:hidden p-4">
         <ReportForMobile />
       </div>
 
+      {/* Conteúdo otimizado para impressão (usado pelo html2pdf) */}
       <div className="hidden">
-        <div id="pdf-content-for-export" className="text-black bg-white p-8">
-          <ReportForPrint />
+        <div className="text-black bg-white p-8">
+          <ReportForPrint inPdf={true} />
         </div>
       </div>
     </>
