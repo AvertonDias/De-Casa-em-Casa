@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -10,10 +9,8 @@ import {
   History, 
   Settings, 
   ArrowLeft, 
-  DatabaseBackup,
   LayoutGrid,
   Search,
-  Trash2,
   Undo2,
   Loader,
   RefreshCw,
@@ -27,8 +24,6 @@ import TerritoryCoverageStats from '@/components/admin/TerritoryCoverageStats';
 import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesReport';
 import S13ReportPage from '../administracao/relatorio-s13/page';
 import CongregationEditForm from '@/components/admin/CongregationEditForm';
-import RestoreBackupTool from '@/components/admin/RestoreBackupTool';
-import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, limit, doc, Timestamp, runTransaction } from 'firebase/firestore';
 import { AuditLog } from '@/types/types';
@@ -41,14 +36,14 @@ import { logEvent } from '@/lib/audit';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-type Section = 'menu' | 'assignment' | 'overview' | 'available' | 's13' | 'history' | 'settings' | 'recovery';
+type Section = 'menu' | 'assignment' | 'overview' | 'available' | 's13' | 'history' | 'settings';
 
 function MaisPage() {
   const { user, congregation } = useUser();
   const { toast } = useToast();
   const [activeSection, setActiveSection] = useState<Section>('menu');
   
-  // Estados do Histórico (integrados)
+  // Estados do Histórico
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [isRefreshingLogs, setIsRefreshingLogs] = useState(false);
@@ -271,14 +266,6 @@ function MaisPage() {
                 colorClass="bg-gray-500/10 text-gray-400"
                 adminOnly
             />
-            <MenuCard 
-                id="recovery" 
-                label="Recuperação" 
-                description="Restaurar territórios de backups externos."
-                icon={DatabaseBackup}
-                colorClass="bg-red-500/10 text-red-500"
-                adminOnly
-            />
           </div>
         </>
       ) : (
@@ -291,7 +278,6 @@ function MaisPage() {
           {activeSection === 'overview' && <TerritoryCoverageStats />}
           {activeSection === 'available' && <AvailableTerritoriesReport />}
           {activeSection === 's13' && <S13ReportPage />}
-          {activeSection === 'recovery' && <RestoreBackupTool />}
           {activeSection === 'settings' && <div className="max-w-2xl mx-auto"><CongregationEditForm onSaveSuccess={() => {}} /></div>}
           
           {activeSection === 'history' && (
