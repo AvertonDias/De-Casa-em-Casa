@@ -52,7 +52,6 @@ function MaisPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [territoryMap, setTerritoryMap] = useState<Record<string, string>>({}); // ID -> Number
   const [loadingLogs, setLoadingLogs] = useState(true);
-  const [isRefreshingLogs, setIsRefreshingLogs] = useState(false);
   const [revertingIds, setRevertingIds] = useState<Set<string>>(new Set());
   const [searchTermLogs, setSearchTermLogs] = useState('');
   const [actionFilterLogs, setActionFilterLogs] = useState('all');
@@ -75,10 +74,9 @@ function MaisPage() {
   }, [user?.congregationId, isManager]);
 
   // Lógica de busca de logs
-  const fetchLogs = useCallback((isManualRefresh = false) => {
+  const fetchLogs = useCallback(() => {
     if (!user?.congregationId || !isAdmin) return;
-    if (isManualRefresh) setIsRefreshingLogs(true);
-    else setLoadingLogs(true);
+    setLoadingLogs(true);
 
     const logsRef = collection(db, `congregations/${user.congregationId}/auditLogs`);
     const q = query(logsRef, orderBy('timestamp', 'desc'), limit(1000));
@@ -86,11 +84,9 @@ function MaisPage() {
     return onSnapshot(q, (snapshot) => {
       setLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AuditLog)));
       setLoadingLogs(false);
-      setIsRefreshingLogs(false);
     }, (error) => {
         console.error("Erro ao carregar histórico:", error);
         setLoadingLogs(false);
-        setIsRefreshingLogs(false);
     });
   }, [user?.congregationId, isAdmin]);
 
@@ -347,9 +343,6 @@ function MaisPage() {
                             <Info size={12} /> Mostrando os últimos 1000 registros para garantir a velocidade do sistema.
                         </p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => fetchLogs(true)} disabled={isRefreshingLogs}>
-                        <RefreshCw size={14} className={isRefreshingLogs ? "animate-spin mr-2" : "mr-2"} /> Sincronizar
-                    </Button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
