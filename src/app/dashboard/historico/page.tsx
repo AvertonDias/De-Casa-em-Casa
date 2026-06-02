@@ -4,9 +4,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, getDocs, doc, Timestamp, writeBatch, setDoc, updateDoc, getDoc, deleteField, runTransaction } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit, getDocs, doc, Timestamp, writeBatch, setDoc, updateDoc, getDoc, deleteField, runTransaction, where } from 'firebase/firestore';
 import { AuditLog, Territory, Activity, Quadra, Casa } from '@/types/types';
-import { Loader, History, Search, Filter, Clock, User, Info, RefreshCw, Trash2, Undo2 } from 'lucide-react';
+import { Loader, History, Search, Filter, Clock, User, Info, RefreshCw, Trash2, Undo2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import withAuth from '@/components/withAuth';
@@ -25,11 +25,82 @@ function HistoricoPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isReconstructing, setIsReconstructing] = useState(false);
+  const [hasReconstructed, setHasReconstructed] = useState(false);
   const [revertingIds, setRevertingIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
 
   const isAdmin = user?.role === 'Administrador';
+
+  // --- FUNÇÃO DE RECONSTRUÇÃO AUTOMÁTICA ---
+  // Esta função vasculha o banco de dados em busca de atividades que ocorreram
+  // antes da criação do sistema de log centralizado e as traz para cá.
+  useEffect(() => {
+    const runReconstruction = async () => {
+        if (!user?.congregationId || !isAdmin || hasReconstructed) return;
+        
+        setIsReconstructing(true);
+        try {
+            const congregationId = user.congregationId;
+            const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
+            const territoriesSnap = await getDocs(territoriesRef);
+            
+            // Buscar o que já existe no log para não duplicar
+            const existingLogsQuery = query(
+                collection(db, 'congregations', congregationId, 'auditLogs'), 
+                where('action', '==', 'HOUSE_COMPLETED')
+            );
+            const existingLogsSnap = await getDocs(existingLogsQuery);
+            const existingDetails = new Set(existingLogsSnap.docs.map(d => d.data().details));
+
+            const batch = writeBatch(db);
+            let addedCount = 0;
+
+            for (const tDoc of territoriesSnap.docs) {
+                const historyRef = collection(tDoc.ref, 'activityHistory');
+                const historySnap = await getDocs(historyRef);
+                
+                historySnap.forEach(hDoc => {
+                    const hData = hDoc.data();
+                    // Se for um registro de trabalho que não está no log central, recuperamos ele
+                    if (hData.type === 'work' && !existingDetails.has(hData.description)) {
+                        const logRef = doc(collection(db, 'congregations', congregationId, 'auditLogs'));
+                        batch.set(logRef, {
+                            userId: hData.userId || 'system',
+                            userName: hData.userName || 'Sistema',
+                            action: 'HOUSE_COMPLETED',
+                            details: `[Recuperado] ${hData.description}`,
+                            timestamp: hData.activityDate,
+                            metadata: { 
+                                territoryId: tDoc.id, 
+                                isRecovered: true,
+                                originalActivityId: hDoc.id 
+                            }
+                        });
+                        addedCount++;
+                        
+                        // Limitamos o lote para evitar erros de transação muito grande
+                        if (addedCount >= 400) return; 
+                    }
+                });
+                if (addedCount >= 400) break;
+            }
+
+            if (addedCount > 0) {
+                await batch.commit();
+            }
+        } catch (error: any) {
+            console.error("Erro na reconstrução automática:", error);
+        } finally {
+            setIsReconstructing(false);
+            setHasReconstructed(true);
+        }
+    };
+
+    runReconstruction();
+  }, [user?.congregationId, isAdmin, hasReconstructed]);
+
 
   // Função para buscar os logs principais do Firestore
   const fetchLogs = useCallback((isManualRefresh = false) => {
@@ -40,7 +111,7 @@ function HistoricoPage() {
 
     const logsPath = `congregations/${user.congregationId}/auditLogs`;
     const logsRef = collection(db, logsPath);
-    const q = query(logsRef, orderBy('timestamp', 'desc'), limit(500));
+    const q = query(logsRef, orderBy('timestamp', 'desc'), limit(1000));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const logsData = snapshot.docs.map(doc => ({
@@ -121,22 +192,6 @@ function HistoricoPage() {
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Reverteu a exclusão da casa ${casaData.number} no território ${log.metadata.territoryId}.`);
             toast({ title: "Ação Revertida!", description: `A casa ${casaData.number} foi restaurada.` });
         } 
-        else if (log.action === 'HOUSE_UNMARKED' || log.action === 'HOUSE_COMPLETED') {
-            const { houseId, previousStatus } = revertData;
-            const { territoryId, quadraId } = log.metadata;
-            const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', houseId);
-            
-            // Simula um clique no checkbox com o status oposto ao atual
-            await runTransaction(db, async (transaction) => {
-                const casaDoc = await transaction.get(houseRef);
-                if (!casaDoc.exists()) throw new Error("Casa não encontrada.");
-                
-                // Chamamos a lógica de toggle manualmente aqui seria complexo, 
-                // por simplicidade vamos apenas reverter o status e atualizar contadores
-                // (Para um sistema real, idealmente moveríamos a lógica de toggle para um service)
-                toast({ title: "Aviso", description: "Para reverter marcações, use a tela do território correspondente." });
-            });
-        }
         else if (log.action === 'TERRITORY_DELETED') {
             const { territory, quadras } = revertData;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territory.id);
@@ -222,6 +277,17 @@ function HistoricoPage() {
           <p className="text-muted-foreground text-sm">Consultando registros diretamente do banco de dados em tempo real.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            {isReconstructing ? (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">
+                    <Loader className="animate-spin h-3 w-3" />
+                    Sincronizando Histórico Antigo...
+                </div>
+            ) : hasReconstructed && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 text-green-500 text-xs font-bold border border-green-500/20">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Histórico antigo sincronizado
+                </div>
+            )}
             <Button variant="outline" size="sm" onClick={() => fetchLogs(true)} disabled={isRefreshing}>
                 <RefreshCw size={14} className={isRefreshing ? "animate-spin mr-2" : "mr-2"} />
                 Sincronizar
@@ -280,7 +346,7 @@ function HistoricoPage() {
               <tbody className="divide-y divide-border/20">
                 {filteredLogs.length > 0 ? (
                   filteredLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
+                    <tr key={log.id} className={cn("hover:bg-white/[0.02] transition-colors", log.metadata?.isRecovered && "bg-blue-500/5")}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Clock size={14} />
@@ -307,6 +373,11 @@ function HistoricoPage() {
                                     {revertingIds.has(log.id) ? <Loader className="animate-spin mr-1 h-3 w-3"/> : <Undo2 size={12} className="mr-1"/>}
                                     Reverter
                                 </Button>
+                            )}
+                            {log.metadata?.isRecovered && (
+                                <span className="text-[9px] font-bold text-blue-400 uppercase tracking-tighter flex items-center gap-1">
+                                    <AlertCircle size={8} /> Registro Recuperado
+                                </span>
                             )}
                         </div>
                       </td>
