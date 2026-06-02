@@ -214,18 +214,6 @@ function HistoricoPage() {
           <p className="text-muted-foreground text-sm">Consultando registros diretamente do banco de dados em tempo real.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            {isReconstructing ? (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-500 text-xs font-bold animate-pulse border border-blue-500/20">
-                <Loader className="animate-spin" size={14} />
-                Sincronizando histórico antigo...
-              </div>
-            ) : hasReconstructed ? (
-               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 text-green-500 text-xs font-bold border border-green-500/20">
-                <CheckCircle2 size={14} />
-                Histórico antigo sincronizado
-              </div>
-            ) : null}
-            
             <Button variant="outline" size="sm" onClick={() => fetchLogs(true)} disabled={isRefreshing}>
                 <RefreshCw size={14} className={isRefreshing ? "animate-spin mr-2" : "mr-2"} />
                 Sincronizar
