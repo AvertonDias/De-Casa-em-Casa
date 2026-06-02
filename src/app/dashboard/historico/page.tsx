@@ -132,11 +132,14 @@ function HistoricoPage() {
             const { id, ...casaData } = revertData;
             const houseId = log.metadata.houseId || id;
             const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', houseId);
+            const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
             
             await runTransaction(db, async (transaction) => {
-                transaction.set(houseRef, casaData);
-                const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
+                // LEITURA PRIMEIRO
                 const qSnap = await transaction.get(quadraRef);
+                
+                // ESCRITA DEPOIS
+                transaction.set(houseRef, casaData);
                 if (qSnap.exists()) {
                     transaction.update(quadraRef, { 
                         totalHouses: (qSnap.data().totalHouses || 0) + 1,
@@ -172,11 +175,14 @@ function HistoricoPage() {
         else if (log.action === 'HOUSE_COMPLETED' || log.action === 'HOUSE_UNMARKED') {
             const { territoryId, quadraId, houseId, previousStatus } = log.metadata;
             const houseRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', houseId);
+            const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
             
             await runTransaction(db, async (transaction) => {
-                transaction.update(houseRef, { status: previousStatus });
-                const quadraRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId);
+                // LEITURA PRIMEIRO
                 const qSnap = await transaction.get(quadraRef);
+                
+                // ESCRITA DEPOIS
+                transaction.update(houseRef, { status: previousStatus });
                 const increment = previousStatus ? 1 : -1;
                 if (qSnap.exists()) {
                     transaction.update(quadraRef, { housesDone: Math.max(0, (qSnap.data().housesDone || 0) + increment) });
