@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -36,8 +37,8 @@ import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesR
 import S13ReportPage from '../administracao/relatorio-s13/page';
 import CongregationEditForm from '@/components/admin/CongregationEditForm';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, doc, Timestamp, runTransaction, where } from 'firebase/firestore';
-import { AuditLog, Territory } from '@/types/types';
+import { collection, query, orderBy, onSnapshot, limit, doc, Timestamp, runTransaction } from 'firebase/firestore';
+import { AuditLog } from '@/types/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -135,12 +136,9 @@ function MaisPage() {
             
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
             const quadraRef = doc(territoryRef, 'quadras', quadraId);
-            const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
                 const terrSnap = await transaction.get(territoryRef);
-                const congSnap = await transaction.get(congRef);
-                
                 transaction.set(quadraRef, quadra);
                 casas.forEach((c: any) => transaction.set(doc(quadraRef, 'casas', c.id), c));
                 
@@ -152,14 +150,6 @@ function MaisPage() {
                         quadraCount: (tData.quadraCount || 0) + 1
                     });
                 }
-                
-                if (congSnap.exists()) {
-                    const cData = congSnap.data();
-                    transaction.update(congRef, {
-                        totalHouses: (cData.totalHouses || 0) + (quadra.totalHouses || 0),
-                        totalHousesDone: (cData.totalHousesDone || 0) + (quadra.housesDone || 0)
-                    });
-                }
             });
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a quadra "${quadra.name}" no território ${log.metadata.territoryNumber || territoryId}.`);
             toast({ title: "Quadra Restaurada!" });
@@ -167,11 +157,8 @@ function MaisPage() {
         else if (log.action === 'TERRITORY_DELETED') {
             const { territory: terrData, quadras: quadrasData } = revertData;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', terrData.id);
-            const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
-                const congSnap = await transaction.get(congRef);
-                
                 transaction.set(territoryRef, terrData);
                 quadrasData.forEach((q: any) => {
                     const { casas, id, ...qMeta } = q;
@@ -179,16 +166,6 @@ function MaisPage() {
                     transaction.set(qRef, qMeta);
                     casas.forEach((c: any) => transaction.set(doc(qRef, 'casas', c.id), c));
                 });
-                
-                if (congSnap.exists()) {
-                    const cData = congSnap.data();
-                    transaction.update(congRef, {
-                        territoryCount: (cData.territoryCount || 0) + (terrData.type === 'rural' ? 0 : 1),
-                        ruralTerritoryCount: (cData.ruralTerritoryCount || 0) + (terrData.type === 'rural' ? 1 : 0),
-                        totalHouses: (cData.totalHouses || 0) + (terrData.stats?.totalHouses || 0),
-                        totalHousesDone: (cData.totalHousesDone || 0) + (terrData.stats?.housesDone || 0)
-                    });
-                }
             });
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o território ${terrData.number}.`);
             toast({ title: "Território Restaurado!" });
@@ -219,12 +196,16 @@ function MaisPage() {
       return matchesSearch && matchesAction;
     });
 
+    // Deduplicação por segundo (evita triplicidade do Firebase)
     const uniqueLogs: AuditLog[] = [];
     const seen = new Set<string>();
     filtered.forEach(log => {
         const timeKey = Math.floor(log.timestamp.toMillis() / 1000);
         const uniqueKey = `${log.userId}-${log.action}-${(log.details || '').substring(0, 40)}-${timeKey}`;
-        if (!seen.has(uniqueKey)) { uniqueLogs.push(log); seen.add(uniqueKey); }
+        if (!seen.has(uniqueKey)) {
+            uniqueLogs.push(log);
+            seen.add(uniqueKey);
+        }
     });
     return uniqueLogs;
   }, [logs, searchTermLogs, actionFilterLogs, territoryMap]);
@@ -259,7 +240,7 @@ function MaisPage() {
       'QUADRA_DELETED': { label: 'Quadra Excluída', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
       'TERRITORY_CREATED': { label: 'Novo Território', icon: MapPin, color: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20' },
       'TERRITORY_DELETED': { label: 'Território Excluído', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
-      'TERRITORY_RESET': { label: 'Reset de Progresso', icon: RefreshCcw, color: 'bg-orange-500/15 text-orange-500 border-orange-500/20' },
+      'TERRITORY_RESET': { label: 'Progresso Resetado', icon: RefreshCcw, color: 'bg-orange-500/15 text-orange-500 border-orange-500/20' },
       'REVERT_ACTION': { label: 'Ação Revertida', icon: Undo2, color: 'bg-purple-500/15 text-purple-400 border-purple-500/20' },
       'TERRITORY_ASSIGNED': { label: 'Designação', icon: UserCheck, color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20' },
       'TERRITORY_RETURNED': { label: 'Devolução', icon: CheckCircle, color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' },
@@ -267,6 +248,7 @@ function MaisPage() {
       'USER_EDITED': { label: 'Perfil Alterado', icon: Edit3, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
       'USER_DELETED': { label: 'Usuário Removido', icon: Trash2, color: 'bg-red-600/15 text-red-500 border-red-600/20' },
       'RURAL_WORK_LOGGED': { label: 'Trabalho Rural', icon: Trees, color: 'bg-green-500/15 text-green-500 border-green-500/20' },
+      'BACKUP_RESTORED': { label: 'Backup Restaurado', icon: CheckCircle, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
     };
 
     const item = config[action] || { label: action.replace(/_/g, ' '), icon: Info, color: 'bg-muted text-muted-foreground' };
