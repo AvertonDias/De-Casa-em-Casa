@@ -35,7 +35,7 @@ import { cn } from '@/lib/utils';
 import TerritoryAssignmentPanel from '@/components/admin/TerritoryAssignmentPanel';
 import TerritoryCoverageStats from '@/components/admin/TerritoryCoverageStats';
 import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesReport';
-import S13ReportPage from '../administracao/relatorio-s13/page';
+import S13Report from '@/components/admin/S13Report';
 import CongregationEditForm from '@/components/admin/CongregationEditForm';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, limit, doc, runTransaction, Timestamp, updateDoc, increment, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -110,7 +110,6 @@ function MaisPage() {
     const congregationId = user.congregationId;
 
     try {
-        // RESTAURAR CASA EXCLUÍDA
         if (log.action === 'HOUSE_DELETED') {
             const { territoryId, quadraId } = log.metadata;
             const { id, ...casaData } = revertData;
@@ -122,7 +121,6 @@ function MaisPage() {
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
-                // LEITURAS PRIMEIRO
                 const [qSnap, terrSnap, congSnap] = await Promise.all([
                     transaction.get(quadraRef),
                     transaction.get(territoryRef),
@@ -131,9 +129,7 @@ function MaisPage() {
 
                 if (!qSnap.exists()) throw new Error("A quadra desta casa não existe mais.");
                 
-                // ESCRITAS DEPOIS
                 transaction.set(houseRef, casaData);
-                
                 transaction.update(quadraRef, { 
                     totalHouses: increment(1),
                     housesDone: increment(casaData.status ? 1 : 0)
@@ -149,7 +145,6 @@ function MaisPage() {
                         progress: newTotal > 0 ? newDone / newTotal : 0
                     });
                 }
-
                 transaction.update(congRef, { 
                     totalHouses: increment(1),
                     totalHousesDone: increment(casaData.status ? 1 : 0)
@@ -157,9 +152,7 @@ function MaisPage() {
             });
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a casa ${casaData.number} no território ${log.metadata.territoryNumber || territoryId}.`);
             toast({ title: "Casa Restaurada!" });
-        } 
-        // RESTAURAR QUADRA EXCLUÍDA
-        else if (log.action === 'QUADRA_DELETED') {
+        } else if (log.action === 'QUADRA_DELETED') {
             const { territoryId, quadraId } = log.metadata;
             const { quadra, casas } = revertData;
             
@@ -169,13 +162,11 @@ function MaisPage() {
             
             await runTransaction(db, async (transaction) => {
                 const terrSnap = await transaction.get(territoryRef);
-                
                 transaction.set(quadraRef, quadra);
                 casas.forEach((c: any) => {
                     const { id, ...cData } = c;
                     transaction.set(doc(quadraRef, 'casas', id), cData);
                 });
-                
                 if (terrSnap.exists()) {
                     const tData = terrSnap.data() as Territory;
                     const newTotal = (tData.stats?.totalHouses || 0) + (quadra.totalHouses || 0);
@@ -187,7 +178,6 @@ function MaisPage() {
                         quadraCount: increment(1)
                     });
                 }
-
                 transaction.update(congRef, {
                     totalHouses: increment(quadra.totalHouses || 0),
                     totalHousesDone: increment(quadra.housesDone || 0)
@@ -195,9 +185,7 @@ function MaisPage() {
             });
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a quadra "${quadra.name}" no território ${log.metadata.territoryNumber || territoryId}.`);
             toast({ title: "Quadra Restaurada!" });
-        }
-        // RESTAURAR TERRITÓRIO EXCLUÍDO
-        else if (log.action === 'TERRITORY_DELETED') {
+        } else if (log.action === 'TERRITORY_DELETED') {
             const { territory: terrData, quadras: quadrasData } = revertData;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', terrData.id);
             const congRef = doc(db, 'congregations', congregationId);
@@ -205,7 +193,6 @@ function MaisPage() {
             await runTransaction(db, async (transaction) => {
                 const { id, ...tFinal } = terrData;
                 transaction.set(territoryRef, tFinal);
-                
                 quadrasData.forEach((q: any) => {
                     const { casas, id: qId, ...qMeta } = q;
                     const qRef = doc(territoryRef, 'quadras', qId);
@@ -215,7 +202,6 @@ function MaisPage() {
                         transaction.set(doc(qRef, 'casas', cId), cMeta);
                     });
                 });
-
                 transaction.update(congRef, {
                     territoryCount: increment(terrData.type === 'rural' ? 0 : 1),
                     ruralTerritoryCount: increment(terrData.type === 'rural' ? 1 : 0),
@@ -225,64 +211,46 @@ function MaisPage() {
             });
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o território ${terrData.number}.`);
             toast({ title: "Território Restaurado!" });
-        }
-        // RESTAURAR REGISTRO RURAL EXCLUÍDO
-        else if (log.action === 'RURAL_LOG_DELETED') {
+        } else if (log.action === 'RURAL_LOG_DELETED') {
             const { territoryId } = log.metadata;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
-            
             await runTransaction(db, async (transaction) => {
                 const terrSnap = await transaction.get(territoryRef);
                 if (!terrSnap.exists()) throw new Error("O território rural não existe mais.");
-                
                 const currentLogs = terrSnap.data().workLogs || [];
                 transaction.update(territoryRef, { workLogs: [...currentLogs, revertData] });
             });
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou um registro de trabalho no território rural.`);
             toast({ title: "Registro Rural Restaurado!" });
-        }
-        // RESTAURAR RESET DE TERRITÓRIO (LIMPAR TUDO)
-        else if (log.action === 'TERRITORY_RESET') {
+        } else if (log.action === 'TERRITORY_RESET') {
             const { territoryId } = log.metadata;
             const { quadras: quadrasData, history: historyData } = revertData;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
             const congRef = doc(db, 'congregations', congregationId);
-            
             await runTransaction(db, async (transaction) => {
-                // LEITURA PRIMEIRO
                 const [terrSnap, congSnap] = await Promise.all([
                     transaction.get(territoryRef),
                     transaction.get(congRef)
                 ]);
-
                 if (!terrSnap.exists()) throw new Error("O território não existe mais.");
-
                 let totalIncrement = 0;
-                
-                // Restaurar Casas que estavam feitas
                 for (const qData of quadrasData) {
                     const quadraRef = doc(territoryRef, 'quadras', qData.id);
                     let quadraIncrement = 0;
-                    
                     for (const h of qData.houses) {
                         const { id, ...hMeta } = h;
                         transaction.set(doc(quadraRef, 'casas', id), hMeta);
                         quadraIncrement++;
                         totalIncrement++;
                     }
-                    
                     transaction.update(quadraRef, { housesDone: increment(quadraIncrement) });
                 }
-                
-                // Restaurar Histórico de Atividade deletado
                 if (historyData) {
                     for (const h of historyData) {
                         const { id, ...hMeta } = h;
                         transaction.set(doc(territoryRef, 'activityHistory', id), hMeta);
                     }
                 }
-                
-                // Atualizar Território (usando o snap lido no início)
                 const tData = terrSnap.data() as Territory;
                 const newDone = (tData.stats?.housesDone || 0) + totalIncrement;
                 const total = tData.stats?.totalHouses || 1;
@@ -291,11 +259,8 @@ function MaisPage() {
                     progress: newDone / total,
                     lastUpdate: serverTimestamp()
                 });
-                
-                // Atualizar Congregação
                 transaction.update(congRef, { totalHousesDone: increment(totalIncrement) });
             });
-            
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o progresso do território ${log.metadata.territoryNumber || territoryId}.`);
             toast({ title: "Progresso Restaurado!" });
         }
@@ -312,9 +277,7 @@ function MaisPage() {
     const filtered = logs.filter(log => {
       let details = (log.details || '');
       Object.entries(territoryMap).forEach(([id, number]) => {
-          if (details.includes(id)) {
-              details = details.replace(new RegExp(id, 'g'), number);
-          }
+          if (details.includes(id)) details = details.replace(new RegExp(id, 'g'), number);
       });
       const matchesSearch = log.userName?.toLowerCase().includes(term) || details.toLowerCase().includes(term);
       let matchesAction = true;
@@ -322,7 +285,6 @@ function MaisPage() {
       else if (actionFilterLogs === 'creation') matchesAction = log.action.includes('CREATED');
       else if (actionFilterLogs === 'users') matchesAction = log.action.includes('USER_');
       else if (actionFilterLogs !== 'all') matchesAction = log.action === actionFilterLogs;
-
       return matchesSearch && matchesAction;
     });
 
@@ -333,7 +295,6 @@ function MaisPage() {
         const timestampMillis = log.timestamp.toMillis();
         const timeKey = Math.floor(timestampMillis / 1000);
         const uniqueKey = `${log.userId}-${log.action}-${(log.details || '').substring(0, 40)}-${timeKey}`;
-        
         if (!seen.has(uniqueKey)) {
             uniqueLogs.push(log);
             seen.add(uniqueKey);
@@ -376,7 +337,7 @@ function MaisPage() {
       'TERRITORY_DELETED': { label: 'Território Excluído', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
       'TERRITORY_RESET': { label: 'Progresso Resetado', icon: RefreshCcw, color: 'bg-orange-500/15 text-orange-500 border-orange-500/20' },
       'REVERT_ACTION': { label: 'Ação Revertida', icon: Undo2, color: 'bg-purple-500/15 text-purple-400 border-purple-500/20' },
-      'TERRITORY_ASSIGNED': { label: 'Designação', icon: UserCheck, color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20' },
+      'TERRITORY_ASSIGNED': { label: 'Designação', icon: BookUser, color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20' },
       'TERRITORY_RETURNED': { label: 'Devolução', icon: CheckCircle, color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' },
       'USER_APPROVED': { label: 'Usuário Aprovado', icon: UserPlus, color: 'bg-green-600/15 text-green-500 border-green-600/20' },
       'USER_EDITED': { label: 'Perfil Alterado', icon: Edit3, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
@@ -390,10 +351,8 @@ function MaisPage() {
       'HISTORY_DELETED': { label: 'Histórico Excluído', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
       'OVERDUE_NOTIFIED': { label: 'Cobrança WhatsApp', icon: MessageCircle, color: 'bg-yellow-500/15 text-yellow-500 border-yellow-500/20' },
     };
-
     const item = config[action] || { label: action.replace(/_/g, ' '), icon: Info, color: 'bg-muted text-muted-foreground' };
     const Icon = item.icon;
-
     return (
       <Badge variant="outline" className={cn("flex items-center gap-1.5 px-2 py-0.5 font-bold text-[10px] uppercase tracking-wider rounded-md", item.color)}>
         <Icon size={12} />
@@ -434,7 +393,7 @@ function MaisPage() {
           {activeSection === 'assignment' && <TerritoryAssignmentPanel />}
           {activeSection === 'overview' && <TerritoryCoverageStats />}
           {activeSection === 'available' && <AvailableTerritoriesReport />}
-          {activeSection === 's13' && <S13ReportPage />}
+          {activeSection === 's13' && <S13Report />}
           {activeSection === 'settings' && <div className="max-w-2xl mx-auto"><CongregationEditForm onSaveSuccess={() => {}} /></div>}
           
           {activeSection === 'history' && (
