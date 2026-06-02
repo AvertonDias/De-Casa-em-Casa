@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, limit, getDocs, doc, Timestamp, writeBatch } from 'firebase/firestore';
 import { AuditLog, Territory, Activity } from '@/types/types';
-import { Loader, History, Search, Filter, X, Clock, User, Info, FileText, RefreshCw, Download, Sparkles, Trash2 } from 'lucide-react';
+import { Loader, History, Search, Filter, X, Clock, User, Info, FileText, RefreshCw, Download, Sparkles, Trash2, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import withAuth from '@/components/withAuth';
@@ -25,12 +25,14 @@ function HistoricoPage() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isReconstructing, setIsReconstructing] = useState(false);
+  const [hasReconstructed, setHasReconstructed] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
 
   const isAdmin = user?.role === 'Administrador';
 
-  const fetchLogs = (isManualRefresh = false) => {
+  // Função para buscar os logs principais do Firestore
+  const fetchLogs = useCallback((isManualRefresh = false) => {
     if (!user?.congregationId || !isAdmin) return;
 
     if (isManualRefresh) setIsRefreshing(true);
@@ -61,18 +63,13 @@ function HistoricoPage() {
     });
 
     return unsubscribe;
-  };
-
-  useEffect(() => {
-    const unsubscribe = fetchLogs();
-    return () => { if (unsubscribe) unsubscribe(); };
   }, [user?.congregationId, isAdmin]);
 
-  const handleReconstructHistory = async () => {
-    if (!user?.congregationId || !isAdmin) return;
+  // Função para reconstruir histórico antigo automaticamente
+  const handleReconstructHistory = useCallback(async () => {
+    if (!user?.congregationId || !isAdmin || isReconstructing || hasReconstructed) return;
     
     setIsReconstructing(true);
-    toast({ title: "Iniciando varredura...", description: "Buscando atividades antigas em territórios ativos." });
 
     try {
         const congregationId = user.congregationId;
@@ -128,23 +125,34 @@ function HistoricoPage() {
             });
         }
 
-        setLogs(prev => {
-            const combined = [...prev, ...reconstructedLogs];
-            const unique = combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-            return unique.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
-        });
+        if (reconstructedLogs.length > 0) {
+            setLogs(prev => {
+                const combined = [...prev, ...reconstructedLogs];
+                const unique = combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+                return unique.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+            });
+        }
 
-        toast({ 
-            title: "Varredura concluída!", 
-            description: `Recuperamos ${reconstructedLogs.length} atividades de territórios existentes. Exclusões antigas não puderam ser recuperadas.` 
-        });
+        setHasReconstructed(true);
     } catch (error: any) {
-        console.error("Erro na reconstrução:", error);
-        toast({ title: "Erro na varredura", variant: "destructive" });
+        console.error("Erro na reconstrução automática:", error);
     } finally {
         setIsReconstructing(false);
     }
-  };
+  }, [user?.congregationId, isAdmin, isReconstructing, hasReconstructed]);
+
+  // Efeito para carregar os logs iniciais
+  useEffect(() => {
+    const unsubscribe = fetchLogs();
+    return () => { if (unsubscribe) unsubscribe(); };
+  }, [fetchLogs]);
+
+  // Gatilho automático para a sincronização de histórico antigo
+  useEffect(() => {
+    if (!loading && isAdmin && !hasReconstructed && !isReconstructing) {
+      handleReconstructHistory();
+    }
+  }, [loading, isAdmin, hasReconstructed, isReconstructing, handleReconstructHistory]);
 
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
@@ -206,10 +214,18 @@ function HistoricoPage() {
           <p className="text-muted-foreground text-sm">Consultando registros diretamente do banco de dados em tempo real.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <Button variant="info" size="sm" onClick={handleReconstructHistory} disabled={isReconstructing}>
-                {isReconstructing ? <Loader className="animate-spin mr-2" size={14}/> : <Sparkles size={14} className="mr-2" />}
-                Recuperar Histórico Antigo
-            </Button>
+            {isReconstructing ? (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-500 text-xs font-bold animate-pulse border border-blue-500/20">
+                <Loader className="animate-spin" size={14} />
+                Sincronizando histórico antigo...
+              </div>
+            ) : hasReconstructed ? (
+               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 text-green-500 text-xs font-bold border border-green-500/20">
+                <CheckCircle2 size={14} />
+                Histórico antigo sincronizado
+              </div>
+            ) : null}
+            
             <Button variant="outline" size="sm" onClick={() => fetchLogs(true)} disabled={isRefreshing}>
                 <RefreshCw size={14} className={isRefreshing ? "animate-spin mr-2" : "mr-2"} />
                 Sincronizar
