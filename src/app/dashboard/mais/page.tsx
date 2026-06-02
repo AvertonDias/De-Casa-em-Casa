@@ -165,7 +165,6 @@ function MaisPage() {
                     totalHouses: increment(1),
                     housesDone: increment(casaData.status ? 1 : 0)
                 });
-                // Note: O sync de território/congregação é complexo aqui, simplificamos para a quadra
             });
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a casa ${casaData.number} no território ${log.metadata.territoryNumber || territoryId}.`);
             toast({ title: "Casa Restaurada!" });
@@ -265,8 +264,11 @@ function MaisPage() {
     const uniqueLogs: AuditLog[] = [];
     const seen = new Set<string>();
     filtered.forEach(log => {
-        const timeKey = Math.floor(log.timestamp.toMillis() / 1000);
+        // Correção crítica: Verificação de existência do timestamp e fallback seguro
+        const timestampMillis = log.timestamp?.toMillis ? log.timestamp.toMillis() : Date.now();
+        const timeKey = Math.floor(timestampMillis / 1000);
         const uniqueKey = `${log.userId}-${log.action}-${(log.details || '').substring(0, 40)}-${timeKey}`;
+        
         if (!seen.has(uniqueKey)) {
             uniqueLogs.push(log);
             seen.add(uniqueKey);
