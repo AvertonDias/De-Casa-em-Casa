@@ -22,6 +22,16 @@ export default function UniversalLoginPage() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
 
+  // Enquanto o UserContext decide o destino de um usuário já logado, mostramos o loader global
+  if (userLoading || (user && user.congregationId)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+        <Loader className="animate-spin text-primary" size={40} />
+        <p className="mt-4 text-muted-foreground animate-pulse">Acessando sistema...</p>
+      </div>
+    );
+  }
+
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
     setEmail(e.target.value.toLowerCase().trim().replace(/\s/g, ''));
@@ -37,9 +47,13 @@ export default function UniversalLoginPage() {
     setLoading(true);
 
     try {
+      // Tenta o login com o Firebase
       await signInWithEmailAndPassword(auth, targetEmail, password);
+      // Sucesso: O listener no UserContext disparará o redirecionamento automaticamente.
+      // Mantemos o estado de 'loading' como true para o formulário ficar bloqueado durante o redirecionamento.
     } catch (err: any) {
       console.error("Erro de login:", err.code, err.message);
+      setLoading(false);
       
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
         setError(
@@ -47,13 +61,9 @@ export default function UniversalLoginPage() {
         );
       } else if (err.code === 'auth/too-many-requests') {
         setError("Muitas tentativas falhas. Aguarde alguns minutos ou redefina sua senha.");
-      } else if (err.message?.includes('suspended')) {
-        setError("O serviço de login do Google está temporariamente indisponível para este projeto. Por favor, contate o suporte.");
       } else {
         setError("Falha ao entrar. Verifique sua conexão e tente novamente.");
       }
-    } finally {
-      setLoading(false);
     }
   };
   
@@ -64,27 +74,24 @@ export default function UniversalLoginPage() {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         
-        // Detectar se é mobile para usar Redirect e evitar erros de cookies de terceiros em popups
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
         if (isMobile) {
             await signInWithRedirect(auth, provider);
         } else {
             await signInWithPopup(auth, provider);
+            // Redirecionamento via UserContext
         }
     } catch (error: any) {
       console.error("Erro Google Login:", error.code, error.message);
-      if (error.message?.includes('suspended')) {
-          setError("A chave de acesso deste projeto foi suspensa pelo Google. Contate o administrador do sistema.");
-      } else if (error.code === 'auth/account-exists-with-different-credential') {
+      setGoogleLoading(false);
+      if (error.code === 'auth/account-exists-with-different-credential') {
         setError("Este e-mail já possui uma conta com senha. Tente digitar sua senha acima.");
       } else if (error.code === 'auth/popup-blocked') {
         setError("O pop-up de login foi bloqueado pelo seu navegador.");
       } else if (error.code !== 'auth/popup-closed-by-user') {
         setError("Falha ao entrar com o Google. Tente usar e-mail e senha.");
       }
-    } finally {
-        setGoogleLoading(false);
     }
   };
 
@@ -117,8 +124,9 @@ export default function UniversalLoginPage() {
                 onChange={handleEmailChange}
                 placeholder="Seu e-mail"
                 required
-                className="w-full px-4 py-2.5 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none"
+                className="w-full px-4 py-2.5 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none text-base"
                 autoComplete="email"
+                disabled={loading || googleLoading}
               />
               <div className="relative">
                 <input
@@ -127,8 +135,9 @@ export default function UniversalLoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Sua senha"
                   required
-                  className="w-full px-4 py-2.5 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none pr-10"
+                  className="w-full px-4 py-2.5 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none pr-10 text-base"
                   autoComplete="current-password"
+                  disabled={loading || googleLoading}
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground hover:text-foreground">
                   {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
@@ -140,7 +149,7 @@ export default function UniversalLoginPage() {
               disabled={loading || googleLoading}
               className="w-full px-4 py-2.5 font-bold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 transition-all shadow-md"
             >
-              {loading ? <><Loader className="animate-spin inline mr-2" size={18}/> Entrando...</> : 'Entrar com E-mail'}
+              {(loading || (user && !userLoading)) ? <><Loader className="animate-spin inline mr-2" size={18}/> Acessando...</> : 'Entrar com E-mail'}
             </button>
           </form>
 

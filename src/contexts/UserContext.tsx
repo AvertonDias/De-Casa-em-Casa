@@ -66,6 +66,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Tenta ler do cache imediatamente para evitar flicker se possível
     const cached = localStorage.getItem(USER_CACHE_KEY);
     if (cached) {
       try {
@@ -75,11 +76,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
         console.warn("Erro ao ler cache do usuário");
       }
     }
-    setPersistence(auth, browserLocalPersistence).catch(console.error);
-    
-    // Processar resultado de redirecionamento do Google (necessário para mobile)
+
+    // Processar resultado de redirecionamento (essencial para Google no mobile)
     getRedirectResult(auth).catch(err => {
-        console.error("Erro ao processar retorno do Google Login:", err);
+        console.error("Erro ao processar retorno do Auth:", err);
     });
   }, []);
 
@@ -104,7 +104,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
             const partialUser: AppUser = {
                 uid: firebaseUser.uid,
                 name: firebaseUser.displayName || 'Novo Usuário',
-                email: firebaseUser.email!,
+                email: firebaseUser.email || '',
                 status: 'pendente'
             } as AppUser;
             setUser(partialUser);
@@ -114,9 +114,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
           const rawData = userDoc.data();
           const appUser = { 
-            uid: firebaseUser.uid, ...rawData,
-            name: rawData?.name || firebaseUser.displayName, 
-            email: rawData?.email || firebaseUser.email,
+            uid: firebaseUser.uid, 
+            ...rawData,
+            name: rawData?.name || firebaseUser.displayName || 'Usuário', 
+            email: rawData?.email || firebaseUser.email || '',
           } as AppUser;
 
           if (appUser.status === 'bloqueado' || appUser.status === 'rejeitado') {
@@ -131,6 +132,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
           
           setUser(appUser);
           localStorage.setItem(USER_CACHE_KEY, JSON.stringify(appUser));
+          
+          // Libera o carregamento assim que o usuário básico está pronto
+          setLoading(false);
 
           if (appUser.congregationId) {
             const congRef = doc(db, 'congregations', appUser.congregationId);
@@ -142,18 +146,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 } else {
                   setCongregation(null);
                 }
-                setLoading(false); 
               }, 
               async (error) => {
-                setLoading(false);
+                console.warn("Erro ao ouvir dados da congregação:", error);
               }
             );
           } else {
               setCongregation(null);
-              setLoading(false);
           }
         }, 
         async (error) => {
+          console.error("Erro no listener de perfil:", error);
           setLoading(false);
         }
       );
@@ -175,7 +178,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const isCompleteProfilePage = currentPath === '/completar-perfil';
   
     if (!user) {
-      if (!isAuthPage && !isAuthActionPage) {
+      if (!isAuthPage && !isAuthActionPage && !isWaitingPage && !isCompleteProfilePage) {
         router.replace('/');
       }
       return;
@@ -183,7 +186,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   
     if (!user.congregationId) {
         if (!isCompleteProfilePage) {
-            // Se viermos de um redirecionamento do Google, verificamos a intenção salva
             const savedIntent = localStorage.getItem('google_auth_intent');
             if (savedIntent === 'join') {
                 router.replace('/completar-perfil?mode=join');
