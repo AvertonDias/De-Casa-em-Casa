@@ -36,6 +36,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   usePresence(); 
   
   const listenersRef = useRef<{ [key: string]: () => void }>({});
+  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const unsubscribeAll = () => {
     Object.values(listenersRef.current).forEach(unsub => unsub());
@@ -72,33 +73,39 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   };
 
-  // 1. Processar resultados de login por redirecionamento (essencial para Google Mobile)
+  // 1. Processar resultados de login por redirecionamento (Google)
   useEffect(() => {
     const handleRedirect = async () => {
         try {
-            // getRedirectResult deve ser chamado para limpar o estado pendente do Auth
+            console.log("Checando resultado de redirecionamento do Google...");
             const result = await getRedirectResult(auth);
             if (result?.user) {
-                console.log("Login via Google processado com sucesso:", result.user.email);
+                console.log("Login via Google processado:", result.user.email);
             }
         } catch (error: any) {
             console.error("Erro ao processar retorno do Google:", error);
-            // Se o redirecionamento falhou, precisamos liberar a tela
             setLoading(false);
         }
     };
     
-    // Só tentamos processar o redirecionamento se estivermos em uma das páginas de entrada
-    const isAuthPage = ['/', '/cadastro', '/nova-congregacao'].includes(pathname || '');
-    if (isAuthPage) {
-        handleRedirect();
-    }
-  }, [pathname]);
+    handleRedirect();
+  }, []);
 
   // 2. Monitorar estado de autenticação e carregar perfil
   useEffect(() => {
+    // Seguro contra travamentos: Se nada acontecer em 8 segundos, libera o loading
+    initTimeoutRef.current = setTimeout(() => {
+        if (loading) {
+            console.warn("Timeout de inicialização atingido. Liberando tela.");
+            setLoading(false);
+        }
+    }, 8000);
+
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
+      if (initTimeoutRef.current) clearTimeout(initTimeoutRef.current);
+
       if (!firebaseUser) {
+        console.log("Auth: Nenhum usuário logado.");
         unsubscribeAll();
         localStorage.removeItem(USER_CACHE_KEY);
         setUser(null);
@@ -107,6 +114,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         return;
       }
       
+      console.log("Auth: Usuário autenticado:", firebaseUser.uid);
       const userRef = doc(db, 'users', firebaseUser.uid);
       
       if (listenersRef.current.user) listenersRef.current.user();
@@ -114,6 +122,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       listenersRef.current.user = onSnapshot(userRef, 
         async (userDoc) => {
           if (!userDoc.exists()) {
+            console.log("Firestore: Perfil não encontrado, tratando como novo usuário.");
             const partialUser: AppUser = {
                 uid: firebaseUser.uid,
                 name: firebaseUser.displayName || 'Novo Usuário',
@@ -132,6 +141,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
             name: rawData?.name || firebaseUser.displayName || 'Usuário', 
             email: rawData?.email || firebaseUser.email || '',
           } as AppUser;
+
+          console.log("Firestore: Perfil carregado, status:", appUser.status);
 
           if (appUser.status === 'bloqueado' || appUser.status === 'rejeitado') {
               unsubscribeAll();
@@ -158,7 +169,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 }
                 setLoading(false);
               }, 
-              async (error) => {
+              (error) => {
                 console.warn("Erro ao ouvir dados da congregação:", error);
                 setLoading(false);
               }
@@ -168,8 +179,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
               setLoading(false);
           }
         }, 
-        async (error) => {
+        (error) => {
           console.error("Erro no listener de perfil:", error);
+          // Se não houver permissão para ler o próprio perfil, pode ser erro de regra
           setLoading(false);
         }
       );
@@ -181,6 +193,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return () => {
       unsubscribeAuth();
       unsubscribeAll();
+      if (initTimeoutRef.current) clearTimeout(initTimeoutRef.current);
     };
   }, []);
 
