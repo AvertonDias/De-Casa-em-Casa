@@ -1,9 +1,8 @@
-
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, GoogleAuthProvider, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff, AlertTriangle, Loader } from 'lucide-react';
@@ -23,13 +22,13 @@ export default function UniversalLoginPage() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
 
-  // Se o carregamento terminou e existe um usuário (mesmo sem congregação), 
-  // mostramos o loader porque o UserContext vai redirecioná-lo em instantes.
-  if (userLoading || user) {
+  // Se já existe um usuário no Firebase Auth ou o contexto está carregando,
+  // mostramos a tela de carregamento para evitar que o formulário apareça.
+  if (userLoading || user || googleLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <Loader className="animate-spin text-primary" size={40} />
-        <p className="mt-4 text-muted-foreground animate-pulse">Acessando sistema...</p>
+        <p className="mt-4 text-muted-foreground animate-pulse font-bold">Iniciando sessão...</p>
       </div>
     );
   }
@@ -56,7 +55,7 @@ export default function UniversalLoginPage() {
       
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
         setError(
-          "E-mail ou senha incorretos. Dica: Verifique se você não criou sua conta usando o botão do Google abaixo."
+          "E-mail ou senha incorretos. Verifique se você não usou o botão do Google ao criar a conta."
         );
       } else if (err.code === 'auth/too-many-requests') {
         setError("Muitas tentativas falhas. Aguarde alguns minutos ou redefina sua senha.");
@@ -76,9 +75,12 @@ export default function UniversalLoginPage() {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
         if (isMobile) {
+            // Em mobile, redirecionamos. O UserContext cuidará do retorno.
             await signInWithRedirect(auth, provider);
         } else {
+            // Em desktop, usamos popup.
             await signInWithPopup(auth, provider);
+            // O onAuthStateChanged no UserContext detectará a mudança.
         }
     } catch (error: any) {
       console.error("Erro Google Login:", error.code, error.message);
