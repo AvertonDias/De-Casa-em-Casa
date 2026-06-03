@@ -95,7 +95,6 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
               <div className="min-w-0 flex-1">
                 <p className="font-bold text-base text-foreground truncate">
                   {displayHead.name}
-                  {isCurrent && <span className="ml-2 text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full uppercase tracking-tighter">Atual</span>}
                 </p>
                 
                 <div className="text-xs flex flex-wrap gap-x-3 mt-1 text-muted-foreground">
