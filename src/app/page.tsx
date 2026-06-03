@@ -78,7 +78,7 @@ export default function UniversalLoginPage() {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         
-        // Mudança para Pop-up para evitar erro de "Estado Inicial" no mobile
+        // Usando Popup para evitar erro de "Missing Initial State" em ambientes de dev/mobile
         await signInWithPopup(auth, provider);
         
     } catch (error: any) {

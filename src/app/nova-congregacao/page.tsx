@@ -92,6 +92,7 @@ export default function NovaCongregacaoPage() {
         // Salvar a intenção antes do popup
         localStorage.setItem('google_auth_intent', 'create');
         
+        // Usando Popup para estabilidade
         await signInWithPopup(auth, provider);
         router.push('/completar-perfil?mode=create');
 

@@ -1,1 +1,0 @@
-// Arquivo movido para src/app/aguardando-aprovacao/page.tsx. Por favor, exclua este arquivo e a pasta (auth).

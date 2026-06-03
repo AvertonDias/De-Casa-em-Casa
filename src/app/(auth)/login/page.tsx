@@ -1,1 +1,0 @@
-// Arquivo movido para a raiz. Por favor, exclua este arquivo e a pasta (auth).
