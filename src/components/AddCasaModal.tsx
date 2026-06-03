@@ -68,11 +68,10 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
     const casasRef = collection(quadraRef, 'casas');
 
     runTransaction(db, async (transaction) => {
-        const [quadraDoc, territoryDoc, congDoc] = await Promise.all([
-            transaction.get(quadraRef),
-            transaction.get(territoryRef),
-            transaction.get(congRef),
-        ]);
+        // LEITURAS SEQUENCIAIS
+        const quadraDoc = await transaction.get(quadraRef);
+        const territoryDoc = await transaction.get(territoryRef);
+        const congDoc = await transaction.get(congRef);
 
         if (!quadraDoc.exists() || !territoryDoc.exists() || !congDoc.exists()) {
             throw new Error("Documento não encontrado.");
@@ -105,6 +104,7 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
             casaData.activityLogId = newActivityRef.id;
         }
 
+        // ESCRITAS
         transaction.set(newCasaRef, casaData);
 
         transaction.update(quadraRef, {

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser } from '@/contexts/UserContext';
@@ -110,7 +111,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments =
                   </div>
                   <div className="space-y-0.5">
                     <p className="text-muted-foreground">{isTransfer ? "Transferido em:" : "Devolvido em:"}</p>
-                    <p className="font-medium">{format(log.completedAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}</p>
+                    <p className="font-medium">{log.completedAt ? format(log.completedAt.toDate(), "dd/MM/yyyy", { locale: ptBR }) : '---'}</p>
                   </div>
                 </div>
               </div>

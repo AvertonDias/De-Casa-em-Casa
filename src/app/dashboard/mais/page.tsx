@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -36,7 +37,7 @@ import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesR
 import S13Report from '@/components/admin/S13Report';
 import CongregationEditForm from '@/components/admin/CongregationEditForm';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, doc, runTransaction, increment, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit, doc, runTransaction, increment, serverTimestamp, getDoc } from 'firebase/firestore';
 import { AuditLog, Territory } from '@/types/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -119,14 +120,14 @@ function MaisPage() {
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
-                const [qSnap, terrSnap, congSnap] = await Promise.all([
-                    transaction.get(quadraRef),
-                    transaction.get(territoryRef),
-                    transaction.get(congRef)
-                ]);
+                // LEITURAS
+                const qSnap = await transaction.get(quadraRef);
+                const terrSnap = await transaction.get(territoryRef);
+                const congSnap = await transaction.get(congRef);
 
                 if (!qSnap.exists()) throw new Error("A quadra desta casa não existe mais.");
                 
+                // ESCRITAS
                 transaction.set(houseRef, casaData);
                 transaction.update(quadraRef, { 
                     totalHouses: (qSnap.data()?.totalHouses || 0) + 1,
@@ -161,11 +162,11 @@ function MaisPage() {
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
-                const [terrSnap, congSnap] = await Promise.all([
-                    transaction.get(territoryRef),
-                    transaction.get(congRef)
-                ]);
+                // LEITURAS
+                const terrSnap = await transaction.get(territoryRef);
+                const congSnap = await transaction.get(congRef);
                 
+                // ESCRITAS
                 transaction.set(quadraRef, quadra);
                 casas.forEach((c: any) => {
                     const { id, ...cData } = c;
@@ -198,7 +199,10 @@ function MaisPage() {
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
+                // LEITURA
                 const congSnap = await transaction.get(congRef);
+                
+                // ESCRITAS
                 const { id, ...tFinal } = terrData;
                 transaction.set(territoryRef, tFinal);
                 quadrasData.forEach((q: any) => {
@@ -225,8 +229,11 @@ function MaisPage() {
             const { territoryId } = log.metadata;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
             await runTransaction(db, async (transaction) => {
+                // LEITURA
                 const terrSnap = await transaction.get(territoryRef);
                 if (!terrSnap.exists()) throw new Error("O território rural não existe mais.");
+                
+                // ESCRITA
                 const currentLogs = terrSnap.data().workLogs || [];
                 transaction.update(territoryRef, { workLogs: [...currentLogs, revertData] });
             });
@@ -239,19 +246,21 @@ function MaisPage() {
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
-                // 1. PRIMEIRO TODAS AS LEITURAS
-                const [terrSnap, congSnap] = await Promise.all([
-                    transaction.get(territoryRef),
-                    transaction.get(congRef)
-                ]);
+                // 1. TODAS AS LEITURAS PRIMEIRO
+                const terrSnap = await transaction.get(territoryRef);
+                const congSnap = await transaction.get(congRef);
 
                 // Ler todas as quadras envolvidas antes de fazer qualquer escrita
                 const qRefs = quadrasData.map((q: any) => doc(territoryRef, 'quadras', q.id));
-                const qSnaps = await Promise.all(qRefs.map(ref => transaction.get(ref)));
+                const qSnaps = [];
+                for (const ref of qRefs) {
+                    const snap = await transaction.get(ref);
+                    qSnaps.push(snap);
+                }
 
                 if (!terrSnap.exists()) throw new Error("O território não existe mais.");
 
-                // 2. DEPOIS TODAS AS ESCRITAS
+                // 2. TODAS AS ESCRITAS DEPOIS
                 let totalIncrement = 0;
                 
                 quadrasData.forEach((qData: any, idx: number) => {

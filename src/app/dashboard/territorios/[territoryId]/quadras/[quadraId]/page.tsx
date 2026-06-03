@@ -156,12 +156,11 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     const activityHistoryRef = collection(territoryRef, 'activityHistory');
 
     runTransaction(db, async (transaction) => {
-        const [congDoc, territoryDoc, quadraDoc, casaDoc] = await Promise.all([
-            transaction.get(congRef),
-            transaction.get(territoryRef),
-            transaction.get(quadraRef),
-            transaction.get(casaRef),
-        ]);
+        // LEITURAS SEQUENCIAIS PARA EVITAR ERRO
+        const congDoc = await transaction.get(congRef);
+        const territoryDoc = await transaction.get(territoryRef);
+        const quadraDoc = await transaction.get(quadraRef);
+        const casaDoc = await transaction.get(casaRef);
 
         if (!congDoc.exists() || !territoryDoc.exists() || !quadraDoc.exists() || !casaDoc.exists()) {
             throw new Error("Um dos documentos necessários não foi encontrado.");
@@ -172,13 +171,12 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 
         const incrementAmount = newStatus ? 1 : -1;
 
-        const newQuadraHousesDone = (quadraDoc.data().housesDone || 0) + incrementAmount;
+        // ESCRITAS
+        transaction.update(quadraRef, { housesDone: (quadraDoc.data().housesDone || 0) + incrementAmount });
+        
         const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + incrementAmount;
         const territoryTotalHouses = territoryDoc.data().stats.totalHouses || 0;
         const newTerritoryProgress = territoryTotalHouses > 0 ? newTerritoryHousesDone / territoryTotalHouses : 0;
-        const newCongTotalHousesDone = (congDoc.data().totalHousesDone || 0) + incrementAmount;
-
-        transaction.update(quadraRef, { housesDone: newQuadraHousesDone });
         
         const territoryUpdateData: any = {
             "stats.housesDone": newTerritoryHousesDone,
@@ -190,7 +188,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         }
         transaction.update(territoryRef, territoryUpdateData);
         
-        transaction.update(congRef, { totalHousesDone: newCongTotalHousesDone });
+        transaction.update(congRef, { totalHousesDone: (congDoc.data().totalHousesDone || 0) + incrementAmount });
 
         if (newStatus) {
             const newActivityRef = doc(activityHistoryRef);
@@ -270,17 +268,17 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         const quadraRef = doc(territoryRef, 'quadras', quadraId);
         const casaRef = doc(quadraRef, 'casas', casaToDelete.id);
         
-        const [quadraDoc, territoryDoc, casaDoc, congDoc] = await Promise.all([
-            transaction.get(quadraRef),
-            transaction.get(territoryRef),
-            transaction.get(casaRef),
-            transaction.get(congRef)
-        ]);
+        // LEITURAS SEQUENCIAIS
+        const quadraDoc = await transaction.get(quadraRef);
+        const territoryDoc = await transaction.get(territoryRef);
+        const casaDoc = await transaction.get(casaRef);
+        const congDoc = await transaction.get(congRef);
 
         if (!quadraDoc.exists() || !territoryDoc.exists() || !casaDoc.exists() || !congDoc.exists()) {
             throw new Error("Documento não encontrado para a transação de exclusão.");
         }
 
+        // ESCRITAS
         transaction.delete(casaRef);
         
         const wasDone = casaDoc.data().status === true;
