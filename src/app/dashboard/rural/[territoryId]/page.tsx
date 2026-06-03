@@ -106,6 +106,9 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
     if (!logId || !user?.congregationId || !territory) return;
     const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', territory.id);
     
+    const oldLog = territory.workLogs?.find(l => l.id === logId);
+    const detailText = `Editou um registro de trabalho rural no território ${territory.number}. Detalhes: "${oldLog?.notes.substring(0, 30)}..." -> "${logData.notes.substring(0, 30)}..."`;
+
     try {
         await runTransaction(db, async (transaction) => {
             const territoryDoc = await transaction.get(territoryRef);
@@ -123,7 +126,7 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
             user.uid,
             user.name,
             'RURAL_LOG_EDITED',
-            `Editou um registro de trabalho rural no território ${territory.number}.`,
+            detailText,
             { territoryId: territory.id, logId }
         );
     } catch (error) {

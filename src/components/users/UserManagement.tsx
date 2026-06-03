@@ -151,13 +151,29 @@ export default function UserManagement() {
         return;
     }
 
+    // Calcular o que mudou para o log
+    const changes: string[] = [];
+    if (dataToUpdate.name && dataToUpdate.name !== targetUser?.name) 
+        changes.push(`Nome: ${targetUser?.name || 'Vazio'} -> ${dataToUpdate.name}`);
+    if (dataToUpdate.role && dataToUpdate.role !== targetUser?.role) 
+        changes.push(`Perfil: ${targetUser?.role} -> ${dataToUpdate.role}`);
+    if (dataToUpdate.status && dataToUpdate.status !== targetUser?.status) 
+        changes.push(`Status: ${targetUser?.status} -> ${dataToUpdate.status}`);
+    if (dataToUpdate.whatsapp && dataToUpdate.whatsapp !== targetUser?.whatsapp) 
+        changes.push(`WhatsApp: ${targetUser?.whatsapp || 'Vazio'} -> ${dataToUpdate.whatsapp}`);
+    if (dataToUpdate.email && dataToUpdate.email !== targetUser?.email) 
+        changes.push(`Email: ${targetUser?.email} -> ${dataToUpdate.email}`);
+
+    const changesText = changes.length > 0 ? ` [${changes.join(' | ')}]` : '';
+
     updateDoc(userRef, dataToUpdate as any).then(() => {
         if (currentUser.congregationId) {
-            const targetName = dataToUpdate.name || targetUser?.name || userId;
-            const actionType = dataToUpdate.status === 'ativo' ? 'USER_APPROVED' : 'USER_EDITED';
-            const detailText = dataToUpdate.status === 'ativo' 
+            const targetName = targetUser?.name || userId;
+            const isApproval = dataToUpdate.status === 'ativo' && targetUser?.status === 'pendente';
+            const actionType = isApproval ? 'USER_APPROVED' : 'USER_EDITED';
+            const detailText = isApproval 
                 ? `Aprovou o acesso do usuário ${targetName}.` 
-                : `Alterou os dados do usuário ${targetName}.`;
+                : `Alterou os dados do usuário ${targetName}.${changesText}`;
             
             logEvent(
                 currentUser.congregationId,

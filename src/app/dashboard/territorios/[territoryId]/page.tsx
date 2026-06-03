@@ -84,10 +84,19 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   }, [territoryId, user]);
 
   const handleSaveTerritory = async (tid: string, data: Partial<Territory>) => {
-      if (!user?.congregationId) return;
+      if (!user?.congregationId || !territory) return;
       const congregationId = user.congregationId;
       const territoryRef = doc(db, 'congregations', congregationId, 'territories', tid);
       
+      const changes: string[] = [];
+      if (data.number && data.number !== territory.number) changes.push(`Nº: ${territory.number} -> ${data.number}`);
+      if (data.name && data.name !== territory.name) changes.push(`Nome: ${territory.name} -> ${data.name}`);
+      if (data.description !== undefined && data.description !== territory.description) changes.push(`Obs: Alterada`);
+      if (data.mapLink !== undefined && data.mapLink !== territory.mapLink) changes.push(`Mapa: Alterado`);
+      if (data.cardUrl !== undefined && data.cardUrl !== territory.cardUrl) changes.push(`Cartão: Alterado`);
+
+      const detailText = `Editou o território ${territory.number}.${changes.length > 0 ? ` [${changes.join(' | ')}]` : ''}`;
+
       await updateDoc(territoryRef, { ...data, lastUpdate: serverTimestamp() });
       
       logEvent(
@@ -95,7 +104,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           user.uid,
           user.name,
           'TERRITORY_EDITED',
-          `Editou as informações do território ${territory?.number || tid}.`,
+          detailText,
           { territoryId: tid }
       );
   };
@@ -119,10 +128,18 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   };
 
   const handleSaveQuadra = async (qid: string, data: { name: string; description: string }) => {
-    if (!user?.congregationId) return;
+    if (!user?.congregationId || !territory) return;
     const qRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', qid);
+    
+    const oldQuadra = quadras.find(q => q.id === qid);
+    const changes: string[] = [];
+    if (data.name !== oldQuadra?.name) changes.push(`Nome: ${oldQuadra?.name} -> ${data.name}`);
+    if (data.description !== oldQuadra?.description) changes.push(`Obs: Alterada`);
+
+    const detailText = `Editou a quadra "${data.name}" no território ${territory.number}.${changes.length > 0 ? ` [${changes.join(' | ')}]` : ''}`;
+
     await updateDoc(qRef, data);
-    logEvent(user.congregationId, user.uid, user.name, 'QUADRA_EDITED', `Editou a quadra "${data.name}" no território ${territory?.number}.`, { territoryId, quadraId: qid });
+    logEvent(user.congregationId, user.uid, user.name, 'QUADRA_EDITED', detailText, { territoryId, quadraId: qid });
     toast({ title: "Sucesso!", description: "Dados da quadra atualizados." });
   };
 

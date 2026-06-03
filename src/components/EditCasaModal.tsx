@@ -65,12 +65,21 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
 
     const casaRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
     
+    // Calcular o que mudou para o log
+    const changes: string[] = [];
+    if (formData.number.toUpperCase() !== casa.number) 
+        changes.push(`Nº: ${casa.number} -> ${formData.number.toUpperCase()}`);
+    if (formData.observations !== (casa.observations || '')) 
+        changes.push(`Obs: Alterada`);
+
+    const detailText = `Editou a casa ${casa.number} na ${quadraName || 'quadra'} do território ${territoryNumber || territoryId}.${changes.length > 0 ? ` [${changes.join(' | ')}]` : ''}`;
+
     updateDoc(casaRef, {
       number: formData.number.toUpperCase(),
       observations: formData.observations,
     }).then(() => {
       if (user) {
-        logEvent(congregationId, user.uid, user.name, 'HOUSE_EDITED', `Editou a casa ${casa.number} (agora ${formData.number.toUpperCase()}) na ${quadraName || 'quadra'} do território ${territoryNumber || territoryId}.`, { 
+        logEvent(congregationId, user.uid, user.name, 'HOUSE_EDITED', detailText, { 
             territoryId, 
             quadraId, 
             houseId: casa.id,
@@ -101,7 +110,6 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
       if (!congDoc.exists()) {
         throw "Documento da congregação não encontrado!";
       }
-      // O decréscimo de estatísticas é feito na transação principal de exclusão no pai
     }).then(() => {
         onDeleteRequest(casa);
         onClose();
