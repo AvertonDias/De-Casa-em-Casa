@@ -97,13 +97,18 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                   {displayHead.name}
                 </p>
                 
-                <div className="text-xs flex flex-wrap gap-x-3 mt-1 text-muted-foreground">
+                <div className="text-xs flex flex-wrap items-center gap-x-3 mt-1.5 text-muted-foreground">
                   <span className="flex items-center gap-1">
                     Designado: <span className="text-foreground/80">{format(displayHead.assignedAt.toDate(), "dd/MM/yyyy")}</span>
                   </span>
                   {isCurrent ? (
-                    <span className="flex items-center gap-1 font-semibold text-primary/80">
-                      Devolver até: <span>{format((displayHead as Assignment).dueDate.toDate(), "dd/MM/yyyy")}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                        Devolver até
+                      </span>
+                      <span className="font-bold text-foreground">
+                        {format((displayHead as Assignment).dueDate.toDate(), "dd/MM/yyyy")}
+                      </span>
                     </span>
                   ) : (
                     head && (
