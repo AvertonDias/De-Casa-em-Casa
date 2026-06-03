@@ -1,23 +1,25 @@
+
 {
   "name": "De Casa em Casa",
-  "short_name": "De Casa em Casa",
+  "short_name": "De Casa",
+  "description": "Sistema de Gerenciamento de Territórios",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#7C3AED",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "/images/icon-192.png",
+      "src": "/images/Logo_v3.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/images/icon-512.png",
+      "src": "/images/Logo_v3.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "theme_color": "#0f172a",
-  "background_color": "#0f172a",
-  "start_url": "/",
-  "display": "standalone",
-  "orientation": "portrait"
+  ]
 }
