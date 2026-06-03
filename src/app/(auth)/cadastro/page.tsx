@@ -119,6 +119,9 @@ export default function SignUpPage() {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         await signInWithPopup(auth, provider);
+        // Após o login bem sucedido, o UserContext verá que não tem doc e levará ao /completar-perfil.
+        // Forçamos a aba de JOIN via query param.
+        router.push('/completar-perfil?mode=join');
     } catch (error: any) {
       if (error.code === 'auth/account-exists-with-different-credential') {
         setError("Este e-mail já possui uma conta cadastrada com senha.");

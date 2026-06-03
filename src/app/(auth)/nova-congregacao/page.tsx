@@ -1,7 +1,9 @@
+
 "use client";
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label"
@@ -16,6 +18,7 @@ import { TutorialButton } from '@/components/TutorialButton';
 import { TUTORIAL_IDS } from '@/lib/tutorials';
 
 export default function NovaCongregacaoPage() {
+  const router = useRouter();
   const [adminName, setAdminName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
@@ -82,6 +85,8 @@ export default function NovaCongregacaoPage() {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         await signInWithPopup(auth, provider);
+        // Após o login bem sucedido, força a ida para completar perfil em modo CREATE
+        router.push('/completar-perfil?mode=create');
     } catch (error: any) {
       if (error.code !== 'auth/popup-closed-by-user') {
         console.error("Erro com Google:", error);
