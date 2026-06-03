@@ -26,7 +26,8 @@ import {
   DatabaseBackup,
   ArrowDownUp,
   MessageCircle,
-  Settings
+  Settings,
+  XCircle
 } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
@@ -37,7 +38,7 @@ import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesR
 import S13Report from '@/components/admin/S13Report';
 import CongregationEditForm from '@/components/admin/CongregationEditForm';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, doc, runTransaction, increment, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit, doc, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
 import { AuditLog, Territory } from '@/types/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -115,19 +116,17 @@ function MaisPage() {
             const houseId = log.metadata.houseId || id;
             
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
-            const houseRef = doc(territoryRef, 'quadras', quadraId, 'casas', houseId);
             const quadraRef = doc(territoryRef, 'quadras', quadraId);
+            const houseRef = doc(quadraRef, 'casas', houseId);
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
-                // LEITURAS PRIMEIRO
                 const qSnap = await transaction.get(quadraRef);
                 const terrSnap = await transaction.get(territoryRef);
                 const congSnap = await transaction.get(congRef);
 
                 if (!qSnap.exists()) throw new Error("A quadra desta casa não existe mais.");
                 
-                // ESCRITAS DEPOIS
                 transaction.set(houseRef, casaData);
                 transaction.update(quadraRef, { 
                     totalHouses: (qSnap.data()?.totalHouses || 0) + 1,
@@ -146,8 +145,8 @@ function MaisPage() {
                 }
                 if (congSnap.exists()) {
                     transaction.update(congRef, { 
-                        totalHouses: (congSnap.data()?.totalHouses || 0) + 1,
-                        totalHousesDone: (congSnap.data()?.totalHousesDone || 0) + (casaData.status ? 1 : 0)
+                        totalHouses: (congSnap.data().totalHouses || 0) + 1,
+                        totalHousesDone: (congSnap.data().totalHousesDone || 0) + (casaData.status ? 1 : 0)
                     });
                 }
             });
@@ -184,8 +183,8 @@ function MaisPage() {
                 }
                 if (congSnap.exists()) {
                     transaction.update(congRef, {
-                        totalHouses: (congSnap.data()?.totalHouses || 0) + (quadra.totalHouses || 0),
-                        totalHousesDone: (congSnap.data()?.totalHousesDone || 0) + (quadra.housesDone || 0)
+                        totalHouses: (congSnap.data().totalHouses || 0) + (quadra.totalHouses || 0),
+                        totalHousesDone: (congSnap.data().totalHousesDone || 0) + (quadra.housesDone || 0)
                     });
                 }
             });
@@ -239,19 +238,18 @@ function MaisPage() {
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
-                // LEITURAS PRIMEIRO
                 const terrSnap = await transaction.get(territoryRef);
                 const congSnap = await transaction.get(congRef);
+                
+                // Pré-carregar todas as quadras necessárias
                 const qRefs = quadrasData.map((q: any) => doc(territoryRef, 'quadras', q.id));
                 const qSnaps = [];
                 for (const ref of qRefs) {
-                    const snap = await transaction.get(ref);
-                    qSnaps.push(snap);
+                    qSnaps.push(await transaction.get(ref));
                 }
 
                 if (!terrSnap.exists()) throw new Error("O território não existe mais.");
 
-                // ESCRITAS DEPOIS
                 let totalIncrement = 0;
                 quadrasData.forEach((qData: any, idx: number) => {
                     const quadraRef = qRefs[idx];
@@ -285,7 +283,7 @@ function MaisPage() {
                 });
 
                 if (congSnap.exists()) {
-                    transaction.update(congRef, { totalHousesDone: (congSnap.data()?.totalHousesDone || 0) + totalIncrement });
+                    transaction.update(congRef, { totalHousesDone: (congSnap.data().totalHousesDone || 0) + totalIncrement });
                 }
             });
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o progresso do território ${log.metadata.territoryNumber || territoryId}.`);
@@ -366,12 +364,12 @@ function MaisPage() {
       'TERRITORY_ASSIGNED': { label: 'Designação', icon: BookUser, color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20' },
       'TERRITORY_RETURNED': { label: 'Devolução', icon: CheckCircle, color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' },
       'USER_APPROVED': { label: 'Usuário Aprovado', icon: UserPlus, color: 'bg-green-600/15 text-green-500 border-green-600/20' },
+      'USER_REJECTED': { label: 'Cadastro Rejeitado', icon: XCircle, color: 'bg-red-600/15 text-red-500 border-red-600/20' },
       'USER_EDITED': { label: 'Perfil Alterado', icon: Edit3, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
       'USER_DELETED': { label: 'Usuário Removido', icon: Trash2, color: 'bg-red-600/15 text-red-500 border-red-600/20' },
       'RURAL_WORK_LOGGED': { label: 'Trabalho Rural', icon: Trees, color: 'bg-green-500/15 text-green-500 border-green-500/20' },
       'RURAL_LOG_EDITED': { label: 'Log Rural Editado', icon: Edit3, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
       'RURAL_LOG_DELETED': { label: 'Log Rural Excluído', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
-      'BACKUP_RESTORED': { label: 'Backup Restaurado', icon: DatabaseBackup, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
       'CASAS_REORDERED': { label: 'Reordenamento', icon: ArrowDownUp, color: 'bg-purple-500/15 text-purple-400 border-purple-500/20' },
       'HISTORY_EDITED': { label: 'Histórico Editado', icon: Edit3, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
       'HISTORY_DELETED': { label: 'Histórico Excluído', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },

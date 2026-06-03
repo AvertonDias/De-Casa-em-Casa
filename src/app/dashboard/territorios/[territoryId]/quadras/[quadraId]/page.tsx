@@ -162,7 +162,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     const activityHistoryRef = collection(territoryRef, 'activityHistory');
 
     runTransaction(db, async (transaction) => {
-        // LEITURAS SEQUENCIAIS PARA EVITAR ERRO
         const congDoc = await transaction.get(congRef);
         const territoryDoc = await transaction.get(territoryRef);
         const quadraDoc = await transaction.get(quadraRef);
@@ -177,7 +176,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 
         const incrementAmount = newStatus ? 1 : -1;
 
-        // ESCRITAS
         transaction.update(quadraRef, { housesDone: (quadraDoc.data().housesDone || 0) + incrementAmount });
         
         const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + incrementAmount;
@@ -226,7 +224,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             });
         }
     }).then(() => {
-        // Log para o Histórico de Auditoria (Hub "Mais")
         const actionLabel = newStatus ? 'HOUSE_COMPLETED' : 'HOUSE_UNMARKED';
         const detailText = newStatus 
           ? `Marcou a casa ${casa.number} como feita na ${quadra?.name || 'quadra'} do território ${territory?.number || territoryId}.` 
@@ -274,7 +271,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         const quadraRef = doc(territoryRef, 'quadras', quadraId);
         const casaRef = doc(quadraRef, 'casas', casaToDelete.id);
         
-        // LEITURAS SEQUENCIAIS
         const quadraDoc = await transaction.get(quadraRef);
         const territoryDoc = await transaction.get(territoryRef);
         const casaDoc = await transaction.get(casaRef);
@@ -284,7 +280,6 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             throw new Error("Documento não encontrado para a transação de exclusão.");
         }
 
-        // ESCRITAS
         transaction.delete(casaRef);
         
         const wasDone = casaDoc.data().status === true;
@@ -319,7 +314,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             houseId: casaToDelete.id, 
             territoryNumber: territory?.number, 
             quadraName: quadra?.name,
-            revertData: casaToDelete // Ativa a reversão no menu Mais
+            revertData: casaToDelete 
         });
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({

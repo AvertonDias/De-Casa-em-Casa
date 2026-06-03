@@ -101,10 +101,7 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
       if (!congDoc.exists()) {
         throw "Documento da congregação não encontrado!";
       }
-      const newTotalHouses = (congDoc.data().totalHouses || 0) - 1;
-      const newTotalHousesDone = casa.status ? (congDoc.data().totalHousesDone || 0) - 1 : (congDoc.data().totalHousesDone || 0);
-
-      transaction.update(congRef, { totalHouses: newTotalHouses, totalHousesDone: newTotalHousesDone });
+      // O decréscimo de estatísticas é feito na transação principal de exclusão no pai
     }).then(() => {
         onDeleteRequest(casa);
         onClose();

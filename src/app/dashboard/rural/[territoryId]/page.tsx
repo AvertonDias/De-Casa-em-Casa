@@ -170,7 +170,7 @@ function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
       
       const congSnap = await getDoc(congRef);
       
-      // Registrar no histórico ANTES de deletar (LIXEIRA)
+      // Registrar no histórico ANTES de deletar
       await logEvent(
         user.congregationId,
         user.uid,

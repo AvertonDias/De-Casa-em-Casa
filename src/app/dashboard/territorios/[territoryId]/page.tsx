@@ -108,6 +108,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         transaction.set(newQuadraRef, { ...data, totalHouses: 0, housesDone: 0, createdAt: serverTimestamp() });
         transaction.update(territoryRef, { quadraCount: (terrDoc.data()?.quadraCount || 0) + 1 });
     });
+    logEvent(user!.congregationId!, user!.uid, user!.name, 'QUADRA_CREATED', `Adicionou a quadra "${data.name}" ao território ${territory?.number}.`, { territoryId, territoryNumber: territory?.number });
   };
 
   const handleEditQuadraClick = (e: React.MouseEvent, q: Quadra) => {
@@ -121,6 +122,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
     if (!user?.congregationId) return;
     const qRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', qid);
     await updateDoc(qRef, data);
+    logEvent(user.congregationId, user.uid, user.name, 'QUADRA_EDITED', `Editou a quadra "${data.name}" no território ${territory?.number}.`, { territoryId, quadraId: qid });
     toast({ title: "Sucesso!", description: "Dados da quadra atualizados." });
   };
 
@@ -212,6 +214,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             });
             transaction.update(territoryRef, { assignmentHistory: newHistory });
         });
+        logEvent(user.congregationId, user.uid, user.name, 'HISTORY_EDITED', `Editou um registro de histórico do território ${territory.number}.`, { territoryId });
         toast({ title: "Sucesso!", description: "Histórico atualizado." });
     } catch (e: any) {
         toast({ title: "Erro", description: "Falha ao salvar histórico.", variant: "destructive" });
@@ -226,6 +229,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         await updateDoc(territoryRef, {
             assignmentHistory: arrayRemove(logToDelete)
         });
+        logEvent(user.congregationId, user.uid, user.name, 'HISTORY_DELETED', `Excluiu um registro de histórico de ${logToDelete.name} do território ${territory.number}.`, { territoryId });
         toast({ title: "Sucesso!", description: "Registro removido." });
     } catch (e: any) {
         toast({ title: "Erro", description: "Falha ao remover registro.", variant: "destructive" });

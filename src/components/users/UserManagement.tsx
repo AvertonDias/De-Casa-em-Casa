@@ -1,5 +1,4 @@
 
-// src/components/users/UserManagement.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -145,6 +144,7 @@ export default function UserManagement() {
   const handleUserUpdate = async (userId: string, dataToUpdate: Partial<AppUser>) => {
     if (!currentUser || (currentUser.role !== 'Administrador' && currentUser.role !== 'Dirigente')) return;
     const userRef = doc(db, 'users', userId);
+    const targetUser = users.find(u => u.uid === userId);
     
     if (currentUser.role === 'Dirigente' && dataToUpdate.status && dataToUpdate.status !== 'ativo') {
         toast({ title: "Permissão Negada", description: "Você só pode aprovar usuários pendentes.", variant: "destructive" });
@@ -153,15 +153,18 @@ export default function UserManagement() {
 
     updateDoc(userRef, dataToUpdate as any).then(() => {
         if (currentUser.congregationId) {
-            const targetUser = users.find(u => u.uid === userId);
             const targetName = dataToUpdate.name || targetUser?.name || userId;
+            const actionType = dataToUpdate.status === 'ativo' ? 'USER_APPROVED' : 'USER_EDITED';
+            const detailText = dataToUpdate.status === 'ativo' 
+                ? `Aprovou o acesso do usuário ${targetName}.` 
+                : `Alterou os dados do usuário ${targetName}.`;
             
             logEvent(
                 currentUser.congregationId,
                 currentUser.uid,
                 currentUser.name,
-                'USER_EDITED',
-                `Alterou os dados do usuário ${targetName}.`,
+                actionType,
+                detailText,
                 { editedUserId: userId }
             );
         }
@@ -195,6 +198,14 @@ export default function UserManagement() {
       const data = result.data as any;
 
       if (data.success) {
+        logEvent(
+            currentUser!.congregationId!,
+            currentUser!.uid,
+            currentUser!.name,
+            'USER_DELETED',
+            `Excluiu permanentemente o usuário ${userName}.`,
+            { deletedUserId: userId }
+        );
         toast({ 
             title: "Usuário Removido", 
             description: "A conta e os dados foram excluídos permanentemente." 
