@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff, AlertTriangle, Loader, RefreshCcw } from 'lucide-react';
@@ -78,21 +78,16 @@ export default function UniversalLoginPage() {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        // Mudança para Pop-up para evitar erro de "Estado Inicial" no mobile
+        await signInWithPopup(auth, provider);
         
-        if (isMobile) {
-            localStorage.setItem('google_auth_intent', 'login');
-            await signInWithRedirect(auth, provider);
-        } else {
-            await signInWithPopup(auth, provider);
-        }
     } catch (error: any) {
       console.error("Erro Google Login:", error.code, error.message);
       setGoogleLoading(false);
       if (error.code === 'auth/account-exists-with-different-credential') {
         setError("Este e-mail já possui uma conta com senha. Tente digitar sua senha acima.");
       } else if (error.code === 'auth/popup-blocked') {
-        setError("O pop-up de login foi bloqueado pelo seu navegador.");
+        setError("O pop-up de login foi bloqueado pelo seu navegador. Por favor, libere pop-ups para este site.");
       } else if (error.code !== 'auth/popup-closed-by-user') {
         setError("Falha ao entrar com o Google. Tente usar e-mail e senha.");
       }
