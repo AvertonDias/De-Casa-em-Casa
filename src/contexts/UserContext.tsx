@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
-import { onAuthStateChanged, User, signOut, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut, setPersistence, browserLocalPersistence, getRedirectResult } from 'firebase/auth';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { AppUser, Congregation } from '@/types/types';
@@ -70,14 +70,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        // Só usamos o cache para evitar tela em branco, 
-        // mas o loading continua true até sincronizar com o DB.
         setUser(parsed);
       } catch (e) {
         console.warn("Erro ao ler cache do usuário");
       }
     }
     setPersistence(auth, browserLocalPersistence).catch(console.error);
+    
+    // Processar resultado de redirecionamento do Google (necessário para mobile)
+    getRedirectResult(auth).catch(err => {
+        console.error("Erro ao processar retorno do Google Login:", err);
+    });
   }, []);
 
   useEffect(() => {
@@ -142,7 +145,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 setLoading(false); 
               }, 
               async (error) => {
-                // Se não tiver permissão para a congregação, pelo menos paramos o loading
                 setLoading(false);
               }
             );
@@ -181,7 +183,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
   
     if (!user.congregationId) {
         if (!isCompleteProfilePage) {
-            router.replace('/completar-perfil');
+            // Se viermos de um redirecionamento do Google, verificamos a intenção salva
+            const savedIntent = localStorage.getItem('google_auth_intent');
+            if (savedIntent === 'join') {
+                router.replace('/completar-perfil?mode=join');
+            } else if (savedIntent === 'create') {
+                router.replace('/completar-perfil?mode=create');
+            } else {
+                router.replace('/completar-perfil');
+            }
+            localStorage.removeItem('google_auth_intent');
         }
         return;
     }

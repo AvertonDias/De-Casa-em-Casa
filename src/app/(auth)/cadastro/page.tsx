@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from 'firebase/auth'; 
+import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth'; 
 import { auth, db, functions } from '@/lib/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -65,7 +64,6 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-        // 1. Verificar se a congregação existe via Cloud Function
         const getCongId = httpsCallable(functions, 'getCongregationIdByNumberV2');
         const result = await getCongId({ congregationNumber: congregationNumber.trim() });
         const { congregationId } = result.data as { congregationId: string };
@@ -74,14 +72,11 @@ export default function SignUpPage() {
             throw new Error("Número da congregação não encontrado. Se você deseja CRIAR uma nova congregação, use o botão na tela inicial.");
         }
 
-        // 2. Criar conta no Firebase Auth
         const userCredential = await createUserWithEmailAndPassword(auth, targetEmail, password);
         const user = userCredential.user;
         
-        // 3. Atualizar nome no perfil
         await updateProfile(user, { displayName: name.trim() });
         
-        // 4. Criar documento no Firestore
         const userDocRef = doc(db, "users", user.uid);
         await setDoc(userDocRef, {
             name: name.trim(),
@@ -101,7 +96,6 @@ export default function SignUpPage() {
       
     } catch (err: any) {
       console.error("Erro no cadastro:", err);
-      
       if (err.code === 'auth/email-already-in-use') { 
         setError(<>Este e-mail já está em uso por outra conta. <Link href="/recuperar-senha" className="font-bold underline ml-1">Esqueceu a senha?</Link></>); 
       } else { 
@@ -118,10 +112,18 @@ export default function SignUpPage() {
     try {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
-        await signInWithPopup(auth, provider);
-        // Após o login bem sucedido, o UserContext verá que não tem doc e levará ao /completar-perfil.
-        // Forçamos a aba de JOIN via query param.
-        router.push('/completar-perfil?mode=join');
+        
+        // Salvar a intenção de entrar em congregação existente
+        localStorage.setItem('google_auth_intent', 'join');
+        
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+            await signInWithRedirect(auth, provider);
+        } else {
+            await signInWithPopup(auth, provider);
+            router.push('/completar-perfil?mode=join');
+        }
     } catch (error: any) {
       if (error.code === 'auth/account-exists-with-different-credential') {
         setError("Este e-mail já possui uma conta cadastrada com senha.");

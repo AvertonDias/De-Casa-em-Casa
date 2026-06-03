@@ -1,4 +1,3 @@
-
 "use client";
 import { useState } from 'react';
 import Image from 'next/image';
@@ -9,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Loader, Eye, EyeOff } from "lucide-react"; 
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
 import { auth, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { maskPhone } from '@/lib/utils'; 
@@ -84,9 +83,18 @@ export default function NovaCongregacaoPage() {
     try {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
-        await signInWithPopup(auth, provider);
-        // Após o login bem sucedido, força a ida para completar perfil em modo CREATE
-        router.push('/completar-perfil?mode=create');
+        
+        // Salvar a intenção de criar nova congregação
+        localStorage.setItem('google_auth_intent', 'create');
+        
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+            await signInWithRedirect(auth, provider);
+        } else {
+            await signInWithPopup(auth, provider);
+            router.push('/completar-perfil?mode=create');
+        }
     } catch (error: any) {
       if (error.code !== 'auth/popup-closed-by-user') {
         console.error("Erro com Google:", error);

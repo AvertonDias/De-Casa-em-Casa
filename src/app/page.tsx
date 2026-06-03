@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { Eye, EyeOff, AlertTriangle, Loader } from 'lucide-react';
@@ -22,9 +21,6 @@ export default function UniversalLoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
-
-  // Removido o useEffect de redirecionamento daqui, 
-  // agora o UserContext cuida disso de forma centralizada e segura.
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -67,15 +63,21 @@ export default function UniversalLoginPage() {
     try {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
-        await signInWithPopup(auth, provider);
+        
+        // Detectar se é mobile para usar Redirect e evitar erros de cookies de terceiros em popups
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+            await signInWithRedirect(auth, provider);
+        } else {
+            await signInWithPopup(auth, provider);
+        }
     } catch (error: any) {
       console.error("Erro Google Login:", error.code, error.message);
       if (error.message?.includes('suspended')) {
           setError("A chave de acesso deste projeto foi suspensa pelo Google. Contate o administrador do sistema.");
       } else if (error.code === 'auth/account-exists-with-different-credential') {
         setError("Este e-mail já possui uma conta com senha. Tente digitar sua senha acima.");
-      } else if (error.code === 'auth/unauthorized-domain') {
-        setError("Domínio não autorizado. Verifique as configurações no Firebase Console.");
       } else if (error.code === 'auth/popup-blocked') {
         setError("O pop-up de login foi bloqueado pelo seu navegador.");
       } else if (error.code !== 'auth/popup-closed-by-user') {
