@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -22,8 +23,9 @@ export default function UniversalLoginPage() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
 
-  // Enquanto o UserContext decide o destino de um usuário já logado, mostramos o loader global
-  if (userLoading || (user && user.congregationId)) {
+  // Se o carregamento terminou e existe um usuário (mesmo sem congregação), 
+  // mostramos o loader porque o UserContext vai redirecioná-lo em instantes.
+  if (userLoading || user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <Loader className="animate-spin text-primary" size={40} />
@@ -47,10 +49,7 @@ export default function UniversalLoginPage() {
     setLoading(true);
 
     try {
-      // Tenta o login com o Firebase
       await signInWithEmailAndPassword(auth, targetEmail, password);
-      // Sucesso: O listener no UserContext disparará o redirecionamento automaticamente.
-      // Mantemos o estado de 'loading' como true para o formulário ficar bloqueado durante o redirecionamento.
     } catch (err: any) {
       console.error("Erro de login:", err.code, err.message);
       setLoading(false);
@@ -80,7 +79,6 @@ export default function UniversalLoginPage() {
             await signInWithRedirect(auth, provider);
         } else {
             await signInWithPopup(auth, provider);
-            // Redirecionamento via UserContext
         }
     } catch (error: any) {
       console.error("Erro Google Login:", error.code, error.message);
@@ -149,7 +147,7 @@ export default function UniversalLoginPage() {
               disabled={loading || googleLoading}
               className="w-full px-4 py-2.5 font-bold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 transition-all shadow-md"
             >
-              {(loading || (user && !userLoading)) ? <><Loader className="animate-spin inline mr-2" size={18}/> Acessando...</> : 'Entrar com E-mail'}
+              {loading ? <><Loader className="animate-spin inline mr-2" size={18}/> Acessando...</> : 'Entrar com E-mail'}
             </button>
           </form>
 
