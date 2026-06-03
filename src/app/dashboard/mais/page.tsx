@@ -108,27 +108,28 @@ function MaisPage() {
     setRevertingIds(prev => new Set(prev).add(log.id));
     const revertData = log.metadata.revertData;
     const congregationId = user.congregationId;
+    const metadata = log.metadata;
 
     try {
         if (log.action === 'HOUSE_DELETED') {
-            const { territoryId, quadraId } = log.metadata;
+            const { territoryId, quadraId } = metadata;
             const { id, ...casaData } = revertData;
-            const houseId = log.metadata.houseId || id;
+            const houseId = metadata.houseId || id;
             
+            if (!territoryId || !quadraId || !houseId) throw new Error("Dados de restauração insuficientes.");
+
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
             const quadraRef = doc(territoryRef, 'quadras', quadraId);
             const houseRef = doc(quadraRef, 'casas', houseId);
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
-                // LEITURAS PRIMEIRO
                 const qSnap = await transaction.get(quadraRef);
                 const terrSnap = await transaction.get(territoryRef);
                 const congSnap = await transaction.get(congRef);
 
                 if (!qSnap.exists()) throw new Error("A quadra desta casa não existe mais.");
                 
-                // ESCRITAS DEPOIS
                 transaction.set(houseRef, casaData);
                 transaction.update(quadraRef, { 
                     totalHouses: (qSnap.data()?.totalHouses || 0) + 1,
@@ -152,12 +153,13 @@ function MaisPage() {
                     });
                 }
             });
-            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a casa ${casaData.number} no território ${log.metadata.territoryNumber || territoryId}.`);
+            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a casa ${casaData.number} no território ${metadata.territoryNumber || territoryId}.`);
             toast({ title: "Casa Restaurada!" });
         } else if (log.action === 'QUADRA_DELETED') {
-            const { territoryId, quadraId } = log.metadata;
-            const { quadra, casas } = revertData;
+            const { territoryId, quadraId } = metadata;
+            if (!territoryId || !quadraId) throw new Error("Dados de restauração insuficientes.");
             
+            const { quadra, casas } = revertData;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
             const quadraRef = doc(territoryRef, 'quadras', quadraId);
             const congRef = doc(db, 'congregations', congregationId);
@@ -190,10 +192,12 @@ function MaisPage() {
                     });
                 }
             });
-            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a quadra "${quadra.name}" no território ${log.metadata.territoryNumber || territoryId}.`);
+            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou a quadra "${quadra.name}" no território ${metadata.territoryNumber || territoryId}.`);
             toast({ title: "Quadra Restaurada!" });
         } else if (log.action === 'TERRITORY_DELETED') {
             const { territory: terrData, quadras: quadrasData } = revertData;
+            if (!terrData?.id) throw new Error("Dados de restauração insuficientes.");
+            
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', terrData.id);
             const congRef = doc(db, 'congregations', congregationId);
             
@@ -223,7 +227,9 @@ function MaisPage() {
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o território ${terrData.number}.`);
             toast({ title: "Território Restaurado!" });
         } else if (log.action === 'RURAL_LOG_DELETED') {
-            const { territoryId } = log.metadata;
+            const { territoryId } = metadata;
+            if (!territoryId) throw new Error("Dados de restauração insuficientes.");
+            
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
             await runTransaction(db, async (transaction) => {
                 const terrSnap = await transaction.get(territoryRef);
@@ -234,17 +240,17 @@ function MaisPage() {
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou um registro de trabalho no território rural.`);
             toast({ title: "Registro Rural Restaurado!" });
         } else if (log.action === 'TERRITORY_RESET') {
-            const { territoryId } = log.metadata;
+            const { territoryId } = metadata;
+            if (!territoryId) throw new Error("Dados de restauração insuficientes.");
+            
             const { quadras: quadrasData, history: historyData } = revertData;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
-                // 1. LEITURAS (Obrigatório antes de qualquer escrita)
                 const terrSnap = await transaction.get(territoryRef);
                 const congSnap = await transaction.get(congRef);
                 
-                // Pré-carregar todas as quadras necessárias para leitura antes das escritas
                 const qRefs = quadrasData.map((q: any) => doc(territoryRef, 'quadras', q.id));
                 const qSnaps = [];
                 for (const ref of qRefs) {
@@ -253,7 +259,6 @@ function MaisPage() {
 
                 if (!terrSnap.exists()) throw new Error("O território não existe mais.");
 
-                // 2. ESCRITAS
                 let totalIncrement = 0;
                 quadrasData.forEach((qData: any, idx: number) => {
                     const quadraRef = qRefs[idx];
@@ -290,7 +295,7 @@ function MaisPage() {
                     transaction.update(congRef, { totalHousesDone: (congSnap.data().totalHousesDone || 0) + totalIncrement });
                 }
             });
-            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o progresso do território ${log.metadata.territoryNumber || territoryId}.`);
+            logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o progresso do território ${metadata.territoryNumber || territoryId}.`);
             toast({ title: "Progresso Restaurado!" });
         }
     } catch (e: any) {
