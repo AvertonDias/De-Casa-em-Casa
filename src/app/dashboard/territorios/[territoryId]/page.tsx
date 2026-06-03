@@ -15,6 +15,7 @@ import QuadraCard from '@/components/QuadraCard';
 import QuadraListItem from '@/components/QuadraListItem';
 import EditTerritoryModal from '@/components/EditTerritoryModal';
 import AddQuadraModal from '@/components/AddQuadraModal';
+import { EditQuadraModal } from "@/components/EditQuadraModal";
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import ImagePreviewModal from "@/components/ImagePreviewModal";
 import withAuth from "@/components/withAuth";
@@ -54,6 +55,9 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
 
   const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
   const [isAddQuadraModalOpen, setIsAddQuadraModalOpen] = useState(false);
+  const [isEditQuadraModalOpen, setIsEditQuadraModalOpen] = useState(false);
+  const [selectedQuadra, setSelectedQuadra] = useState<Quadra | null>(null);
+
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ action: () => Promise<void>; title: string; message: string; } | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
@@ -89,6 +93,77 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         transaction.set(newQuadraRef, { ...data, totalHouses: 0, housesDone: 0, createdAt: serverTimestamp() });
         transaction.update(territoryRef, { quadraCount: (terrDoc.data()?.quadraCount || 0) + 1 });
     });
+  };
+
+  const handleEditQuadraClick = (e: React.MouseEvent, q: Quadra) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedQuadra(q);
+    setIsEditQuadraModalOpen(true);
+  };
+
+  const handleSaveQuadra = async (qid: string, data: { name: string; description: string }) => {
+    if (!user?.congregationId) return;
+    const qRef = doc(db, 'congregations', user.congregationId, 'territories', territoryId, 'quadras', qid);
+    await updateDoc(qRef, data);
+    toast({ title: "Sucesso!", description: "Dados da quadra atualizados." });
+  };
+
+  const handleDeleteQuadra = (qid: string) => {
+    const qToRemove = quadras.find(q => q.id === qid);
+    if (!qToRemove) return;
+
+    setConfirmAction({
+      title: "Excluir Quadra",
+      message: `Isso apagará permanentemente a quadra "${qToRemove.name}" e todas as casas nela. Esta ação não pode ser desfeita.`,
+      action: async () => {
+        setIsProcessingAction(true);
+        try {
+          const congregationId = user!.congregationId!;
+          const qRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', qid);
+          const housesSnap = await getDocs(collection(qRef, 'casas'));
+          const batch = writeBatch(db);
+          
+          housesSnap.forEach(h => batch.delete(h.ref));
+          batch.delete(qRef);
+          
+          const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
+          const tSnap = await getDoc(territoryRef);
+          const tData = tSnap.data() as Territory;
+          
+          const qHouses = qToRemove.totalHouses || 0;
+          const qDone = qToRemove.housesDone || 0;
+          
+          batch.update(territoryRef, {
+            quadraCount: (tData.quadraCount || 0) - 1,
+            "stats.totalHouses": (tData.stats?.totalHouses || 0) - qHouses,
+            "stats.housesDone": (tData.stats?.housesDone || 0) - qDone,
+            progress: (tData.stats?.totalHouses || 0) - qHouses > 0 
+                ? ((tData.stats?.housesDone || 0) - qDone) / ((tData.stats?.totalHouses || 0) - qHouses)
+                : 0
+          });
+
+          const congRef = doc(db, 'congregations', congregationId);
+          const congSnap = await getDoc(congRef);
+          if (congSnap.exists()) {
+              batch.update(congRef, {
+                  totalHouses: (congSnap.data().totalHouses || 0) - qHouses,
+                  totalHousesDone: (congSnap.data().totalHousesDone || 0) - qDone
+              });
+          }
+          
+          await batch.commit();
+          toast({ title: "Sucesso!", description: "Quadra removida permanentemente." });
+        } catch (error) {
+          toast({ title: "Erro ao deletar quadra", variant: "destructive" });
+        } finally {
+          setIsProcessingAction(false);
+          setIsConfirmModalOpen(false);
+        }
+      }
+    });
+    setIsEditQuadraModalOpen(false);
+    setIsConfirmModalOpen(true);
   };
 
   const handleSaveHistoryLog = async (originalLog: AssignmentHistoryLog, updatedData: { name: string; assignedAt: Date; completedAt: Date; }) => {
@@ -262,7 +337,12 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {quadras.map(q => (
                     <Link key={q.id} href={`/dashboard/territorios/${territoryId}/quadras/${q.id}`} className="block">
-                        <QuadraCard quadra={q} isManagerView={isManagerView} onEdit={(e) => { e.preventDefault(); }} hideStats={isPublicador} />
+                        <QuadraCard 
+                          quadra={q} 
+                          isManagerView={isManagerView} 
+                          onEdit={(e) => handleEditQuadraClick(e, q)} 
+                          hideStats={isPublicador} 
+                        />
                     </Link>
                 ))}
             </div>
@@ -391,6 +471,16 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             onSave={handleAddQuadra} 
             existingQuadrasCount={quadras.length} 
         />
+
+        {selectedQuadra && (
+          <EditQuadraModal
+            isOpen={isEditQuadraModalOpen}
+            onClose={() => setIsEditQuadraModalOpen(false)}
+            quadra={selectedQuadra}
+            onSave={handleSaveQuadra}
+            onDelete={handleDeleteQuadra}
+          />
+        )}
 
         <AddEditAssignmentLogModal
             isOpen={isEditLogModalOpen}

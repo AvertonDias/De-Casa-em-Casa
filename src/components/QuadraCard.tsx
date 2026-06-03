@@ -1,9 +1,8 @@
-
 "use client";
 
 import type { MouseEvent } from 'react';
 import { Quadra } from '@/types/types';
-import { Edit } from 'lucide-react';
+import { SquarePen } from 'lucide-react';
 
 interface QuadraCardProps {
   quadra: Quadra;
@@ -19,7 +18,7 @@ export default function QuadraCard({ quadra, isManagerView, onEdit, hideStats = 
   const progresso = totalCasas > 0 ? Math.round((casasFeitas / totalCasas) * 100) : 0;
 
   return (
-    <div className="bg-card p-6 rounded-lg shadow-md flex flex-col space-y-4 border border-border transition-all hover:shadow-lg relative">
+    <div className="bg-card p-6 rounded-lg shadow-md flex flex-col space-y-4 border border-border transition-all hover:shadow-lg relative h-full">
       <div className="flex justify-between items-start">
         <div className="flex-1 pr-8">
             <h3 className="font-bold text-lg">{quadra.name || "Quadra sem nome"}</h3>
@@ -35,7 +34,7 @@ export default function QuadraCard({ quadra, isManagerView, onEdit, hideStats = 
                 className="p-2 text-muted-foreground hover:text-primary transition-colors absolute top-4 right-4 z-10"
                 aria-label={`Editar ${quadra.name}`}
             >
-              <Edit size={16} />
+              <SquarePen size={18} />
             </button>
         )}
       </div>
