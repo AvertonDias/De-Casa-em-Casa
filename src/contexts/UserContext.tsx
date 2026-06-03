@@ -173,7 +173,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const isCompleteProfilePage = currentPath === '/completar-perfil';
   
     if (!user) {
-      if (!isAuthPage && !isAuthActionPage && !isCompleteProfilePage) {
+      if (!isAuthPage && !isAuthActionPage) {
         router.replace('/');
       }
       return;

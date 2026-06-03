@@ -11,12 +11,13 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import withAuth from '@/components/withAuth';
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { Footer } from '@/components/Footer';
-import { Loader, Building2 } from 'lucide-react';
+import { Loader, Building2, LogOut } from 'lucide-react';
 import { TutorialButton } from '@/components/TutorialButton';
 import { TUTORIAL_IDS } from '@/lib/tutorials';
+import { Button } from '@/components/ui/button';
 
 function CompleteProfileContent() {
-    const { user, loading: userLoading } = useUser();
+    const { user, loading: userLoading, logout } = useUser();
     const [congregationName, setCongregationName] = useState('');
     const [congregationNumber, setCongregationNumber] = useState('');
     const [whatsapp, setWhatsapp] = useState('');
@@ -169,13 +170,24 @@ function CompleteProfileContent() {
                             </div>
                         )}
                         
-                        <button
-                            type="submit"
-                            disabled={loading || !whatsapp || !congregationNumber || !congregationName || whatsapp.length < 15}
-                            className="w-full px-4 py-3 font-bold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 shadow-md transition-all flex items-center justify-center gap-2"
-                        >
-                            {loading ? <Loader className="animate-spin" size={18}/> : <><Building2 size={18}/> Criar Congregação</>}
-                        </button>
+                        <div className="space-y-2">
+                            <button
+                                type="submit"
+                                disabled={loading || !whatsapp || !congregationNumber || !congregationName || whatsapp.length < 15}
+                                className="w-full px-4 py-3 font-bold text-primary-foreground bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 shadow-md transition-all flex items-center justify-center gap-2"
+                            >
+                                {loading ? <Loader className="animate-spin" size={18}/> : <><Building2 size={18}/> Criar Congregação</>}
+                            </button>
+
+                            <Button 
+                                type="button" 
+                                variant="ghost" 
+                                onClick={() => logout('/')} 
+                                className="w-full text-muted-foreground hover:text-foreground"
+                            >
+                                <LogOut size={16} className="mr-2" /> Sair e Voltar ao Início
+                            </Button>
+                        </div>
                     </form>
                 </div>
             </div>
