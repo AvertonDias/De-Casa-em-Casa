@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -98,6 +97,10 @@ export default function TerritoryAssignmentPanel() {
     const dueDateObj = Timestamp.fromDate(new Date(dueDate + 'T12:00:00'));
     const currentTerritory = territories.find(t => t.id === territoryId);
 
+    // Determinar se é reatribuição (estava ocupado) ou nova designação (estava livre)
+    const isReassignment = currentTerritory?.status === 'designado' && !!currentTerritory?.assignment;
+    const actionLabel = isReassignment ? 'Reatribuiu' : 'Designou';
+
     setIsAssignModalOpen(false);
 
     try {
@@ -106,7 +109,6 @@ export default function TerritoryAssignmentPanel() {
             if (!territoryDoc.exists()) throw new Error("Território não encontrado.");
 
             const data = territoryDoc.data() as Territory;
-            const isReassignment = data.status === 'designado' && !!data.assignment;
 
             const updates: any = {
                 status: 'designado',
@@ -136,14 +138,14 @@ export default function TerritoryAssignmentPanel() {
             transaction.update(territoryRef, updates);
         });
         
-        // Registrar no Histórico de Auditoria
+        // Registrar no Histórico de Auditoria com o texto correto
         logEvent(
             currentUser.congregationId,
             currentUser.uid,
             currentUser.name,
             'TERRITORY_ASSIGNED',
-            `Designou o território ${currentTerritory?.number} para ${assignedUser.name}.`,
-            { territoryId, assignedTo: assignedUser.name }
+            `${actionLabel} o território ${currentTerritory?.number} para ${assignedUser.name}.`,
+            { territoryId, assignedTo: assignedUser.name, isReassignment }
         );
 
         const assignedUserId = assignedUser.uid;
@@ -152,7 +154,7 @@ export default function TerritoryAssignmentPanel() {
             const territoryLink = currentTerritory?.type === 'rural' ? `/dashboard/rural/${territoryId}` : `/dashboard/territorios/${territoryId}`;
             
             await addDoc(notificationRef, {
-                title: "Você recebeu um novo território!",
+                title: isReassignment ? "Você recebeu uma transferência!" : "Você recebeu um novo território!",
                 body: `O território "${currentTerritory?.number} - ${currentTerritory?.name}" foi designado para você.`,
                 link: territoryLink,
                 type: 'territory_assigned',

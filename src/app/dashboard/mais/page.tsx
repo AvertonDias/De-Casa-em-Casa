@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -27,7 +26,8 @@ import {
   ArrowDownUp,
   MessageCircle,
   Settings,
-  XCircle
+  XCircle,
+  RotateCw
 } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
@@ -121,12 +121,14 @@ function MaisPage() {
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
+                // LEITURAS PRIMEIRO
                 const qSnap = await transaction.get(quadraRef);
                 const terrSnap = await transaction.get(territoryRef);
                 const congSnap = await transaction.get(congRef);
 
                 if (!qSnap.exists()) throw new Error("A quadra desta casa não existe mais.");
                 
+                // ESCRITAS DEPOIS
                 transaction.set(houseRef, casaData);
                 transaction.update(quadraRef, { 
                     totalHouses: (qSnap.data()?.totalHouses || 0) + 1,
@@ -238,10 +240,11 @@ function MaisPage() {
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
+                // 1. LEITURAS (Obrigatório antes de qualquer escrita)
                 const terrSnap = await transaction.get(territoryRef);
                 const congSnap = await transaction.get(congRef);
                 
-                // Pré-carregar todas as quadras necessárias
+                // Pré-carregar todas as quadras necessárias para leitura antes das escritas
                 const qRefs = quadrasData.map((q: any) => doc(territoryRef, 'quadras', q.id));
                 const qSnaps = [];
                 for (const ref of qRefs) {
@@ -250,6 +253,7 @@ function MaisPage() {
 
                 if (!terrSnap.exists()) throw new Error("O território não existe mais.");
 
+                // 2. ESCRITAS
                 let totalIncrement = 0;
                 quadrasData.forEach((qData: any, idx: number) => {
                     const quadraRef = qRefs[idx];
@@ -346,7 +350,10 @@ function MaisPage() {
     );
   };
 
-  const getActionBadge = (action: string) => {
+  const getActionBadge = (log: AuditLog) => {
+    const action = log.action;
+    const isReassignment = log.metadata?.isReassignment;
+
     const config: Record<string, { label: string, icon: any, color: string }> = {
       'HOUSE_COMPLETED': { label: 'Conclusão', icon: CheckCircle, color: 'bg-green-500/15 text-green-500 border-green-500/20' },
       'HOUSE_UNMARKED': { label: 'Desmarcado', icon: X, color: 'bg-yellow-500/15 text-yellow-500 border-yellow-500/20' },
@@ -361,7 +368,9 @@ function MaisPage() {
       'TERRITORY_DELETED': { label: 'Território Excluído', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
       'TERRITORY_RESET': { label: 'Progresso Resetado', icon: RefreshCcw, color: 'bg-orange-500/15 text-orange-500 border-orange-500/20' },
       'REVERT_ACTION': { label: 'Ação Revertida', icon: Undo2, color: 'bg-purple-500/15 text-purple-400 border-purple-500/20' },
-      'TERRITORY_ASSIGNED': { label: 'Designação', icon: BookUser, color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20' },
+      'TERRITORY_ASSIGNED': isReassignment 
+        ? { label: 'Reatribuição', icon: RotateCw, color: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20' }
+        : { label: 'Designação', icon: BookUser, color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20' },
       'TERRITORY_RETURNED': { label: 'Devolução', icon: CheckCircle, color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' },
       'USER_APPROVED': { label: 'Usuário Aprovado', icon: UserPlus, color: 'bg-green-600/15 text-green-500 border-green-600/20' },
       'USER_REJECTED': { label: 'Cadastro Rejeitado', icon: XCircle, color: 'bg-red-600/15 text-red-500 border-red-600/20' },
@@ -448,7 +457,7 @@ function MaisPage() {
                             <SelectContent>
                                 <SelectItem value="all">Todas as ações</SelectItem>
                                 <SelectItem value="HOUSE_COMPLETED">Marcação de Casas</SelectItem>
-                                <SelectItem value="TERRITORY_ASSIGNED">Designações</SelectItem>
+                                <SelectItem value="TERRITORY_ASSIGNED">Designações/Reatribuições</SelectItem>
                                 <SelectItem value="TERRITORY_RETURNED">Devoluções</SelectItem>
                                 <SelectItem value="creation">Criações</SelectItem>
                                 <SelectItem value="users">Usuários</SelectItem>
@@ -476,6 +485,12 @@ function MaisPage() {
                                     {filteredLogs.length > 0 ? (
                                         filteredLogs.map((log) => {
                                             let displayDetails = log.details || '';
+                                            
+                                            // Se for reatribuição e ainda estiver com texto de "Designou", corrige visualmente para o usuário
+                                            if (log.metadata?.isReassignment && displayDetails.startsWith('Designou')) {
+                                                displayDetails = displayDetails.replace('Designou', 'Reatribuiu');
+                                            }
+
                                             Object.entries(territoryMap).forEach(([id, number]) => {
                                                 if (displayDetails.includes(id)) displayDetails = displayDetails.replace(new RegExp(id, 'g'), number);
                                             });
@@ -494,7 +509,7 @@ function MaisPage() {
                                                     </td>
                                                     <td className="px-6 py-5 align-top">
                                                         <div className="flex flex-col gap-2 items-start">
-                                                            {getActionBadge(log.action)}
+                                                            {getActionBadge(log)}
                                                             {log.metadata?.revertData && isAdmin && isReversible && (
                                                                 <Button 
                                                                     variant="outline" 
