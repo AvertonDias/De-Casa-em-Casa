@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -25,9 +26,10 @@ interface EditCasaModalProps {
   congregationId: string;
   onDeleteRequest: (house: Casa) => void;
   territoryNumber?: string;
+  quadraName?: string;
 }
 
-export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, onCasaUpdated, congregationId, onDeleteRequest, territoryNumber }: EditCasaModalProps) {
+export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, onCasaUpdated, congregationId, onDeleteRequest, territoryNumber, quadraName }: EditCasaModalProps) {
   const { user } = useUser();
   const [formData, setFormData] = useState(casa);
   const [error, setError] = useState('');
@@ -68,11 +70,12 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
       observations: formData.observations,
     }).then(() => {
       if (user) {
-        logEvent(congregationId, user.uid, user.name, 'HOUSE_EDITED', `Editou os dados da casa ${casa.number} (agora ${formData.number.toUpperCase()}) na quadra ${quadraId}.`, { 
+        logEvent(congregationId, user.uid, user.name, 'HOUSE_EDITED', `Editou a casa ${casa.number} (agora ${formData.number.toUpperCase()}) na ${quadraName || 'quadra'} do território ${territoryNumber || territoryId}.`, { 
             territoryId, 
             quadraId, 
             houseId: casa.id,
-            territoryNumber: territoryNumber
+            territoryNumber: territoryNumber,
+            quadraName: quadraName
         });
       }
       onClose();

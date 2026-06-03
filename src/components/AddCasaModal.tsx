@@ -29,9 +29,10 @@ interface AddCasaModalProps {
   onCasaAdded: () => void;
   congregationId: string;
   territoryNumber?: string;
+  quadraName?: string;
 }
 
-export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationId, territoryNumber }: AddCasaModalProps) {
+export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationId, territoryNumber, quadraName }: AddCasaModalProps) {
   const { user } = useUser();
   const [isOpen, setIsOpen] = useState(false);
   const [number, setNumber] = useState('');
@@ -95,7 +96,7 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
                 type: "work",
                 activityDate: Timestamp.now(),
                 description: `Casa ${number.toUpperCase()} do território ${currentTerritoryNumber} foi feita.`,
-                userId: 'automatic_system_log',
+                userId: user.uid,
                 userName: user.name,
                 createdAt: serverTimestamp(),
             });
@@ -128,11 +129,13 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
         });
     }).then(() => {
         const finalTerritoryNumber = territoryNumber || territoryId;
-        logEvent(congregationId, user.uid, user.name, 'HOUSE_CREATED', `Adicionou a casa ${number.toUpperCase()} no território ${finalTerritoryNumber}.`, { 
+        const finalQuadraName = quadraName || quadraId;
+        logEvent(congregationId, user.uid, user.name, 'HOUSE_CREATED', `Adicionou a casa ${number.toUpperCase()} na ${finalQuadraName} do território ${finalTerritoryNumber}.`, { 
             territoryId, 
             quadraId, 
             houseNumber: number, 
-            territoryNumber: finalTerritoryNumber 
+            territoryNumber: finalTerritoryNumber,
+            quadraName: finalQuadraName
         });
         
         // Limpa os campos após o sucesso

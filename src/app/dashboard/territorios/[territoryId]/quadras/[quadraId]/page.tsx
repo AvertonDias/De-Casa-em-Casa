@@ -41,6 +41,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const router = useRouter();
   
 
+  // Estados para modais
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isReorderModalOpen, setIsReorderModalOpen] = useState(false);
   const [selectedCasa, setSelectedCasa] = useState<Casa | null>(null);
@@ -63,7 +64,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 
     const unsubTerritory = onSnapshot(territoryRef, (snap) => {
       if (snap.exists()) {
-        setTerritory({ id: snap.id, ...snap.data() } as Territory);
+        setTerritory(snap.data() as Territory);
       }
     });
 
@@ -75,7 +76,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     const quadraRef = doc(db, `congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
     const unsubQuadra = onSnapshot(quadraRef, (docSnap) => {
       if (docSnap.exists()) {
-        setQuadra({ id: docSnap.id, ...docSnap.data() } as Quadra);
+        setQuadra(docSnap.data() as Quadra);
       } else {
         setQuadra(null); 
       }
@@ -163,19 +164,19 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         ]);
 
         if (!congDoc.exists() || !territoryDoc.exists() || !quadraDoc.exists() || !casaDoc.exists()) {
-            throw new Error("Documento não encontrado.");
+            throw new Error("Um dos documentos necessários não foi encontrado.");
         }
 
         const wasDone = casaDoc.data().status === true;
         if (wasDone === newStatus) return; 
 
-        const increment = newStatus ? 1 : -1;
+        const incrementAmount = newStatus ? 1 : -1;
 
-        const newQuadraHousesDone = (quadraDoc.data().housesDone || 0) + increment;
-        const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + increment;
+        const newQuadraHousesDone = (quadraDoc.data().housesDone || 0) + incrementAmount;
+        const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + incrementAmount;
         const territoryTotalHouses = territoryDoc.data().stats.totalHouses || 0;
         const newTerritoryProgress = territoryTotalHouses > 0 ? newTerritoryHousesDone / territoryTotalHouses : 0;
-        const newCongTotalHousesDone = (congDoc.data().totalHousesDone || 0) + increment;
+        const newCongTotalHousesDone = (congDoc.data().totalHousesDone || 0) + incrementAmount;
 
         transaction.update(quadraRef, { housesDone: newQuadraHousesDone });
         
@@ -184,7 +185,9 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             progress: newTerritoryProgress,
             lastUpdate: serverTimestamp()
         };
-        if(newStatus) territoryUpdateData.lastWorkedAt = serverTimestamp();
+        if(newStatus){
+            territoryUpdateData.lastWorkedAt = serverTimestamp();
+        }
         transaction.update(territoryRef, territoryUpdateData);
         
         transaction.update(congRef, { totalHousesDone: newCongTotalHousesDone });
@@ -194,9 +197,10 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             transaction.set(newActivityRef, {
                 type: "work",
                 activityDate: Timestamp.now(),
-                description: `Casa ${casa.number} do território ${territoryDoc.data().number} foi feita.`,
-                userId: 'automatic_system_log',
+                description: `Casa ${casa.number} (da ${quadraDoc.data().name}) foi feita.`,
+                userId: user.uid,
                 userName: user.name,
+                createdAt: serverTimestamp(),
             });
             
             transaction.update(casaRef, { 
@@ -218,15 +222,22 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             });
         }
     }).then(() => {
-        // Log sem revertData para marcar como concluído/desmarcado (ação simples de UI)
+        // Log para o Histórico de Auditoria (Hub "Mais")
+        const actionLabel = newStatus ? 'HOUSE_COMPLETED' : 'HOUSE_UNMARKED';
+        const detailText = newStatus 
+          ? `Marcou a casa ${casa.number} como feita na ${quadra?.name || 'quadra'} do território ${territory?.number || territoryId}.` 
+          : `Desmarcou a casa ${casa.number} na ${quadra?.name || 'quadra'} do território ${territory?.number || territoryId}.`;
+
         logEvent(
-            congregationId, 
-            user.uid, 
-            user.name, 
-            newStatus ? 'HOUSE_COMPLETED' : 'HOUSE_UNMARKED', 
-            `${newStatus ? 'Marcou' : 'Desmarcou'} a casa ${casa.number} no território ${territory?.number}.`,
-            { territoryId, quadraId, houseId: casa.id }
+            congregationId,
+            user.uid,
+            user.name,
+            actionLabel,
+            detailText,
+            { territoryId, quadraId, houseId: casa.id, territoryNumber: territory?.number, quadraName: quadra?.name }
         );
+        
+        setStatusAction(null);
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: casaRef.path,
@@ -267,7 +278,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         ]);
 
         if (!quadraDoc.exists() || !territoryDoc.exists() || !casaDoc.exists() || !congDoc.exists()) {
-            throw new Error("Documento não encontrado.");
+            throw new Error("Documento não encontrado para a transação de exclusão.");
         }
 
         transaction.delete(casaRef);
@@ -276,14 +287,14 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         const quadraTotal = quadraDoc.data().totalHouses || 0;
         const quadraDone = quadraDoc.data().housesDone || 0;
         transaction.update(quadraRef, {
-            totalHouses: Math.max(0, quadraTotal - 1),
-            housesDone: wasDone ? Math.max(0, quadraDone - 1) : quadraDone
+            totalHouses: quadraTotal - 1,
+            housesDone: wasDone ? quadraDone - 1 : quadraDone
         });
         
         const territoryTotal = territoryDoc.data().stats.totalHouses || 0;
         const territoryDone = territoryDoc.data().stats.housesDone || 0;
-        const newTerritoryTotal = Math.max(0, territoryTotal - 1);
-        const newTerritoryDone = wasDone ? Math.max(0, territoryDone - 1) : territoryDone;
+        const newTerritoryTotal = territoryTotal - 1;
+        const newTerritoryDone = wasDone ? territoryDone - 1 : territoryDone;
         const newProgress = newTerritoryTotal > 0 ? newTerritoryDone / newTerritoryTotal : 0;
         transaction.update(territoryRef, {
             "stats.totalHouses": newTerritoryTotal,
@@ -294,19 +305,11 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         const congTotalHouses = congDoc.data().totalHouses || 0;
         const congTotalHousesDone = congDoc.data().totalHousesDone || 0;
         transaction.update(congRef, {
-            totalHouses: Math.max(0, congTotalHouses - 1),
-            totalHousesDone: wasDone ? Math.max(0, congTotalHousesDone - 1) : congTotalHousesDone
+            totalHouses: congTotalHouses - 1,
+            totalHousesDone: wasDone ? congTotalHousesDone - 1 : congTotalHousesDone
         });
     }).then(() => {
-        logEvent(
-            congregationId, 
-            user.uid, 
-            user.name, 
-            'HOUSE_DELETED', 
-            `Excluiu a casa ${casaToDelete.number} no território ${territory?.number}.`,
-            { territoryId, quadraId, houseId: casaToDelete.id, territoryNumber: territory?.number, revertData: { ...casaToDelete, id: casaToDelete.id } }
-        );
-        toast({ title: "Casa excluída" });
+        logEvent(congregationId, user.uid, user.name, 'HOUSE_DELETED', `Excluiu a casa ${casaToDelete.number} da ${quadra?.name} do território ${territory?.number}.`, { territoryId, quadraId, houseId: casaToDelete.id, territoryNumber: territory?.number, quadraName: quadra?.name });
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: `congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}/casas/${casaToDelete.id}`,
@@ -335,12 +338,21 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const nextQuadra = currentQuadraIndex < allQuadras.length - 1 ? allQuadras[currentQuadraIndex + 1] : null;
 
   
-  if (userLoading || loading) return <div className="flex h-full w-full items-center justify-center"><Loader className="animate-spin text-purple-600" size={48} /></div>;
+  if (userLoading || loading) {
+    return <div className="flex h-full w-full items-center justify-center"><Loader className="animate-spin text-purple-600" size={48} /></div>;
+  }
   
-  if (!quadra || !territoryId) return null;
+  if (!quadra || !territoryId) {
+    return (
+        <div className="flex flex-col items-center justify-center h-full text-center p-8">
+            <h1 className="text-2xl font-bold text-destructive">Quadra Excluída</h1>
+            <p className="text-muted-foreground mt-2">Esta quadra não existe mais. Você será redirecionado...</p>
+        </div>
+    );
+  }
 
   if (!user || !user.congregationId) {
-    return <div className="text-center p-10 text-red-500">Erro: Usuário não associado a uma congregação.</div>;
+    return <div className="text-center p-10 text-red-500">Erro: Usuário não associado a uma congregação. Contate o administrador.</div>;
   }
   
   return (
@@ -355,7 +367,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
               <div className="flex items-center gap-2">
                 <Button variant="secondary" size="icon" asChild disabled={!prevQuadra}>
                   <Link href={prevQuadra ? `/dashboard/territorios/${territoryId}/quadras/${prevQuadra.id}` : '#'}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 15V19a1 1 0 0 1-1.81.75l-6.837-6.836a1.207 1.207 0 0 1 0-1.707L11.189 4.37A1 1 0 0 1 13 5.061V9a1 1 0 0 0 1 1h7a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-7a1 1 0 0 0-1 1z"/></svg>
                   </Link>
                 </Button>
                 <h1 className="text-xl sm:text-3xl font-bold text-gray-800 dark:text-white text-center">
@@ -363,7 +375,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                 </h1>
                 <Button variant="secondary" size="icon" asChild disabled={!nextQuadra}>
                    <Link href={nextQuadra ? `/dashboard/territorios/${territoryId}/quadras/${nextQuadra.id}` : '#'}>
-                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 9a1 1 0 0 0 1-1V5.061a1 1 0 0 1 1.811-.75l6.836 6.836a1.207 1.207 0 0 1 0 1.707L12.812 19.63A1 1 0 0 1 11 18.938V15a1 1 0 0 0-1-1H3a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h7z"/></svg>
                   </Link>
                 </Button>
               </div>
@@ -407,7 +419,14 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                 )}
               </div>
               <div className="flex gap-2">
-                <AddCasaModal territoryId={territoryId} quadraId={quadraId} congregationId={user.congregationId} territoryNumber={territory?.number} onCasaAdded={() => {}} />
+                <AddCasaModal 
+                    territoryId={territoryId} 
+                    quadraId={quadraId} 
+                    congregationId={user.congregationId} 
+                    onCasaAdded={() => {}} 
+                    territoryNumber={territory?.number}
+                    quadraName={quadra.name}
+                />
                 <Button onClick={() => setIsReorderModalOpen(true)} variant="info">
                   <ArrowUpDown className="h-4 w-4 mr-2" />
                   Reordenar
@@ -456,6 +475,8 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
           congregationId={user.congregationId}
           onCasaUpdated={() => {}}
           onDeleteRequest={handleDeleteRequestFromModal}
+          territoryNumber={territory?.number}
+          quadraName={quadra.name}
         />
       )}
 
@@ -467,6 +488,8 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
           territoryId={territoryId}
           quadraId={quadraId}
           congregationId={user.congregationId}
+          territoryNumber={territory?.number}
+          quadraName={quadra.name}
         />
       )}
 

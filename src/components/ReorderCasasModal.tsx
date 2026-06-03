@@ -20,9 +20,11 @@ interface ReorderCasasModalProps {
   territoryId: string;
   quadraId: string;
   congregationId: string;
+  territoryNumber?: string;
+  quadraName?: string;
 }
 
-export function ReorderCasasModal({ isOpen, onClose, casas: initialCasas, territoryId, quadraId, congregationId }: ReorderCasasModalProps) {
+export function ReorderCasasModal({ isOpen, onClose, casas: initialCasas, territoryId, quadraId, congregationId, territoryNumber, quadraName }: ReorderCasasModalProps) {
   const { user } = useUser();
   const [localCasas, setLocalCasas] = useState<Casa[]>([]);
   const [initialOrderIds, setInitialOrderIds] = useState<string[]>([]);
@@ -77,8 +79,8 @@ export function ReorderCasasModal({ isOpen, onClose, casas: initialCasas, territ
         user.uid,
         user.name,
         'CASAS_REORDERED',
-        `Reordenou a sequência de casas na quadra ${quadraId} do território ${territoryId}.`,
-        { territoryId, quadraId }
+        `Reordenou a sequência de casas na ${quadraName || 'quadra'} do território ${territoryNumber || territoryId}.`,
+        { territoryId, quadraId, territoryNumber, quadraName }
       );
 
       toast({ title: "Sucesso!", description: "A nova ordem das casas foi salva." });
