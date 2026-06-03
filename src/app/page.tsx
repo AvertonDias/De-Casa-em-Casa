@@ -1,16 +1,18 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, GoogleAuthProvider, onAuthStateChanged } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
-import { Eye, EyeOff, AlertTriangle, Loader } from 'lucide-react';
+import { Eye, EyeOff, AlertTriangle, Loader, RefreshCcw } from 'lucide-react';
 import Image from 'next/image';
 import { useUser } from '@/contexts/UserContext';
 import { Footer } from '@/components/Footer';
 import { TutorialButton } from '@/components/TutorialButton';
 import { TUTORIAL_IDS } from '@/lib/tutorials';
+import { Button } from '@/components/ui/button';
 
 export default function UniversalLoginPage() {
   const [email, setEmail] = useState('');
@@ -19,19 +21,23 @@ export default function UniversalLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { user, loading: userLoading } = useUser();
+  const { user, loading: userLoading, forceStopLoading } = useUser();
   const router = useRouter();
 
-  // Se já existe um usuário no Firebase Auth ou o contexto está carregando,
-  // mostramos a tela de carregamento para evitar que o formulário apareça.
-  if (userLoading || user || googleLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-        <Loader className="animate-spin text-primary" size={40} />
-        <p className="mt-4 text-muted-foreground animate-pulse font-bold">Iniciando sessão...</p>
-      </div>
-    );
-  }
+  // Monitor de timeout para o carregamento do usuário
+  const [showRetry, setShowRetry] = useState(false);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (userLoading || googleLoading) {
+        timer = setTimeout(() => {
+            setShowRetry(true);
+        }, 10000); // 10 segundos
+    } else {
+        setShowRetry(false);
+    }
+    return () => clearTimeout(timer);
+  }, [userLoading, googleLoading]);
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -75,12 +81,10 @@ export default function UniversalLoginPage() {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
         if (isMobile) {
-            // Em mobile, redirecionamos. O UserContext cuidará do retorno.
+            localStorage.setItem('google_auth_intent', 'login');
             await signInWithRedirect(auth, provider);
         } else {
-            // Em desktop, usamos popup.
             await signInWithPopup(auth, provider);
-            // O onAuthStateChanged no UserContext detectará a mudança.
         }
     } catch (error: any) {
       console.error("Erro Google Login:", error.code, error.message);
@@ -94,6 +98,32 @@ export default function UniversalLoginPage() {
       }
     }
   };
+
+  const handleRetry = () => {
+    forceStopLoading();
+    setGoogleLoading(false);
+    setLoading(false);
+    setShowRetry(false);
+    window.location.reload();
+  };
+
+  if (userLoading || user || googleLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6">
+        <Loader className="animate-spin text-primary" size={40} />
+        <p className="mt-4 text-muted-foreground animate-pulse font-bold text-center">Iniciando sessão...</p>
+        
+        {showRetry && (
+            <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-xs w-full text-center">
+                <p className="text-sm text-muted-foreground mb-4">O sistema está demorando mais que o normal para responder.</p>
+                <Button onClick={handleRetry} variant="outline" className="w-full gap-2">
+                    <RefreshCcw size={16} /> Tentar Novamente
+                </Button>
+            </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">

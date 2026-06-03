@@ -1,3 +1,4 @@
+
 "use client";
 
 import { createContext, useState, useEffect, useContext, ReactNode, useRef } from 'react';
@@ -19,6 +20,7 @@ interface UserContextType {
   loading: boolean;
   logout: (redirectPath?: string) => Promise<void>;
   updateUser: (data: Partial<AppUser>) => Promise<void>;
+  forceStopLoading: () => void;
 }
 
 export const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -65,20 +67,33 @@ export function UserProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const forceStopLoading = () => {
+    console.warn("Forçando interrupção do carregamento do usuário.");
+    setLoading(false);
+  };
+
   // 1. Processar resultados de login por redirecionamento (essencial para Google Mobile)
   useEffect(() => {
     const handleRedirect = async () => {
         try {
+            // getRedirectResult deve ser chamado para limpar o estado pendente do Auth
             const result = await getRedirectResult(auth);
             if (result?.user) {
-                console.log("Login via Google processado com sucesso.");
+                console.log("Login via Google processado com sucesso:", result.user.email);
             }
         } catch (error: any) {
             console.error("Erro ao processar retorno do Google:", error);
+            // Se o redirecionamento falhou, precisamos liberar a tela
+            setLoading(false);
         }
     };
-    handleRedirect();
-  }, []);
+    
+    // Só tentamos processar o redirecionamento se estivermos em uma das páginas de entrada
+    const isAuthPage = ['/', '/cadastro', '/nova-congregacao'].includes(pathname || '');
+    if (isAuthPage) {
+        handleRedirect();
+    }
+  }, [pathname]);
 
   // 2. Monitorar estado de autenticação e carregar perfil
   useEffect(() => {
@@ -94,7 +109,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
       const userRef = doc(db, 'users', firebaseUser.uid);
       
-      // Se já temos um listener ativo para este usuário, não criamos outro
       if (listenersRef.current.user) listenersRef.current.user();
 
       listenersRef.current.user = onSnapshot(userRef, 
@@ -132,7 +146,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
           setUser(appUser);
           localStorage.setItem(USER_CACHE_KEY, JSON.stringify(appUser));
           
-          // Se o usuário já está vinculado a uma congregação, buscamos os dados dela
           if (appUser.congregationId) {
             const congRef = doc(db, 'congregations', appUser.congregationId);
             if (listenersRef.current.congregation) listenersRef.current.congregation();
@@ -143,7 +156,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 } else {
                   setCongregation(null);
                 }
-                setLoading(false); // Só terminamos o loading aqui para garantir consistência
+                setLoading(false);
               }, 
               async (error) => {
                 console.warn("Erro ao ouvir dados da congregação:", error);
@@ -160,6 +173,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
           setLoading(false);
         }
       );
+    }, (error) => {
+        console.error("Erro no Auth Observer:", error);
+        setLoading(false);
     });
 
     return () => {
@@ -178,7 +194,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const isWaitingPage = currentPath === '/aguardando-aprovacao';
     const isCompleteProfilePage = currentPath === '/completar-perfil';
   
-    // Usuário não logado: deve estar nas páginas de Auth
     if (!user) {
       if (!isAuthPage && !isAuthActionPage && !isWaitingPage && !isCompleteProfilePage) {
         router.replace('/');
@@ -186,7 +201,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       return;
     }
   
-    // Usuário logado mas sem perfil/congregação: deve ir para onboarding
     if (!user.congregationId) {
         if (!isCompleteProfilePage) {
             const savedIntent = localStorage.getItem('google_auth_intent');
@@ -202,7 +216,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
         return;
     }
   
-    // Usuário logado com congregação: filtrar por status
     switch (user.status) {
       case 'pendente':
         if (!isWaitingPage) router.replace('/aguardando-aprovacao');
@@ -220,7 +233,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   
   }, [user, loading, pathname, router]);
 
-  const value = { user, congregation, loading, logout, updateUser };
+  const value = { user, congregation, loading, logout, updateUser, forceStopLoading };
 
   if (loading) {
     return <LoadingScreen />;
