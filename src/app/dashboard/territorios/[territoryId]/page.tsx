@@ -264,7 +264,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           const congregationId = user!.congregationId!;
           const territoryRef = doc(db, 'congregations', congregationId, 'territories', tid);
           const quadrasSnap = await getDocs(collection(territoryRef, 'quadras'));
-          const backupQuadras = [];
+          const backupQuadras: any[] = [];
 
           const batch = writeBatch(db);
           
@@ -332,7 +332,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           for (const qDoc of quadrasSnap.docs) {
             const housesSnap = await getDocs(collection(qDoc.ref, 'casas'));
             let quadraDecrement = 0;
-            const backupHouses = [];
+            const backupHouses: any[] = [];
             
             housesSnap.forEach(hDoc => {
               if (hDoc.data().status === true) {
