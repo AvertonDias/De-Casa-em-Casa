@@ -84,7 +84,20 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   }, [territoryId, user]);
 
   const handleSaveTerritory = async (tid: string, data: Partial<Territory>) => {
-      await updateDoc(doc(db, 'congregations', user!.congregationId!, 'territories', tid), { ...data, lastUpdate: serverTimestamp() });
+      if (!user?.congregationId) return;
+      const congregationId = user.congregationId;
+      const territoryRef = doc(db, 'congregations', congregationId, 'territories', tid);
+      
+      await updateDoc(territoryRef, { ...data, lastUpdate: serverTimestamp() });
+      
+      logEvent(
+          congregationId,
+          user.uid,
+          user.name,
+          'TERRITORY_EDITED',
+          `Editou as informações do território ${territory?.number || tid}.`,
+          { territoryId: tid }
+      );
   };
 
   const handleAddQuadra = async (data: { name: string, description: string }) => {

@@ -1,3 +1,4 @@
+
 // src/components/users/UserManagement.tsx
 "use client";
 
@@ -18,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
+import { logEvent } from '@/lib/audit';
 
 export default function UserManagement() {
   const { user: currentUser, loading: userLoading } = useUser(); 
@@ -150,6 +152,19 @@ export default function UserManagement() {
     }
 
     updateDoc(userRef, dataToUpdate as any).then(() => {
+        if (currentUser.congregationId) {
+            const targetUser = users.find(u => u.uid === userId);
+            const targetName = dataToUpdate.name || targetUser?.name || userId;
+            
+            logEvent(
+                currentUser.congregationId,
+                currentUser.uid,
+                currentUser.name,
+                'USER_EDITED',
+                `Alterou os dados do usuário ${targetName}.`,
+                { editedUserId: userId }
+            );
+        }
         toast({ title: "Sucesso", description: "Usuário atualizado com sucesso." });
     }).catch(async (error) => {
         if (error.code === 'permission-denied') {
