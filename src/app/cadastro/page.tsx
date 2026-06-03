@@ -153,18 +153,18 @@ export default function SignUpPage() {
 
           <form onSubmit={handleSignUp} className="space-y-4">
               <div className="space-y-3">
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome Completo" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none" />
-                <input type="email" value={email} onChange={handleEmailChange} placeholder="Seu e-mail" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none" />
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome Completo" required autoComplete="name" className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none" />
+                <input type="email" value={email} onChange={handleEmailChange} placeholder="Seu e-mail" required autoComplete="email" className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none" />
                 
                 <div className="relative">
-                  <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Senha (mín. 6 dígitos)" required className="w-full px-4 py-2 bg-background border border-input rounded-md pr-10 focus:ring-2 focus:ring-primary outline-none" />
+                  <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Senha (mín. 6 dígitos)" required autoComplete="new-password" className="w-full px-4 py-2 bg-background border border-input rounded-md pr-10 focus:ring-2 focus:ring-primary outline-none" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground hover:text-foreground">
                     {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
                   </button>
                 </div>
                 
                 <div className="relative">
-                  <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirmar Senha" required className="w-full px-4 py-2 bg-background border border-input rounded-md pr-10 focus:ring-2 focus:ring-primary outline-none" />
+                  <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirmar Senha" required autoComplete="new-password" className="w-full px-4 py-2 bg-background border border-input rounded-md pr-10 focus:ring-2 focus:ring-primary outline-none" />
                   <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground hover:text-foreground">
                     {showConfirmPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
                   </button>
@@ -177,8 +177,8 @@ export default function SignUpPage() {
 
                 <div className="pt-2 border-t border-border/50">
                   <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1 ml-1 tracking-wider">Contato WhatsApp</p>
-                  <input type="tel" value={whatsapp} onChange={handleWhatsappChange(setWhatsapp)} placeholder="Seu WhatsApp" required className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none" />
-                  <input type="tel" value={confirmWhatsapp} onChange={handleWhatsappChange(setConfirmWhatsapp)} placeholder="Confirmar WhatsApp" required className="w-full px-4 py-2 bg-background border border-input rounded-md mt-2 focus:ring-2 focus:ring-primary outline-none" />
+                  <input type="tel" value={whatsapp} onChange={handleWhatsappChange(setWhatsapp)} placeholder="Seu WhatsApp" required autoComplete="tel" className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary outline-none" />
+                  <input type="tel" value={confirmWhatsapp} onChange={handleWhatsappChange(setConfirmWhatsapp)} placeholder="Confirmar WhatsApp" required autoComplete="tel" className="w-full px-4 py-2 bg-background border border-input rounded-md mt-2 focus:ring-2 focus:ring-primary outline-none" />
                 </div>
               </div>
 

@@ -131,26 +131,26 @@ export default function NovaCongregacaoPage() {
 
                     <form onSubmit={handleCreateCongregation} className="space-y-4">
                         <div className="space-y-4">
-                            <div><Label htmlFor="congregationName">Nome da Congregação</Label><Input id="congregationName" value={congregationName} onChange={(e) => setCongregationName(e.target.value)} required placeholder="Ex: Central" /></div>
-                            <div><Label htmlFor="congregationNumber">Número da Congregação</Label><Input id="congregationNumber" value={congregationNumber} onChange={(e) => setCongregationNumber(e.target.value.replace(/\D/g, ''))} required placeholder="Número oficial" /></div>
+                            <div><Label htmlFor="congregationName">Nome da Congregação</Label><Input id="congregationName" value={congregationName} onChange={(e) => setCongregationName(e.target.value)} required placeholder="Ex: Central" autoComplete="off" /></div>
+                            <div><Label htmlFor="congregationNumber">Número da Congregação</Label><Input id="congregationNumber" value={congregationNumber} onChange={(e) => setCongregationNumber(e.target.value.replace(/\D/g, ''))} required placeholder="Número oficial" autoComplete="off" /></div>
                         </div>
 
                         <div className="pt-4 border-t border-border space-y-4">
                             <h3 className="text-sm font-bold uppercase tracking-wider text-primary">Dados do Administrador</h3>
-                            <div><Label htmlFor="adminName">Seu nome completo</Label><Input id="adminName" value={adminName} onChange={(e) => setAdminName(e.target.value)} required placeholder="Como aparecerá no sistema" /></div>
-                            <div><Label htmlFor="adminEmail">Seu e-mail</Label><Input id="adminEmail" type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required placeholder="E-mail principal" /></div>
-                            <div><Label htmlFor="whatsapp">Seu WhatsApp</Label><Input id="whatsapp" value={whatsapp} onChange={(e) => setWhatsapp(maskPhone(e.target.value))} required placeholder="(XX) XXXXX-XXXX" /></div>
-                            <div><Label htmlFor="confirmWhatsapp">Confirme seu WhatsApp</Label><Input id="confirmWhatsapp" value={confirmWhatsapp} onChange={(e) => setConfirmWhatsapp(maskPhone(e.target.value))} required placeholder="(XX) XXXXX-XXXX" /></div>
+                            <div><Label htmlFor="adminName">Seu nome completo</Label><Input id="adminName" value={adminName} onChange={(e) => setAdminName(e.target.value)} required placeholder="Como aparecerá no sistema" autoComplete="name" /></div>
+                            <div><Label htmlFor="adminEmail">Seu e-mail</Label><Input id="adminEmail" type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required placeholder="E-mail principal" autoComplete="email" /></div>
+                            <div><Label htmlFor="whatsapp">Seu WhatsApp</Label><Input id="whatsapp" value={whatsapp} onChange={(e) => setWhatsapp(maskPhone(e.target.value))} required placeholder="(XX) XXXXX-XXXX" autoComplete="tel" /></div>
+                            <div><Label htmlFor="confirmWhatsapp">Confirme seu WhatsApp</Label><Input id="confirmWhatsapp" value={confirmWhatsapp} onChange={(e) => setConfirmWhatsapp(maskPhone(e.target.value))} required placeholder="(XX) XXXXX-XXXX" autoComplete="tel" /></div>
                             
                             <div className="relative">
                                 <Label htmlFor="adminPassword">Senha</Label>
-                                <Input id="adminPassword" type={showPassword ? 'text' : 'password'} value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} />
+                                <Input id="adminPassword" type={showPassword ? 'text' : 'password'} value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} required minLength={6} autoComplete="new-password" />
                                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute bottom-2.5 right-3 text-muted-foreground">{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button>
                             </div>
                             
                             <div className="relative">
                                 <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                                <Input id="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} />
+                                <Input id="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} autoComplete="new-password" />
                                 <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute bottom-2.5 right-3 text-muted-foreground">{showConfirmPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button>
                             </div>
                         </div>
