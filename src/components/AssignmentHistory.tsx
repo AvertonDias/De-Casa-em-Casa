@@ -122,9 +122,9 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                 {hasTransfers && (
                   <button 
                     onClick={() => toggleGroup(cycleId)}
-                    className="mt-3 text-xs flex items-center gap-1.5 text-primary hover:text-primary/80 font-bold transition-colors"
+                    className="mt-3 text-[10px] uppercase tracking-wider flex items-center gap-1.5 bg-primary text-primary-foreground px-2 py-1 rounded-md hover:bg-primary/90 font-bold shadow-sm transition-all"
                   >
-                    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                     {transfers.length} {transfers.length === 1 ? 'Transferência anterior' : 'Transferências anteriores'}
                   </button>
                 )}
