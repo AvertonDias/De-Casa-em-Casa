@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -6,20 +5,19 @@ import { Activity } from '@/types/types';
 import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { ChevronDown, Plus, Edit, Trash2, History } from 'lucide-react';
+import { Edit, Trash2, History, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AddEditActivityModal from './AddEditActivityModal';
 import { ConfirmationModal } from './ConfirmationModal'; 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
-
 interface ActivityHistoryProps {
   territoryId: string;
   history: Activity[];
 }
 
-export default function ActivityHistory({ territoryId, history }: ActivityHistoryProps) {
+export default function ActivityHistory({ territoryId, history = [] }: ActivityHistoryProps) {
   const { user } = useUser();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -93,9 +91,9 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
     setIsConfirmModalOpen(true);
   };
   
-  const groupActivitiesByDay = (activities: Activity[]) => {
+  const groupActivitiesByDay = (activities: Activity[] = []) => {
     return activities.reduce((acc, activity) => {
-      const date = format(activity.activityDate.toDate(), 'yyyy-MM-dd');
+      const date = activity.activityDate ? format(activity.activityDate.toDate(), 'yyyy-MM-dd') : 'Data Indefinida';
       if (!acc[date]) {
         acc[date] = [];
       }
@@ -107,20 +105,19 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
   const groupedHistory = groupActivitiesByDay(history);
   const sortedDays = Object.keys(groupedHistory).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
-
   return (
     <>
       <div className="bg-card p-4 rounded-lg shadow-md">
         <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="item-1" className="border-b-0">
                 <AccordionTrigger className="font-semibold text-lg hover:no-underline">
-                  <div className="flex items-center"><History className="mr-3 text-primary" />Histórico de Trabalho ({sortedDays.length})</div>
+                  <div className="flex items-center"><History className="mr-3 text-primary" />Histórico de Trabalho ({history.length})</div>
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="mt-4 pt-4 border-t border-border">
                     {canManage && (
                       <div className="mb-4">
-                        <button onClick={openAddModal} className="w-full flex items-center justify-center p-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">
+                        <button onClick={openAddModal} className="w-full flex items-center justify-center p-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-bold">
                           <Plus className="mr-2 h-4 w-4" /> Adicionar Registro Manual
                         </button>
                       </div>
@@ -141,15 +138,15 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
                             : '';
 
                           let triggerTitle = [workText, manualText].filter(Boolean).join(' e ');
-                          if (!triggerTitle) triggerTitle = "Nenhuma atividade registrada";
-                          
 
                           return (
                             <AccordionItem value={date} key={date} className="bg-muted/30 rounded-lg px-4 border-b-0">
                               <AccordionTrigger className="hover:no-underline py-3">
                                 <div className="text-left">
-                                  <p className="font-semibold text-base">{format(new Date(date + 'T12:00:00'), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
-                                  <p className="text-sm text-muted-foreground">{triggerTitle}</p>
+                                  <p className="font-semibold text-sm">
+                                    {date !== 'Data Indefinida' ? format(new Date(date + 'T12:00:00'), "EEEE, dd 'de' MMMM", { locale: ptBR }) : date}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">{triggerTitle}</p>
                                 </div>
                               </AccordionTrigger>
                               <AccordionContent>
@@ -167,9 +164,8 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
                                           </div>
                                         )}
                                       </div>
-                                      <p className="text-xs text-muted-foreground/80 mt-1">
-                                        Registrado por: {' '}
-                                        {activity.userName || 'Desconhecido'}
+                                      <p className="text-[10px] text-muted-foreground/80 mt-1 uppercase font-bold">
+                                        Registrado por: {activity.userName || 'Sistema'}
                                       </p>
                                     </div>
                                   ))}
@@ -180,7 +176,7 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
                         })}
                       </Accordion>
                     ) : (
-                      <p className="text-center text-muted-foreground py-4">Nenhum registro encontrado.</p>
+                      <p className="text-center text-muted-foreground py-4 text-sm italic">Nenhum registro encontrado.</p>
                     )}
                   </div>
                 </AccordionContent>
@@ -199,7 +195,7 @@ export default function ActivityHistory({ territoryId, history }: ActivityHistor
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
         onConfirm={handleDeleteActivity}
-        title="Confirmar Exclusão"
+        title="Excluir Registro"
         message="Tem certeza que deseja excluir esta entrada do histórico? Esta ação não pode ser desfeita."
       />
     </>
