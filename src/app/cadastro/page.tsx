@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -6,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from 'firebase/auth'; 
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { getFunctions } from 'firebase/functions';
+import { httpsCallable, getFunctions } from 'firebase/functions';
 import { app } from '@/lib/firebase';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -118,7 +116,6 @@ export default function SignUpPage() {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         
-        // Salvar a intenção antes do popup
         localStorage.setItem('google_auth_intent', 'join');
         
         await signInWithPopup(auth, provider);
