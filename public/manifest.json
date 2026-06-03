@@ -1,7 +1,7 @@
 
 {
   "name": "De Casa em Casa",
-  "short_name": "De Casa",
+  "short_name": "De Casa em Casa",
   "description": "Sistema de Gerenciamento de Territórios",
   "start_url": "/",
   "display": "standalone",

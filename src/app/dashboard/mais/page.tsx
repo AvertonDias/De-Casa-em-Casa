@@ -38,7 +38,7 @@ import AvailableTerritoriesReport from '@/components/admin/AvailableTerritoriesR
 import S13Report from '@/components/admin/S13Report';
 import CongregationEditForm from '@/components/admin/CongregationEditForm';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, doc, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, runTransaction, serverTimestamp, limit } from 'firebase/firestore';
 import { AuditLog, Territory } from '@/types/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -252,7 +252,7 @@ function MaisPage() {
                 const congSnap = await transaction.get(congRef);
                 
                 const qRefs = quadrasData.map((q: any) => doc(territoryRef, 'quadras', q.id));
-                const qSnaps = [];
+                const qSnaps: any[] = [];
                 for (const ref of qRefs) {
                     qSnaps.push(await transaction.get(ref));
                 }
