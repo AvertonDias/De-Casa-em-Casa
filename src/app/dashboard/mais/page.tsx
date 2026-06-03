@@ -120,14 +120,14 @@ function MaisPage() {
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
-                // LEITURAS
+                // LEITURAS PRIMEIRO
                 const qSnap = await transaction.get(quadraRef);
                 const terrSnap = await transaction.get(territoryRef);
                 const congSnap = await transaction.get(congRef);
 
                 if (!qSnap.exists()) throw new Error("A quadra desta casa não existe mais.");
                 
-                // ESCRITAS
+                // ESCRITAS DEPOIS
                 transaction.set(houseRef, casaData);
                 transaction.update(quadraRef, { 
                     totalHouses: (qSnap.data()?.totalHouses || 0) + 1,
@@ -162,11 +162,9 @@ function MaisPage() {
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
-                // LEITURAS
                 const terrSnap = await transaction.get(territoryRef);
                 const congSnap = await transaction.get(congRef);
                 
-                // ESCRITAS
                 transaction.set(quadraRef, quadra);
                 casas.forEach((c: any) => {
                     const { id, ...cData } = c;
@@ -199,10 +197,8 @@ function MaisPage() {
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
-                // LEITURA
                 const congSnap = await transaction.get(congRef);
                 
-                // ESCRITAS
                 const { id, ...tFinal } = terrData;
                 transaction.set(territoryRef, tFinal);
                 quadrasData.forEach((q: any) => {
@@ -229,11 +225,8 @@ function MaisPage() {
             const { territoryId } = log.metadata;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
             await runTransaction(db, async (transaction) => {
-                // LEITURA
                 const terrSnap = await transaction.get(territoryRef);
                 if (!terrSnap.exists()) throw new Error("O território rural não existe mais.");
-                
-                // ESCRITA
                 const currentLogs = terrSnap.data().workLogs || [];
                 transaction.update(territoryRef, { workLogs: [...currentLogs, revertData] });
             });
@@ -246,11 +239,9 @@ function MaisPage() {
             const congRef = doc(db, 'congregations', congregationId);
             
             await runTransaction(db, async (transaction) => {
-                // 1. TODAS AS LEITURAS PRIMEIRO
+                // LEITURAS PRIMEIRO
                 const terrSnap = await transaction.get(territoryRef);
                 const congSnap = await transaction.get(congRef);
-
-                // Ler todas as quadras envolvidas antes de fazer qualquer escrita
                 const qRefs = quadrasData.map((q: any) => doc(territoryRef, 'quadras', q.id));
                 const qSnaps = [];
                 for (const ref of qRefs) {
@@ -260,13 +251,11 @@ function MaisPage() {
 
                 if (!terrSnap.exists()) throw new Error("O território não existe mais.");
 
-                // 2. TODAS AS ESCRITAS DEPOIS
+                // ESCRITAS DEPOIS
                 let totalIncrement = 0;
-                
                 quadrasData.forEach((qData: any, idx: number) => {
                     const quadraRef = qRefs[idx];
                     const qSnap = qSnaps[idx];
-                    
                     let quadraIncrement = 0;
                     for (const h of qData.houses) {
                         const { id, ...hMeta } = h;
@@ -512,7 +501,7 @@ function MaisPage() {
                                                                 <Button 
                                                                     variant="outline" 
                                                                     size="sm" 
-                                                                    className="h-7 text-[10px] font-black border-primary/30 text-primary hover:bg-primary/10"
+                                                                    className="h-7 text-[10px] font-black border-primary/30 text-primary hover:bg-primary/10 shadow-sm"
                                                                     disabled={revertingIds.has(log.id)}
                                                                     onClick={() => handleRevertAction(log)}
                                                                 >

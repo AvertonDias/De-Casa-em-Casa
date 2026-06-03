@@ -1,3 +1,4 @@
+
 "use client";
 
 import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, deleteField, getDoc, arrayRemove } from "firebase/firestore";
@@ -24,6 +25,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { GoogleMapEmbed } from "@/components/GoogleMapEmbed";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { logEvent } from "@/lib/audit";
 
 const ProgressSection = ({ territory }: { territory: Territory }) => {
     const totalHouses = territory.stats?.totalHouses || 0;
@@ -111,7 +113,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
 
   const handleDeleteQuadra = (qid: string) => {
     const qToRemove = quadras.find(q => q.id === qid);
-    if (!qToRemove) return;
+    if (!qToRemove || !territory) return;
 
     setConfirmAction({
       title: "Excluir Quadra",
@@ -122,8 +124,9 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           const congregationId = user!.congregationId!;
           const qRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', qid);
           const housesSnap = await getDocs(collection(qRef, 'casas'));
+          const backupCasas = housesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
           const batch = writeBatch(db);
-          
           housesSnap.forEach(h => batch.delete(h.ref));
           batch.delete(qRef);
           
@@ -153,6 +156,12 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           }
           
           await batch.commit();
+
+          logEvent(congregationId, user!.uid, user!.name, 'QUADRA_DELETED', 
+            `Excluiu a quadra "${qToRemove.name}" do território ${territory.number}.`, 
+            { territoryId, quadraId: qid, territoryNumber: territory.number, revertData: { quadra: qToRemove, casas: backupCasas } }
+          );
+
           toast({ title: "Sucesso!", description: "Quadra removida permanentemente." });
         } catch (error) {
           toast({ title: "Erro ao deletar quadra", variant: "destructive" });
@@ -211,18 +220,25 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   };
 
   const handleDeleteTerritory = (tid: string) => {
+    if (!territory) return;
     setConfirmAction({
       title: "Excluir Território",
       message: "Isso apagará todas as quadras e casas deste território. Esta ação é lenta e irreversível.",
       action: async () => {
         setIsProcessingAction(true);
         try {
-          const territoryRef = doc(db, 'congregations', user!.congregationId!, 'territories', tid);
+          const congregationId = user!.congregationId!;
+          const territoryRef = doc(db, 'congregations', congregationId, 'territories', tid);
           const quadrasSnap = await getDocs(collection(territoryRef, 'quadras'));
+          const backupQuadras = [];
+
           const batch = writeBatch(db);
           
           for (const qDoc of quadrasSnap.docs) {
               const housesSnap = await getDocs(collection(qDoc.ref, 'casas'));
+              const backupCasas = housesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+              backupQuadras.push({ ...qDoc.data(), id: qDoc.id, casas: backupCasas });
+              
               housesSnap.forEach(h => batch.delete(h.ref));
               batch.delete(qDoc.ref);
           }
@@ -230,7 +246,23 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           histSnap.forEach(h => batch.delete(h.ref));
           batch.delete(territoryRef);
           
+          const congRef = doc(db, 'congregations', congregationId);
+          const congSnap = await getDoc(congRef);
+          if (congSnap.exists()) {
+              batch.update(congRef, {
+                  territoryCount: Math.max(0, (congSnap.data().territoryCount || 0) - 1),
+                  totalHouses: Math.max(0, (congSnap.data().totalHouses || 0) - (territory.stats?.totalHouses || 0)),
+                  totalHousesDone: Math.max(0, (congSnap.data().totalHousesDone || 0) - (territory.stats?.housesDone || 0))
+              });
+          }
+
           await batch.commit();
+
+          logEvent(congregationId, user!.uid, user!.name, 'TERRITORY_DELETED', 
+            `Excluiu permanentemente o território ${territory.number} - ${territory.name}.`, 
+            { territoryId: tid, territoryNumber: territory.number, revertData: { territory: { ...territory, id: tid }, quadras: backupQuadras } }
+          );
+
           router.push('/dashboard/territorios');
         } catch (error: any) {
           toast({ title: "Erro ao deletar", description: "Não foi possível excluir o território.", variant: "destructive" });
@@ -245,6 +277,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   };
 
   const handleResetTerritory = async (tid: string) => {
+    if (!territory) return;
     setConfirmAction({
       title: "Limpar Tudo (Progresso e Histórico)",
       message: "Esta ação irá marcar todas as casas como 'não trabalhadas', zerar o progresso e APAGAR PERMANENTEMENTE todo o histórico de trabalho deste território. Deseja continuar?",
@@ -253,19 +286,23 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         try {
           if (!user?.congregationId) return;
           
-          const territoryRef = doc(db, 'congregations', user.congregationId, 'territories', tid);
+          const congregationId = user.congregationId;
+          const territoryRef = doc(db, 'congregations', congregationId, 'territories', tid);
           const quadrasSnap = await getDocs(collection(territoryRef, 'quadras'));
           const historySnap = await getDocs(collection(territoryRef, 'activityHistory'));
           
+          const backupResetData: any = { quadras: [], history: historySnap.docs.map(d => ({ id: d.id, ...d.data() })) };
           const batch = writeBatch(db);
           let totalDecrement = 0;
 
           for (const qDoc of quadrasSnap.docs) {
             const housesSnap = await getDocs(collection(qDoc.ref, 'casas'));
             let quadraDecrement = 0;
+            const backupHouses = [];
             
             housesSnap.forEach(hDoc => {
               if (hDoc.data().status === true) {
+                backupHouses.push({ id: hDoc.id, ...hDoc.data() });
                 batch.update(hDoc.ref, { 
                   status: false, 
                   lastWorkedBy: deleteField(), 
@@ -276,6 +313,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             });
             
             if (quadraDecrement > 0) {
+              backupResetData.quadras.push({ id: qDoc.id, houses: backupHouses });
               batch.update(qDoc.ref, { housesDone: 0 });
               totalDecrement += quadraDecrement;
             }
@@ -292,7 +330,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           });
 
           if (totalDecrement > 0) {
-            const congRef = doc(db, 'congregations', user.congregationId);
+            const congRef = doc(db, 'congregations', congregationId);
             const congSnap = await getDoc(congRef);
             if (congSnap.exists()) {
               const currentCongDone = congSnap.data().totalHousesDone || 0;
@@ -301,6 +339,12 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           }
 
           await batch.commit();
+
+          logEvent(congregationId, user!.uid, user!.name, 'TERRITORY_RESET', 
+            `Limpou o progresso do território ${territory.number}.`, 
+            { territoryId: tid, territoryNumber: territory.number, revertData: backupResetData }
+          );
+
           toast({ title: "Território Resetado", description: "O progresso e o histórico foram limpos com sucesso." });
         } catch (error: any) {
           toast({ title: "Erro ao resetar", description: "Falha na operação.", variant: "destructive" });

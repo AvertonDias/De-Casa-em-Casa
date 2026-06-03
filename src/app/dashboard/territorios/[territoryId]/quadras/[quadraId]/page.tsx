@@ -76,15 +76,21 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     const quadraRef = doc(db, `congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}`);
     const unsubQuadra = onSnapshot(quadraRef, (docSnap) => {
       if (docSnap.exists()) {
-        setQuadra(docSnap.data() as Quadra);
+        setOriginalQuadra(docSnap.data() as Quadra);
       } else {
-        setQuadra(null); 
+        setOriginalQuadra(null); 
       }
       setLoading(false);
     }, (error) => {
       console.error("Erro ao ouvir o documento da quadra:", error);
       setLoading(false);
     });
+
+    // Função interna para setar quadra com ID
+    const setOriginalQuadra = (data: any) => {
+        if (!data) { setQuadra(null); return; }
+        setQuadra({ ...data, id: quadraId });
+    };
     
     const casasRef = collection(quadraRef, 'casas');
     const q = query(casasRef, orderBy('order'));
@@ -307,7 +313,14 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             totalHousesDone: wasDone ? congTotalHousesDone - 1 : congTotalHousesDone
         });
     }).then(() => {
-        logEvent(congregationId, user.uid, user.name, 'HOUSE_DELETED', `Excluiu a casa ${casaToDelete.number} da ${quadra?.name} do território ${territory?.number}.`, { territoryId, quadraId, houseId: casaToDelete.id, territoryNumber: territory?.number, quadraName: quadra?.name });
+        logEvent(congregationId, user.uid, user.name, 'HOUSE_DELETED', `Excluiu a casa ${casaToDelete.number} da ${quadra?.name} do território ${territory?.number}.`, { 
+            territoryId, 
+            quadraId, 
+            houseId: casaToDelete.id, 
+            territoryNumber: territory?.number, 
+            quadraName: quadra?.name,
+            revertData: casaToDelete // Ativa a reversão no menu Mais
+        });
     }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: `congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}/casas/${casaToDelete.id}`,
