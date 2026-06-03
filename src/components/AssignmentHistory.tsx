@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { Assignment, AssignmentHistoryLog } from '@/types/types';
-import { Edit, Trash2, ChevronDown, ChevronRight, History } from 'lucide-react';
+import { Edit, Trash2, Milestone, CheckCircle, RotateCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -15,161 +14,117 @@ interface AssignmentHistoryProps {
   onDelete: (log: AssignmentHistoryLog) => void;
 }
 
-export default function AssignmentHistory({ currentAssignment, pastAssignments, onEdit, onDelete }: AssignmentHistoryProps) {
+export default function AssignmentHistory({ currentAssignment, pastAssignments = [], onEdit, onDelete }: AssignmentHistoryProps) {
   const { user } = useUser();
   const isAdmin = user?.role === 'Administrador';
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
-  const toggleGroup = (groupId: string) => {
-    setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
-  };
-
-  // Agrupamento por ciclo (mesma data de designação original)
-  const cycles: Record<string, {
-    head: Assignment | AssignmentHistoryLog | null;
-    transfers: AssignmentHistoryLog[];
-    isCurrentCycle: boolean;
-  }> = {};
-
-  // Processar histórico passado
-  pastAssignments.forEach(log => {
-    const cycleId = log.assignedAt.toMillis().toString();
-    if (!cycles[cycleId]) {
-      cycles[cycleId] = { head: null, transfers: [], isCurrentCycle: false };
-    }
-    
-    // Se for uma conclusão real (ou se não houver flag, assumimos conclusão), é o 'head' do ciclo no histórico
-    if (log.isCompletion !== false) {
-      cycles[cycleId].head = log;
-    } else {
-      // Se for apenas transferência, entra na sub-lista
-      cycles[cycleId].transfers.push(log);
-    }
-  });
-
-  // Processar designação atual (se houver, ela assume o 'head' do seu ciclo)
-  if (currentAssignment) {
-    const cycleId = currentAssignment.assignedAt.toMillis().toString();
-    if (!cycles[cycleId]) {
-      cycles[cycleId] = { head: null, transfers: [], isCurrentCycle: true };
-    }
-    cycles[cycleId].head = currentAssignment;
-    cycles[cycleId].isCurrentCycle = true;
-  }
-
-  // Ordenar ciclos pela data de designação (mais recente primeiro)
-  const sortedCycleIds = Object.keys(cycles).sort((a, b) => Number(b) - Number(a));
+  // Ordenar histórico passado (mais recente primeiro)
+  const sortedPast = [...pastAssignments].sort((a, b) => (b.completedAt?.toMillis() || 0) - (a.completedAt?.toMillis() || 0));
 
   return (
-    <div className="bg-card p-4">
-        <div className="mt-4 pt-4 border-t border-border">
-          <div className="space-y-4">
-            {sortedCycleIds.map(cycleId => {
-              const cycle = cycles[cycleId];
-              const head = cycle.head;
-              
-              // Fallback para o cabeçalho caso o head ainda não tenha sido definido (segurança)
-              const displayHead = head || cycle.transfers[0];
-              if (!displayHead) return null;
-
-              const isCurrent = cycle.isCurrentCycle;
-              const transfers = cycle.transfers.sort((a, b) => b.completedAt.toMillis() - a.completedAt.toMillis());
-              const hasTransfers = transfers.length > 0;
-              const isExpanded = expandedGroups[cycleId];
-
-              // Verificar se está atrasado
-              const isOverdue = isCurrent && (displayHead as Assignment).dueDate && (displayHead as Assignment).dueDate.toDate() < new Date();
-
-              return (
-                <div key={cycleId} className={cn(
-                  "rounded-lg border transition-all",
-                  isCurrent ? "border-primary/40 bg-primary/5 shadow-sm" : "border-border bg-card"
-                )}>
-                  {/* Cabeçalho do Ciclo */}
-                  <div className={cn(
-                    "p-3 flex items-start justify-between gap-3",
-                    isCurrent && "border-l-4 border-l-primary"
+    <div className="bg-card p-4 sm:p-6">
+      <div className="space-y-6 relative before:absolute before:inset-y-0 before:left-[17px] before:w-0.5 before:bg-border/40">
+        
+        {/* Designação Atual */}
+        {currentAssignment && (
+          <div className="relative pl-10">
+            <div className="absolute left-0 top-1.5 h-9 w-9 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center z-10">
+              <Milestone className="h-5 w-5 text-primary" />
+            </div>
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 shadow-sm">
+              <div className="flex justify-between items-start gap-2">
+                <div className="min-w-0">
+                  <p className="font-bold text-foreground text-lg leading-tight truncate">
+                    {currentAssignment.name}
+                  </p>
+                  <p className="text-xs font-bold text-primary uppercase tracking-widest mt-1">Designação Atual</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-4 text-[13px]">
+                <div className="space-y-0.5">
+                  <p className="text-muted-foreground font-medium">Designado em:</p>
+                  <p className="font-semibold">{format(currentAssignment.assignedAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-muted-foreground font-medium">Prazo de Devolução:</p>
+                  <p className={cn(
+                    "font-bold",
+                    currentAssignment.dueDate.toDate() < new Date() ? "text-red-500" : "text-foreground"
                   )}>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className={cn("font-bold truncate text-base", isCurrent ? "text-foreground" : "text-foreground")}>
-                          {displayHead.name}
-                        </p>
-                      </div>
-                      
-                      <div className={cn(
-                        "text-[13px] flex flex-wrap gap-x-4 mt-1",
-                        isCurrent ? "text-foreground" : "text-muted-foreground"
-                      )}>
-                        <span>Designado: {format(displayHead.assignedAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}</span>
-                        {isCurrent ? (
-                          <span className={cn(
-                            "font-bold",
-                            isOverdue ? "text-red-500" : "text-foreground"
-                          )}>
-                            Devolver até: {format((displayHead as Assignment).dueDate.toDate(), "dd/MM/yyyy", { locale: ptBR })}
-                          </span>
-                        ) : (
-                          head && <span>Devolvido: {format((head as AssignmentHistoryLog).completedAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}</span>
-                        )}
-                      </div>
+                    {format(currentAssignment.dueDate.toDate(), "dd/MM/yyyy", { locale: ptBR })}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
-                      {hasTransfers && (
-                        <button 
-                          onClick={() => toggleGroup(cycleId)}
-                          className="mt-2 text-[13px] flex items-center gap-1.5 text-primary hover:underline font-bold transition-colors"
-                        >
-                          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                          {transfers.length} {transfers.length === 1 ? 'Transferência anterior' : 'Transferências anteriores'}
-                        </button>
-                      )}
-                    </div>
+        {/* Histórico Passado */}
+        {sortedPast.map((log, index) => {
+          const isTransfer = log.isCompletion === false;
+          const Icon = isTransfer ? RotateCw : CheckCircle;
+          const iconColor = isTransfer ? "text-blue-400 bg-blue-500/10 border-blue-500/20" : "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
 
-                    {/* Ações Administrativas */}
-                    {isAdmin && head && !isCurrent && (
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => onEdit(head as AssignmentHistoryLog)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md transition-colors"><Edit size={14} /></button>
-                        <button onClick={() => onDelete(head as AssignmentHistoryLog)} className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors"><Trash2 size={14} /></button>
-                      </div>
-                    )}
+          return (
+            <div key={index} className="relative pl-10 group">
+              <div className={cn(
+                "absolute left-0 top-1.5 h-9 w-9 rounded-full border-2 flex items-center justify-center z-10 transition-colors",
+                iconColor
+              )}>
+                <Icon size={18} />
+              </div>
+              
+              <div className="bg-card border border-border/40 rounded-xl p-4 hover:border-border transition-colors">
+                <div className="flex justify-between items-start gap-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-foreground truncate">{log.name}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest mt-1 opacity-70">
+                      {isTransfer ? "Transferência de Posse" : "Trabalho Concluído"}
+                    </p>
                   </div>
 
-                  {/* Sub-menu de Transferências (Recolhido por padrão) */}
-                  {hasTransfers && isExpanded && (
-                    <div className="bg-muted/20 border-t border-border/40 divide-y divide-border/20">
-                      {transfers.map((t, idx) => (
-                        <div key={idx} className="p-3 pl-8 flex justify-between items-start group">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-semibold truncate text-foreground">{t.name}</p>
-                              <span className="text-[9px] bg-muted text-foreground px-1.5 py-0.5 rounded font-bold uppercase">Transferido</span>
-                            </div>
-                            <p className="text-[11px] text-foreground mt-0.5">
-                              Transferido em: {format(t.completedAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}
-                            </p>
-                          </div>
-                          {isAdmin && (
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button onClick={() => onEdit(t)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md transition-colors"><Edit size={12} /></button>
-                              <button onClick={() => onDelete(t)} className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors"><Trash2 size={12} /></button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                  {isAdmin && (
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => onEdit(log)} 
+                        className="p-1.5 text-muted-foreground hover:bg-accent rounded-md"
+                        title="Editar Registro"
+                      >
+                        <Edit size={14} />
+                      </button>
+                      <button 
+                        onClick={() => onDelete(log)} 
+                        className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-md"
+                        title="Excluir Registro"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   )}
                 </div>
-              );
-            })}
-          </div>
 
-          {sortedCycleIds.length === 0 && (
-            <div className="text-center py-8">
-              <History className="mx-auto h-12 w-12 text-muted-foreground/20 mb-2" />
-              <p className="text-sm text-muted-foreground">Nenhuma designação registrada.</p>
+                <div className="grid grid-cols-2 gap-4 mt-3 text-[12px]">
+                   <div className="space-y-0.5">
+                    <p className="text-muted-foreground">Início:</p>
+                    <p className="font-medium">{format(log.assignedAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-muted-foreground">{isTransfer ? "Transferido em:" : "Devolvido em:"}</p>
+                    <p className="font-medium">{format(log.completedAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}</p>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+          );
+        })}
+
+        {(!currentAssignment && sortedPast.length === 0) && (
+          <div className="text-center py-10">
+            <Milestone className="mx-auto h-12 w-12 text-muted-foreground/20 mb-3" />
+            <p className="text-sm text-muted-foreground">Sem registros de designação.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

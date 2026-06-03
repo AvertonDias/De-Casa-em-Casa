@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -238,16 +237,27 @@ function MaisPage() {
             const { quadras: quadrasData, history: historyData } = revertData;
             const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
             const congRef = doc(db, 'congregations', congregationId);
+            
             await runTransaction(db, async (transaction) => {
+                // 1. PRIMEIRO TODAS AS LEITURAS
                 const [terrSnap, congSnap] = await Promise.all([
                     transaction.get(territoryRef),
                     transaction.get(congRef)
                 ]);
+
+                // Ler todas as quadras envolvidas antes de fazer qualquer escrita
+                const qRefs = quadrasData.map((q: any) => doc(territoryRef, 'quadras', q.id));
+                const qSnaps = await Promise.all(qRefs.map(ref => transaction.get(ref)));
+
                 if (!terrSnap.exists()) throw new Error("O território não existe mais.");
+
+                // 2. DEPOIS TODAS AS ESCRITAS
                 let totalIncrement = 0;
-                for (const qData of quadrasData) {
-                    const quadraRef = doc(territoryRef, 'quadras', qData.id);
-                    const qSnap = await transaction.get(quadraRef);
+                
+                quadrasData.forEach((qData: any, idx: number) => {
+                    const quadraRef = qRefs[idx];
+                    const qSnap = qSnaps[idx];
+                    
                     let quadraIncrement = 0;
                     for (const h of qData.houses) {
                         const { id, ...hMeta } = h;
@@ -256,15 +266,17 @@ function MaisPage() {
                         totalIncrement++;
                     }
                     if (qSnap.exists()) {
-                        transaction.update(quadraRef, { housesDone: (qSnap.data().housesDone || 0) + quadraIncrement });
+                        transaction.update(quadraRef, { housesDone: (qSnap.data()?.housesDone || 0) + quadraIncrement });
                     }
-                }
+                });
+
                 if (historyData) {
                     for (const h of historyData) {
                         const { id, ...hMeta } = h;
                         transaction.set(doc(territoryRef, 'activityHistory', id), hMeta);
                     }
                 }
+
                 const tData = terrSnap.data() as Territory;
                 const newDone = (tData.stats?.housesDone || 0) + totalIncrement;
                 const total = tData.stats?.totalHouses || 1;
@@ -273,8 +285,9 @@ function MaisPage() {
                     progress: newDone / total,
                     lastUpdate: serverTimestamp()
                 });
+
                 if (congSnap.exists()) {
-                    transaction.update(congRef, { totalHousesDone: (congSnap.data().totalHousesDone || 0) + totalIncrement });
+                    transaction.update(congRef, { totalHousesDone: (congSnap.data()?.totalHousesDone || 0) + totalIncrement });
                 }
             });
             logEvent(congregationId, user.uid, user.name, 'REVERT_ACTION', `Restaurou o progresso do território ${log.metadata.territoryNumber || territoryId}.`);
