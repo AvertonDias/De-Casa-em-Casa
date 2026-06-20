@@ -1,7 +1,6 @@
-
 "use client";
 
-import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, deleteField, getDoc, arrayRemove } from "firebase/firestore";
+import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, getDoc, arrayRemove } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
@@ -543,7 +542,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           onReset={handleResetTerritory} 
         />
         
-        <AddQuadraModal 
+        <AddAddQuadraModal 
             isOpen={isAddQuadraModalOpen} 
             onClose={() => setIsAddQuadraModalOpen(false)} 
             onSave={handleAddQuadra} 

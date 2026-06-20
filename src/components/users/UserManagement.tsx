@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -151,7 +150,6 @@ export default function UserManagement() {
         return;
     }
 
-    // Calcular o que mudou para o log
     const changes: string[] = [];
     if (dataToUpdate.name && dataToUpdate.name !== targetUser?.name) 
         changes.push(`Nome: ${targetUser?.name || 'Vazio'} -> ${dataToUpdate.name}`);
@@ -229,15 +227,10 @@ export default function UserManagement() {
       }
     } catch (e: any) {
       console.error("Erro na exclusão:", e);
-      
-      let errorMsg = "Não foi possível completar a exclusão agora. Tente novamente em alguns instantes.";
-      if (e.code === 'permission-denied') errorMsg = "Você não tem permissão para esta ação.";
-      else if (e.code === 'unauthenticated') errorMsg = "Sua sessão expirou. Entre novamente.";
-
       toast({
         variant: "destructive",
         title: "Erro ao Excluir",
-        description: errorMsg,
+        description: "Não foi possível completar a exclusão agora.",
       });
     } finally {
         setIsDeleting(false);
@@ -370,16 +363,6 @@ export default function UserManagement() {
                     <FilterButtonComponent label="Servo" value="Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role['Servo de Territórios']} />
                     <FilterButtonComponent label="Ajudante" value="Ajudante de Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role['Ajudante de Servo de Territórios']} />
                     <FilterButtonComponent label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Publicador} />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Atividade</p>
-                  <div className="flex flex-wrap gap-2">
-                    <FilterButtonComponent label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.all} />
-                    <FilterButtonComponent label="Última Hora" value="active_hourly" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_hourly} />
-                    <FilterButtonComponent label="Últimas 24h" value="active_daily" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_daily} />
-                    <FilterButtonComponent label="Semana" value="active_weekly" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_weekly} />
                   </div>
                 </div>
               </div>

@@ -1,3 +1,2 @@
-// Este arquivo continha um erro de digitação no nome (EditCongregration).
-// Utilize src/components/EditCongregationModal.tsx para edições da congregação.
-export {};
+// Arquivo com erro de digitação. Utilize src/components/EditCongregationModal.tsx
+export const EditCongregrationModal = () => null;
