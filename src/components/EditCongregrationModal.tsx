@@ -1,2 +1,6 @@
-// Arquivo com erro de digitação. Utilize src/components/EditCongregationModal.tsx
+"use client";
+/**
+ * Arquivo redundante com erro de digitação no nome.
+ * Utilize src/components/EditCongregationModal.tsx para gerenciar os dados da congregação.
+ */
 export const EditCongregrationModal = () => null;

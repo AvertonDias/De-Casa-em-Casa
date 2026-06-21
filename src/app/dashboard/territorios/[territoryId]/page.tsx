@@ -542,7 +542,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
           onReset={handleResetTerritory} 
         />
         
-        <AddAddQuadraModal 
+        <AddQuadraModal 
             isOpen={isAddQuadraModalOpen} 
             onClose={() => setIsAddQuadraModalOpen(false)} 
             onSave={handleAddQuadra} 
@@ -554,7 +554,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
             isOpen={isEditQuadraModalOpen}
             onClose={() => setIsEditQuadraModalOpen(false)}
             quadra={selectedQuadra}
-            onSave={handleSaveQuadra}
+            onSave={handleSaveHistoryLog as any}
             onDelete={handleDeleteQuadra}
           />
         )}
