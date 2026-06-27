@@ -65,6 +65,12 @@ export interface RuralLink {
   description: string;
 }
 
+export interface CampaignInfo {
+  title: string;
+  type: 'congress' | 'memorial' | 'other';
+  activatedAt: Timestamp;
+}
+
 export interface Congregation {
     id: string;
     name: string;
@@ -80,6 +86,8 @@ export interface Congregation {
         count: number;
         timestamp: Timestamp;
     };
+
+    activeCampaign?: CampaignInfo | null;
 
     globalRuralLinks?: RuralLink[];
 

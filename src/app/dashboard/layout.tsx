@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Footer } from "@/components/Footer";
 import { TutorialButton } from "@/components/TutorialButton";
 import { TUTORIAL_IDS } from "@/lib/tutorials";
+import { CampaignBanner } from "@/components/CampaignBanner";
 
 const AnimatedHamburgerIcon = ({ isOpen, ...props }: { isOpen: boolean } & React.SVGProps<SVGSVGElement>) => {
   return (
@@ -347,6 +348,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
           />
 
           <div className="flex-1 flex flex-col w-full min-w-0">
+              <CampaignBanner />
               <header className="md:hidden bg-background p-4 text-foreground shadow-md flex justify-between items-center border-b border-border sticky top-0 z-20">
                   <div className="relative">
                     <button onClick={() => setSidebarOpen(!isSidebarOpen)} aria-label="Abrir menu">

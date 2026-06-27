@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -5,7 +6,7 @@ import { useUser } from '@/contexts/UserContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, Timestamp, deleteField, orderBy, runTransaction, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
-import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, BookUser, MessageCircle, History, Loader, X, Filter } from 'lucide-react';
+import { Search, MoreVertical, CheckCircle, RotateCw, Map, Trees, BookUser, MessageCircle, History, Loader, X, Filter, Sparkles } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -19,6 +20,8 @@ import AssignmentHistory from '../AssignmentHistory';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { logEvent } from '@/lib/audit';
+import { CampaignActivationModal } from './CampaignActivationModal';
+import { Button } from '../ui/button';
 
 const FilterButton = ({ label, value, currentFilter, setFilter, Icon }: {
   label: string;
@@ -53,6 +56,7 @@ export default function TerritoryAssignmentPanel() {
   
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false); 
+  const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
   const [selectedTerritory, setSelectedTerritory] = useState<Territory | null>(null);
 
   const [isEditLogModalOpen, setIsEditLogModalOpen] = useState(false);
@@ -97,7 +101,6 @@ export default function TerritoryAssignmentPanel() {
     const dueDateObj = Timestamp.fromDate(new Date(dueDate + 'T12:00:00'));
     const currentTerritory = territories.find(t => t.id === territoryId);
 
-    // Determinar se é reatribuição (estava ocupado) ou nova designação (estava livre)
     const isReassignment = currentTerritory?.status === 'designado' && !!currentTerritory?.assignment;
     const actionLabel = isReassignment ? 'Reatribuiu' : 'Designou';
 
@@ -138,7 +141,6 @@ export default function TerritoryAssignmentPanel() {
             transaction.update(territoryRef, updates);
         });
         
-        // Registrar no Histórico de Auditoria com o texto correto
         logEvent(
             currentUser.congregationId,
             currentUser.uid,
@@ -210,7 +212,6 @@ export default function TerritoryAssignmentPanel() {
             assignmentHistory: arrayUnion(historyLog)
         });
 
-        // Registrar Auditoria
         logEvent(
             currentUser.congregationId,
             currentUser.uid,
@@ -360,14 +361,26 @@ export default function TerritoryAssignmentPanel() {
       return matchesType && matchesStatus && matchesSearch;
   });
 
-  const canManageAssignments = currentUser?.role === 'Administrador' || currentUser?.role === 'Servo de Territórios' || currentUser?.role === 'Ajudante de Servo de Territórios';
+  const canManageAssignments = currentUser?.role === 'Administrador' || currentUser?.role === 'Servo de Territórios';
 
   if(loading) return <div className="text-center p-8"><Loader className="animate-spin mx-auto text-primary" /></div>
 
   return (
     <>
       <div className="bg-card p-4 sm:p-6 rounded-lg shadow-md border border-border/40">
-        <h2 className="text-2xl font-bold mb-6">Designar Territórios</h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <h2 className="text-2xl font-bold">Designar Territórios</h2>
+            {canManageAssignments && (
+                <Button 
+                  onClick={() => setIsCampaignModalOpen(true)} 
+                  variant={congregation?.activeCampaign ? "destructive" : "default"}
+                  className="w-full sm:w-auto font-bold gap-2"
+                >
+                    <Sparkles size={18} />
+                    {congregation?.activeCampaign ? 'Encerrar Campanha' : 'Ativar Campanha'}
+                </Button>
+            )}
+        </div>
 
         <div className="flex flex-col gap-6 mb-8">
             <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/30 rounded-lg border border-border/20">
@@ -430,7 +443,7 @@ export default function TerritoryAssignmentPanel() {
                           </div>
                        </div>
                        <div className="flex items-center justify-end gap-1 ml-2">
-                           {canManageAssignments && (
+                           {(currentUser?.role === 'Administrador' || currentUser?.role === 'Servo de Territórios' || currentUser?.role === 'Ajudante de Servo de Territórios') && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild><button className="p-2 rounded-full hover:bg-white/10"><MoreVertical size={20} /></button></DropdownMenuTrigger>
                                 <DropdownMenuContent className="w-56" align="end">
@@ -469,6 +482,7 @@ export default function TerritoryAssignmentPanel() {
       <ReturnTerritoryModal isOpen={isReturnModalOpen} onClose={() => setIsReturnModalOpen(false)} onConfirm={handleConfirmReturn} territory={selectedTerritory} />
       <AddEditAssignmentLogModal isOpen={isEditLogModalOpen} onClose={() => setIsEditLogModalOpen(false)} onSave={handleSaveHistoryLog} logToEdit={logToEdit} />
       <ConfirmationModal isOpen={isConfirmDeleteOpen} onClose={() => setIsConfirmDeleteOpen(false)} onConfirm={handleConfirmDeleteLog} title="Confirmar Exclusão" message={`Tem certeza que deseja excluir o registro de ${logToDelete?.log.name}?`} />
+      <CampaignActivationModal isOpen={isCampaignModalOpen} onClose={() => setIsCampaignModalOpen(false)} />
     </>
   );
 }

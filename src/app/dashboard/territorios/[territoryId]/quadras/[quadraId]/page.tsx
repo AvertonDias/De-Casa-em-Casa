@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { doc, collection, query, orderBy, onSnapshot, runTransaction, serverTimestamp, Timestamp, deleteField } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Search, ArrowLeft, Loader, Pencil, X, ArrowUpDown } from 'lucide-react';
+import { Search, ArrowLeft, Loader, Pencil, X, ArrowUpDown, AlertCircle } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
 import { EditCasaModal } from '@/components/EditCasaModal';
 import { ReorderCasasModal } from '@/components/ReorderCasasModal';
@@ -30,7 +30,7 @@ interface QuadraDetailPageProps {
 }
 
 function QuadraDetailPage({ params }: QuadraDetailPageProps) {
-  const { user, loading: userLoading } = useUser();
+  const { user, loading: userLoading, congregation } = useUser();
   const { territoryId, quadraId } = params;
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [quadra, setQuadra] = useState<Quadra | null>(null);
@@ -40,6 +40,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const router = useRouter();
   
+  const isCampaignActive = !!congregation?.activeCampaign;
 
   // Estados para modais
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -146,6 +147,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   }
 
   const handleToggleCheckbox = (casa: Casa) => {
+    if (isCampaignActive) return;
     setStatusAction({ casa, newStatus: !casa.status });
   };
   
@@ -239,7 +241,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         );
         
         setStatusAction(null);
-    }).catch(async (serverError) => {
+    }).catch(async (error) => {
         const permissionError = new FirestorePermissionError({
             path: casaRef.path,
             operation: 'update',
@@ -316,7 +318,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             quadraName: quadra?.name,
             revertData: casaToDelete 
         });
-    }).catch(async (serverError) => {
+    }).catch(async (error) => {
         const permissionError = new FirestorePermissionError({
             path: `congregations/${congregationId}/territories/${territoryId}/quadras/${quadraId}/casas/${casaToDelete.id}`,
             operation: 'delete',
@@ -392,6 +394,13 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             />
         </div>
         
+        {isCampaignActive && (
+          <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-3">
+            <AlertCircle className="text-primary" />
+            <p className="text-sm font-semibold">O modo de campanha está ativo. A marcação de casas foi desativada temporariamente.</p>
+          </div>
+        )}
+
         <div className="bg-card p-4 rounded-lg shadow-md mb-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                 <div><p className="text-sm text-muted-foreground">Total</p><p className="font-bold text-2xl">{stats.total}</p></div>
@@ -413,7 +422,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                   placeholder="Buscar número ou observação..." 
                   value={searchTerm} 
                   onChange={(e) => setSearchTerm(e.target.value)} 
-                  className="w-full pl-10 pr-10 py-2 bg-card border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary pl-10 pr-10 py-2"
                 />
                  {searchTerm && (
                   <button 
@@ -454,10 +463,17 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                       type="checkbox"
                       checked={casa.status}
                       onChange={() => handleToggleCheckbox(casa)}
-                      className="w-6 h-6 rounded-md border-2 border-primary text-primary focus:ring-primary cursor-pointer"
+                      disabled={isCampaignActive}
+                      className={cn(
+                        "w-6 h-6 rounded-md border-2 border-primary text-primary focus:ring-primary cursor-pointer",
+                        isCampaignActive && "opacity-50 cursor-not-allowed border-muted"
+                      )}
                     />
                     <div className="ml-4 flex-grow cursor-pointer">
-                      <p className={`font-bold text-lg ${casa.status ? 'text-muted-foreground' : 'text-foreground'}`}>{casa.number}</p>
+                      <p className={cn(
+                        "font-bold text-lg",
+                        casa.status ? 'text-muted-foreground' : 'text-foreground'
+                      )}>{casa.number}</p>
                       {casa.observations && <p className="text-sm text-muted-foreground">{casa.observations}</p>}
                     </div>
                     
