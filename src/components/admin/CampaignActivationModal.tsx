@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { AlertTriangle, Loader, Calendar } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { doc, writeBatch, serverTimestamp, Timestamp, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, writeBatch, serverTimestamp, Timestamp, collection, getDocs, query, where, arrayUnion } from 'firebase/firestore';
 import { useUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { logEvent } from '@/lib/audit';
@@ -23,6 +23,7 @@ export function CampaignActivationModal({ isOpen, onClose }: CampaignActivationM
   const { user, congregation } = useUser();
   const { toast } = useToast();
   const [step, setStage] = useState<'type' | 'return'>('type');
+  const [isEndingWithReturn, setIsEndingWithReturn] = useState(false);
   const [type, setType] = useState<'congress' | 'memorial' | 'other'>('congress');
   const [customTitle, setCustomTitle] = useState('');
   const [returnDate, setReturnDate] = useState(new Date().toISOString().split('T')[0]);
@@ -62,12 +63,13 @@ export function CampaignActivationModal({ isOpen, onClose }: CampaignActivationM
             name: tData.assignment.name,
             assignedAt: tData.assignment.assignedAt,
             completedAt: returnTimestamp,
-            isCompletion: true
+            isCompletion: true,
+            campaignName: tData.assignment.campaignName
           };
           batch.update(tDoc.ref, {
             status: 'disponivel',
             assignment: null,
-            assignmentHistory: [...(tData.assignmentHistory || []), historyLog]
+            assignmentHistory: arrayUnion(historyLog)
           });
         }
       });
@@ -83,7 +85,7 @@ export function CampaignActivationModal({ isOpen, onClose }: CampaignActivationM
       );
 
       toast({ title: "Campanha Ativada!", description: "Todos os territórios foram devolvidos e o modo de campanha está ativo." });
-      onClose();
+      handleClose();
     } catch (error: any) {
       console.error("Erro ao ativar campanha:", error);
       toast({ title: "Erro", description: "Falha ao ativar campanha.", variant: "destructive" });
@@ -96,22 +98,89 @@ export function CampaignActivationModal({ isOpen, onClose }: CampaignActivationM
     if (!user?.congregationId) return;
     setIsLoading(true);
     try {
-      const congRef = doc(db, 'congregations', user.congregationId);
-      await writeBatch(db).update(congRef, { activeCampaign: null }).commit();
+      const congregationId = user.congregationId;
+      const batch = writeBatch(db);
+
+      // 1. Encerrar Campanha na Congregação
+      const congRef = doc(db, 'congregations', congregationId);
+      batch.update(congRef, { activeCampaign: null });
+
+      // 2. Devolver todos os territórios designados (igual ao ativar)
+      const territoriesRef = collection(db, 'congregations', congregationId, 'territories');
+      const q = query(territoriesRef, where('status', '==', 'designado'));
+      const snapshot = await getDocs(q);
+
+      const returnTimestamp = Timestamp.fromDate(new Date(returnDate + 'T12:00:00'));
+
+      snapshot.docs.forEach(tDoc => {
+        const tData = tDoc.data();
+        if (tData.assignment) {
+          const historyLog = {
+            uid: tData.assignment.uid,
+            name: tData.assignment.name,
+            assignedAt: tData.assignment.assignedAt,
+            completedAt: returnTimestamp,
+            isCompletion: true,
+            campaignName: tData.assignment.campaignName
+          };
+          batch.update(tDoc.ref, {
+            status: 'disponivel',
+            assignment: null,
+            assignmentHistory: arrayUnion(historyLog)
+          });
+        }
+      });
+
+      await batch.commit();
       
-      logEvent(user.congregationId, user.uid, user.name, 'CAMPAIGN_STOPPED', `Encerrou a campanha ativa.`);
-      toast({ title: "Campanha Encerrada" });
-      onClose();
+      logEvent(user.congregationId, user.uid, user.name, 'CAMPAIGN_STOPPED', `Encerrou a campanha ativa e devolveu ${snapshot.size} territórios.`);
+      toast({ title: "Campanha Encerrada", description: "Todos os territórios foram devolvidos e o sistema voltou ao normal." });
+      handleClose();
     } catch (e) {
+      console.error("Erro ao encerrar campanha:", e);
       toast({ title: "Erro ao encerrar", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleClose = () => {
+    setStage('type');
+    setIsEndingWithReturn(false);
+    onClose();
+  };
+
   if (congregation?.activeCampaign) {
+    if (isEndingWithReturn) {
+      return (
+        <Dialog open={isOpen} onOpenChange={handleClose}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Encerrar Campanha</DialogTitle>
+              <DialogDescription>
+                Ao encerrar, <strong>todos os territórios designados atualmente serão devolvidos</strong> para ficarem disponíveis novamente.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+               <div className="space-y-2">
+                <Label className="flex items-center gap-2"><Calendar size={16} /> Data da Devolução Final</Label>
+                <Input type="date" value={returnDate} onChange={e => setReturnDate(e.target.value)} />
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">Esta data será usada para fechar o ciclo de trabalho atual no histórico.</p>
+              </div>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setIsEndingWithReturn(false)}>Voltar</Button>
+              <Button variant="destructive" onClick={handleStopCampaign} disabled={isLoading} className="font-bold">
+                {isLoading ? <Loader className="animate-spin" /> : "Confirmar e Encerrar"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      );
+    }
+
     return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Campanha Ativa</DialogTitle>
@@ -122,10 +191,10 @@ export function CampaignActivationModal({ isOpen, onClose }: CampaignActivationM
           <div className="py-4">
             <p className="text-sm text-muted-foreground">Enquanto a campanha estiver ativa, os publicadores não poderão marcar casas como feitas individualmente.</p>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <DialogClose asChild><Button variant="outline">Fechar</Button></DialogClose>
-            <Button variant="destructive" onClick={handleStopCampaign} disabled={isLoading}>
-              {isLoading ? <Loader className="animate-spin" /> : "Encerrar Campanha"}
+            <Button variant="destructive" onClick={() => setIsEndingWithReturn(true)} className="font-bold">
+              Encerrar Campanha
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -134,7 +203,7 @@ export function CampaignActivationModal({ isOpen, onClose }: CampaignActivationM
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Ativar Nova Campanha</DialogTitle>
@@ -145,7 +214,7 @@ export function CampaignActivationModal({ isOpen, onClose }: CampaignActivationM
 
         {step === 'type' ? (
           <div className="space-y-6 py-4">
-            <RadioGroup value={type} onValueChange={(v: any) => setType(val => v)}>
+            <RadioGroup value={type} onValueChange={(v: any) => setType(v)}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="congress" id="r1" />
                 <Label htmlFor="r1">Convites do Congresso</Label>
@@ -186,7 +255,7 @@ export function CampaignActivationModal({ isOpen, onClose }: CampaignActivationM
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0">
           {step === 'type' ? (
             <>
               <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
@@ -195,7 +264,7 @@ export function CampaignActivationModal({ isOpen, onClose }: CampaignActivationM
           ) : (
             <>
               <Button variant="outline" onClick={() => setStage('type')}>Voltar</Button>
-              <Button onClick={handleStartCampaign} disabled={isLoading}>
+              <Button onClick={handleStartCampaign} disabled={isLoading} className="font-bold">
                 {isLoading ? <Loader className="animate-spin" /> : "Ativar e Devolver Tudo"}
               </Button>
             </>
