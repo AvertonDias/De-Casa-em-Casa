@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -132,7 +131,7 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="relative bg-card text-card-foreground p-6 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <button onClick={handleClose} disabled={isProcessing} className="absolute top-4 right-4 text-muted-foreground"><X /></button>
         <h2 className="text-xl font-bold">Editar Território</h2>
@@ -167,7 +166,7 @@ export default function EditTerritoryModal({ territory, isOpen, onClose, onSave,
               <div><label>Link do Mapa (Opcional)</label><input value={mapLink} onChange={(e) => setMapLink(e.target.value)} className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"/></div>
               
               <div>
-                <label className="block text-sm mb-1">Imagem do Cartão (Opcional)</label>
+                <label className="block text-sm font-medium mb-1">Imagem do Cartão (Opcional)</label>
                 <div className="mt-1 flex justify-center items-center rounded-lg border border-dashed border-gray-500 min-h-[12rem] p-2">
                   {previewUrl || cardUrl ? (
                     <img src={previewUrl || cardUrl} alt="Preview do cartão" className="max-h-40 object-contain rounded-md" />

@@ -134,7 +134,7 @@ export default function AssignTerritoryModal({ isOpen, onClose, onSave, territor
   const isReassigning = !!territory.assignment;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
       <div className="bg-card text-card-foreground p-6 rounded-lg shadow-xl w-full max-w-md relative">
         <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground hover:text-white"><X /></button>
         <h2 className="text-xl font-bold">{isReassigning ? 'Reatribuir Território' : 'Designar Território'}</h2>

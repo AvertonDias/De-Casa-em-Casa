@@ -1,4 +1,3 @@
-
 "use client";
 import { useEffect, useState, type ReactNode, useCallback } from "react";
 import Image from 'next/image';
@@ -146,7 +145,7 @@ function Sidebar({
   
   return (
     <>
-      <div className={cn("fixed inset-0 bg-black/60 z-30 md:hidden transition-opacity", isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none')} onClick={onClose} />
+      <div className={cn("fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden transition-opacity", isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none')} onClick={onClose} />
       <aside className={cn(
           "fixed top-0 left-0 h-full w-64 bg-background text-foreground p-4 flex flex-col border-r border-border/60 z-40 transition-transform transform md:relative md:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full"

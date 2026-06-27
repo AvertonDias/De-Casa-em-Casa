@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -39,7 +38,7 @@ export default function ReturnTerritoryModal({ isOpen, onClose, onConfirm, terri
   if (!isOpen || !territory) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
       <div className="bg-card text-card-foreground p-6 rounded-lg shadow-xl w-full max-w-md relative">
         <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground"><X /></button>
         <h2 className="text-xl font-bold flex items-center"><CalendarCheck className="mr-3 text-primary"/>Devolver Território</h2>

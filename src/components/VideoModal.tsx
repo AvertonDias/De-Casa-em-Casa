@@ -34,7 +34,7 @@ export const VideoModal = ({ isOpen, onClose, videoUrl }: VideoModalProps) => {
   // Usa createPortal para renderizar o modal fora da hierarquia de menus
   return createPortal(
     <div 
-      className="fixed inset-0 bg-black/90 flex items-center justify-center z-[9999] p-4 sm:p-6"
+      className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 sm:p-6"
       onClick={onClose}
     >
       <div 
