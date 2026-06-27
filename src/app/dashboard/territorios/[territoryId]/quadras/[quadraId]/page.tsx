@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -398,7 +397,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         {isCampaignActive && (
           <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-3">
             <AlertCircle className="text-primary" />
-            <p className="text-sm font-semibold">O modo de campanha está ativo. A marcação de casas foi desativada temporariamente.</p>
+            <p className="text-sm font-semibold">A campanha está ativa. A marcação de casas foi desativada temporariamente.</p>
           </div>
         )}
 
