@@ -20,6 +20,7 @@ import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/e
 import { TutorialButton } from '@/components/TutorialButton';
 import { TUTORIAL_IDS } from '@/lib/tutorials';
 import { logEvent } from '@/lib/audit';
+import { cn } from '@/lib/utils';
 
 
 interface QuadraDetailPageProps {
