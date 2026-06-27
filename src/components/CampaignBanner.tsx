@@ -4,7 +4,7 @@
 import { useUser } from "@/contexts/UserContext";
 import { Wine, Newspaper, Sparkles } from "lucide-react";
 
-// Componente para o ícone de estádio (Congresso)
+// Componente para o ícone de estádio (Congresso) - Representação de arena/estádio
 const StadiumIcon = ({ className }: { className?: string }) => (
   <svg 
     xmlns="http://www.w3.org/2000/svg" 
@@ -19,9 +19,9 @@ const StadiumIcon = ({ className }: { className?: string }) => (
     className={className}
     aria-hidden="true"
   >
-    <path d="M12 2c5.5 0 10 2 10 4.5s-4.5 4.5-10 4.5-10-2-10-4.5S6.5 2 12 2Z"/>
-    <path d="M22 6.5v11c0 2.5-4.5 4.5-10 4.5s-10-2-10-4.5v-11"/>
-    <path d="M2 12c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5"/>
+    <path d="M12 21c-5.5 0-10-2.2-10-5V8c0-2.8 4.5-5 10-5s10 2.2 10 5v8c0 2.8-4.5 5-10 5Z" />
+    <path d="M12 16c-3.3 0-6-1.3-6-3V8c0-1.7 2.7-3 6-3s6 1.3 6 3v5c0 1.7-2.7 3-6 3Z" />
+    <path d="M2 8c0 2.8 4.5 5 10 5s10-2.2 10-5" />
   </svg>
 );
 
