@@ -1,6 +1,6 @@
 "use client";
 
-import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, getDoc, arrayRemove } from "firebase/firestore";
+import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, getDoc, arrayRemove, deleteField } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
