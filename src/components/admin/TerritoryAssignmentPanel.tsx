@@ -121,7 +121,8 @@ export default function TerritoryAssignmentPanel() {
                     assignedAt: assignedAt,
                     dueDate: dueDateObj,
                     isReassigned: isReassignment,
-                    transferredAt: isReassignment ? Timestamp.now() : null
+                    transferredAt: isReassignment ? Timestamp.now() : null,
+                    campaignName: congregation?.activeCampaign?.title // Salva a campanha ativa
                 },
                 lastUpdate: serverTimestamp()
             };
@@ -132,7 +133,8 @@ export default function TerritoryAssignmentPanel() {
                     name: data.assignment!.name,
                     assignedAt: data.assignment!.assignedAt,
                     completedAt: Timestamp.now(),
-                    isCompletion: false
+                    isCompletion: false,
+                    campaignName: data.assignment?.campaignName // Preserva campanha da fase anterior
                 };
                 const currentHistory = data.assignmentHistory || [];
                 updates.assignmentHistory = [...currentHistory, historyLog];
@@ -202,7 +204,8 @@ export default function TerritoryAssignmentPanel() {
       name: territoryToReturn.assignment.name,
       assignedAt: territoryToReturn.assignment.assignedAt,
       completedAt: Timestamp.fromDate(returnDateObj),
-      isCompletion: true
+      isCompletion: true,
+      campaignName: territoryToReturn.assignment.campaignName // Transfere o nome da campanha para o histórico definitivo
     };
 
     try {

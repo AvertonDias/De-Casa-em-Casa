@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useState } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { Assignment, AssignmentHistoryLog } from '@/types/types';
-import { Edit, Trash2, ChevronDown, ChevronRight, History } from 'lucide-react';
+import { Edit, Trash2, ChevronDown, ChevronRight, History, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -84,6 +85,7 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
         const transfers = cycle.transfers.sort((a, b) => b.completedAt.toMillis() - a.completedAt.toMillis());
         const hasTransfers = transfers.length > 0;
         const isExpanded = expandedGroups[cycleId];
+        const campaign = displayHead.campaignName;
 
         return (
           <div key={cycleId} className="rounded-lg border border-border/40 bg-card overflow-hidden transition-all shadow-sm">
@@ -93,9 +95,16 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
               isCurrent && "border-l-4 border-l-primary bg-primary/5"
             )}>
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-base text-foreground truncate">
-                  {displayHead.name}
-                </p>
+                <div className="flex items-center gap-2 mb-0.5">
+                    <p className="font-bold text-base text-foreground truncate">
+                    {displayHead.name}
+                    </p>
+                    {campaign && (
+                        <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1 border border-primary/20">
+                            <Sparkles size={8} /> {campaign}
+                        </span>
+                    )}
+                </div>
                 
                 <div className="text-xs flex flex-wrap items-center gap-x-3 mt-1.5 text-muted-foreground">
                   <span className="flex items-center gap-1">
@@ -148,6 +157,11 @@ export default function AssignmentHistory({ currentAssignment, pastAssignments, 
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold truncate text-foreground">{t.name}</p>
                         <span className="text-[9px] bg-muted-foreground/20 text-muted-foreground px-1.5 py-0.5 rounded font-bold uppercase">Transferido</span>
+                        {t.campaignName && (
+                            <span className="text-[8px] border border-primary/20 text-primary px-1.5 py-0.5 rounded font-black uppercase tracking-tighter flex items-center gap-0.5">
+                                <Sparkles size={8} /> {t.campaignName}
+                            </span>
+                        )}
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         Transferido em: {format(t.completedAt.toDate(), "dd/MM/yyyy")}

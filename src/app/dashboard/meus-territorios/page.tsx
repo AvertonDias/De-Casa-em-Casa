@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -72,7 +73,8 @@ function MyTerritoriesPage() {
       name: territoryToReturn.assignment.name,
       assignedAt: territoryToReturn.assignment.assignedAt,
       completedAt: Timestamp.now(), 
-      isCompletion: true 
+      isCompletion: true,
+      campaignName: territoryToReturn.assignment.campaignName // Salva o nome da campanha no histórico ao devolver
     };
 
     try {
@@ -82,7 +84,7 @@ function MyTerritoriesPage() {
         assignmentHistory: arrayUnion(historyLog)
       });
 
-      // Registrar Auditoria (Agora aparece no histórico de "Mais")
+      // Registrar Auditoria
       logEvent(
           user.congregationId,
           user.uid,

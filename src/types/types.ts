@@ -175,6 +175,7 @@ export interface Assignment {
   dueDate: Timestamp;    
   isReassigned?: boolean; 
   transferredAt?: Timestamp; 
+  campaignName?: string; // Adicionado para rastrear campanhas
 }
 
 export interface AssignmentHistoryLog {
@@ -183,6 +184,7 @@ export interface AssignmentHistoryLog {
   assignedAt: Timestamp;
   completedAt: Timestamp; 
   isCompletion?: boolean; 
+  campaignName?: string; // Adicionado para o histórico
 }
 
 // --- Audit Logs ---
