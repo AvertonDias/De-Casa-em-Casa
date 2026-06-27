@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -103,6 +102,7 @@ export default function TerritoryAssignmentPanel() {
 
     const isReassignment = currentTerritory?.status === 'designado' && !!currentTerritory?.assignment;
     const actionLabel = isReassignment ? 'Reatribuiu' : 'Designou';
+    const campaignName = congregation?.activeCampaign?.title;
 
     setIsAssignModalOpen(false);
 
@@ -122,7 +122,7 @@ export default function TerritoryAssignmentPanel() {
                     dueDate: dueDateObj,
                     isReassigned: isReassignment,
                     transferredAt: isReassignment ? Timestamp.now() : null,
-                    campaignName: congregation?.activeCampaign?.title // Salva a campanha ativa
+                    campaignName: campaignName // Salva a campanha ativa no objeto de designação
                 },
                 lastUpdate: serverTimestamp()
             };
@@ -134,7 +134,7 @@ export default function TerritoryAssignmentPanel() {
                     assignedAt: data.assignment!.assignedAt,
                     completedAt: Timestamp.now(),
                     isCompletion: false,
-                    campaignName: data.assignment?.campaignName // Preserva campanha da fase anterior
+                    campaignName: data.assignment?.campaignName // Preserva campanha da fase anterior no histórico
                 };
                 const currentHistory = data.assignmentHistory || [];
                 updates.assignmentHistory = [...currentHistory, historyLog];
@@ -149,7 +149,7 @@ export default function TerritoryAssignmentPanel() {
             currentUser.name,
             'TERRITORY_ASSIGNED',
             `${actionLabel} o território ${currentTerritory?.number} para ${assignedUser.name}.`,
-            { territoryId, assignedTo: assignedUser.name, isReassignment }
+            { territoryId, assignedTo: assignedUser.name, isReassignment, campaignName }
         );
 
         const assignedUserId = assignedUser.uid;
@@ -198,6 +198,7 @@ export default function TerritoryAssignmentPanel() {
     
     const territoryRef = doc(db, 'congregations', currentUser.congregationId, 'territories', territoryId);
     const returnDateObj = new Date(returnDate + 'T12:00:00');
+    const campaignName = territoryToReturn.assignment.campaignName;
     
     const historyLog = {
       uid: territoryToReturn.assignment.uid,
@@ -205,7 +206,7 @@ export default function TerritoryAssignmentPanel() {
       assignedAt: territoryToReturn.assignment.assignedAt,
       completedAt: Timestamp.fromDate(returnDateObj),
       isCompletion: true,
-      campaignName: territoryToReturn.assignment.campaignName // Transfere o nome da campanha para o histórico definitivo
+      campaignName: campaignName // Transfere o nome da campanha para o histórico definitivo
     };
 
     try {
@@ -221,7 +222,7 @@ export default function TerritoryAssignmentPanel() {
             currentUser.name,
             'TERRITORY_RETURNED',
             `Recebeu a devolução do território ${territoryToReturn.number} de ${territoryToReturn.assignment.name}.`,
-            { territoryId, returnedBy: territoryToReturn.assignment.name }
+            { territoryId, returnedBy: territoryToReturn.assignment.name, campaignName }
         );
 
         toast({ title: "Sucesso!", description: "Território devolvido." });
@@ -489,3 +490,4 @@ export default function TerritoryAssignmentPanel() {
     </>
   );
 }
+

@@ -27,7 +27,8 @@ import {
   MessageCircle,
   Settings,
   XCircle,
-  RotateCw
+  RotateCw,
+  Sparkles
 } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import withAuth from '@/components/withAuth';
@@ -388,6 +389,8 @@ function MaisPage() {
       'HISTORY_EDITED': { label: 'Histórico Editado', icon: Edit3, color: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
       'HISTORY_DELETED': { label: 'Histórico Excluído', icon: Trash2, color: 'bg-red-500/15 text-red-500 border-red-500/20' },
       'OVERDUE_NOTIFIED': { label: 'Cobrança WhatsApp', icon: MessageCircle, color: 'bg-yellow-500/15 text-yellow-500 border-yellow-500/20' },
+      'CAMPAIGN_STARTED': { label: 'Início Campanha', icon: Sparkles, color: 'bg-primary/15 text-primary border-primary/20' },
+      'CAMPAIGN_STOPPED': { label: 'Fim Campanha', icon: XCircle, color: 'bg-gray-500/15 text-gray-400 border-gray-500/20' },
     };
     const item = config[action] || { label: action.replace(/_/g, ' '), icon: Info, color: 'bg-muted text-muted-foreground' };
     const Icon = item.icon;
@@ -511,6 +514,11 @@ function MaisPage() {
                                                     </td>
                                                     <td className="px-6 py-5 align-top">
                                                         <p className="font-bold text-sm text-foreground/90">{log.userName}</p>
+                                                        {log.metadata?.campaignName && (
+                                                          <p className="text-[10px] text-primary font-black uppercase tracking-tighter mt-1 flex items-center gap-1">
+                                                            <Sparkles size={10} /> {log.metadata.campaignName}
+                                                          </p>
+                                                        )}
                                                     </td>
                                                     <td className="px-6 py-5 align-top">
                                                         <div className="flex flex-col gap-2 items-start">

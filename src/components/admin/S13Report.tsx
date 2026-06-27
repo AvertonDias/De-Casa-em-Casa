@@ -218,6 +218,7 @@ export default function S13ReportPage() {
                 allAssignments.push({
                   name: t.assignment.name,
                   assignedAt: t.assignment.assignedAt,
+                  campaignName: t.assignment.campaignName
                 });
               }
               
@@ -244,8 +245,15 @@ export default function S13ReportPage() {
                   <tr>
                     <td rowSpan={2} className="border border-black py-2" style={cellStyle}>{t.number}</td>
                     {display.map((a, i) => (
-                      <td key={i} colSpan={2} className="border border-black py-2" style={cellStyle}>
-                        {a?.name || ""}
+                      <td key={i} colSpan={2} className="border border-black py-2 px-1" style={cellStyle}>
+                        <div className="flex flex-col items-center">
+                            <span className="font-bold">{a?.name || ""}</span>
+                            {a?.campaignName && (
+                              <span className="text-[8px] font-black uppercase leading-tight opacity-70">
+                                ({a.campaignName})
+                              </span>
+                            )}
+                        </div>
                       </td>
                     ))}
                   </tr>
@@ -286,6 +294,7 @@ export default function S13ReportPage() {
               allAssignments.push({
                 name: t.assignment.name,
                 assignedAt: t.assignment.assignedAt,
+                campaignName: t.assignment.campaignName
               });
             }
             
@@ -297,7 +306,14 @@ export default function S13ReportPage() {
                 <h3 className="font-bold text-lg mb-2">Território {t.number}</h3>
                 {recentAssignments.length > 0 ? recentAssignments.map((a, i) => (
                   <div key={i} className="text-sm border-t border-border mt-2 pt-2">
-                    <p><span className="font-semibold">Designado a:</span> {a.name || "N/A"}</p>
+                    <p>
+                        <span className="font-semibold">Designado a:</span> {a.name || "N/A"}
+                        {a.campaignName && (
+                          <span className="ml-2 text-[10px] text-primary font-black uppercase">
+                            ({a.campaignName})
+                          </span>
+                        )}
+                    </p>
                     <p><span className="font-semibold">Data:</span> {a.assignedAt ? format(a.assignedAt.toDate(), "dd/MM/yyyy") : "N/A"}</p>
                     <p><span className="font-semibold">Conclusão:</span> {a.completedAt ? format(a.completedAt.toDate(), "dd/MM/yyyy") : "..."}</p>
                   </div>
