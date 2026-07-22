@@ -1,0 +1,57 @@
+diff --git a/node_modules/react-remove-scroll/dist/es2015/index.js b/node_modules/react-remove-scroll/dist/es2015/index.js
+index 9e70a1a..af9919f 100644
+--- a/node_modules/react-remove-scroll/dist/es2015/index.js
++++ b/node_modules/react-remove-scroll/dist/es2015/index.js
+@@ -1,5 +1,5 @@
+ import { RemoveScroll } from './UI.js';
+-import { classNames } from './classNames.js';
+ 
+-export { RemoveScroll, classNames };
++export { RemoveScroll };
+ export { default as styled } from 'styled-components';
+\ No newline at end of file
+diff --git a/node_modules/react-remove-scroll/dist/es5/index.js b/node_modules/react-remove-scroll/dist/es5/index.js
+index f325e68..5875086 100644
+--- a/node_modules/react-remove-scroll/dist/es5/index.js
++++ b/node_modules/react-remove-scroll/dist/es5/index.js
+@@ -1,13 +1,11 @@
+ 'use strict';
+ 
+ Object.defineProperty(exports, '__esModule', { value: true });
+-
+ var UI = require('./UI.js');
+-var classNames = require('./classNames.js');
+ var styled = require('styled-components');
+ 
+ function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
+ 
+ var styled__default = /*#__PURE__*/_interopDefaultLegacy(styled);
+ 
+-exports.RemoveScroll = UI.RemoveScroll;
+-exports.classNames = classNames.classNames;
++Object.defineProperty(exports, 'RemoveScroll', {
++	enumerable: true,
++	get: function () { return UI.RemoveScroll; }
++}));
+ exports.styled = styled__default['default'];
+diff --git a/node_modules/react-remove-scroll/package.json b/node_modules/react-remove-scroll/package.json
+index 37b8332..4b10419 100644
+--- a/node_modules/react-remove-scroll/package.json
++++ b/node_modules/react-remove-scroll/package.json
+@@ -6,7 +6,6 @@
+   "main": "dist/es5/index.js",
+   "jsnext:main": "dist/es2015/index.js",
+   "module": "dist/es2015/index.js",
+-  "dist": "dist",
+   "types": "dist/es5/index.d.ts",
+   "author": "Anton Korzunov <thekashey@gmail.com>",
+   "license": "MIT",
+diff --git a/node_modules/react-remove-scroll/sidecar.js b/node_modules/react-remove-scroll/sidecar.js
+deleted file mode 100644
+index 37626a5..0000000
+--- a/node_modules/react-remove-scroll/sidecar.js
++++ /dev/null
+@@ -1,2 +0,0 @@
+-const {sidecar} = require("use-sidecar");
+-module.exports = sidecar(require.resolve("./dist/es5/UI"));
+\ No newline at end of file

@@ -1,0 +1,204 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 97.5%; /* off-white */
+    --foreground: 240 6% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 6% 10%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 6% 10%;
+    
+    --primary: 262 82% 56%; /* Slightly brighter purple */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+    
+    --muted: 240 5% 90%;
+    --muted-foreground: 240 4% 46%;
+    
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 6% 10%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 6% 85%;
+    --input: 240 6% 90%;
+    --ring: 262 82% 56%;
+
+    --radius: 0.5rem;
+  }
+ 
+  .dark {
+    --background: 240 6% 10%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 6% 12%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 6% 10%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 262 82% 56%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 4% 16%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 4% 16%;
+    --muted-foreground: 240 5% 65%;
+
+    --accent: 240 4% 16%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 4% 18%;
+    --input: 240 4% 18%;
+    --ring: 262 82% 56%;
+  }
+}
+ 
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .animate-indicator-pulse {
+    animation: indicator-pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+  }
+
+  .animate-notification-cycle {
+    animation: notification-cycle 3s infinite cubic-bezier(0.4, 0, 0.6, 1);
+  }
+
+  .animate-pulse-red-amber {
+    animation: pulse-red-amber 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+  }
+
+  .animate-pulse-red-blue {
+    animation: pulse-red-blue 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+  }
+
+  .animate-pulse-amber-blue {
+    animation: pulse-amber-blue 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+  }
+
+  .animate-indeterminate-progress {
+    animation: indeterminate-progress 1.5s infinite ease-in-out;
+  }
+}
+
+@keyframes indicator-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 0 hsla(var(--destructive), 0.7);
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.75;
+    box-shadow: 0 0 10px 5px hsla(var(--destructive), 0);
+  }
+}
+
+@keyframes notification-cycle {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+    background-color: #ef4444; /* Vermelho - Territórios Atrasados */
+    box-shadow: 0 0 10px 3px rgba(239, 68, 68, 0.7);
+  }
+  25% {
+    transform: scale(1.25);
+    opacity: 0.9;
+    background-color: #f59e0b; /* Amarelo - Aprovações Pendentes */
+    box-shadow: 0 0 12px 4px rgba(245, 158, 11, 0.8);
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+    background-color: #3b82f6; /* Azul - Notificações Gerais */
+    box-shadow: 0 0 10px 3px rgba(59, 130, 246, 0.7);
+  }
+  75% {
+    transform: scale(1.25);
+    opacity: 0.9;
+    background-color: #10b981; /* Verde - Tutoriais / Novidades */
+    box-shadow: 0 0 12px 4px rgba(16, 185, 129, 0.8);
+  }
+}
+
+@keyframes pulse-red-amber {
+  0%, 100% {
+    transform: scale(1);
+    background-color: #ef4444;
+    box-shadow: 0 0 10px 3px rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    transform: scale(1.25);
+    background-color: #f59e0b;
+    box-shadow: 0 0 12px 4px rgba(245, 158, 11, 0.8);
+  }
+}
+
+@keyframes pulse-red-blue {
+  0%, 100% {
+    transform: scale(1);
+    background-color: #ef4444;
+    box-shadow: 0 0 10px 3px rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    transform: scale(1.25);
+    background-color: #3b82f6;
+    box-shadow: 0 0 12px 4px rgba(59, 130, 246, 0.8);
+  }
+}
+
+@keyframes pulse-amber-blue {
+  0%, 100% {
+    transform: scale(1);
+    background-color: #f59e0b;
+    box-shadow: 0 0 10px 3px rgba(245, 158, 11, 0.7);
+  }
+  50% {
+    transform: scale(1.25);
+    background-color: #3b82f6;
+    box-shadow: 0 0 12px 4px rgba(59, 130, 246, 0.8);
+  }
+}
+
+@keyframes indeterminate-progress {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@media print {
+  body, html {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-hidden {
+    display: none;
+  }
+  .print-avoid-break {
+      page-break-inside: avoid !important;
+  }
+}

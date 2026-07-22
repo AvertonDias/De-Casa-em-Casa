@@ -1,0 +1,48 @@
+
+{
+  "entities": {
+    "AppUser": {
+      "title": "Perfil do Usuário",
+      "description": "Dados de perfil e permissões de um usuário no sistema.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "whatsapp": { "type": "string" },
+        "role": { "type": "string", "enum": ["Administrador", "Dirigente", "Servo de Territórios", "Ajudante de Servo de Territórios", "Publicador"] },
+        "status": { "type": "string", "enum": ["ativo", "inativo", "pendente", "rejeitado", "bloqueado"] },
+        "congregationId": { "type": "string" },
+        "isOnline": { "type": "boolean" },
+        "lastSeen": { "type": "object" }
+      },
+      "required": ["name", "email", "role", "status"]
+    },
+    "AuditLog": {
+      "title": "Log de Auditoria",
+      "description": "Registro de uma ação realizada por um usuário para fins de histórico.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "timestamp": { "type": "object" },
+        "metadata": { "type": "object" }
+      },
+      "required": ["userId", "userName", "action", "details", "timestamp"]
+    }
+  },
+  "auth": {
+    "providers": ["password", "google.com"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "#/backend/entities/AppUser",
+      "description": "Documento de perfil de cada usuário."
+    },
+    "/congregations/{congId}/auditLogs/{logId}": {
+      "schema": "#/backend/entities/AuditLog",
+      "description": "Histórico de todas as alterações feitas na congregação."
+    }
+  }
+}

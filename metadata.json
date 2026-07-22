@@ -1,0 +1,6 @@
+{
+  "name": "De Casa em Casa",
+  "description": "Sistema de gerenciamento de territórios para congregações.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

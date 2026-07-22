@@ -1,0 +1,209 @@
+
+// src/types/types.ts
+
+import { Timestamp, FieldValue } from "firebase/firestore";
+
+// Definição para um usuário do seu aplicativo
+export interface AppUser {
+  uid: string;
+  name: string;
+  email: string;
+  photoURL?: string;
+  whatsapp?: string; // Campo para o WhatsApp
+  role: 'Administrador' | 'Dirigente' | 'Ajudante de Servo de Territórios' | 'Servo de Territórios' | 'Publicador';
+  status: 'ativo' | 'inativo' | 'pendente' | 'rejeitado' | 'bloqueado';
+  congregationId?: string;
+  congregationName?: string | null;
+  isOnline?: boolean;
+  lastSeen?: any; // Firestore Timestamp
+  acceptedLGPD?: boolean;
+  acceptedLGPDAt?: any;
+  pushNotificationsEnabled?: boolean;
+  pushSubscriptionUpdated?: any;
+}
+
+export interface Notification {
+  id: string;
+  title: string;
+  body: string;
+  link?: string;
+  type: 'territory_assigned' | 'territory_overdue' | 'user_pending' | 'announcement' | 'territory_returned' | 'territory_available';
+  isRead: boolean;
+  createdAt: Timestamp;
+  readAt?: Timestamp;
+}
+
+
+// Definição para um Território
+export interface Territory {
+  id: string;
+  number: string;
+  name: string;
+  type: 'urban' | 'rural'; 
+  
+  description?: string;
+  mapLink?: string;
+  cardUrl?: string;
+  progress?: number;
+  lastUpdate?: Timestamp | FieldValue;
+  lastWorkedAt?: Timestamp | FieldValue;
+  createdAt?: Timestamp | FieldValue;
+  quadraCount?: number;
+
+  stats?: {
+    totalHouses: number;
+    housesDone: number;
+  };
+  
+  // Novos campos de atribuição
+  status: 'disponivel' | 'designado'; // Novo status
+  assignment?: Assignment | null; // Objeto com os detalhes da atribuição atual
+  assignmentHistory?: AssignmentHistoryLog[]; // Array com o histórico
+  links?: RuralLink[]; // Adicionado para territórios rurais
+  workLogs?: any[]; // Adicionado para territórios rurais
+}
+
+export interface RuralLink {
+  id: string; 
+  url: string;
+  description: string;
+}
+
+export interface CampaignInfo {
+  title: string;
+  type: 'congress' | 'memorial' | 'other';
+  activatedAt: Timestamp;
+}
+
+export interface Congregation {
+    id: string;
+    name: string;
+    number: string;
+    
+    territoryCount: number;
+    ruralTerritoryCount: number;
+    totalQuadras: number;
+    totalHouses: number;
+    totalHousesDone: number;
+    
+    peakOnlineUsers?: {
+        count: number;
+        timestamp: Timestamp;
+    };
+
+    activeCampaign?: CampaignInfo | null;
+
+    globalRuralLinks?: RuralLink[];
+
+    whatsappTemplates?: {
+        assignment: string;
+        pendingApproval: string;
+        overdueReminder: string;
+    };
+
+    whatsappEnabled?: boolean; 
+
+    defaultAssignmentMonths?: number;
+
+    createdAt?: Timestamp;
+    lastUpdate?: Timestamp;
+}
+
+
+// Definição para uma Quadra
+export interface Quadra {
+  id: string;
+  name: string;
+  description?: string;
+  totalHouses: number;
+  housesDone: number;
+}
+
+// Definição para uma Casa
+export interface Casa {
+  id: string;
+  number: string;
+  order: number;
+  status: boolean;
+  observations?: string;
+  lastWorkedBy?: {
+    uid: string;
+    name: string;
+  };
+  activityLogId?: string;
+}
+
+
+// Definição para um registro no Histórico de Atividades
+export interface Activity {
+  id: string;
+  activityDate: Timestamp;
+  notes?: string;
+  description?: string;
+  userName: string;
+  userId: string;
+  createdAt: Timestamp; 
+  type?: 'work' | 'manual';
+}
+
+export interface RecentTerritory {
+  id: string;
+  name: string;
+  number: string;
+  progress?: number;
+  lastUpdate?: Timestamp;
+  lastWorkedTimestamp?: { seconds: number };
+}
+
+export interface RuralWorkLog {
+  id: string;
+  date: Timestamp;
+  notes: string;
+  userName: string;
+  userId: string;
+}
+
+export interface RuralTerritory extends Territory {
+  type: 'rural';
+  links?: RuralLink[];
+  workLogs?: any[];
+}
+
+
+// --- Novos Tipos para Atribuição ---
+
+export interface Assignment {
+  uid: string;      
+  name: string;     
+  assignedAt: Timestamp; 
+  dueDate: Timestamp;    
+  isReassigned?: boolean; 
+  transferredAt?: Timestamp; 
+  campaignName?: string; // Adicionado para rastrear campanhas
+}
+
+export interface AssignmentHistoryLog {
+  uid: string;
+  name: string;
+  assignedAt: Timestamp;
+  completedAt: Timestamp; 
+  isCompletion?: boolean; 
+  campaignName?: string; // Adicionado para o histórico
+}
+
+// --- Audit Logs ---
+export interface AuditLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  details: string;
+  timestamp: Timestamp;
+  metadata?: {
+    territoryId?: string;
+    quadraId?: string;
+    houseId?: string;
+    revertData?: any; // Dados para permitir desfazer a ação
+    [key: string]: any;
+  };
+}

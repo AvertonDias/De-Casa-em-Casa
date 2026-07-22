@@ -1,0 +1,242 @@
+
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { app } from "@/lib/firebase";
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { useUser } from "@/contexts/UserContext"; 
+import { Territory } from "@/types/types";
+import { X, AlertCircle, FileImage, Loader, HelpCircle } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "./ui/input";
+import { Button } from "./ui/button";
+import { motion, AnimatePresence } from "framer-motion";
+
+interface EditTerritoryModalProps {
+  territory: Territory;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (territoryId: string, updatedData: Partial<Territory>) => void;
+  onReset: (territoryId: string) => void;
+  onDelete: (territoryId: string) => void;
+}
+
+export default function EditTerritoryModal({ territory, isOpen, onClose, onSave, onReset, onDelete }: EditTerritoryModalProps) {
+  const { user } = useUser();
+  const isAdmin = user?.role === 'Administrador';
+  
+  const [number, setNumber] = useState('');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [mapLink, setMapLink] = useState('');
+  
+  const [cardUrl, setCardUrl] = useState(''); 
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  const numberInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen && territory) {
+      setNumber(territory.number || '');
+      setName(territory.name || '');
+      setDescription(territory.description || '');
+      setMapLink(territory.mapLink || '');
+      setCardUrl(territory.cardUrl || '');
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      setPreviewUrl(null);
+      setError(null);
+
+      setTimeout(() => {
+        numberInputRef.current?.focus();
+        numberInputRef.current?.select();
+      }, 100);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [territory, isOpen]);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setError(null);
+    const file = event.target.files ? event.target.files[0] : null;
+
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // Limite de 5MB
+        setError("O arquivo excede 5MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const newCardUrl = reader.result as string;
+        setPreviewUrl(newCardUrl); 
+        setCardUrl(newCardUrl);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setCardUrl(territory.cardUrl || ''); // Reverte para a URL original se o usuário cancelar
+    }
+  };
+  
+  const handleSave = async () => {
+    if (isAdmin && (!number || !name)) {
+      setError("Número e Nome são obrigatórios.");
+      return;
+    }
+    setIsProcessing(true);
+    setError(null);
+
+    const dataToSave: Partial<Territory> = {
+      description,
+    };
+
+    if (isAdmin) {
+      dataToSave.number = number;
+      dataToSave.name = name;
+      dataToSave.mapLink = mapLink;
+      dataToSave.cardUrl = previewUrl || cardUrl;
+    }
+
+    // O log do evento agora é disparado apenas na função onSave da página pai
+    await onSave(territory.id, dataToSave);
+
+    setIsProcessing(false);
+    onClose();
+  };
+
+  const handleResetRequest = () => {
+      // O log do evento agora é disparado apenas na função onReset da página pai
+      onReset(territory.id);
+  };
+
+  const handleDeleteRequest = () => {
+      // O log do evento agora é disparado apenas na função onDelete da página pai
+      onDelete(territory.id);
+  };
+
+  const handleClose = () => {
+    onClose();
+  };
+
+  const hasChanges = territory && (
+    number !== territory.number ||
+    name !== territory.name ||
+    description !== (territory.description || '') ||
+    mapLink !== (territory.mapLink || '') ||
+    (previewUrl || cardUrl) !== (territory.cardUrl || '')
+  );
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+        >
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0, y: 12 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 12 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="relative bg-card text-card-foreground p-6 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-border/50"
+          >
+            <button onClick={handleClose} disabled={isProcessing} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground p-1 rounded-full hover:bg-muted transition-colors"><X size={18} /></button>
+            <h2 className="text-xl font-bold">Editar Território</h2>
+            <p className="text-sm text-muted-foreground mb-4">Faça alterações nos dados do território. Ações de risco como limpar ou excluir só estão disponíveis para Administradores.</p>
+
+            <div className="space-y-4 mt-4">
+              <div className="flex items-center gap-4">
+                <div className="w-28">
+                    <label className="block text-sm font-medium mb-1">Número</label>
+                    <input 
+                        ref={numberInputRef}
+                        value={number} 
+                        onChange={(e) => setNumber(e.target.value)} 
+                        disabled={!isAdmin}
+                        className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-70 disabled:cursor-not-allowed border border-border text-sm"
+                    />
+                </div>
+                <div className="flex-grow">
+                    <label className="block text-sm font-medium mb-1">Nome</label>
+                    <input 
+                        value={name} 
+                        onChange={(e) => setName(e.target.value)} 
+                        disabled={!isAdmin}
+                        className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-70 disabled:cursor-not-allowed border border-border text-sm"
+                    />
+                </div>
+              </div>
+              <div><label className="block text-sm font-medium mb-1">Observações (Opcional)</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary border border-border text-sm"></textarea></div>
+
+              {isAdmin && (
+                <div className="border-t border-border pt-4 mt-4 space-y-4">
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-sm font-medium">Link do Mapa (Opcional)</label>
+                      <a 
+                        href="https://drive.google.com/file/d/1pMTDx5RhCelCqgLYceDsbfOoMt3Pm3k-/view?usp=sharing" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1 uppercase tracking-tight"
+                      >
+                        <HelpCircle size={12} />
+                        Como criar este link?
+                      </a>
+                    </div>
+                    <input value={mapLink} onChange={(e) => setMapLink(e.target.value)} className="w-full bg-input rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary border border-border text-sm"/>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Imagem do Cartão (Opcional)</label>
+                    <div className="mt-1 flex justify-center items-center rounded-lg border border-dashed border-gray-500 min-h-[12rem] p-2">
+                      {previewUrl || cardUrl ? (
+                        <img src={previewUrl || cardUrl} alt="Preview do cartão" className="max-h-40 object-contain rounded-md" />
+                      ) : (
+                        <div className="text-center">
+                          <FileImage className="mx-auto h-12 w-12 text-gray-400" />
+                          <p className="text-sm text-muted-foreground">Nenhuma imagem</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-center mt-2">
+                       <label htmlFor="edit-file-upload" className="cursor-pointer text-sm font-semibold text-primary hover:underline">Alterar Imagem</label>
+                       <input id="edit-file-upload" type="file" className="sr-only" onChange={handleFileChange} accept="image/*" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(user?.role === 'Administrador' || user?.role === 'Servo de Territórios') && (
+                  <div className="border-t border-red-500/30 pt-4 mt-4">
+                    <h3 className="text-red-400 font-semibold flex items-center mb-2"><AlertCircle className="mr-2"/>Ações de Risco</h3>
+                    <div className={`grid ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+                      <button onClick={handleResetRequest} className="p-2 border border-yellow-500 text-yellow-500 rounded-md hover:bg-yellow-500/20 text-sm font-medium">Limpar Território</button>
+                      {isAdmin && <button onClick={handleDeleteRequest} className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium">Excluir Território</button>}
+                    </div>
+                  </div>
+                )}
+              
+              {error && (<p className="text-sm text-red-500 text-center">{error}</p>)}
+
+              <div className="flex justify-end space-x-3 pt-4 border-t border-border mt-4">
+                <button onClick={handleClose} disabled={isProcessing} className="px-4 py-2 rounded-md bg-muted hover:bg-muted/80 text-sm font-medium">Cancelar</button>
+                <button onClick={handleSave} disabled={isProcessing || !hasChanges} className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/80 disabled:opacity-50 text-sm font-medium flex items-center">
+                    {isProcessing ? <><Loader className="mr-2 h-4 w-4 animate-spin" /> Salvando...</> : "Salvar Alterações"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}

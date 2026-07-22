@@ -1,0 +1,484 @@
+
+"use client";
+
+import { useState, useEffect, useMemo } from 'react';
+import { useUser } from '@/contexts/UserContext';
+import { db, auth, rtdb, functions } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { ref, onValue } from 'firebase/database';
+import { httpsCallable } from 'firebase/functions';
+import { Loader, Search, SlidersHorizontal, X, Users as UsersIcon, Wifi, Check, Trash2, Clock } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ConfirmationModal } from '@/components/ConfirmationModal';
+import { UserListItem } from './UserListItem';
+import { EditUserByAdminModal } from './EditUserByAdminModal';
+import { subDays, subMonths, subHours } from 'date-fns';
+import type { AppUser } from '@/types/types';
+import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { cn } from '@/lib/utils';
+import { logEvent } from '@/lib/audit';
+
+export default function UserManagement() {
+  const { user: currentUser, loading: userLoading } = useUser(); 
+  const { toast } = useToast();
+
+  const [users, setUsers] = useState<AppUser[]>([]);
+  const [presenceData, setPresenceData] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [presenceFilter, setPresenceFilter] = useState<'all' | 'online' | 'offline'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'Administrador' | 'Dirigente' | 'Servo de Territórios' | 'Ajudante de Servo de Territórios' | 'Publicador'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo' | 'bloqueado'>('all');
+  const [activityFilter, setActivityFilter] = useState<'all' | 'active_1h' | 'active_2h' | 'active_12h' | 'active_24h' | 'active_7d' | 'inactive_month'>('all');
+
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<{uid: string, name: string, email?: string} | null>(null);
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [userToEdit, setUserToEdit] = useState<AppUser | null>(null);
+
+  useEffect(() => {
+    if (currentUser?.congregationId) {
+      setLoading(true);
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where("congregationId", "==", currentUser.congregationId));
+      const unsubUsers = onSnapshot(q, (snapshot) => {
+        const usersData = snapshot.docs.map(docSnap => ({ uid: docSnap.id, ...docSnap.data() } as AppUser));
+        setUsers(usersData);
+        setLoading(false);
+      }, async (error) => {
+          if (error.code === 'permission-denied') {
+              const permissionError = new FirestorePermissionError({
+                  path: usersRef.path,
+                  operation: 'list',
+              });
+              errorEmitter.emit('permission-error', permissionError);
+          }
+      });
+
+      const statusRef = ref(rtdb, 'status');
+      const unsubPresence = onValue(statusRef, (snapshot) => {
+        setPresenceData(snapshot.val() || {});
+      });
+
+      return () => { unsubUsers(); unsubPresence(); };
+    }
+  }, [currentUser]);
+
+  const usersWithPresence = useMemo(() => {
+    const now = new Date();
+    const oneMonthAgo = subMonths(now, 1);
+    
+    return users.map(u => {
+        const presence = presenceData[u.uid];
+        const isOnline = presence?.state === 'online';
+        
+        let effectiveLastSeenDate: Date | null = null;
+        if (u.lastSeen && typeof u.lastSeen.toDate === 'function') {
+            effectiveLastSeenDate = u.lastSeen.toDate();
+        }
+        if (presence?.last_changed) {
+            const rtdbDate = new Date(presence.last_changed);
+            if (!effectiveLastSeenDate || rtdbDate > effectiveLastSeenDate) {
+                effectiveLastSeenDate = rtdbDate;
+            }
+        }
+        if (isOnline) {
+            effectiveLastSeenDate = now;
+        }
+
+        let status = u.status;
+        if (status === 'ativo' && effectiveLastSeenDate && effectiveLastSeenDate < oneMonthAgo) {
+            status = 'inativo';
+        }
+        
+        return { 
+            ...u, 
+            isOnline, 
+            status,
+            effectiveLastSeen: effectiveLastSeenDate 
+        };
+    });
+  }, [users, presenceData]);
+
+  const filterCounts = useMemo(() => {
+    const counts = {
+      status: { all: 0, ativo: 0, pendente: 0, inativo: 0, bloqueado: 0 },
+      presence: { all: 0, online: 0, offline: 0 },
+      role: { all: 0, Administrador: 0, Dirigente: 0, 'Servo de Territórios': 0, 'Ajudante de Servo de Territórios': 0, Publicador: 0 },
+      activity: { all: 0, active_1h: 0, active_2h: 0, active_12h: 0, active_24h: 0, active_7d: 0, inactive_month: 0 }
+    };
+    
+    const now = new Date();
+    const oneHourAgo = subHours(now, 1);
+    const twoHoursAgo = subHours(now, 2);
+    const twelveHoursAgo = subHours(now, 12);
+    const twentyFourHoursAgo = subHours(now, 24);
+    const oneWeekAgo = subDays(now, 7);
+
+    usersWithPresence.forEach(u => {
+      counts.status.all++;
+      if (u.status in counts.status) {
+        counts.status[u.status as keyof typeof counts.status]++;
+      }
+      counts.presence.all++;
+      if (u.isOnline) counts.presence.online++; else counts.presence.offline++;
+      counts.role.all++;
+      if (u.role in counts.role) {
+        counts.role[u.role as keyof typeof counts.role]++;
+      }
+      counts.activity.all++;
+      const lastSeen = u.effectiveLastSeen;
+      if (lastSeen) {
+        if (lastSeen > oneHourAgo) {
+          counts.activity.active_1h++;
+        } else if (lastSeen > twoHoursAgo) {
+          counts.activity.active_2h++;
+        } else if (lastSeen > twelveHoursAgo) {
+          counts.activity.active_12h++;
+        } else if (lastSeen > twentyFourHoursAgo) {
+          counts.activity.active_24h++;
+        } else if (lastSeen > oneWeekAgo) {
+          counts.activity.active_7d++;
+        }
+      }
+      if (u.status === 'inativo') counts.activity.inactive_month++;
+    });
+    return counts;
+  }, [usersWithPresence]);
+
+  const handleUserUpdate = async (userId: string, dataToUpdate: Partial<AppUser>) => {
+    if (!currentUser || (currentUser.role !== 'Administrador' && currentUser.role !== 'Dirigente')) return;
+    const userRef = doc(db, 'users', userId);
+    const targetUser = users.find(u => u.uid === userId);
+    
+    if (currentUser.role === 'Dirigente' && dataToUpdate.status && dataToUpdate.status !== 'ativo') {
+        toast({ title: "Permissão Negada", description: "Você só pode aprovar usuários pendentes.", variant: "destructive" });
+        return;
+    }
+
+    const changes: string[] = [];
+    if (dataToUpdate.name && dataToUpdate.name !== targetUser?.name) 
+        changes.push(`Nome: ${targetUser?.name || 'Vazio'} -> ${dataToUpdate.name}`);
+    if (dataToUpdate.role && dataToUpdate.role !== targetUser?.role) 
+        changes.push(`Perfil: ${targetUser?.role} -> ${dataToUpdate.role}`);
+    if (dataToUpdate.status && dataToUpdate.status !== targetUser?.status) 
+        changes.push(`Status: ${targetUser?.status} -> ${dataToUpdate.status}`);
+    if (dataToUpdate.whatsapp && dataToUpdate.whatsapp !== targetUser?.whatsapp) 
+        changes.push(`WhatsApp: ${targetUser?.whatsapp || 'Vazio'} -> ${dataToUpdate.whatsapp}`);
+    if (dataToUpdate.email && dataToUpdate.email !== targetUser?.email) 
+        changes.push(`Email: ${targetUser?.email} -> ${dataToUpdate.email}`);
+
+    const changesText = changes.length > 0 ? ` [${changes.join(' | ')}]` : '';
+
+    updateDoc(userRef, dataToUpdate as any).then(() => {
+        if (currentUser.congregationId) {
+            const targetName = targetUser?.name || userId;
+            const isApproval = dataToUpdate.status === 'ativo' && targetUser?.status === 'pendente';
+            const actionType = isApproval ? 'USER_APPROVED' : 'USER_EDITED';
+            const detailText = isApproval 
+                ? `Aprovou o acesso do usuário ${targetName}.` 
+                : `Alterou os dados do usuário ${targetName}.${changesText}`;
+            
+            logEvent(
+                currentUser.congregationId,
+                currentUser.uid,
+                currentUser.name,
+                actionType,
+                detailText,
+                { editedUserId: userId }
+            );
+        }
+        toast({ title: "Sucesso", description: "Usuário atualizado com sucesso." });
+    }).catch(async (error) => {
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: userRef.path,
+                operation: 'update',
+                requestResourceData: dataToUpdate,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+    });
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete || currentUser?.role !== 'Administrador' || !auth.currentUser) return;
+    
+    const userId = userToDelete.uid;
+    const userName = userToDelete.name;
+    
+    setIsConfirmModalOpen(false);
+    setIsDeleting(true);
+    
+    try {
+      toast({ title: "Excluindo Usuário", description: `Removendo ${userName} do sistema...` });
+      
+      const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
+      const result = await deleteUserAccount({ userIdToDelete: userId });
+      const data = result.data as any;
+
+      if (data.success) {
+        if (userToDelete.email) {
+          const emailClean = userToDelete.email.toLowerCase().trim();
+          try {
+            await deleteDoc(doc(db, 'loginAttempts', emailClean));
+          } catch (err) {
+            console.warn("Não foi possível excluir o documento de loginAttempts do usuário excluído:", err);
+          }
+        }
+
+        logEvent(
+            currentUser!.congregationId!,
+            currentUser!.uid,
+            currentUser!.name,
+            'USER_DELETED',
+            `Excluiu permanentemente o usuário ${userName}.`,
+            { deletedUserId: userId }
+        );
+        toast({ 
+            title: "Usuário Removido", 
+            description: "A conta e os dados foram excluídos permanentemente." 
+        });
+      }
+    } catch (e: any) {
+      console.error("Erro na exclusão:", e);
+      toast({
+        variant: "destructive",
+        title: "Erro ao Excluir",
+        description: "Não foi possível completar a exclusão agora.",
+      });
+    } finally {
+        setIsDeleting(false);
+        setUserToDelete(null);
+    }
+  };
+
+  const filteredAndSortedUsers = useMemo(() => {
+    const now = new Date();
+    const oneHourAgo = subHours(now, 1);
+    const twoHoursAgo = subHours(now, 2);
+    const twelveHoursAgo = subHours(now, 12);
+    const twentyFourHoursAgo = subHours(now, 24);
+    const oneWeekAgo = subDays(now, 7);
+
+    let filtered = usersWithPresence.filter(u => {
+        const matchesPresence = presenceFilter === 'all' || u.isOnline === (presenceFilter === 'online');
+        const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+        const matchesStatus = statusFilter === 'all' || u.status === statusFilter;
+        
+        let matchesActivity = true;
+        const lastSeen = u.effectiveLastSeen;
+        if (activityFilter !== 'all') {
+            if (activityFilter === 'active_1h') {
+              matchesActivity = !!lastSeen && lastSeen > oneHourAgo;
+            } else if (activityFilter === 'active_2h') {
+              matchesActivity = !!lastSeen && lastSeen > twoHoursAgo && lastSeen <= oneHourAgo;
+            } else if (activityFilter === 'active_12h') {
+              matchesActivity = !!lastSeen && lastSeen > twelveHoursAgo && lastSeen <= twoHoursAgo;
+            } else if (activityFilter === 'active_24h') {
+              matchesActivity = !!lastSeen && lastSeen > twentyFourHoursAgo && lastSeen <= twelveHoursAgo;
+            } else if (activityFilter === 'active_7d') {
+              matchesActivity = !!lastSeen && lastSeen > oneWeekAgo && lastSeen <= twentyFourHoursAgo;
+            } else if (activityFilter === 'inactive_month') {
+              matchesActivity = u.status === 'inativo';
+            }
+        }
+
+        const matchesSearch = !searchTerm || u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email?.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        return matchesPresence && matchesRole && matchesStatus && matchesActivity && matchesSearch;
+    });
+    
+    return filtered.sort((a, b) => {
+      if (a.uid === currentUser?.uid) return -1;
+      if (b.uid === currentUser?.uid) return 1;
+      if (a.status === 'pendente' && b.status !== 'pendente') return -1;
+      if (a.status !== 'pendente' && b.status === 'pendente') return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [usersWithPresence, presenceFilter, roleFilter, statusFilter, activityFilter, searchTerm, currentUser]);
+
+  const FilterButtonComponent = ({ label, value, currentFilter, setFilter, count }: { label: string, value: string, currentFilter: string, setFilter: (value: any) => void, count?: number}) => {
+    const isActive = currentFilter === value;
+    return (
+      <button 
+        onClick={() => setFilter(value)} 
+        className={cn(
+          "px-4 py-1.5 text-xs rounded-full transition-all flex items-center gap-2 whitespace-nowrap",
+          isActive 
+            ? "bg-primary text-white font-bold shadow-md" 
+            : "bg-muted text-muted-foreground hover:bg-muted/80 border border-border/20"
+        )}
+      >
+        {label} 
+        {count !== undefined && (
+          <span className={cn(
+            "px-2 py-0.5 rounded-full text-[10px] font-bold min-w-[20px] text-center",
+            isActive ? "bg-white text-primary" : "bg-muted-foreground/20 text-foreground"
+          )}>
+            {count}
+          </span>
+        )}
+      </button>
+    );
+  };
+
+  if (userLoading || loading) return <div className="flex justify-center items-center h-full"><Loader className="animate-spin text-purple-500" size={32} /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center px-4 md:px-0">
+        <div>
+          <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
+          <p className="text-muted-foreground">Monitore e gerencie os membros da congregação.</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4 md:px-0">
+        <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4 border border-border/40">
+          <div className="bg-blue-500/20 text-blue-400 p-3 rounded-lg"><UsersIcon size={28} /></div>
+          <div><p className="text-sm text-muted-foreground">Total</p><p className="text-2xl font-bold">{filterCounts.status.all}</p></div>
+        </div>
+        <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4 border border-border/40">
+          <div className="bg-green-500/20 text-green-400 p-3 rounded-lg"><Wifi size={28} /></div>
+          <div><p className="text-sm text-muted-foreground">Online</p><p className="text-2xl font-bold">{filterCounts.presence.online}</p></div>
+        </div>
+        <div className="bg-card p-6 rounded-lg shadow-md flex items-center gap-4 border border-border/40">
+          <div className="bg-yellow-500/20 text-yellow-400 p-3 rounded-lg"><Check size={28}/></div>
+          <div><p className="text-sm text-muted-foreground">Pendentes</p><p className="text-2xl font-bold">{filterCounts.status.pendente}</p></div>
+        </div>
+      </div>
+
+      <div className="mx-4 md:mx-0">
+        <Accordion type="single" collapsible defaultValue="" className="w-full bg-card rounded-xl border border-border/40 shadow-sm overflow-hidden">
+          <AccordionItem value="filters" className="border-b-0">
+            <AccordionTrigger className="flex items-center gap-2 px-6 py-4 text-muted-foreground hover:no-underline hover:bg-white/5 transition-all">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal size={20} />
+                <span className="font-semibold text-foreground">Filtros</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-6 pt-0 border-t border-border/10">
+              <div className="space-y-6 pt-6">
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Status da Conta</p>
+                  <div className="flex flex-wrap gap-2">
+                    <FilterButtonComponent label="Todos" value="all" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.all} />
+                    <FilterButtonComponent label="Ativo" value="ativo" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.ativo} />
+                    <FilterButtonComponent label="Pendente" value="pendente" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.pendente} />
+                    <FilterButtonComponent label="Inativo" value="inativo" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.inativo} />
+                    <FilterButtonComponent label="Bloqueado" value="bloqueado" currentFilter={statusFilter} setFilter={setStatusFilter} count={filterCounts.status.bloqueado} />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Presença</p>
+                  <div className="flex flex-wrap gap-2">
+                    <FilterButtonComponent label="Todos" value="all" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.all} />
+                    <FilterButtonComponent label="Online" value="online" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.online} />
+                    <FilterButtonComponent label="Offline" value="offline" currentFilter={presenceFilter} setFilter={setPresenceFilter} count={filterCounts.presence.offline} />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Perfil</p>
+                  <div className="flex flex-wrap gap-2">
+                    <FilterButtonComponent label="Todos" value="all" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.all} />
+                    <FilterButtonComponent label="Admin" value="Administrador" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Administrador} />
+                    <FilterButtonComponent label="Dirigente" value="Dirigente" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Dirigente} />
+                    <FilterButtonComponent label="Servo" value="Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role['Servo de Territórios']} />
+                    <FilterButtonComponent label="Ajudante" value="Ajudante de Servo de Territórios" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role['Ajudante de Servo de Territórios']} />
+                    <FilterButtonComponent label="Publicador" value="Publicador" currentFilter={roleFilter} setFilter={setRoleFilter} count={filterCounts.role.Publicador} />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                    <Clock size={12}/> Atividade Recente
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <FilterButtonComponent label="Todos" value="all" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.all} />
+                    <FilterButtonComponent label="Última Hora" value="active_1h" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_1h} />
+                    <FilterButtonComponent label="Há 1-2 horas" value="active_2h" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_2h} />
+                    <FilterButtonComponent label="Há 2-12 horas" value="active_12h" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_12h} />
+                    <FilterButtonComponent label="Hoje (12-24h)" value="active_24h" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_24h} />
+                    <FilterButtonComponent label="Esta Semana" value="active_7d" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.active_7d} />
+                    <FilterButtonComponent label="Inativos (+30d)" value="inactive_month" currentFilter={activityFilter} setFilter={setActivityFilter} count={filterCounts.activity.inactive_month} />
+                  </div>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </div>
+
+      <div className="relative group px-4 md:px-0">
+        <Search className="absolute left-7 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" size={20} />
+        <input 
+          type="text" 
+          placeholder="Buscar por nome ou e-mail..." 
+          value={searchTerm} 
+          onChange={(e) => setSearchTerm(e.target.value)} 
+          className="w-full pl-14 pr-14 py-3 bg-card border border-border/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-sm" 
+        />
+        {searchTerm && (
+          <button 
+            onClick={() => setSearchTerm('')} 
+            className="absolute right-7 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 rounded-full hover:bg-muted"
+          >
+            <X size={18} />
+          </button>
+        )}
+      </div>
+      
+      <div className="bg-card rounded-xl border border-border/40 shadow-md overflow-hidden mx-4 md:mx-0">
+        <ul className="divide-y divide-border/40">
+          {filteredAndSortedUsers.length > 0 ? (
+            filteredAndSortedUsers.map(u => (
+              <UserListItem 
+                key={u.uid} 
+                user={{
+                    ...u,
+                    lastSeen: u.effectiveLastSeen ? { toDate: () => u.effectiveLastSeen } : u.lastSeen
+                }} 
+                currentUser={currentUser!} 
+                onUpdate={handleUserUpdate} 
+                onEdit={(user) => { setUserToEdit(user); setIsEditModalOpen(true); }} 
+                onDelete={(uid, name) => { setUserToDelete({uid, name, email: u.email}); setIsConfirmModalOpen(true); }} 
+              />
+            ))
+          ) : (
+            <div className="p-12 text-center text-muted-foreground">
+              <UsersIcon className="mx-auto h-12 w-12 opacity-20 mb-4" />
+              <p className="text-lg">Nenhum usuário encontrado.</p>
+            </div>
+          )}
+        </ul>
+      </div>
+
+      <ConfirmationModal 
+        isOpen={isConfirmModalOpen} 
+        onClose={() => setIsConfirmModalOpen(false)} 
+        onConfirm={confirmDeleteUser} 
+        title="Excluir Usuário" 
+        message={
+            <div className="space-y-3">
+                <p>Você tem certeza que deseja excluir <strong>{userToDelete?.name}</strong>?</p>
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-start gap-2">
+                    <Trash2 size={14} className="shrink-0 mt-0.5" />
+                    <span>Isso vai apagar a conta desta pessoa e todas as informações dela no sistema para sempre. Não tem como recuperar depois.</span>
+                </div>
+            </div>
+        } 
+        confirmText="Sim, Excluir" 
+        isLoading={isDeleting}
+      />
+      {userToEdit && <EditUserByAdminModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} userToEdit={userToEdit} onSave={handleUserUpdate} />}
+    </div>
+  );
+}
