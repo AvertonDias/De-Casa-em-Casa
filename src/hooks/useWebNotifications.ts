@@ -69,9 +69,9 @@ export function useWebNotifications() {
     }
 
     // Suporte para navegadores web e PWA
-    if (Notification.permission !== 'granted') return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
 
-    const options = {
+    const options: any = {
       body,
       icon: '/icon.png',
       badge: '/icon.png',
@@ -80,36 +80,32 @@ export function useWebNotifications() {
       tag: 'de-casa-em-casa-notif-' + Date.now()
     };
 
-    const fallbackDirectNotification = () => {
+    const sendDirectNotification = () => {
       try {
         new Notification(title, options);
       } catch (e) {
-        console.warn("Erro ao instanciar notificação direta:", e);
+        console.warn("Construtor direto de Notificação não suportado ou bloqueado:", e);
       }
     };
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistration()
-        .then((registration) => {
-          if (registration && 'showNotification' in registration) {
-            registration.showNotification(title, options);
-          } else {
-            navigator.serviceWorker.register('/sw.js')
-              .then((newReg) => {
-                if (newReg && 'showNotification' in newReg) {
-                  newReg.showNotification(title, options);
-                } else {
-                  fallbackDirectNotification();
-                }
-              })
-              .catch(() => fallbackDirectNotification());
+      (async () => {
+        try {
+          let reg = await navigator.serviceWorker.getRegistration();
+          if (!reg) {
+            reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
           }
-        })
-        .catch(() => {
-          fallbackDirectNotification();
-        });
+          if (reg && 'showNotification' in reg) {
+            await reg.showNotification(title, options);
+            return;
+          }
+        } catch (err) {
+          console.warn("Erro ao notificar via ServiceWorker:", err);
+        }
+        sendDirectNotification();
+      })();
     } else {
-      fallbackDirectNotification();
+      sendDirectNotification();
     }
   }, []);
 
