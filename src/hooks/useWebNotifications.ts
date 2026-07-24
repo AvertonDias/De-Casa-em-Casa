@@ -6,6 +6,9 @@ import { db, messaging, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { type Notification as AppNotification } from '@/types/types';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { PushNotifications } from '@capacitor/push-notifications';
 
 export type NotificationPermissionState = 'granted' | 'denied' | 'default' | 'unsupported';
 
@@ -16,55 +19,96 @@ export function useWebNotifications() {
   const [isSupported, setIsSupported] = useState(false);
   const [loadingPermission, setLoadingPermission] = useState(false);
 
-  // Verificação inicial do suporte a notificações no navegador
+  // Verificação inicial do suporte a notificações no navegador ou aplicativo nativo Capacitor
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator) {
-      setIsSupported(true);
-      setPermission(Notification.permission as NotificationPermissionState);
-    } else {
-      setIsSupported(false);
-      setPermission('unsupported');
+    if (typeof window !== 'undefined') {
+      if (Capacitor.isNativePlatform()) {
+        setIsSupported(true);
+        LocalNotifications.checkPermissions().then((status) => {
+          if (status.display === 'granted') {
+            setPermission('granted');
+          } else if (status.display === 'denied') {
+            setPermission('denied');
+          } else {
+            setPermission('default');
+          }
+        }).catch(() => setPermission('default'));
+      } else if ('Notification' in window) {
+        setIsSupported(true);
+        setPermission(Notification.permission as NotificationPermissionState);
+      } else {
+        setIsSupported(false);
+        setPermission('unsupported');
+      }
     }
   }, []);
 
-  // Exibir Notificação do Sistema via Service Worker ou Notification API
+  // Exibir Notificação do Sistema via Capacitor Native ou Web Service Worker / Notification API
   const showSystemNotification = useCallback((title: string, body: string, link?: string) => {
-    if (typeof window === 'undefined' || Notification.permission !== 'granted') return;
+    if (typeof window === 'undefined') return;
+
+    const targetUrl = link || '/dashboard/notificacoes';
+
+    // Suporte para aplicativo Android/iOS via Capacitor APK
+    if (Capacitor.isNativePlatform()) {
+      LocalNotifications.schedule({
+        notifications: [
+          {
+            title: title || 'Nova Notificação 🗺️',
+            body: body || 'Você possui uma nova mensagem ou território.',
+            id: Math.floor(Math.random() * 1000000),
+            schedule: { at: new Date(Date.now() + 100) },
+            extra: { url: targetUrl },
+            actionTypeId: '',
+          }
+        ]
+      }).catch((err) => {
+        console.warn("Erro ao disparar notificação local no Capacitor:", err);
+      });
+      return;
+    }
+
+    // Suporte para navegadores web e PWA
+    if (Notification.permission !== 'granted') return;
 
     const options = {
       body,
       icon: '/icon.png',
       badge: '/icon.png',
       vibrate: [200, 100, 200],
-      data: { url: link || '/dashboard/notificacoes' },
+      data: { url: targetUrl },
       tag: 'de-casa-em-casa-notif-' + Date.now()
     };
 
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then((registration) => {
-        registration.showNotification(title, options);
-      }).catch(() => {
-        try {
-          new Notification(title, options);
-        } catch (e) {
-          console.warn("Erro ao instanciar notificação:", e);
-        }
-      });
-    } else {
+    const fallbackDirectNotification = () => {
       try {
         new Notification(title, options);
       } catch (e) {
-        console.warn("Erro ao instanciar notificação:", e);
+        console.warn("Erro ao instanciar notificação direta:", e);
       }
+    };
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((registration) => {
+        if (registration && 'showNotification' in registration) {
+          registration.showNotification(title, options);
+        } else {
+          fallbackDirectNotification();
+        }
+      }).catch(() => {
+        fallbackDirectNotification();
+      });
+    } else {
+      fallbackDirectNotification();
     }
   }, []);
 
-  // Solicitar permissão de notificação no navegador
+  // Solicitar permissão de notificação no navegador ou Android APK
   const requestPermission = useCallback(async () => {
     if (!isSupported) {
       toast({
-        title: "Navegador não suportado",
-        description: "Seu navegador atual não suporta notificações push de sistema.",
+        title: "Dispositivo não suportado",
+        description: "Seu sistema ou navegador atual não suporta notificações push de sistema.",
         variant: "destructive"
       });
       return false;
@@ -73,6 +117,55 @@ export function useWebNotifications() {
     setLoadingPermission(true);
 
     try {
+      // 1. Se estiver rodando como APK no Android (Capacitor)
+      if (Capacitor.isNativePlatform()) {
+        const localPerm = await LocalNotifications.requestPermissions();
+        let pushGranted = false;
+
+        try {
+          const pushPerm = await PushNotifications.requestPermissions();
+          if (pushPerm.receive === 'granted') {
+            await PushNotifications.register();
+            pushGranted = true;
+          }
+        } catch (pushErr) {
+          console.warn("PushNotifications register error (normal em dev sem Google Services):", pushErr);
+        }
+
+        if (localPerm.display === 'granted' || pushGranted) {
+          setPermission('granted');
+
+          if (user?.uid) {
+            await updateDoc(doc(db, 'users', user.uid), {
+              pushNotificationsEnabled: true,
+              pushSubscriptionUpdated: serverTimestamp(),
+              platform: 'capacitor_android'
+            }).catch(console.warn);
+          }
+
+          toast({
+            title: "Notificações no Android Ativadas! 🎉",
+            description: "Você receberá alertas no seu celular sempre que um novo território for designado.",
+          });
+
+          showSystemNotification(
+            "Notificações Ativadas! 🗺️",
+            "Tudo pronto! Você receberá alertas no seu Android sobre territórios e notificações.",
+            "/dashboard/notificacoes"
+          );
+          return true;
+        } else {
+          setPermission('denied');
+          toast({
+            title: "Permissão negada no Android",
+            description: "Permita as notificações nas configurações do seu celular.",
+            variant: "destructive"
+          });
+          return false;
+        }
+      }
+
+      // 2. Se estiver rodando via Navegador Web / PWA
       const result = await Notification.requestPermission();
       setPermission(result as NotificationPermissionState);
 
@@ -119,7 +212,7 @@ export function useWebNotifications() {
 
         toast({
           title: "Notificações bloqueadas",
-          description: "A permissão foi negada no seu navegador. Para reativar, altere nas configurações de site do navegador.",
+          description: "A permissão foi negada no navegador. Para reativar, altere nas configurações de site.",
           variant: "destructive"
         });
         return false;
@@ -145,20 +238,20 @@ export function useWebNotifications() {
     }
 
     showSystemNotification(
-      "Teste de Notificação Push",
-      "As notificações push do De Casa em Casa estão funcionando perfeitamente no seu dispositivo!",
+      "Teste de Notificação Push 🗺️",
+      "As notificações push do De Casa em Casa estão funcionando perfeitamente no seu aplicativo!",
       "/dashboard/notificacoes"
     );
 
     toast({
       title: "Notificação enviada!",
-      description: "Verifique a central de notificações do seu celular ou sistema operacional.",
+      description: "Verifique a central de notificações do seu celular.",
     });
   }, [permission, requestPermission, showSystemNotification, toast]);
 
   // Listener em tempo real para novas notificações não lidas no Firestore
   useEffect(() => {
-    if (!user?.uid || permission !== 'granted') return;
+    if (!user?.uid) return;
     if (!auth.currentUser || auth.currentUser.isAnonymous || auth.currentUser.uid !== user.uid) return;
 
     const notifPath = `users/${user.uid}/notifications`;
@@ -178,9 +271,9 @@ export function useWebNotifications() {
           if (!sessionStorage.getItem(sessionKey)) {
             sessionStorage.setItem(sessionKey, 'true');
 
-            // Notifica o usuário no sistema do dispositivo/navegador
+            // Notifica o usuário no sistema do dispositivo (Capacitor Native ou Web Browser)
             showSystemNotification(
-              data.title || "Nova notificação",
+              data.title || "Nova notificação 🗺️",
               data.body || "Você tem uma nova notificação no aplicativo De Casa em Casa.",
               data.link || "/dashboard/notificacoes"
             );
@@ -192,7 +285,7 @@ export function useWebNotifications() {
     });
 
     return () => unsubscribe();
-  }, [user?.uid, permission, showSystemNotification]);
+  }, [user?.uid, showSystemNotification]);
 
   return {
     permission,
@@ -203,3 +296,4 @@ export function useWebNotifications() {
     showSystemNotification
   };
 }
+

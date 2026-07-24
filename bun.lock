@@ -9,6 +9,7 @@
         "@capacitor/app": "^6.0.3",
         "@capacitor/core": "^6.1.0",
         "@capacitor/filesystem": "^6.0.0",
+        "@capacitor/local-notifications": "^8.2.1",
         "@capacitor/push-notifications": "^6.0.0",
         "@capacitor/share": "^6.0.0",
         "@emailjs/browser": "^4.4.1",
@@ -124,6 +125,8 @@
     "@capacitor/core": ["@capacitor/core@6.2.1", "", { "dependencies": { "tslib": "^2.1.0" } }, "sha512-urZwxa7hVE/BnA18oCFAdizXPse6fCKanQyEqpmz6cBJ2vObwMpyJDG5jBeoSsgocS9+Ax+9vb4ducWJn0y2qQ=="],
 
     "@capacitor/filesystem": ["@capacitor/filesystem@6.0.4", "", { "peerDependencies": { "@capacitor/core": "^6.0.0" } }, "sha512-eFlg/ZrwYA4Y6ClLRRikudVu2XvuZxfX/XC0ky9MgfbC9dyqTnVkkEoWM6vr1xR89YNY4mB0EeVTet1m1Jcumw=="],
+
+    "@capacitor/local-notifications": ["@capacitor/local-notifications@8.2.1", "", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-Bkim+MGl7UrDTjDferV4ECq0aWciTsa0k15+MX2jnx2PeWgEPvlBy5yrqzBlwEZPrtHFUvPVxPi5V66MPGHkAw=="],
 
     "@capacitor/push-notifications": ["@capacitor/push-notifications@6.0.5", "", { "peerDependencies": { "@capacitor/core": "^6.0.0" } }, "sha512-CsRmb0cnZd9Uwx24ym4My5fNKrQvwI4D51aMEph5pUZy+LAjp6q0y4NJe8DEgwaVdAqVLbb4rqn75AZ4WSiFYg=="],
 
