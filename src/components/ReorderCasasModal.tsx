@@ -60,7 +60,7 @@ export function ReorderCasasModal({ isOpen, onClose, casas: initialCasas, territ
   };
 
   const handleSave = async () => {
-    if (!congregationId || !territoryId || !quadraId || !user) return;
+    if (!congregationId || !territoryId || !quadraId) return;
     
     setIsLoading(true);
     const batch = writeBatch(db);
@@ -74,14 +74,16 @@ export function ReorderCasasModal({ isOpen, onClose, casas: initialCasas, territ
       await batch.commit();
       
       // Registrar no Histórico de Auditoria
-      logEvent(
-        congregationId,
-        user.uid,
-        user.name,
-        'CASAS_REORDERED',
-        `Reordenou a sequência de casas na ${quadraName || 'quadra'} do território ${territoryNumber || territoryId}.`,
-        { territoryId, quadraId, territoryNumber, quadraName }
-      );
+      if (user) {
+        logEvent(
+          congregationId,
+          user.uid,
+          user.name,
+          'CASAS_REORDERED',
+          `Reordenou a sequência de casas na ${quadraName || 'quadra'} do território ${territoryNumber || territoryId}.`,
+          { territoryId, quadraId, territoryNumber, quadraName }
+        );
+      }
 
       toast({ title: "Sucesso!", description: "A nova ordem das casas foi salva." });
       onClose();

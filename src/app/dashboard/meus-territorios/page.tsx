@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { logEvent } from '@/lib/audit';
 import { useToast } from '@/hooks/use-toast';
 import { isTerritoryOverdue } from '@/lib/utils';
+import { NotificationPushBanner } from '@/components/NotificationPushBanner';
 
 function MyTerritoriesPage() {
   const { user } = useUser();
@@ -149,6 +150,8 @@ function MyTerritoriesPage() {
             </Button>
           </div>
         </div>
+
+        <NotificationPushBanner />
 
         {sortedTerritories.length > 0 ? (
           <div className="space-y-4">

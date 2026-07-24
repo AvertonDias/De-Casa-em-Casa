@@ -57,10 +57,13 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
     e.preventDefault();
     setIsLoading(true);
     
-    if (!congregationId || !user) {
+    if (!congregationId) {
       setIsLoading(false);
       return;
     }
+
+    const visitorUid = user?.uid || 'visitor';
+    const visitorName = user?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem(`visitor_name_${congregationId}_${territoryId}`) || 'Visitante' : 'Visitante');
 
     const congRef = doc(db, 'congregations', congregationId);
     const territoryRef = doc(congRef, 'territories', territoryId);
@@ -95,12 +98,12 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
                 type: "work",
                 activityDate: Timestamp.now(),
                 description: `Casa ${number.toUpperCase()} do território ${currentTerritoryNumber} foi feita.`,
-                userId: user.uid,
-                userName: user.name,
+                userId: visitorUid,
+                userName: visitorName,
                 createdAt: serverTimestamp(),
             });
             
-            casaData.lastWorkedBy = { uid: user.uid, name: user.name };
+            casaData.lastWorkedBy = { uid: visitorUid, name: visitorName };
             casaData.activityLogId = newActivityRef.id;
         }
 
@@ -112,8 +115,8 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
             housesDone: (quadraDoc.data().housesDone || 0) + (status ? 1 : 0)
         });
 
-        const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + (status ? 1 : 0);
-        const newTerritoryTotalHouses = (territoryDoc.data().stats.totalHouses || 0) + 1;
+        const newTerritoryHousesDone = (territoryDoc.data().stats?.housesDone || 0) + (status ? 1 : 0);
+        const newTerritoryTotalHouses = (territoryDoc.data().stats?.totalHouses || 0) + 1;
         const territoryUpdateData: any = {
             "stats.totalHouses": newTerritoryTotalHouses,
             "stats.housesDone": newTerritoryHousesDone,
@@ -128,15 +131,17 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
             totalHousesDone: (congDoc.data().totalHousesDone || 0) + (status ? 1 : 0)
         });
     }).then(() => {
-        const finalTerritoryNumber = territoryNumber || territoryId;
-        const finalQuadraName = quadraName || quadraId;
-        logEvent(congregationId, user.uid, user.name, 'HOUSE_CREATED', `Adicionou a casa ${number.toUpperCase()} na ${finalQuadraName} do território ${finalTerritoryNumber}.`, { 
-            territoryId, 
-            quadraId, 
-            houseNumber: number, 
-            territoryNumber: finalTerritoryNumber,
-            quadraName: finalQuadraName
-        });
+        if (user) {
+          const finalTerritoryNumber = territoryNumber || territoryId;
+          const finalQuadraName = quadraName || quadraId;
+          logEvent(congregationId, user.uid, user.name, 'HOUSE_CREATED', `Adicionou a casa ${number.toUpperCase()} na ${finalQuadraName} do território ${finalTerritoryNumber}.`, { 
+              territoryId, 
+              quadraId, 
+              houseNumber: number, 
+              territoryNumber: finalTerritoryNumber,
+              quadraName: finalQuadraName
+          });
+        }
         
         // Limpa os campos após o sucesso
         setNumber('');

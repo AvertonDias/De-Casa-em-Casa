@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, onSnapshot, collection, query, orderBy, getDocs } from "firebase/firestore";
+import { doc, onSnapshot, collection, query, orderBy } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { signInAnonymously } from "firebase/auth";
-import { Territory, Quadra, Casa, Activity } from "@/types/types";
-import { LayoutGrid, Map, FileImage, BarChart, History, UserCheck, Edit2, Loader, QrCode } from "lucide-react";
+import { Territory, Quadra } from "@/types/types";
+import { LayoutGrid, Map, FileImage, BarChart, UserCheck, Edit2, Loader, ArrowLeft, Navigation } from "lucide-react";
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { GoogleMapEmbed } from "@/components/GoogleMapEmbed";
 import { useToast } from "@/hooks/use-toast";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
+import QuadraListItem from "@/components/QuadraListItem";
 
 export default function VisitorTerritoryPage() {
   const params = useParams();
@@ -35,10 +36,9 @@ export default function VisitorTerritoryPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Autenticação anônima para garantir permissão no Firestore para visitantes
-    signInAnonymously(auth).catch((err) => {
-      console.warn("Erro ao autenticar anonimamente:", err);
-    });
+    if (auth.currentUser?.isAnonymous) {
+      auth.currentUser.delete().catch(() => {});
+    }
 
     const storedName = localStorage.getItem(`visitor_name_${congregationId}_${territoryId}`);
     if (storedName) {
@@ -141,59 +141,28 @@ export default function VisitorTerritoryPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto p-4 space-y-6 mt-4">
+      <div className="p-4 md:p-8 space-y-6 max-w-5xl mx-auto">
         {/* Territory Header */}
-        <div className="bg-card p-6 rounded-lg shadow-md space-y-2 border border-border">
-          <h1 className="text-3xl font-bold">Território {territory.number} - {territory.name}</h1>
-          <p className="text-muted-foreground">{territory.description || "Sem observações adicionais."}</p>
-        </div>
-
-        {/* Progress Card */}
-        <div className="bg-card p-6 rounded-lg shadow-md border border-border">
-          <h2 className="text-xl font-bold mb-4 flex items-center"><BarChart className="mr-3 text-primary" />Progresso Geral</h2>
-          <div className="grid grid-cols-4 gap-1 sm:gap-4 text-center">
-            <div><p className="text-xs sm:text-sm text-muted-foreground">Total</p><p className="font-bold text-lg sm:text-2xl">{totalHouses}</p></div>
-            <div><p className="text-xs sm:text-sm text-muted-foreground">Feitas</p><p className="font-bold text-lg sm:text-2xl text-green-500">{housesDone}</p></div>
-            <div><p className="text-xs sm:text-sm text-muted-foreground">Pendentes</p><p className="font-bold text-lg sm:text-2xl text-yellow-500">{totalHouses - housesDone}</p></div>
-            <div><p className="text-xs sm:text-sm text-muted-foreground">Progresso</p><p className="font-bold text-lg sm:text-2xl text-blue-500">{progressPercentage}%</p></div>
-          </div>
-          <div className="w-full bg-muted rounded-full h-2.5 mt-4">
-            <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progressPercentage}%` }}></div>
+        <div className="space-y-4">
+          <div>
+            <h1 className="text-3xl font-bold">{territory.number} - {territory.name}</h1>
+            <p className="text-muted-foreground mt-1">{territory.description || "Sem observações adicionais."}</p>
           </div>
         </div>
 
-        {/* Quadras List */}
+        {/* Quadras List Section */}
         <div className="bg-card p-6 rounded-lg shadow-md border border-border">
-          <h2 className="text-2xl font-bold mb-6 flex items-center"><LayoutGrid className="mr-3 text-primary" />Quadras Disponíveis</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {quadras.map(q => {
-              const qTotal = q.totalHouses || 0;
-              const qDone = q.housesDone || 0;
-              const qProg = qTotal > 0 ? Math.round((qDone / qTotal) * 100) : 0;
-              return (
-                <Link 
-                  key={q.id} 
-                  href={`/visitante/${congregationId}/${territoryId}/quadras/${q.id}`} 
-                  className="bg-muted/40 hover:bg-muted/70 p-4 rounded-lg border border-border transition-all flex flex-col justify-between space-y-3"
-                >
-                  <div>
-                    <h3 className="font-bold text-lg">{q.name}</h3>
-                    <p className="text-xs text-muted-foreground truncate">{q.description || "Clique para marcar as casas"}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{qDone} de {qTotal} casas feitas</span>
-                      <span className="font-semibold text-primary">{qProg}%</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-1.5">
-                      <div className="bg-primary h-1.5 rounded-full" style={{ width: `${qProg}%` }}></div>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <h2 className="text-2xl font-bold flex items-center"><LayoutGrid className="mr-3 text-primary" />Quadras</h2>
+          </div>
+          <div className="divide-y divide-border -mx-6 px-6">
+            {quadras.map(q => (
+              <Link key={q.id} href={`/visitante/${congregationId}/${territoryId}/quadras/${q.id}`} className="block">
+                <QuadraListItem quadra={q} />
+              </Link>
+            ))}
             {quadras.length === 0 && (
-              <p className="text-sm text-muted-foreground col-span-2 text-center py-8">Nenhuma quadra cadastrada neste território.</p>
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhuma quadra cadastrada neste território.</p>
             )}
           </div>
         </div>
@@ -221,15 +190,40 @@ export default function VisitorTerritoryPage() {
         {/* Territory Map */}
         {territory.mapLink && (
           <div className="bg-card p-6 rounded-lg shadow-md border border-border">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-3">
-              <Map className="text-primary" />
-              Mapa do Território
-            </h2>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+              <h2 className="text-xl font-bold flex items-center gap-3">
+                <Map className="text-primary" />
+                Mapa do Território
+              </h2>
+              <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
+                <a href={territory.mapLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
+                  <Navigation size={14} className="text-blue-500" />
+                  <span>Usar GPS (Abrir App)</span>
+                </a>
+              </Button>
+            </div>
             <div className="aspect-video w-full overflow-hidden rounded-lg border border-border/50 bg-muted">
               <GoogleMapEmbed mapLink={territory.mapLink} />
             </div>
+            <p className="text-[10px] text-muted-foreground mt-2 text-center">
+              Dica: Para ver sua localização em tempo real sobre o mapa, clique no botão acima e use o app oficial do Google Maps.
+            </p>
           </div>
         )}
+
+        {/* Progress Card */}
+        <div className="bg-card p-6 rounded-lg shadow-md border border-border">
+          <h2 className="text-xl font-bold mb-4 flex items-center"><BarChart className="mr-3 text-primary" />Progresso Geral</h2>
+          <div className="grid grid-cols-4 gap-1 sm:gap-4 text-center">
+            <div><p className="text-xs sm:text-sm text-muted-foreground">Total</p><p className="font-bold text-lg sm:text-2xl">{totalHouses}</p></div>
+            <div><p className="text-xs sm:text-sm text-muted-foreground">Feitas</p><p className="font-bold text-lg sm:text-2xl text-green-400">{housesDone}</p></div>
+            <div><p className="text-xs sm:text-sm text-muted-foreground">Pendentes</p><p className="font-bold text-lg sm:text-2xl text-yellow-400">{totalHouses - housesDone}</p></div>
+            <div><p className="text-xs sm:text-sm text-muted-foreground">Progresso</p><p className="font-bold text-lg sm:text-2xl text-blue-400">{progressPercentage}%</p></div>
+          </div>
+          <div className="w-full bg-muted rounded-full h-2.5 mt-4">
+            <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progressPercentage}%` }}></div>
+          </div>
+        </div>
       </div>
 
       {/* Name Input Modal */}
@@ -277,3 +271,4 @@ export default function VisitorTerritoryPage() {
     </div>
   );
 }
+

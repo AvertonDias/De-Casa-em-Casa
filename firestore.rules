@@ -51,17 +51,14 @@ service cloud.firestore {
                 allow create, update, delete: if isAuth();
 
                 match /quadras/{quadraId} {
-                    allow read: if true;
-                    allow write: if isAuth();
+                    allow read, write: if true;
                     
                     match /casas/{casaId} { 
-                        allow read: if true;
-                        allow write: if isAuth();
+                        allow read, write: if true;
                     }
                 }
                 match /activityHistory/{activityId} { 
-                    allow read: if true;
-                    allow write: if isAuth();
+                    allow read, write: if true;
                 }
             }
         }

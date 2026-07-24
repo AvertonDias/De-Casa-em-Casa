@@ -207,9 +207,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const isAuthActionPage = currentPath.startsWith('/auth/action');
     const isWaitingPage = currentPath === '/aguardando-aprovacao';
     const isCompleteProfilePage = currentPath === '/completar-perfil';
+    const isVisitorPage = currentPath.startsWith('/visitante');
   
     if (!user) {
-      if (!isAuthPage && !isAuthActionPage && !isWaitingPage && !isCompleteProfilePage) {
+      if (!isAuthPage && !isAuthActionPage && !isWaitingPage && !isCompleteProfilePage && !isVisitorPage) {
         router.replace('/');
       }
       return;
