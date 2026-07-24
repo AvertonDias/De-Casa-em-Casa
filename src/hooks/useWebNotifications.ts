@@ -89,15 +89,22 @@ export function useWebNotifications() {
     };
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistration().then((registration) => {
-        if (registration && 'showNotification' in registration) {
-          registration.showNotification(title, options);
-        } else {
-          fallbackDirectNotification();
-        }
-      }).catch(() => {
-        fallbackDirectNotification();
-      });
+      navigator.serviceWorker.ready
+        .then((registration) => {
+          if (registration && 'showNotification' in registration) {
+            registration.showNotification(title, options);
+          } else {
+            fallbackDirectNotification();
+          }
+        })
+        .catch(() => {
+          // Se ready falhar, tenta registrar imediatamente
+          navigator.serviceWorker.register('/sw.js').then((reg) => {
+            reg.showNotification(title, options);
+          }).catch(() => {
+            fallbackDirectNotification();
+          });
+        });
     } else {
       fallbackDirectNotification();
     }

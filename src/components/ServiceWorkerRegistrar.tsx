@@ -4,15 +4,27 @@ import { useEffect } from 'react';
 
 export default function ServiceWorkerRegistrar() {
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then(registration => {
-          // Registro bem sucedido
-        }).catch(err => {
-          // Erro silencioso para não quebrar a UI em desenvolvimento
-          console.warn('SW registration failed (Normal in Dev): ', err.message);
-        });
-      });
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      const registerSW = async () => {
+        try {
+          await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        } catch (err) {
+          console.warn('Registro de /sw.js falhou:', err);
+        }
+
+        try {
+          await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/firebase-cloud-messaging-push-scope' });
+        } catch (err) {
+          // Ignora erro silenciosamente
+        }
+      };
+
+      if (document.readyState === 'complete') {
+        registerSW();
+      } else {
+        window.addEventListener('load', registerSW);
+        return () => window.removeEventListener('load', registerSW);
+      }
     }
   }, []);
 
