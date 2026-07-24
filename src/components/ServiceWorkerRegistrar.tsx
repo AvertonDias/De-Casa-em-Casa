@@ -7,15 +7,11 @@ export default function ServiceWorkerRegistrar() {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       const registerSW = async () => {
         try {
-          await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+          // Registra o Service Worker principal
+          const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+          console.log('Service Worker registrado com sucesso:', registration.scope);
         } catch (err) {
           console.warn('Registro de /sw.js falhou:', err);
-        }
-
-        try {
-          await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/firebase-cloud-messaging-push-scope' });
-        } catch (err) {
-          // Ignora erro silenciosamente
         }
       };
 
@@ -30,3 +26,4 @@ export default function ServiceWorkerRegistrar() {
 
   return null;
 }
+
