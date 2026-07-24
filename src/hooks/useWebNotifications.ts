@@ -91,12 +91,19 @@ export function useWebNotifications() {
     if ('serviceWorker' in navigator) {
       (async () => {
         try {
+          // Garante o registro do Service Worker
           let reg = await navigator.serviceWorker.getRegistration();
           if (!reg) {
             reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
           }
-          if (reg && 'showNotification' in reg) {
-            await reg.showNotification(title, options);
+
+          // Aguarda o Service Worker ficar ativado (ready) no Chrome/Edge/Samsung Internet
+          const readyPromise = navigator.serviceWorker.ready;
+          const timeoutPromise = new Promise<null>((res) => setTimeout(() => res(null), 2000));
+          const activeReg = (await Promise.race([readyPromise, timeoutPromise])) || reg;
+
+          if (activeReg && 'showNotification' in activeReg) {
+            await activeReg.showNotification(title, options);
             return;
           }
         } catch (err) {
