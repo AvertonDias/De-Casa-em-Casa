@@ -195,6 +195,11 @@ export default function UserManagement() {
         }
         toast({ title: "Sucesso", description: "Usuário atualizado com sucesso." });
     }).catch(async (error) => {
+        toast({ 
+            title: "Permissão Negada no Banco de Dados", 
+            description: "O Firestore recusou a alteração. Verifique se as Regras de Segurança no console do Firebase permitem que seu perfil altere este usuário.", 
+            variant: "destructive" 
+        });
         if (error.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
                 path: userRef.path,

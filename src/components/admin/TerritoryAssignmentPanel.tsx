@@ -166,17 +166,21 @@ export default function TerritoryAssignmentPanel() {
 
         const assignedUserId = assignedUser.uid;
         if (!assignedUserId.startsWith('custom_')) {
-            const notificationRef = collection(db, `users/${assignedUserId}/notifications`);
-            const territoryLink = currentTerritory?.type === 'rural' ? `/dashboard/rural/${territoryId}` : `/dashboard/territorios/${territoryId}`;
-            
-            await addDoc(notificationRef, {
-                title: isReassignment ? "Você recebeu uma transferência!" : "Você recebeu um novo território!",
-                body: `O território "${currentTerritory?.number} - ${currentTerritory?.name}" foi designado para você.`,
-                link: territoryLink,
-                type: 'territory_assigned',
-                isRead: false,
-                createdAt: serverTimestamp()
-            });
+            try {
+                const notificationRef = collection(db, `users/${assignedUserId}/notifications`);
+                const territoryLink = currentTerritory?.type === 'rural' ? `/dashboard/rural/${territoryId}` : `/dashboard/territorios/${territoryId}`;
+                
+                await addDoc(notificationRef, {
+                    title: isReassignment ? "Você recebeu uma transferência!" : "Você recebeu um novo território!",
+                    body: `O território "${currentTerritory?.number} - ${currentTerritory?.name}" foi designado para você.`,
+                    link: territoryLink,
+                    type: 'territory_assigned',
+                    isRead: false,
+                    createdAt: serverTimestamp()
+                });
+            } catch (notifErr) {
+                console.warn("Não foi possível enviar notificação para o usuário designado:", notifErr);
+            }
         }
         
         const userForWhatsapp = users.find(u => u.uid === assignedUser.uid);

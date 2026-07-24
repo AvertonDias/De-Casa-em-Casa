@@ -104,8 +104,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       if (initTimeoutRef.current) clearTimeout(initTimeoutRef.current);
 
-      if (!firebaseUser) {
-        console.log("Auth: Nenhum usuário logado.");
+      if (!firebaseUser || firebaseUser.isAnonymous) {
+        console.log("Auth: Nenhum usuário cadastrado logado (ou usuário anônimo/visitante).");
         unsubscribeAll();
         localStorage.removeItem(USER_CACHE_KEY);
         setUser(null);

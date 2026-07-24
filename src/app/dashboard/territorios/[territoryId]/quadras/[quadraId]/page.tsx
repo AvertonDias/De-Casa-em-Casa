@@ -20,6 +20,8 @@ import { TutorialButton } from '@/components/TutorialButton';
 import { TUTORIAL_IDS } from '@/lib/tutorials';
 import { logEvent } from '@/lib/audit';
 import { cn } from '@/lib/utils';
+import { enqueuePendingHouseAction } from '@/lib/offlineHouseQueue';
+import { OfflineHouseSyncBanner } from '@/components/OfflineHouseSyncBanner';
 
 
 interface QuadraDetailPageProps {
@@ -123,6 +125,21 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   }, [loading, quadra, router, territoryId]);
 
   useEffect(() => {
+    if (allQuadras.length > 0 && territoryId && router && typeof window !== 'undefined' && navigator.onLine) {
+      allQuadras.forEach((q) => {
+        try {
+          router.prefetch(`/dashboard/territorios/${territoryId}/quadras/${q.id}`);
+        } catch (_) {
+          // ignore offline prefetch error
+        }
+      });
+      try {
+        router.prefetch(`/dashboard/territorios/${territoryId}`);
+      } catch (_) {}
+    }
+  }, [allQuadras, territoryId, router]);
+
+  useEffect(() => {
     if (highlightedHouseId) {
       requestAnimationFrame(() => {
         const element = document.querySelector(`[data-id="${highlightedHouseId}"]`);
@@ -157,6 +174,27 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
     const { casa, newStatus } = statusAction;
     const congregationId = user.congregationId;
 
+    // Atualização Otimista Local Imediata
+    setCasas(prev => prev.map(c => c.id === casa.id ? { ...c, status: newStatus } : c));
+    setQuadra(prev => prev ? { ...prev, housesDone: Math.max(0, (prev.housesDone || 0) + (newStatus ? 1 : -1)) } : null);
+    setStatusAction(null);
+
+    // Se estiver offline, salva direto na fila do IndexedDB
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      await enqueuePendingHouseAction({
+        congregationId,
+        territoryId,
+        quadraId,
+        casaId: casa.id,
+        casaNumber: casa.number,
+        actionType: 'toggleStatus',
+        newStatus,
+        userName: user.name,
+        userUid: user.uid,
+      });
+      return;
+    }
+
     const congRef = doc(db, 'congregations', congregationId);
     const territoryRef = doc(congRef, 'territories', territoryId);
     const quadraRef = doc(territoryRef, 'quadras', quadraId);
@@ -178,10 +216,10 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
 
         const incrementAmount = newStatus ? 1 : -1;
 
-        transaction.update(quadraRef, { housesDone: (quadraDoc.data().housesDone || 0) + incrementAmount });
+        transaction.update(quadraRef, { housesDone: Math.max(0, (quadraDoc.data().housesDone || 0) + incrementAmount) });
         
-        const newTerritoryHousesDone = (territoryDoc.data().stats.housesDone || 0) + incrementAmount;
-        const territoryTotalHouses = territoryDoc.data().stats.totalHouses || 0;
+        const newTerritoryHousesDone = Math.max(0, (territoryDoc.data().stats?.housesDone || 0) + incrementAmount);
+        const territoryTotalHouses = territoryDoc.data().stats?.totalHouses || 0;
         const newTerritoryProgress = territoryTotalHouses > 0 ? newTerritoryHousesDone / territoryTotalHouses : 0;
         
         const territoryUpdateData: any = {
@@ -194,7 +232,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
         }
         transaction.update(territoryRef, territoryUpdateData);
         
-        transaction.update(congRef, { totalHousesDone: (congDoc.data().totalHousesDone || 0) + incrementAmount });
+        transaction.update(congRef, { totalHousesDone: Math.max(0, (congDoc.data().totalHousesDone || 0) + incrementAmount) });
 
         if (newStatus) {
             const newActivityRef = doc(activityHistoryRef);
@@ -239,18 +277,20 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             detailText,
             { territoryId, quadraId, houseId: casa.id, territoryNumber: territory?.number, quadraName: quadra?.name }
         );
-        
-        setStatusAction(null);
     }).catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
-            path: casaRef.path,
-            operation: 'update',
-            requestResourceData: { status: newStatus },
-        } satisfies SecurityRuleContext);
-        errorEmitter.emit('permission-error', permissionError);
+        console.warn("Transação no Firestore falhou (possível queda de rede). Salvando no IndexedDB:", error);
+        await enqueuePendingHouseAction({
+          congregationId,
+          territoryId,
+          quadraId,
+          casaId: casa.id,
+          casaNumber: casa.number,
+          actionType: 'toggleStatus',
+          newStatus,
+          userName: user.name,
+          userUid: user.uid,
+        });
     });
-
-    setStatusAction(null);
   };
 
   const handleEditClick = (casa: Casa) => {
@@ -366,6 +406,7 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   return (
     <>
       <div className="p-4 md:p-8 min-h-full">
+        <OfflineHouseSyncBanner />
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <div>
               <Link href={`/dashboard/territorios/${territoryId}`} className="text-sm text-blue-600 hover:text-blue-800 dark:text-purple-400 dark:hover:text-purple-300 flex items-center mb-2">

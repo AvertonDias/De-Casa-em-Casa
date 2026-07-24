@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, limit, Timestamp, writeBatch } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, limit, Timestamp, writeBatch, deleteDoc } from 'firebase/firestore';
 import withAuth from '@/components/withAuth';
-import { Bell, Inbox, AlertTriangle, CheckCheck, Loader, UserPlus, Milestone, ArrowRight } from 'lucide-react';
+import { Bell, Inbox, AlertTriangle, CheckCheck, Loader, UserPlus, Milestone, ArrowRight, Trash2 } from 'lucide-react';
 import { format, formatDistanceToNow, isToday, isYesterday, isThisWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
@@ -27,6 +27,7 @@ function NotificacoesPage() {
       setLoading(false);
       return;
     }
+    if (!auth.currentUser || auth.currentUser.isAnonymous || auth.currentUser.uid !== user.uid) return;
 
     const notificationsPath = `users/${user.uid}/notifications`;
     const notificationsRef = collection(db, notificationsPath);
@@ -43,14 +44,8 @@ function NotificacoesPage() {
         } as Notification)).filter(n => n.type !== 'user_pending');
         setNotifications(fetchedNotifications);
         setLoading(false);
-    }, async (error) => {
-        if (error.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({
-                path: notificationsPath,
-                operation: 'list',
-            } satisfies SecurityRuleContext);
-            errorEmitter.emit('permission-error', permissionError);
-        }
+    }, (error) => {
+        console.warn("Aviso ao carregar notificações do usuário:", error);
         setLoading(false);
     });
 
@@ -147,15 +142,29 @@ function NotificacoesPage() {
     });
 
     if (hasUpdates) {
-        batch.commit().catch(async (error) => {
-            if (error.code === 'permission-denied') {
-                const permissionError = new FirestorePermissionError({
-                    path: `users/${user.uid}/notifications`,
-                    operation: 'write',
-                } satisfies SecurityRuleContext);
-                errorEmitter.emit('permission-error', permissionError);
-            }
+        batch.commit().catch((error) => {
+            console.warn("Aviso ao marcar notificações como lidas:", error);
         });
+    }
+  };
+
+  const handleClearReadNotifications = async () => {
+    if (!user) return;
+    const readNotifications = notifications.filter(n => n.isRead);
+    if (readNotifications.length === 0) return;
+
+    if (!window.confirm(`Deseja apagar ${readNotifications.length} notificação(ões) lida(s)?`)) return;
+
+    const batch = writeBatch(db);
+    readNotifications.forEach(n => {
+      const notifRef = doc(db, `users/${user.uid}/notifications`, n.id);
+      batch.delete(notifRef);
+    });
+
+    try {
+      await batch.commit();
+    } catch (err) {
+      console.warn("Erro ao apagar notificações lidas:", err);
     }
   };
 
@@ -184,13 +193,20 @@ function NotificacoesPage() {
         <NotificationPushBanner />
 
         <div className="bg-card rounded-lg border max-w-4xl mx-auto">
-            <div className="p-4 flex justify-between items-center border-b">
+            <div className="p-4 flex flex-wrap justify-between items-center gap-2 border-b">
                 <h2 className="font-semibold text-lg">Suas Notificações</h2>
-                {notifications.some(n => !n.isRead) && (
-                    <Button variant="ghost" size="sm" onClick={handleMarkAllAsRead}>
-                        <CheckCheck size={16} className="mr-2" /> Marcar todas como lidas
-                    </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {notifications.some(n => !n.isRead) && (
+                      <Button variant="ghost" size="sm" onClick={handleMarkAllAsRead}>
+                          <CheckCheck size={16} className="mr-1.5" /> Marcar lidas
+                      </Button>
+                  )}
+                  {notifications.some(n => n.isRead) && (
+                      <Button variant="ghost" size="sm" onClick={handleClearReadNotifications} className="text-destructive hover:text-destructive">
+                          <Trash2 size={15} className="mr-1.5" /> Limpar lidas
+                      </Button>
+                  )}
+                </div>
             </div>
 
             {notifications.length > 0 ? (

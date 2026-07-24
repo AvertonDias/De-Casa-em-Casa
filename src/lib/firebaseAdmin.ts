@@ -8,7 +8,7 @@ import * as admin from "firebase-admin";
  * Esta função é robusta e consegue tratar a variável de ambiente GOOGLE_APPLICATION_CREDENTIALS_JSON
  * tanto em formato string JSON pura quanto em Base64.
  */
-export function initializeAdmin() {
+export async function initializeAdmin() {
   if (admin.apps.length > 0) {
     return admin;
   }

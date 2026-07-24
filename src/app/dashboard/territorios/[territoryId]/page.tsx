@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory, Activity, Quadra, AssignmentHistoryLog, Casa } from "@/types/types"; 
-import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, History, Loader, Navigation, Printer, CheckCircle2, Circle, X } from "lucide-react";
+import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, History, Loader, Navigation, Printer, CheckCircle2, Circle, X, QrCode } from "lucide-react";
 import Link from 'next/link';
 
 import ActivityHistory from '@/components/ActivityHistory';
@@ -19,6 +19,7 @@ import AddQuadraModal from '@/components/AddQuadraModal';
 import { EditQuadraModal } from "@/components/EditQuadraModal";
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import ImagePreviewModal from "@/components/ImagePreviewModal";
+import VisitorQrModal from "@/components/VisitorQrModal";
 import withAuth from "@/components/withAuth";
 import AddEditAssignmentLogModal from "@/components/admin/AddEditAssignmentLogModal";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -78,6 +79,7 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const [isPrintOptionsModalOpen, setIsPrintOptionsModalOpen] = useState(false);
   const [includeExistingNumbers, setIncludeExistingNumbers] = useState(false);
   const [isPrintingMapping, setIsPrintingMapping] = useState(false);
+  const [isVisitorQrModalOpen, setIsVisitorQrModalOpen] = useState(false);
   
   useEffect(() => {
     if (!user?.congregationId || !territoryId) return;
@@ -108,6 +110,18 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
 
     return () => { unsubTerritory(); unsubHistory(); unsubQuadras(); };
   }, [territoryId, user]);
+
+  useEffect(() => {
+    if (quadras.length > 0 && territoryId && router && typeof window !== 'undefined' && navigator.onLine) {
+      quadras.forEach((q) => {
+        try {
+          router.prefetch(`/dashboard/territorios/${territoryId}/quadras/${q.id}`);
+        } catch (_) {
+          // ignore offline prefetch error
+        }
+      });
+    }
+  }, [quadras, territoryId, router]);
 
   const handleSaveTerritory = async (tid: string, data: Partial<Territory>) => {
       if (!user?.congregationId || !territory) return;
@@ -703,9 +717,15 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
   const headerSection = (
     <div className="space-y-6">
         <Link href="/dashboard/territorios" className="text-sm flex items-center"><ArrowLeft className="mr-2 h-4" /> Voltar</Link>
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div><h1 className="text-3xl font-bold">{territory.number} - {territory.name}</h1><p className="text-muted-foreground">{territory.description}</p></div>
-            {isManagerView && <Button onClick={() => setIsEditTerritoryModalOpen(true)}><Edit className="mr-2 h-4" /> Editar</Button>}
+            <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setIsVisitorQrModalOpen(true)} className="gap-2">
+                    <QrCode className="h-4 w-4" />
+                    <span>QR Code Visitante</span>
+                </Button>
+                {isManagerView && <Button size="sm" onClick={() => setIsEditTerritoryModalOpen(true)}><Edit className="mr-2 h-4" /> Editar</Button>}
+            </div>
         </div>
     </div>
   );
@@ -835,6 +855,15 @@ function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
         <div className="hidden">
             <MappingSheet />
         </div>
+
+        <VisitorQrModal
+          isOpen={isVisitorQrModalOpen}
+          onClose={() => setIsVisitorQrModalOpen(false)}
+          territoryNumber={territory.number}
+          territoryName={territory.name}
+          congregationId={user?.congregationId || ''}
+          territoryId={territory.id}
+        />
     </div>
   );
 }

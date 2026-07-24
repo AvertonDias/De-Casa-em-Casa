@@ -39,7 +39,7 @@ export async function logEvent(
       timestamp: serverTimestamp()
     });
   } catch (e) {
-    console.error("Erro ao registrar evento de auditoria:", e);
+    console.warn("Erro ao registrar evento de auditoria:", e);
   }
 }
 

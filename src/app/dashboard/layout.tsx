@@ -3,9 +3,11 @@ import { useEffect, useState, useMemo, type ReactNode, useCallback } from "react
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from "next/navigation";
-import { auth, db } from "@/lib/firebase"; 
+import { auth, db, functions } from "@/lib/firebase"; 
 import { useUser } from '@/contexts/UserContext';
-import { doc, collection, query, where, onSnapshot, writeBatch, getDoc, Timestamp, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { doc, collection, query, where, onSnapshot, writeBatch, getDoc, Timestamp, setDoc, deleteDoc, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import { logEvent } from "@/lib/audit";
 
 import { Home, Map, Users, LogOut, Trees, Download, Share2, Loader, Info, Shield, UserCheck, Bell, Youtube, History, LayoutGrid, MoreHorizontal, FileText, AlertTriangle } from 'lucide-react';
 import { cn, getInitials, isTerritoryOverdue } from "@/lib/utils";
@@ -20,7 +22,7 @@ import { EditProfileModal } from "@/components/EditProfileModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal"; 
 import { ForceLgpdConsentModal } from "@/components/ForceLgpdConsentModal"; 
 import { Territory, Notification } from "@/types/types";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { SettingsMenu } from "../components/SettingsMenu";
 import { useAndroidBack } from "@/hooks/useAndroidBack";
@@ -282,6 +284,7 @@ function Sidebar({
 
 function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, loading } = useUser();
+  const { toast } = useToast();
   const pathname = usePathname();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -304,10 +307,13 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   // Notificações de Usuários Pendentes
   useEffect(() => {
     if (!user?.congregationId || !['Administrador', 'Dirigente'].includes(user.role)) return;
+    if (!auth.currentUser || auth.currentUser.isAnonymous) return;
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where('congregationId', '==', user.congregationId), where('status', '==', 'pendente'));
     const unsub = onSnapshot(q, (snapshot) => {
         setPendingUsersCount(snapshot.size);
+    }, (error) => {
+        console.warn("Sem permissão ou erro ao buscar usuários pendentes:", error);
     });
     return () => unsub();
   }, [user]);
@@ -315,12 +321,15 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   // Notificações de Atividade
   useEffect(() => {
     if (!user?.uid) return;
+    if (!auth.currentUser || auth.currentUser.isAnonymous || auth.currentUser.uid !== user.uid) return;
     const notifRef = collection(db, `users/${user.uid}/notifications`);
     const q = query(notifRef, where('isRead', '==', false), where('type', 'in', ['territory_assigned', 'territory_overdue', 'announcement', 'territory_returned', 'territory_available']));
     const unsub = onSnapshot(q, (snapshot) => {
         setUnreadNotificationsCount(snapshot.size);
         const types = snapshot.docs.map(doc => doc.data().type as string);
         setUnreadNotificationTypes(types);
+    }, (error) => {
+        console.warn("Sem permissão ou erro ao buscar notificações não lidas:", error);
     });
     return () => unsub();
   }, [user]);
@@ -356,6 +365,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   // Sincronização de Notificações de Territórios Atrasados (Individuais)
   useEffect(() => {
     if (!user?.congregationId || !user?.uid || user.status !== 'ativo') return;
+    if (!auth.currentUser || auth.currentUser.isAnonymous || auth.currentUser.uid !== user.uid) return;
 
     const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
     const q = query(territoriesRef, where("assignment.uid", "==", user.uid));
@@ -395,7 +405,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
               });
             }
           } catch (error) {
-            console.error("Erro ao gerenciar notificação de atraso:", error);
+            console.warn("Erro ao gerenciar notificação de atraso:", error);
           }
         } else {
           // Se NÃO está atrasado, mas a notificação determinística existia (ex: data foi estendida), removemos
@@ -405,7 +415,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
               await deleteDoc(notifDocRef);
             }
           } catch (error) {
-            console.error("Erro ao remover notificação de atraso não mais ativo:", error);
+            console.warn("Erro ao remover notificação de atraso não mais ativo:", error);
           }
         }
       }
@@ -429,7 +439,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
           }
         }
       } catch (error) {
-        console.error("Erro ao limpar notificações órfãs de atraso:", error);
+        console.warn("Erro ao limpar notificações órfãs de atraso:", error);
       }
 
       setMyOverdueTerritories(overdueList);
@@ -447,6 +457,212 @@ function DashboardLayout({ children }: { children: ReactNode }) {
       setShowTutorialBadge(true);
     }
   }, []);
+
+  // Limpeza Automática de Usuários Inativos há mais de 365 dias (1 ano) - Apenas para Administrador ao entrar no painel
+  useEffect(() => {
+    if (!user?.congregationId || user.role !== 'Administrador' || user.status !== 'ativo') return;
+    if (!auth.currentUser || auth.currentUser.isAnonymous) return;
+
+    const sessionKey = `inactive_365_cleanup_${user.uid}_${user.congregationId}`;
+    if (typeof window !== 'undefined' && sessionStorage.getItem(sessionKey)) {
+      return; // Já executou nesta sessão
+    }
+
+    const checkAndCleanInactiveUsers = async () => {
+      try {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(sessionKey, 'true');
+        }
+
+        const usersRef = collection(db, 'users');
+        const qUsers = query(usersRef, where('congregationId', '==', user.congregationId));
+        const snapshot = await getDocs(qUsers);
+
+        const cutoffDate = subDays(new Date(), 365);
+        const usersToDelete: { uid: string; name: string; email?: string }[] = [];
+
+        snapshot.forEach((docSnap) => {
+          const uData = docSnap.data();
+          const uUid = docSnap.id;
+
+          // Nunca excluir o próprio admin
+          if (uUid === user.uid) return;
+
+          // Obter data da última atividade
+          let lastSeenDate: Date | null = null;
+          if (uData.lastSeen && typeof uData.lastSeen.toDate === 'function') {
+            lastSeenDate = uData.lastSeen.toDate();
+          } else if (uData.lastSeen?.seconds) {
+            lastSeenDate = new Date(uData.lastSeen.seconds * 1000);
+          } else if (typeof uData.lastSeen === 'string') {
+            lastSeenDate = new Date(uData.lastSeen);
+          } else if (uData.createdAt?.toDate) {
+            lastSeenDate = uData.createdAt.toDate();
+          } else if (uData.createdAt?.seconds) {
+            lastSeenDate = new Date(uData.createdAt.seconds * 1000);
+          }
+
+          // Se tiver última atividade e for anterior a 365 dias atrás, ou se for inativo e não tiver registro recente
+          const isOver365Days = lastSeenDate ? lastSeenDate < cutoffDate : (uData.status === 'inativo');
+
+          if (isOver365Days) {
+            usersToDelete.push({
+              uid: uUid,
+              name: uData.name || 'Sem nome',
+              email: uData.email,
+            });
+          }
+        });
+
+        if (usersToDelete.length > 0) {
+          const deletedNames: string[] = [];
+
+          for (const u of usersToDelete) {
+            try {
+              // Tenta via Cloud Function primeiro se disponível
+              if (functions) {
+                try {
+                  const deleteUserAccount = httpsCallable(functions, 'deleteUserAccountV2');
+                  await deleteUserAccount({ userIdToDelete: u.uid });
+                } catch (fnErr) {
+                  console.warn("Exclusão por Cloud Function falhou, apagando via Firestore:", fnErr);
+                }
+              }
+
+              // Apaga documento do Firestore
+              await deleteDoc(doc(db, 'users', u.uid));
+
+              if (u.email) {
+                const emailClean = u.email.toLowerCase().trim();
+                await deleteDoc(doc(db, 'loginAttempts', emailClean)).catch(() => {});
+              }
+
+              await logEvent(
+                user.congregationId || "",
+                user.uid,
+                user.name,
+                'AUTO_CLEANUP_INACTIVE_USERS',
+                `Exclusão automática de usuário inativo há mais de 1 ano (365 dias): ${u.name} (${u.email || u.uid})`,
+                { deletedUserId: u.uid, reason: 'inactive_over_365_days' }
+              );
+
+              deletedNames.push(u.name);
+            } catch (err) {
+              console.error(`Erro ao apagar usuário inativo ${u.name}:`, err);
+            }
+          }
+
+          if (deletedNames.length > 0) {
+            const notifMsg = `${deletedNames.length} usuário(s) inativo(s) há mais de 1 ano (365 dias) foram excluídos automaticamente: ${deletedNames.join(', ')}.`;
+            
+            toast({
+              title: "🧹 Limpeza Automática de Usuários",
+              description: notifMsg,
+              duration: 12000,
+            });
+
+            // Registrar também na central de notificações do Administrador
+            try {
+              const userNotifRef = collection(db, `users/${user.uid}/notifications`);
+              await addDoc(userNotifRef, {
+                title: "🧹 Limpeza Automática de Usuários",
+                body: notifMsg,
+                type: "announcement",
+                link: "/dashboard/usuarios",
+                isRead: false,
+                createdAt: serverTimestamp(),
+              });
+            } catch (notifErr) {
+              console.warn("Erro ao salvar notificação da limpeza automática:", notifErr);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Erro ao verificar/limpar usuários inativos +365 dias:", err);
+      }
+    };
+
+    checkAndCleanInactiveUsers();
+  }, [user, toast]);
+
+  // Limpeza Automática Silenciosa de Notificações Antigas do Banco de Dados
+  useEffect(() => {
+    if (!user?.uid || !auth.currentUser || auth.currentUser.isAnonymous) return;
+
+    const sessionKey = `clean_old_notifs_v3_${user.uid}`;
+    if (typeof window !== 'undefined' && sessionStorage.getItem(sessionKey)) {
+      return;
+    }
+
+    const purgeOldNotifications = async () => {
+      try {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(sessionKey, 'true');
+        }
+
+        const cutoffDate = new Date('2026-07-24T00:00:00Z');
+
+        // 1. Apaga notificações antigas do próprio usuário
+        const userNotifRef = collection(db, `users/${user.uid}/notifications`);
+        const userNotifSnap = await getDocs(userNotifRef);
+
+        let batch = writeBatch(db);
+        let batchCount = 0;
+
+        userNotifSnap.docs.forEach((docSnap) => {
+          const data = docSnap.data();
+          const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : null;
+          if (!createdAt || createdAt < cutoffDate) {
+            batch.delete(docSnap.ref);
+            batchCount++;
+          }
+        });
+
+        if (batchCount > 0) {
+          await batch.commit();
+        }
+
+        // 2. Se for Administrador, varre e limpa as notificações antigas dos demais membros da congregação
+        if (user.role === 'Administrador' && user.congregationId) {
+          const usersQuery = query(collection(db, 'users'), where('congregationId', '==', user.congregationId));
+          const usersSnap = await getDocs(usersQuery);
+
+          for (const uDoc of usersSnap.docs) {
+            if (uDoc.id === user.uid) continue;
+
+            const memberNotifRef = collection(db, `users/${uDoc.id}/notifications`);
+            const memberNotifSnap = await getDocs(memberNotifRef);
+
+            let mBatch = writeBatch(db);
+            let mCount = 0;
+
+            for (const mNotifDoc of memberNotifSnap.docs) {
+              const data = mNotifDoc.data();
+              const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : null;
+              if (!createdAt || createdAt < cutoffDate) {
+                mBatch.delete(mNotifDoc.ref);
+                mCount++;
+
+                if (mCount >= 400) {
+                  await mBatch.commit();
+                  mBatch = writeBatch(db);
+                  mCount = 0;
+                }
+              }
+            }
+
+            if (mCount > 0) {
+              await mBatch.commit();
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Erro ao executar limpeza automática de notificações antigas:", err);
+      }
+    };
+
+    purgeOldNotifications();
+  }, [user]);
 
   useEffect(() => {
     if (pathname === '/dashboard/tutoriais') {

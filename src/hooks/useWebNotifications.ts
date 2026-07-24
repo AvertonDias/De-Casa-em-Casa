@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
-import { db, messaging } from '@/lib/firebase';
+import { db, messaging, auth } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { type Notification as AppNotification } from '@/types/types';
@@ -34,7 +34,7 @@ export function useWebNotifications() {
     const options = {
       body,
       icon: '/icon.png',
-      badge: '/favicon.ico',
+      badge: '/icon.png',
       vibrate: [200, 100, 200],
       data: { url: link || '/dashboard/notificacoes' },
       tag: 'de-casa-em-casa-notif-' + Date.now()
@@ -159,6 +159,7 @@ export function useWebNotifications() {
   // Listener em tempo real para novas notificações não lidas no Firestore
   useEffect(() => {
     if (!user?.uid || permission !== 'granted') return;
+    if (!auth.currentUser || auth.currentUser.isAnonymous || auth.currentUser.uid !== user.uid) return;
 
     const notifPath = `users/${user.uid}/notifications`;
     const q = query(

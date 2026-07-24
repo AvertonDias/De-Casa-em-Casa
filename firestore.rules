@@ -6,7 +6,9 @@ service cloud.firestore {
 
         // --- FUNÇÕES AUXILIARES ---
         
-        function isAuth() { return request.auth != null; }
+        function isAuth() { 
+            return request.auth != null; 
+        }
         
         function userExists() {
             return isAuth() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
@@ -36,60 +38,54 @@ service cloud.firestore {
 
         match /congregations/{congId} {
             allow read: if true; 
-            allow create: if isAuth();
-            
-            allow update: if isAuth() && isOfCongregation(congId) && (isActive() || isManager());
-            allow delete: if isAuth() && isOfCongregation(congId) && isAdmin();
+            allow create, update: if isAuth();
+            allow delete: if isAuth();
 
-            // Histórico de Auditoria: Apenas Administradores podem ler/listar. 
-            // Usuários ativos podem criar logs ao realizar ações.
+            // Histórico de Auditoria
             match /auditLogs/{logId} {
-                allow read: if isAuth() && isOfCongregation(congId) && isAdmin();
-                allow create: if isAuth() && isOfCongregation(congId) && isActive();
+                allow read, write: if isAuth();
             }
 
             match /territories/{terrId} {
-                allow read: if isAuth() && isOfCongregation(congId) && (isActive() || isManager());
-                
-                allow create, delete: if isAuth() && isOfCongregation(congId) && (isAdmin() || getUserData().role == 'Servo de Territórios');
-                
-                allow update: if isAuth() && isOfCongregation(congId) && (isActive() || isManager());
+                allow read: if true;
+                allow create, update, delete: if isAuth();
 
                 match /quadras/{quadraId} {
-                    allow read, write: if isAuth() && isOfCongregation(congId) && (isActive() || isManager());
+                    allow read: if true;
+                    allow write: if isAuth();
                     
                     match /casas/{casaId} { 
-                        allow read, write: if isAuth() && isOfCongregation(congId) && (isActive() || isManager());
+                        allow read: if true;
+                        allow write: if isAuth();
                     }
                 }
                 match /activityHistory/{activityId} { 
-                    allow read, write: if isAuth() && isOfCongregation(congId) && (isActive() || isManager());
+                    allow read: if true;
+                    allow write: if isAuth();
                 }
             }
         }
 
         match /users/{userId} {
-            allow create: if isAuth() && request.auth.uid == userId;
+            allow read, write: if isAuth();
             allow get: if true;
-            allow list: if isAuth();
-            
-            allow update: if isAuth() && (request.auth.uid == userId || isManager());
-            allow delete: if isAuth() && (request.auth.uid == userId || isAdmin());
 
             match /notifications/{notifId} {
-                allow get, list, update, delete: if isAuth() && request.auth.uid == userId;
-                allow create: if isAuth() && (request.auth.uid == userId || isManager());
+                allow read, write: if isAuth();
             }
         }
 
         match /resetTokens/{tokenId} {
-            allow read, delete, create: if true;
+            allow read, write: if true;
         }
 
         match /loginAttempts/{email} {
-            allow read, write, create, update, delete: if true;
+            allow read, write: if true;
         }
 
-        match /feedbacks/{feedbackId} { allow create: if isAuth(); }
+        match /feedbacks/{feedbackId} { 
+            allow read, write: if isAuth(); 
+        }
     }
 }
+

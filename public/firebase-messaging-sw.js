@@ -17,11 +17,11 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   console.log("Mensagem FCM recebida em segundo plano: ", payload);
 
-  const notificationTitle = payload.notification?.title || payload.data?.title || "Notificação de Territórios";
+  const notificationTitle = payload.notification?.title || payload.data?.title || "De Casa em Casa";
   const notificationOptions = {
     body: payload.notification?.body || payload.data?.body || "",
-    icon: "/icon.png",
-    badge: "/favicon.ico",
+    icon: payload.notification?.icon || payload.data?.icon || "/icon.png",
+    badge: payload.notification?.badge || payload.data?.badge || "/icon.png",
     data: {
       url: payload.data?.link || payload.notification?.click_action || "/dashboard/notificacoes"
     }
