@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Capacitor } from "@capacitor/core";
 import { Directory, Filesystem } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 import { useToast } from "@/hooks/use-toast";
 import withAuth from "@/components/withAuth";
 
@@ -84,18 +85,28 @@ function S13ReportPage() {
 
         if (Capacitor.isNativePlatform()) {
             try {
+                // Solicitar permissões explicitamente antes de gravar no APK
+                await Filesystem.requestPermissions();
+
                 const pdfBase64 = await worker.output('datauristring');
                 const base64Data = pdfBase64.split(',')[1];
                 
-                await Filesystem.writeFile({
-                    path: filename,
+                // Salvar em cache temporário para compartilhamento seguro
+                const tempPath = `Relatorio-S13-${Date.now()}-${typeFilter}-${serviceYear}.pdf`;
+                const saveResult = await Filesystem.writeFile({
+                    path: tempPath,
                     data: base64Data,
-                    directory: Directory.Documents,
+                    directory: Directory.Cache,
+                });
+                
+                await Share.share({
+                    title: `Relatório S-13 - ${typeFilter === 'urban' ? 'Urbano' : 'Rural'} - ${serviceYear}`,
+                    url: saveResult.uri,
                 });
                 
                 toast({
-                    title: 'Relatório Salvo!',
-                    description: 'O PDF foi salvo na pasta Documentos do seu dispositivo.'
+                    title: 'Relatório Gerado!',
+                    description: 'O PDF foi gerado com sucesso e está pronto para compartilhamento/salvamento.'
                 });
             } catch (nativeErr: any) {
                 console.warn("Falha ao salvar via Filesystem nativo, tentando download via web:", nativeErr);
@@ -153,17 +164,17 @@ function S13ReportPage() {
 
   const ReportHeader = () => (
     <>
-      <h1 className="text-xl font-bold text-center uppercase mb-4">
+      <h1 className="text-xl font-bold text-center uppercase mb-4 text-foreground md:text-black">
         REGISTRO DE DESIGNAÇÃO DE TERRITÓRIO ({typeFilter === "urban" ? "URBANO" : "RURAL"})
       </h1>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center my-4 text-sm gap-2 text-black">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center my-4 text-sm gap-2 text-foreground md:text-black">
         <div className="flex items-center">
           <label className="font-semibold whitespace-nowrap">Ano de Serviço:</label>
           <span className="ml-2 px-4 flex-grow min-w-[60px] text-center">
             <u>{serviceYear}</u>
           </span>
         </div>
-        <div className="flex items-center text-black">
+        <div className="flex items-center">
           <span className="font-semibold whitespace-nowrap">Congregação:</span>
           <span className="ml-2 px-4 flex-grow min-w-[150px] text-center">
             <u>{congregation?.name || user?.congregationName || "..."}</u>

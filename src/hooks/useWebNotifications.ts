@@ -73,8 +73,8 @@ export function useWebNotifications() {
 
     const options: any = {
       body,
-      icon: '/icon.png',
-      badge: '/icon.png',
+      icon: '/images/Logo_v3.png',
+      badge: '/images/Logo_v3.png',
       vibrate: [200, 100, 200],
       data: { url: targetUrl },
       tag: 'de-casa-em-casa-notif-' + Date.now()

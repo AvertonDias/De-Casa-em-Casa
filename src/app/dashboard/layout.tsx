@@ -31,7 +31,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useToast } from "@/hooks/use-toast";
 import { Footer } from "@/components/Footer";
 import { TutorialButton } from "@/components/TutorialButton";
-import { TUTORIAL_IDS } from "@/lib/tutorials";
+import { TUTORIAL_IDS, TUTORIAL_LIST } from "@/lib/tutorials";
 import { CampaignBanner } from "@/components/CampaignBanner";
 import { useWebNotifications } from "@/hooks/useWebNotifications";
 
@@ -450,11 +450,26 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     return () => unsub();
   }, [user]);
 
-  // Lógica da bolinha verde dos Tutoriais
+  // Lógica da bolinha verde dos Tutoriais baseada em hash da lista atual de tutoriais
   useEffect(() => {
-    const viewed = localStorage.getItem('tutorials_viewed_v1');
-    if (!viewed) {
+    const currentHash = TUTORIAL_LIST.map(t => t.id).join(',');
+    const viewedHash = localStorage.getItem('tutorials_viewed_hash');
+    const viewedLegacy = localStorage.getItem('tutorials_viewed_v1');
+
+    if (!viewedHash) {
+      if (viewedLegacy === 'true') {
+        // Usuário legado que já visualizou os tutoriais antes da atualização de hashing
+        localStorage.setItem('tutorials_viewed_hash', currentHash);
+        setShowTutorialBadge(false);
+      } else {
+        // Novo usuário ou nunca visualizou
+        setShowTutorialBadge(true);
+      }
+    } else if (viewedHash !== currentHash) {
+      // Um novo tutorial foi adicionado à lista!
       setShowTutorialBadge(true);
+    } else {
+      setShowTutorialBadge(false);
     }
   }, []);
 
@@ -666,6 +681,8 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (pathname === '/dashboard/tutoriais') {
+      const currentHash = TUTORIAL_LIST.map(t => t.id).join(',');
+      localStorage.setItem('tutorials_viewed_hash', currentHash);
       localStorage.setItem('tutorials_viewed_v1', 'true');
       setShowTutorialBadge(false);
     }

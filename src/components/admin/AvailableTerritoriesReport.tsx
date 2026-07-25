@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Capacitor } from "@capacitor/core";
 import { Directory, Filesystem } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -107,16 +108,28 @@ export default function AvailableTerritoriesReport() {
 
         if (Capacitor.isNativePlatform()) {
             try {
+                // Solicitar permissões explicitamente antes de gravar no APK
+                await Filesystem.requestPermissions();
+
                 const pdfBase64 = await worker.output('datauristring');
                 const base64Data = pdfBase64.split(',')[1];
-                await Filesystem.writeFile({
-                    path: filename,
+                
+                // Salvar em cache temporário para compartilhamento seguro
+                const tempPath = `Relatorio-Disponiveis-${Date.now()}-${typeFilter}.pdf`;
+                const saveResult = await Filesystem.writeFile({
+                    path: tempPath,
                     data: base64Data,
-                    directory: Directory.Documents,
+                    directory: Directory.Cache,
                 });
+                
+                await Share.share({
+                    title: `Relatório de Disponíveis - ${typeFilter === 'urban' ? 'Urbano' : 'Rural'}`,
+                    url: saveResult.uri,
+                });
+                
                 toast({
-                    title: 'Relatório Salvo!',
-                    description: 'O PDF foi salvo na pasta Documentos do seu dispositivo.'
+                    title: 'Relatório Gerado!',
+                    description: 'O PDF foi gerado com sucesso e está pronto para compartilhamento/salvamento.'
                 });
             } catch (nativeErr: any) {
                 console.warn("Falha ao salvar via Filesystem nativo, tentando download via web:", nativeErr);

@@ -20,8 +20,8 @@ messaging.onBackgroundMessage((payload) => {
   const notificationTitle = payload.notification?.title || payload.data?.title || "De Casa em Casa";
   const notificationOptions = {
     body: payload.notification?.body || payload.data?.body || "",
-    icon: payload.notification?.icon || payload.data?.icon || "/icon.png",
-    badge: payload.notification?.badge || payload.data?.badge || "/icon.png",
+    icon: payload.notification?.icon || payload.data?.icon || "/images/Logo_v3.png",
+    badge: payload.notification?.badge || payload.data?.badge || "/images/Logo_v3.png",
     data: {
       url: payload.data?.link || payload.notification?.click_action || "/dashboard/notificacoes"
     }

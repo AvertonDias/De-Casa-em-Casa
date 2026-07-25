@@ -15,12 +15,15 @@ interface AddEditActivityModalProps {
 
 const toDate = (dateString: string) => {
     const [year, month, day] = dateString.split('-').map(Number);
-    return new Date(year, month - 1, day);
+    return new Date(year, month - 1, day, 12, 0, 0);
 };
 
 const toInputDateString = (date: Date | Timestamp | undefined): string => {
   const d = date instanceof Timestamp ? date.toDate() : date || new Date();
-  return d.toISOString().split('T')[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const r = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${r}`;
 };
 
 export default function AddEditActivityModal({ isOpen, onClose, onSave, activityToEdit }: AddEditActivityModalProps) {
