@@ -50,7 +50,6 @@ import { logEvent } from '@/lib/audit';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
-import ClientDateTime from '@/components/ClientDateTime';
 
 type Section = 'menu' | 'assignment' | 'overview' | 'available' | 's13' | 'history' | 'settings';
 
@@ -528,7 +527,7 @@ function MaisPage() {
                                                   <tr key={log.id} className="hover:bg-white/[0.03] transition-colors group">
                                                       <td className="px-6 py-5 whitespace-nowrap align-top">
                                                           <p className="text-muted-foreground text-[11px] font-mono">
-                                                              <ClientDateTime date={log.timestamp} formatString="dd/MM HH:mm" />
+                                                              {log.timestamp ? format(log.timestamp.toDate(), "dd/MM hh:mm a", { locale: ptBR }) : '...'}
                                                           </p>
                                                       </td>
                                                       <td className="px-6 py-5 align-top">

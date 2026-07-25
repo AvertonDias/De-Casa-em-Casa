@@ -3,9 +3,10 @@
 
 import Link from 'next/link';
 import { Territory } from '@/types/types';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { ArrowRight } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
-import ClientDateTime from '@/components/ClientDateTime';
 
 interface RecentTerritoryCardProps {
   territory: Territory;
@@ -15,6 +16,10 @@ export default function RecentTerritoryCard({ territory }: RecentTerritoryCardPr
   const progresso = territory.progress ? Math.round(territory.progress * 100) : 0;
   
   const lastWorkedAt = territory.lastWorkedAt || territory.lastUpdate;
+
+  const lastUpdateFormatted = lastWorkedAt && lastWorkedAt instanceof Timestamp
+    ? format(lastWorkedAt.toDate(), "dd/MM/yyyy 'às' hh:mm a", { locale: ptBR })
+    : 'Nunca trabalhado';
 
   return (
     // O card inteiro agora é um link clicável
@@ -28,9 +33,7 @@ export default function RecentTerritoryCard({ territory }: RecentTerritoryCardPr
                 <span className="font-bold text-blue-400 text-lg">{progresso}%</span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Último trabalho: <ClientDateTime date={lastWorkedAt} fallback="Nunca trabalhado" />
-          </p>
+          <p className="text-xs text-muted-foreground">Último trabalho: {lastUpdateFormatted}</p>
         </div>
         
         {/* Parte Inferior: Barra e Link */}

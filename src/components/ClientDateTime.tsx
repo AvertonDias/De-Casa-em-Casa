@@ -20,7 +20,7 @@ export default function ClientDateTime({
   fallback = "—",
   className,
 }: ClientDateTimeProps) {
-  const activeFormat = formatString || formatStr || "dd/MM/yyyy 'às' HH:mm";
+  const activeFormat = formatString || formatStr || "dd/MM/yyyy 'às' hh:mm a";
   const [formatted, setFormatted] = useState<string>('');
 
   useEffect(() => {
