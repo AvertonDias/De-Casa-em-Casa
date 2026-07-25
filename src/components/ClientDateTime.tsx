@@ -6,7 +6,7 @@ import { ptBR } from 'date-fns/locale';
 import { Timestamp } from 'firebase/firestore';
 
 interface ClientDateTimeProps {
-  date?: Date | Timestamp | number | string | null;
+  date?: any;
   formatStr?: string;
   formatString?: string;
   fallback?: string;
