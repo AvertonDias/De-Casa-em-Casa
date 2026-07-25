@@ -8,16 +8,19 @@ import { Timestamp } from 'firebase/firestore';
 interface ClientDateTimeProps {
   date?: Date | Timestamp | number | string | null;
   formatStr?: string;
+  formatString?: string;
   fallback?: string;
   className?: string;
 }
 
 export default function ClientDateTime({
   date,
-  formatStr = "dd/MM/yyyy 'às' HH:mm",
+  formatStr,
+  formatString,
   fallback = "—",
   className,
 }: ClientDateTimeProps) {
+  const activeFormat = formatString || formatStr || "dd/MM/yyyy 'às' HH:mm";
   const [formatted, setFormatted] = useState<string>('');
 
   useEffect(() => {
@@ -41,12 +44,12 @@ export default function ClientDateTime({
       if (isNaN(d.getTime())) {
         setFormatted(fallback);
       } else {
-        setFormatted(format(d, formatStr, { locale: ptBR }));
+        setFormatted(format(d, activeFormat, { locale: ptBR }));
       }
     } catch {
       setFormatted(fallback);
     }
-  }, [date, formatStr, fallback]);
+  }, [date, activeFormat, fallback]);
 
   if (!formatted) {
     return <span className={className}>{fallback}</span>;
