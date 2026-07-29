@@ -34,10 +34,14 @@ messaging.onBackgroundMessage((payload) => {
   console.log("[SW] Mensagem FCM recebida em segundo plano:", payload);
 
   const notificationTitle = payload.notification?.title || payload.data?.title || "De Casa em Casa";
+  const uniqueTag = payload.notification?.tag || payload.data?.tag || ("de-casa-em-casa-" + Date.now() + "-" + Math.floor(Math.random() * 10000));
+
   const notificationOptions = {
     body: payload.notification?.body || payload.data?.body || "",
     icon: payload.notification?.icon || payload.data?.icon || "/images/Logo_v3.png",
     badge: payload.notification?.badge || payload.data?.badge || "/images/De casa em casa pb.png",
+    tag: uniqueTag,
+    renotify: true,
     data: {
       url: payload.data?.link || payload.notification?.click_action || "/dashboard/notificacoes"
     }

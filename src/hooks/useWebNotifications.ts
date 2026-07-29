@@ -77,7 +77,8 @@ export function useWebNotifications() {
       badge: '/images/De casa em casa pb.png',
       vibrate: [200, 100, 200],
       data: { url: targetUrl },
-      tag: 'de-casa-em-casa-notif-' + Date.now()
+      tag: 'de-casa-em-casa-notif-' + Date.now() + '-' + Math.floor(Math.random() * 10000),
+      renotify: true
     };
 
     const sendDirectNotification = () => {
@@ -325,8 +326,8 @@ export function useWebNotifications() {
           });
 
           showSystemNotification(
-            "Notificações Ativadas! 🗺️",
-            "Tudo pronto! Você receberá alertas no seu Android sobre territórios e notificações.",
+            "Notificações Ativadas! 🔔",
+            "Você aceitou receber notificações. A partir de agora, você receberá mensagens e avisos do aplicativo diretamente no seu celular!",
             "/dashboard/notificacoes"
           );
           return true;
@@ -364,10 +365,10 @@ export function useWebNotifications() {
           description: "Você receberá alertas no seu celular/computador sobre territórios vencidos e novas designações.",
         });
 
-        // Dispara notificação de boas-vindas
+        // Dispara notificação de confirmação e boas-vindas
         showSystemNotification(
-          "Notificações Ativadas!",
-          "Tudo pronto! Você será notificado sobre territórios vencidos e novas designações.",
+          "Notificações Ativadas! 🔔",
+          "Você aceitou receber notificações. A partir de agora, você receberá mensagens e avisos do aplicativo no seu dispositivo!",
           "/dashboard/notificacoes"
         );
         return true;

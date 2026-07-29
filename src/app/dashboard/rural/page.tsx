@@ -106,10 +106,14 @@ function RuralPage() {
     setLinkToDelete(null);
   };
 
-  const filteredTerritories = territories.filter(t =>
-    t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.number.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredTerritories = territories.filter(t => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+    const nameMatch = t.name ? t.name.toLowerCase().includes(term) : false;
+    const numberMatch = t.number ? t.number.toString().toLowerCase().includes(term) : false;
+    const descMatch = t.description ? t.description.toLowerCase().includes(term) : false;
+    return nameMatch || numberMatch || descMatch;
+  });
 
   if (userLoading || loading) {
     return <div className="flex items-center justify-center h-full"><Loader className="animate-spin text-primary" size={48} /></div>;
@@ -168,21 +172,20 @@ function RuralPage() {
           </div>
         </div>
 
-        <div className="mb-6 relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                <Search className="h-5 w-5 text-gray-400" />
-            </span>
+        <div className="relative mb-6">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
             <input
                 type="text"
                 placeholder="Buscar por nome ou número..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-10 py-3 bg-card border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-card border border-border rounded-md pl-10 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-primary transition-all"
             />
             {searchTerm && (
               <button 
                 onClick={() => setSearchTerm('')} 
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                title="Limpar busca"
               >
                 <X size={20} />
               </button>
