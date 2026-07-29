@@ -74,7 +74,7 @@ export function useWebNotifications() {
     const options: any = {
       body,
       icon: '/images/Logo_v3.png',
-      badge: '/images/Logo_v3.png',
+      badge: '/images/De casa em casa pb.png',
       vibrate: [200, 100, 200],
       data: { url: targetUrl },
       tag: 'de-casa-em-casa-notif-' + Date.now()
@@ -118,33 +118,76 @@ export function useWebNotifications() {
 
   // Função dedicada para obter e sincronizar o token FCM no Web/PWA
   const syncWebFcmToken = useCallback(async (userId: string) => {
-    if (typeof window === 'undefined' || !isSupported || Capacitor.isNativePlatform()) return null;
+    if (typeof window === 'undefined' || Capacitor.isNativePlatform()) return null;
 
     try {
-      if (!('serviceWorker' in navigator) || !messaging) return null;
+      if (!('serviceWorker' in navigator)) return null;
 
-      // 1. Obter ou registrar o Service Worker principal (/sw.js)
-      let swRegistration = await navigator.serviceWorker.getRegistration();
+      // 1. Verificar se Firebase Messaging é suportado neste navegador
+      const { isSupported: isMessagingSupported, getMessaging, getToken } = await import('firebase/messaging');
+      const supported = await isMessagingSupported().catch(() => false);
+      if (!supported) {
+        console.warn("[FCM] Firebase Messaging não é suportado neste navegador/ambiente.");
+        return null;
+      }
+
+      const msgObj = messaging || getMessaging(app);
+
+      // 2. Obter ou registrar o Service Worker principal (/sw.js)
+      let swRegistration = await navigator.serviceWorker.getRegistration('/');
+      if (!swRegistration) {
+        swRegistration = await navigator.serviceWorker.getRegistration();
+      }
       if (!swRegistration) {
         swRegistration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       }
 
-      // 2. Aguardar o Service Worker estar pronto/ativo
+      // 3. Aguardar o Service Worker estar pronto e ativado (com timeout expandido para conexões lentas)
       const readyRegistration = await Promise.race([
         navigator.serviceWorker.ready,
-        new Promise<undefined>((res) => setTimeout(() => res(undefined), 3500))
+        new Promise<undefined>((res) => setTimeout(() => res(undefined), 8000))
       ]);
 
       const activeSw = readyRegistration || swRegistration;
 
-      const { getToken } = await import('firebase/messaging');
+      // Aguardar o estado 'activated' caso o Service Worker esteja instalando
+      if (activeSw && !activeSw.active) {
+        await new Promise<void>((resolve) => {
+          const worker = activeSw.installing || activeSw.waiting;
+          if (worker) {
+            const stateChangeHandler = (e: any) => {
+              if (e.target.state === 'activated') {
+                worker.removeEventListener('statechange', stateChangeHandler);
+                resolve();
+              }
+            };
+            worker.addEventListener('statechange', stateChangeHandler);
+          } else {
+            resolve();
+          }
+          setTimeout(resolve, 5000);
+        });
+      }
+
       const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || "BD_279ckw7U8KPc5KFJX-8V2UFyvJhnWVqa-XgvJnb91RHf0bjBn21hDHMOKxq1Hb2bEFnOdeclWRnKKsbFfhbk";
 
-      // 3. Gerar o token informando explicitamente a inscrição do Service Worker
-      const fcmToken = await getToken(messaging, {
-        vapidKey,
-        serviceWorkerRegistration: activeSw
-      });
+      // 4. Gerar o token com retentativas automáticas (até 3 tentativas)
+      let fcmToken = null;
+      let attempt = 0;
+      while (!fcmToken && attempt < 3) {
+        attempt++;
+        try {
+          fcmToken = await getToken(msgObj, {
+            vapidKey,
+            serviceWorkerRegistration: activeSw
+          });
+        } catch (tokenErr) {
+          console.warn(`[FCM] Tentativa ${attempt} de obter token falhou:`, tokenErr);
+          if (attempt < 3) {
+            await new Promise((res) => setTimeout(res, 2000));
+          }
+        }
+      }
 
       if (fcmToken && userId) {
         await updateDoc(doc(db, 'users', userId), {
@@ -157,10 +200,10 @@ export function useWebNotifications() {
         return fcmToken;
       }
     } catch (fcmErr) {
-      console.warn("[FCM] Erro ao obter token do FCM no navegador:", fcmErr);
+      console.warn("[FCM] Erro geral ao obter token do FCM no navegador:", fcmErr);
     }
     return null;
-  }, [isSupported]);
+  }, []);
 
   // Listener para captura do token nativo no Android (Capacitor)
   useEffect(() => {
@@ -410,6 +453,7 @@ export function useWebNotifications() {
     loadingPermission,
     requestPermission,
     disableNotifications,
+    syncWebFcmToken,
     sendTestNotification,
     showSystemNotification
   };

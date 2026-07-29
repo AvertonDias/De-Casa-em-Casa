@@ -26,16 +26,26 @@ export function NotificationPushBanner() {
     loadingPermission, 
     requestPermission, 
     disableNotifications,
+    syncWebFcmToken,
     sendTestNotification 
   } = useWebNotifications();
 
   const [showInstructions, setShowInstructions] = useState(false);
+  const [syncingToken, setSyncingToken] = useState(false);
 
   if (!isSupported) {
     return null;
   }
 
   const isSystemActive = permission === 'granted' && user?.pushNotificationsEnabled !== false;
+  const hasToken = !!user?.fcmToken;
+
+  const handleSyncToken = async () => {
+    if (!user?.uid) return;
+    setSyncingToken(true);
+    await syncWebFcmToken(user.uid);
+    setSyncingToken(false);
+  };
 
   return (
     <div className="bg-card border rounded-xl p-5 shadow-sm space-y-4 max-w-4xl mx-auto">
@@ -61,9 +71,16 @@ export function NotificationPushBanner() {
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-bold text-base leading-none">Notificações Push no Navegador / PWA</h3>
               {isSystemActive ? (
-                <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 gap-1 hover:bg-emerald-500/20">
-                  <CheckCircle2 className="w-3 h-3" /> Ativadas
-                </Badge>
+                <>
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 gap-1 hover:bg-emerald-500/20">
+                    <CheckCircle2 className="w-3 h-3" /> Ativadas
+                  </Badge>
+                  {!hasToken && (
+                    <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/10 gap-1 animate-pulse">
+                      <AlertCircle className="w-3 h-3" /> Token Pendente
+                    </Badge>
+                  )}
+                </>
               ) : permission === 'denied' ? (
                 <Badge variant="destructive" className="gap-1">
                   <BellOff className="w-3 h-3" /> Bloqueadas no Navegador
@@ -83,6 +100,21 @@ export function NotificationPushBanner() {
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
           {isSystemActive ? (
             <>
+              {!hasToken && (
+                <Button 
+                  onClick={handleSyncToken} 
+                  disabled={syncingToken}
+                  size="sm"
+                  className="flex-1 sm:flex-initial gap-2 font-semibold shadow-sm bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  {syncingToken ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <BellRing className="w-3.5 h-3.5" />
+                  )}
+                  Sincronizar Token agora
+                </Button>
+              )}
               <Button 
                 onClick={sendTestNotification} 
                 variant="outline" 
