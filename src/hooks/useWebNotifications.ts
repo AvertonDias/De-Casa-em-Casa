@@ -116,6 +116,88 @@ export function useWebNotifications() {
     }
   }, []);
 
+  // Função dedicada para obter e sincronizar o token FCM no Web/PWA
+  const syncWebFcmToken = useCallback(async (userId: string) => {
+    if (typeof window === 'undefined' || !isSupported || Capacitor.isNativePlatform()) return null;
+
+    try {
+      if (!('serviceWorker' in navigator) || !messaging) return null;
+
+      // 1. Obter ou registrar o Service Worker principal (/sw.js)
+      let swRegistration = await navigator.serviceWorker.getRegistration();
+      if (!swRegistration) {
+        swRegistration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      }
+
+      // 2. Aguardar o Service Worker estar pronto/ativo
+      const readyRegistration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<undefined>((res) => setTimeout(() => res(undefined), 3500))
+      ]);
+
+      const activeSw = readyRegistration || swRegistration;
+
+      const { getToken } = await import('firebase/messaging');
+      const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || "BD_279ckw7U8KPc5KFJX-8V2UFyvJhnWVqa-XgvJnb91RHf0bjBn21hDHMOKxq1Hb2bEFnOdeclWRnKKsbFfhbk";
+
+      // 3. Gerar o token informando explicitamente a inscrição do Service Worker
+      const fcmToken = await getToken(messaging, {
+        vapidKey,
+        serviceWorkerRegistration: activeSw
+      });
+
+      if (fcmToken && userId) {
+        await updateDoc(doc(db, 'users', userId), {
+          fcmToken,
+          pushNotificationsEnabled: true,
+          notificationPromptHandled: true,
+          pushSubscriptionUpdated: serverTimestamp()
+        }).catch(console.warn);
+        console.log("[FCM] Token gerado e salvo com sucesso:", fcmToken);
+        return fcmToken;
+      }
+    } catch (fcmErr) {
+      console.warn("[FCM] Erro ao obter token do FCM no navegador:", fcmErr);
+    }
+    return null;
+  }, [isSupported]);
+
+  // Listener para captura do token nativo no Android (Capacitor)
+  useEffect(() => {
+    if (Capacitor.isNativePlatform() && user?.uid) {
+      let listener: any = null;
+      try {
+        listener = PushNotifications.addListener('registration', async (token) => {
+          if (token?.value) {
+            console.log('[Capacitor Push] Token recebido:', token.value);
+            await updateDoc(doc(db, 'users', user.uid), {
+              fcmToken: token.value,
+              pushNotificationsEnabled: true,
+              notificationPromptHandled: true,
+              pushSubscriptionUpdated: serverTimestamp(),
+              platform: 'capacitor_android'
+            }).catch(console.warn);
+          }
+        });
+      } catch (err) {
+        console.warn("[Capacitor Push] Erro ao registrar listener:", err);
+      }
+
+      return () => {
+        if (listener && typeof listener.remove === 'function') {
+          listener.remove();
+        }
+      };
+    }
+  }, [user?.uid]);
+
+  // Tentar sincronizar/gerar o token automaticamente ao abrir o app se a permissão já estiver concedida
+  useEffect(() => {
+    if (user?.uid && permission === 'granted' && !Capacitor.isNativePlatform()) {
+      syncWebFcmToken(user.uid);
+    }
+  }, [user?.uid, permission, syncWebFcmToken]);
+
   // Solicitar permissão de notificação no navegador ou Android APK
   const requestPermission = useCallback(async () => {
     if (!isSupported) {
@@ -142,7 +224,7 @@ export function useWebNotifications() {
             pushGranted = true;
           }
         } catch (pushErr) {
-          console.warn("PushNotifications register error (normal em dev sem Google Services):", pushErr);
+          console.warn("PushNotifications register error:", pushErr);
         }
 
         if (localPerm.display === 'granted' || pushGranted) {
@@ -185,25 +267,16 @@ export function useWebNotifications() {
 
       if (result === 'granted') {
         let fcmToken = null;
-        try {
-          const { getToken } = await import('firebase/messaging');
-          if (messaging) {
-            fcmToken = await getToken(messaging, { vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || "BD_279ckw7U8KPc5KFJX-8V2UFyvJhnWVqa-XgvJnb91RHf0bjBn21hDHMOKxq1Hb2bEFnOdeclWRnKKsbFfhbk" });
-          }
-        } catch (fcmErr) {
-          console.warn("Erro ao obter token do FCM:", fcmErr);
+        if (user?.uid) {
+          fcmToken = await syncWebFcmToken(user.uid);
         }
 
-        if (user?.uid) {
-          const updateData: any = {
+        if (user?.uid && !fcmToken) {
+          await updateDoc(doc(db, 'users', user.uid), {
             pushNotificationsEnabled: true,
             notificationPromptHandled: true,
             pushSubscriptionUpdated: serverTimestamp()
-          };
-          if (fcmToken) {
-            updateData.fcmToken = fcmToken;
-          }
-          await updateDoc(doc(db, 'users', user.uid), updateData).catch(console.warn);
+          }).catch(console.warn);
         }
 
         toast({
