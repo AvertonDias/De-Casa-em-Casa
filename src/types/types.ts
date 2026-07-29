@@ -20,6 +20,7 @@ export interface AppUser {
   acceptedLGPDAt?: any;
   pushNotificationsEnabled?: boolean;
   pushSubscriptionUpdated?: any;
+  notificationPromptHandled?: boolean;
 }
 
 export interface Notification {

@@ -21,6 +21,7 @@ import withAuth from "@/components/withAuth";
 import { EditProfileModal } from "@/components/EditProfileModal"; 
 import { InstallPwaModal } from "@/components/InstallPwaModal"; 
 import { ForceLgpdConsentModal } from "@/components/ForceLgpdConsentModal"; 
+import { NotificationPermissionModal } from "@/components/NotificationPermissionModal"; 
 import { Territory, Notification } from "@/types/types";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -844,6 +845,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
           <EditProfileModal isOpen={isProfileModalOpen} onOpenChange={setIsProfileModalOpen} />
           <FontSizeModal isOpen={isFontSizeModalOpen} onOpenChange={setIsFontSizeModalOpen} />
           <ForceLgpdConsentModal />
+          <NotificationPermissionModal />
       </div>
   );
 }

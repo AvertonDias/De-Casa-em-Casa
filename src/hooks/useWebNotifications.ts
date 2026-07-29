@@ -151,6 +151,7 @@ export function useWebNotifications() {
           if (user?.uid) {
             await updateDoc(doc(db, 'users', user.uid), {
               pushNotificationsEnabled: true,
+              notificationPromptHandled: true,
               pushSubscriptionUpdated: serverTimestamp(),
               platform: 'capacitor_android'
             }).catch(console.warn);
@@ -196,6 +197,7 @@ export function useWebNotifications() {
         if (user?.uid) {
           const updateData: any = {
             pushNotificationsEnabled: true,
+            notificationPromptHandled: true,
             pushSubscriptionUpdated: serverTimestamp()
           };
           if (fcmToken) {
@@ -219,7 +221,8 @@ export function useWebNotifications() {
       } else if (result === 'denied') {
         if (user?.uid) {
           await updateDoc(doc(db, 'users', user.uid), {
-            pushNotificationsEnabled: false
+            pushNotificationsEnabled: false,
+            notificationPromptHandled: true
           }).catch(console.warn);
         }
 
@@ -242,6 +245,34 @@ export function useWebNotifications() {
     }
     return false;
   }, [isSupported, user?.uid, toast, showSystemNotification]);
+
+  // Desativar notificações push no perfil do usuário
+  const disableNotifications = useCallback(async () => {
+    if (!user?.uid) return false;
+    setLoadingPermission(true);
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        pushNotificationsEnabled: false,
+        notificationPromptHandled: true,
+        pushSubscriptionUpdated: serverTimestamp()
+      });
+      toast({
+        title: "Notificações Desativadas 🔕",
+        description: "Você desativou os alertas de notificação push no aplicativo.",
+      });
+      return true;
+    } catch (err) {
+      console.error("Erro ao desativar notificações:", err);
+      toast({
+        title: "Erro ao desativar",
+        description: "Não foi possível desativar as notificações no momento.",
+        variant: "destructive"
+      });
+      return false;
+    } finally {
+      setLoadingPermission(false);
+    }
+  }, [user?.uid, toast]);
 
   // Enviar uma notificação de teste
   const sendTestNotification = useCallback(() => {
@@ -305,6 +336,7 @@ export function useWebNotifications() {
     isSupported,
     loadingPermission,
     requestPermission,
+    disableNotifications,
     sendTestNotification,
     showSystemNotification
   };

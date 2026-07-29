@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useWebNotifications } from '@/hooks/useWebNotifications';
+import { useUser } from '@/contexts/UserContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -18,11 +19,13 @@ import {
 } from 'lucide-react';
 
 export function NotificationPushBanner() {
+  const { user } = useUser();
   const { 
     permission, 
     isSupported, 
     loadingPermission, 
     requestPermission, 
+    disableNotifications,
     sendTestNotification 
   } = useWebNotifications();
 
@@ -32,18 +35,20 @@ export function NotificationPushBanner() {
     return null;
   }
 
+  const isSystemActive = permission === 'granted' && user?.pushNotificationsEnabled !== false;
+
   return (
     <div className="bg-card border rounded-xl p-5 shadow-sm space-y-4 max-w-4xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className={`p-2.5 rounded-xl shrink-0 ${
-            permission === 'granted' 
+            isSystemActive 
               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
               : permission === 'denied'
               ? 'bg-destructive/10 text-destructive border border-destructive/20'
               : 'bg-primary/10 text-primary border border-primary/20'
           }`}>
-            {permission === 'granted' ? (
+            {isSystemActive ? (
               <BellRing className="w-6 h-6 animate-pulse" />
             ) : permission === 'denied' ? (
               <BellOff className="w-6 h-6" />
@@ -55,19 +60,17 @@ export function NotificationPushBanner() {
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-bold text-base leading-none">Notificações Push no Navegador / PWA</h3>
-              {permission === 'granted' && (
+              {isSystemActive ? (
                 <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 gap-1 hover:bg-emerald-500/20">
                   <CheckCircle2 className="w-3 h-3" /> Ativadas
                 </Badge>
-              )}
-              {permission === 'default' && (
-                <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/10 gap-1">
-                  <AlertCircle className="w-3 h-3" /> Inativas
-                </Badge>
-              )}
-              {permission === 'denied' && (
+              ) : permission === 'denied' ? (
                 <Badge variant="destructive" className="gap-1">
                   <BellOff className="w-3 h-3" /> Bloqueadas no Navegador
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/10 gap-1">
+                  <AlertCircle className="w-3 h-3" /> Desativadas
                 </Badge>
               )}
             </div>
@@ -77,16 +80,32 @@ export function NotificationPushBanner() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-          {permission === 'granted' ? (
-            <Button 
-              onClick={sendTestNotification} 
-              variant="outline" 
-              size="sm"
-              className="w-full sm:w-auto gap-2 border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-            >
-              <Send className="w-3.5 h-3.5" /> Enviar Teste
-            </Button>
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+          {isSystemActive ? (
+            <>
+              <Button 
+                onClick={sendTestNotification} 
+                variant="outline" 
+                size="sm"
+                className="flex-1 sm:flex-initial gap-2 border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+              >
+                <Send className="w-3.5 h-3.5" /> Enviar Teste
+              </Button>
+              <Button 
+                onClick={disableNotifications} 
+                disabled={loadingPermission}
+                variant="secondary" 
+                size="sm"
+                className="flex-1 sm:flex-initial gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                {loadingPermission ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <BellOff className="w-3.5 h-3.5" />
+                )}
+                Desativar Notificações
+              </Button>
+            </>
           ) : (
             <Button 
               onClick={requestPermission} 
