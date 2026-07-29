@@ -43,7 +43,7 @@ export function NotificationPushBanner() {
   const handleSyncToken = async () => {
     if (!user?.uid) return;
     setSyncingToken(true);
-    await syncWebFcmToken(user.uid);
+    await syncWebFcmToken(user.uid, true);
     setSyncingToken(false);
   };
 

@@ -117,17 +117,33 @@ export function useWebNotifications() {
   }, []);
 
   // Função dedicada para obter e sincronizar o token FCM no Web/PWA
-  const syncWebFcmToken = useCallback(async (userId: string) => {
+  const syncWebFcmToken = useCallback(async (userId: string, showToasts: boolean = false) => {
     if (typeof window === 'undefined' || Capacitor.isNativePlatform()) return null;
 
     try {
-      if (!('serviceWorker' in navigator)) return null;
+      if (!('serviceWorker' in navigator)) {
+        if (showToasts) {
+          toast({
+            title: "Navegador não suporta Service Worker",
+            description: "Este navegador não suporta notificações em segundo plano.",
+            variant: "destructive"
+          });
+        }
+        return null;
+      }
 
       // 1. Verificar se Firebase Messaging é suportado neste navegador
       const { isSupported: isMessagingSupported, getMessaging, getToken } = await import('firebase/messaging');
       const supported = await isMessagingSupported().catch(() => false);
       if (!supported) {
         console.warn("[FCM] Firebase Messaging não é suportado neste navegador/ambiente.");
+        if (showToasts) {
+          toast({
+            title: "Notificações Indisponíveis",
+            description: "Seu navegador ou modo de navegação (privada/incógnito) bloqueia o serviço de notificações do Firebase.",
+            variant: "destructive"
+          });
+        }
         return null;
       }
 
@@ -142,7 +158,7 @@ export function useWebNotifications() {
         swRegistration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       }
 
-      // 3. Aguardar o Service Worker estar pronto e ativado (com timeout expandido para conexões lentas)
+      // 3. Aguardar o Service Worker estar pronto e ativado
       const readyRegistration = await Promise.race([
         navigator.serviceWorker.ready,
         new Promise<undefined>((res) => setTimeout(() => res(undefined), 8000))
@@ -150,7 +166,6 @@ export function useWebNotifications() {
 
       const activeSw = readyRegistration || swRegistration;
 
-      // Aguardar o estado 'activated' caso o Service Worker esteja instalando
       if (activeSw && !activeSw.active) {
         await new Promise<void>((resolve) => {
           const worker = activeSw.installing || activeSw.waiting;
@@ -171,8 +186,9 @@ export function useWebNotifications() {
 
       const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || "BD_279ckw7U8KPc5KFJX-8V2UFyvJhnWVqa-XgvJnb91RHf0bjBn21hDHMOKxq1Hb2bEFnOdeclWRnKKsbFfhbk";
 
-      // 4. Gerar o token com retentativas automáticas (até 3 tentativas)
+      // 4. Gerar o token com retentativas automáticas
       let fcmToken = null;
+      let lastError: any = null;
       let attempt = 0;
       while (!fcmToken && attempt < 3) {
         attempt++;
@@ -182,6 +198,7 @@ export function useWebNotifications() {
             serviceWorkerRegistration: activeSw
           });
         } catch (tokenErr) {
+          lastError = tokenErr;
           console.warn(`[FCM] Tentativa ${attempt} de obter token falhou:`, tokenErr);
           if (attempt < 3) {
             await new Promise((res) => setTimeout(res, 2000));
@@ -197,13 +214,33 @@ export function useWebNotifications() {
           pushSubscriptionUpdated: serverTimestamp()
         }).catch(console.warn);
         console.log("[FCM] Token gerado e salvo com sucesso:", fcmToken);
+
+        if (showToasts) {
+          toast({
+            title: "Token Gerado com Sucesso! 🎉",
+            description: "Seu dispositivo está pronto para receber notificações push.",
+          });
+        }
         return fcmToken;
+      } else if (showToasts) {
+        toast({
+          title: "Não foi possível gerar o token FCM",
+          description: lastError?.message || "O Firebase não retornou o token para este navegador. Verifique se o navegador está permitindo push.",
+          variant: "destructive"
+        });
       }
-    } catch (fcmErr) {
+    } catch (fcmErr: any) {
       console.warn("[FCM] Erro geral ao obter token do FCM no navegador:", fcmErr);
+      if (showToasts) {
+        toast({
+          title: "Erro ao sincronizar token",
+          description: fcmErr?.message || "Ocorreu uma falha ao comunicar com o servidor de mensagens do Firebase.",
+          variant: "destructive"
+        });
+      }
     }
     return null;
-  }, []);
+  }, [toast]);
 
   // Listener para captura do token nativo no Android (Capacitor)
   useEffect(() => {
