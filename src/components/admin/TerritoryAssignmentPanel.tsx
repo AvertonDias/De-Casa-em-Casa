@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { isTerritoryOverdue } from '@/lib/utils';
 import { logEvent } from '@/lib/audit';
+import { sendPushNotification } from '@/lib/sendPushNotification';
 import { CampaignActivationModal } from './CampaignActivationModal';
 import { Button } from '../ui/button';
 
@@ -167,16 +168,17 @@ export default function TerritoryAssignmentPanel() {
         const assignedUserId = assignedUser.uid;
         if (!assignedUserId.startsWith('custom_')) {
             try {
-                const notificationRef = collection(db, `users/${assignedUserId}/notifications`);
                 const territoryLink = currentTerritory?.type === 'rural' ? `/dashboard/rural/${territoryId}` : `/dashboard/territorios/${territoryId}`;
-                
-                await addDoc(notificationRef, {
-                    title: isReassignment ? "Você recebeu uma transferência!" : "Você recebeu um novo território!",
-                    body: `O território "${currentTerritory?.number} - ${currentTerritory?.name}" foi designado para você.`,
+                const notifTitle = isReassignment ? "Você recebeu uma transferência!" : "Você recebeu um novo território!";
+                const notifBody = `O território "${currentTerritory?.number} - ${currentTerritory?.name}" foi designado para você.`;
+
+                // Tenta enviar via Server Push API (funciona com o app fechado se FCM estiver ativo)
+                await sendPushNotification({
+                    userId: assignedUserId,
+                    title: notifTitle,
+                    body: notifBody,
                     link: territoryLink,
-                    type: 'territory_assigned',
-                    isRead: false,
-                    createdAt: serverTimestamp()
+                    type: 'territory_assigned'
                 });
             } catch (notifErr) {
                 console.warn("Não foi possível enviar notificação para o usuário designado:", notifErr);

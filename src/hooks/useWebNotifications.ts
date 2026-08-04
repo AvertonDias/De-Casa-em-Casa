@@ -12,6 +12,8 @@ import { PushNotifications } from '@capacitor/push-notifications';
 
 export type NotificationPermissionState = 'granted' | 'denied' | 'default' | 'unsupported';
 
+import { sendPushNotification } from '@/lib/sendPushNotification';
+
 export function useWebNotifications() {
   const { user } = useUser();
   const { toast } = useToast();
@@ -441,11 +443,20 @@ export function useWebNotifications() {
       "/dashboard/notificacoes"
     );
 
+    if (user?.uid) {
+      sendPushNotification({
+        userId: user.uid,
+        title: "Teste de Notificação Push 🗺️",
+        body: "As notificações push do De Casa em Casa estão funcionando perfeitamente no seu aplicativo!",
+        link: "/dashboard/notificacoes"
+      });
+    }
+
     toast({
       title: "Notificação enviada!",
       description: "Verifique a central de notificações do seu celular.",
     });
-  }, [permission, requestPermission, showSystemNotification, toast]);
+  }, [permission, requestPermission, showSystemNotification, user?.uid, toast]);
 
   // Listener em tempo real para novas notificações não lidas no Firestore
   useEffect(() => {

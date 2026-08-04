@@ -8,6 +8,7 @@ import { useUser } from '@/contexts/UserContext';
 import { doc, collection, query, where, onSnapshot, writeBatch, getDoc, Timestamp, setDoc, deleteDoc, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { logEvent } from "@/lib/audit";
+import { sendPushNotification } from "@/lib/sendPushNotification";
 
 import { Home, Map, Users, LogOut, Trees, Download, Share2, Loader, Info, Shield, UserCheck, Bell, Youtube, History, LayoutGrid, MoreHorizontal, FileText, AlertTriangle } from 'lucide-react';
 import { cn, getInitials, isTerritoryOverdue } from "@/lib/utils";
@@ -396,13 +397,13 @@ function DashboardLayout({ children }: { children: ReactNode }) {
           try {
             const notifSnap = await getDoc(notifDocRef);
             if (!notifSnap.exists()) {
-              await setDoc(notifDocRef, {
+              await sendPushNotification({
+                userId: user.uid,
                 title: "Território Atrasado!",
                 body: `O prazo de devolução do território "${t.number} - ${t.name}" venceu em ${format(dateObj, 'dd/MM/yyyy')}. Por favor, faça a devolução.`,
                 link: `/dashboard/meus-territorios`,
                 type: 'territory_overdue',
-                isRead: false,
-                createdAt: Timestamp.now()
+                notifId: notifId
               });
             }
           } catch (error) {
@@ -577,16 +578,14 @@ function DashboardLayout({ children }: { children: ReactNode }) {
               duration: 12000,
             });
 
-            // Registrar também na central de notificações do Administrador
+            // Registrar e enviar notificação push para o Administrador
             try {
-              const userNotifRef = collection(db, `users/${user.uid}/notifications`);
-              await addDoc(userNotifRef, {
+              await sendPushNotification({
+                userId: user.uid,
                 title: "🧹 Limpeza Automática de Usuários",
                 body: notifMsg,
                 type: "announcement",
-                link: "/dashboard/usuarios",
-                isRead: false,
-                createdAt: serverTimestamp(),
+                link: "/dashboard/usuarios"
               });
             } catch (notifErr) {
               console.warn("Erro ao salvar notificação da limpeza automática:", notifErr);
