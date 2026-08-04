@@ -20,6 +20,7 @@ export interface AppUser {
   acceptedLGPDAt?: any;
   pushNotificationsEnabled?: boolean;
   fcmToken?: string;
+  fcmTokens?: string[];
   pushSubscriptionUpdated?: any;
   notificationPromptHandled?: boolean;
 }
