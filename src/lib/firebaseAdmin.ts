@@ -23,20 +23,57 @@ export async function initializeAdmin() {
   }
 
   try {
-    const serviceAccountJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    // Tenta encontrar o JSON de credenciais em múltiplas variáveis de ambiente comuns
+    const serviceAccountJson = 
+      process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || 
+      process.env.GOOGLE_APPLICATION_CREDENTIALS || 
+      process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
+      process.env.FIREBASE_SERVICE_ACCOUNT;
+
     if (!serviceAccountJson) {
-      throw new Error("A variável de ambiente GOOGLE_APPLICATION_CREDENTIALS_JSON não está definida.");
+      // Se não há variável de ambiente com o JSON, tenta inicializar com a credencial padrão da aplicação (caso exista no ambiente)
+      try {
+        admin.initializeApp({
+          credential: admin.credential.applicationDefault(),
+          databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+        });
+        console.log("Firebase Admin SDK inicializado usando Application Default Credentials.");
+        return { admin, error: null };
+      } catch (defaultErr: any) {
+        throw new Error(
+          "Nenhuma variável de credenciais do Firebase foi encontrada (GOOGLE_APPLICATION_CREDENTIALS_JSON) " +
+          "e falhou ao tentar carregar a credencial padrão: " + defaultErr.message
+        );
+      }
     }
 
-    let serviceAccount;
+    let serviceAccount: any;
     
-    // Tenta detectar se a string é um JSON direto ou se está em Base64
-    if (serviceAccountJson.trim().startsWith('{')) {
+    // Tenta detectar se a string é um JSON direto ou se está codificada em Base64
+    const trimmedJson = serviceAccountJson.trim();
+    if (trimmedJson.startsWith('{')) {
       // Se começar com {, tratamos como JSON direto
-      serviceAccount = JSON.parse(serviceAccountJson);
+      serviceAccount = JSON.parse(trimmedJson);
     } else {
       // Caso contrário, tenta decodificar de Base64
-      serviceAccount = JSON.parse(Buffer.from(serviceAccountJson, 'base64').toString('utf8'));
+      try {
+        serviceAccount = JSON.parse(Buffer.from(trimmedJson, 'base64').toString('utf8'));
+      } catch (base64Err: any) {
+        // Se falhar ao decodificar Base64 e não começa com {, pode ser um caminho de arquivo de credencial do Google
+        // Nesse caso, se o arquivo existir, podemos deixar o Firebase Admin tentar ler pelo caminho (usando o caminho na inicialização padrão)
+        if (trimmedJson.endsWith('.json')) {
+          try {
+            admin.initializeApp({
+              databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+            });
+            console.log("Firebase Admin SDK inicializado apontando para o arquivo de credenciais padrão em disco.");
+            return { admin, error: null };
+          } catch (fileErr: any) {
+            throw new Error(`Variável aponta para arquivo JSON, mas falhou ao inicializar: ${fileErr.message}`);
+          }
+        }
+        throw new Error(`Não foi possível decodificar as credenciais. Erro: ${base64Err.message}`);
+      }
     }
     
     // Validar as propriedades mínimas de uma service account para ajudar no diagnóstico
@@ -46,13 +83,20 @@ export async function initializeAdmin() {
       throw new Error(`O JSON de credenciais está incompleto. Faltam as chaves: ${missingKeys.join(', ')}`);
     }
 
+    // Correção CRÍTICA para a Vercel e outros ambientes de produção:
+    // Às vezes as quebras de linha '\n' da private_key são escapadas como '\\n' (string literal de duas barras e um n).
+    // Precisamos substituir '\\n' por '\n' real para que a chave privada PEM seja válida.
+    if (serviceAccount.private_key && typeof serviceAccount.private_key === 'string') {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       // O databaseURL é necessário para o Realtime Database via Admin SDK
       databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
     });
     
-    console.log("Firebase Admin SDK inicializado com sucesso.");
+    console.log("Firebase Admin SDK inicializado com sucesso usando credenciais JSON estruturadas.");
     return { admin, error: null };
 
   } catch (error: any) {
