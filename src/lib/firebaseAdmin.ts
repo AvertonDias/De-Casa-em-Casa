@@ -14,12 +14,12 @@ const admin: any = (adminNamespace as any).default || adminNamespace;
 export async function initializeAdmin() {
   if (!admin) {
     console.error("Não foi possível carregar o módulo firebase-admin.");
-    return null;
+    return { admin: null, error: new Error("Módulo firebase-admin é nulo ou indefinido") };
   }
 
   const apps = admin.apps || [];
   if (apps.length > 0) {
-    return admin;
+    return { admin, error: null };
   }
 
   try {
@@ -39,6 +39,13 @@ export async function initializeAdmin() {
       serviceAccount = JSON.parse(Buffer.from(serviceAccountJson, 'base64').toString('utf8'));
     }
     
+    // Validar as propriedades mínimas de uma service account para ajudar no diagnóstico
+    const requiredKeys = ['project_id', 'private_key', 'client_email'];
+    const missingKeys = requiredKeys.filter(k => !serviceAccount[k]);
+    if (missingKeys.length > 0) {
+      throw new Error(`O JSON de credenciais está incompleto. Faltam as chaves: ${missingKeys.join(', ')}`);
+    }
+
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       // O databaseURL é necessário para o Realtime Database via Admin SDK
@@ -46,10 +53,10 @@ export async function initializeAdmin() {
     });
     
     console.log("Firebase Admin SDK inicializado com sucesso.");
-    return admin;
+    return { admin, error: null };
 
   } catch (error: any) {
     console.error("Falha CRÍTICA ao inicializar o Firebase Admin SDK:", error);
-    return null;
+    return { admin: null, error };
   }
 }

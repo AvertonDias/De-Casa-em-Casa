@@ -15,9 +15,13 @@ export async function POST(req: NextRequest) {
 
 async function handleCheckOverdue() {
   try {
-    const admin = await initializeAdmin();
+    const { admin, error: initError } = await initializeAdmin();
     if (!admin) {
-      return NextResponse.json({ success: false, error: 'Firebase Admin não inicializado' }, { status: 500 });
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Firebase Admin não inicializado', 
+        details: initError?.message 
+      }, { status: 500 });
     }
 
     const db = admin.firestore();

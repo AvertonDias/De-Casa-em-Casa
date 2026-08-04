@@ -57,12 +57,14 @@ export async function POST(req: NextRequest) {
     }
 
     step = 'initializing_firebase_admin';
-    const admin = await initializeAdmin();
+    const { admin, error: initError } = await initializeAdmin();
     if (!admin) {
-      console.warn('[Push API] Firebase Admin não pôde ser inicializado.');
+      console.warn('[Push API] Firebase Admin não pôde ser inicializado:', initError?.message);
       return NextResponse.json({ 
         success: false, 
         warning: 'Admin SDK não inicializado (verifique as credenciais no painel da Vercel)',
+        error: initError?.message,
+        stack: initError?.stack,
         step,
         diagnostics
       }, { status: 500 });
