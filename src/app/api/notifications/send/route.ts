@@ -46,62 +46,80 @@ export async function POST(req: NextRequest) {
           await db.collection(`users/${targetUserId}/notifications`).add(notifData);
         }
 
-        // 2. Buscar token FCM do usuário destinatário
+        // 2. Buscar tokens FCM do usuário destinatário (suporta único ou múltiplos dispositivos)
         const userDoc = await db.doc(`users/${targetUserId}`).get();
         const userData = userDoc.data();
-        const fcmToken = userData?.fcmToken;
+        
+        const tokensSet = new Set<string>();
+        if (userData?.fcmToken && typeof userData.fcmToken === 'string') {
+          tokensSet.add(userData.fcmToken);
+        }
+        if (Array.isArray(userData?.fcmTokens)) {
+          userData.fcmTokens.forEach((t: string) => {
+            if (t && typeof t === 'string' && t.trim().length > 0) {
+              tokensSet.add(t.trim());
+            }
+          });
+        }
 
-        if (!fcmToken) {
+        const tokens = Array.from(tokensSet);
+
+        if (tokens.length === 0) {
           results.push({ userId: targetUserId, deliveredPush: false, reason: 'Nenhum token FCM registrado' });
           continue;
         }
 
-        // 3. Disparar notificação push via FCM
-        const payload = {
-          token: fcmToken,
-          notification: {
-            title: title,
-            body: contentBody,
-          },
-          data: {
-            title: title,
-            body: contentBody,
-            link: targetLink,
-            click_action: targetLink,
-            icon: '/images/Logo_v3.png'
-          },
-          webpush: {
-            headers: {
-              Urgency: 'high'
-            },
+        // 3. Disparar notificação push via FCM para todos os tokens cadastrados do usuário
+        const pushPromises = tokens.map(async (token) => {
+          const payload = {
+            token: token,
             notification: {
               title: title,
               body: contentBody,
-              icon: '/images/Logo_v3.png',
-              badge: '/images/De casa em casa pb.png',
-              tag: 'de-casa-em-casa-' + Date.now() + '-' + Math.floor(Math.random() * 10000),
-              renotify: true,
-              requireInteraction: true
             },
-            fcmOptions: {
-              link: targetLink
-            }
-          },
-          android: {
-            priority: 'high' as const,
-            notification: {
+            data: {
               title: title,
               body: contentBody,
-              icon: 'ic_launcher',
-              color: '#0d9488',
-              clickAction: targetLink
+              link: targetLink,
+              click_action: targetLink,
+              icon: '/images/Logo_v3.png'
+            },
+            webpush: {
+              headers: {
+                Urgency: 'high'
+              },
+              notification: {
+                title: title,
+                body: contentBody,
+                icon: '/images/Logo_v3.png',
+                badge: '/images/De casa em casa pb.png',
+                tag: 'de-casa-em-casa-' + Date.now() + '-' + Math.floor(Math.random() * 10000),
+                renotify: true,
+                requireInteraction: true
+              },
+              fcmOptions: {
+                link: targetLink
+              }
+            },
+            android: {
+              priority: 'high' as const,
+              notification: {
+                title: title,
+                body: contentBody,
+                icon: 'ic_launcher',
+                color: '#0d9488',
+                clickAction: targetLink
+              }
             }
-          }
-        };
+          };
 
-        const fcmResponse = await messaging.send(payload);
-        console.log(`[Push API] Push enviado com sucesso para ${targetUserId}:`, fcmResponse);
-        results.push({ userId: targetUserId, deliveredPush: true, messageId: fcmResponse });
+          return messaging.send(payload);
+        });
+
+        const fcmResponses = await Promise.allSettled(pushPromises);
+        const deliveredCount = fcmResponses.filter(r => r.status === 'fulfilled').length;
+        console.log(`[Push API] Push enviado para ${targetUserId} (${deliveredCount}/${tokens.length} entregues)`);
+        results.push({ userId: targetUserId, deliveredPush: deliveredCount > 0, deliveredCount, totalTokens: tokens.length });
 
       } catch (userErr: any) {
         console.warn(`[Push API] Erro ao enviar para o usuário ${targetUserId}:`, userErr?.message || userErr);

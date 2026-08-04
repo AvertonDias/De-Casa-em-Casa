@@ -364,42 +364,48 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     return () => unsub();
   }, [user]);
 
-  // Sincronização de Notificações de Territórios Atrasados (Individuais)
+  // Sincronização de Notificações de Territórios Atrasados (Congregação Inteira para Admins/Servos ou Individuais)
   useEffect(() => {
     if (!user?.congregationId || !user?.uid || user.status !== 'ativo') return;
     if (!auth.currentUser || auth.currentUser.isAnonymous || auth.currentUser.uid !== user.uid) return;
 
+    const isAdminOrServo = ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'].includes(user.role);
     const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
-    const q = query(territoriesRef, where("assignment.uid", "==", user.uid));
+    
+    // Admins e Servos verificam todos os territórios designados da congregação; Publicadores apenas os seus
+    const q = isAdminOrServo
+      ? query(territoriesRef, where("status", "==", "designado"))
+      : query(territoriesRef, where("assignment.uid", "==", user.uid));
 
     const unsub = onSnapshot(q, async (snapshot) => {
       const territories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
       const overdueList: { id: string; number: string | number; name: string }[] = [];
       
-      // Itera sobre todos os territórios do usuário
       for (const t of territories) {
+        const targetUserId = t.assignment?.uid;
         const dueDate = t.assignment?.dueDate;
-        if (!dueDate) continue;
+        if (!dueDate || !targetUserId || targetUserId.startsWith('custom_')) continue;
+
+        if (!isAdminOrServo && targetUserId !== user.uid) continue;
         
         const dateObj = dueDate instanceof Timestamp ? dueDate.toDate() : new Date(dueDate as any);
-        if (isNaN(dateObj.getTime())) continue; // Evita erros com datas inválidas
+        if (isNaN(dateObj.getTime())) continue;
         
         const isOverdue = isTerritoryOverdue(dueDate);
-        if (isOverdue && t.status === 'designado') {
+        if (isOverdue && targetUserId === user.uid) {
           overdueList.push({ id: t.id, number: t.number, name: t.name });
         }
 
         const notifId = `overdue_${t.id}`;
-        const notifDocRef = doc(db, `users/${user.uid}/notifications`, notifId);
+        const notifDocRef = doc(db, `users/${targetUserId}/notifications`, notifId);
 
         if (isOverdue) {
-          // Se está atrasado, garante que a notificação exista
           try {
             const notifSnap = await getDoc(notifDocRef);
             if (!notifSnap.exists()) {
               await sendPushNotification({
-                userId: user.uid,
-                title: "Território Atrasado!",
+                userId: targetUserId,
+                title: "Território Atrasado! ⏰",
                 body: `O prazo de devolução do território "${t.number} - ${t.name}" venceu em ${format(dateObj, 'dd/MM/yyyy')}. Por favor, faça a devolução.`,
                 link: `/dashboard/meus-territorios`,
                 type: 'territory_overdue',
@@ -407,10 +413,9 @@ function DashboardLayout({ children }: { children: ReactNode }) {
               });
             }
           } catch (error) {
-            console.warn("Erro ao gerenciar notificação de atraso:", error);
+            console.warn("Erro ao gerenciar notificação de atraso para o usuário:", targetUserId, error);
           }
         } else {
-          // Se NÃO está atrasado, mas a notificação determinística existia (ex: data foi estendida), removemos
           try {
             const notifSnap = await getDoc(notifDocRef);
             if (notifSnap.exists()) {
@@ -422,20 +427,19 @@ function DashboardLayout({ children }: { children: ReactNode }) {
         }
       }
 
-      // Tratamento para territórios que o usuário devolveu:
-      // Quaisquer notificações do tipo `overdue_...` para territórios que o usuário não possui mais devem ser limpas
+      // Limpar notificações órfãs de territórios devolvidos pelo usuário atual
       try {
         const userNotifRef = collection(db, `users/${user.uid}/notifications`);
         const overdueNotifsSnap = await getDocs(query(userNotifRef, where('type', '==', 'territory_overdue')));
-        
-        const currentTerritoryIds = new Set(territories.map(t => t.id));
+        const userTerritoryIds = new Set(
+          territories.filter(t => t.assignment?.uid === user.uid).map(t => t.id)
+        );
         
         for (const docSnap of overdueNotifsSnap.docs) {
           const notifId = docSnap.id;
           if (notifId.startsWith('overdue_')) {
             const territoryId = notifId.substring('overdue_'.length);
-            // Se o território não pertence mais ao usuário ou a data de vencimento não o coloca como atrasado
-            if (!currentTerritoryIds.has(territoryId)) {
+            if (!userTerritoryIds.has(territoryId)) {
               await deleteDoc(doc(db, `users/${user.uid}/notifications`, notifId));
             }
           }

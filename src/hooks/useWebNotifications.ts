@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { app, db, messaging, auth } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { type Notification as AppNotification } from '@/types/types';
 import { Capacitor } from '@capacitor/core';
@@ -212,6 +212,7 @@ export function useWebNotifications() {
       if (fcmToken && userId) {
         await updateDoc(doc(db, 'users', userId), {
           fcmToken,
+          fcmTokens: arrayUnion(fcmToken),
           pushNotificationsEnabled: true,
           notificationPromptHandled: true,
           pushSubscriptionUpdated: serverTimestamp()
