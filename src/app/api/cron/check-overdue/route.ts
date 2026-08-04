@@ -147,7 +147,7 @@ async function handleCheckOverdue() {
             }
           };
 
-          return messaging.send(payload).catch((err) => {
+          return messaging.send(payload).catch((err: any) => {
             console.warn(`[Cron Overdue] Falha ao enviar para token ${token}:`, err?.message);
           });
         });
