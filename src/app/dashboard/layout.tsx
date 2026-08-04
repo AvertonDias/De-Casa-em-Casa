@@ -403,11 +403,26 @@ function DashboardLayout({ children }: { children: ReactNode }) {
           try {
             const notifSnap = await getDoc(notifDocRef);
             if (!notifSnap.exists()) {
-              await sendPushNotification({
+              const notifTitle = "Território Atrasado! ⏰";
+              const notifBody = `O prazo de devolução do território "${t.number} - ${t.name}" venceu em ${format(dateObj, 'dd/MM/yyyy')}. Por favor, faça a devolução.`;
+              const notifLink = `/dashboard/meus-territorios`;
+
+              // 1. Salva notificação no Firestore do usuário imediatamente
+              await setDoc(notifDocRef, {
+                title: notifTitle,
+                body: notifBody,
+                link: notifLink,
+                type: 'territory_overdue',
+                isRead: false,
+                createdAt: serverTimestamp()
+              });
+
+              // 2. Dispara notificação push
+              sendPushNotification({
                 userId: targetUserId,
-                title: "Território Atrasado! ⏰",
-                body: `O prazo de devolução do território "${t.number} - ${t.name}" venceu em ${format(dateObj, 'dd/MM/yyyy')}. Por favor, faça a devolução.`,
-                link: `/dashboard/meus-territorios`,
+                title: notifTitle,
+                body: notifBody,
+                link: notifLink,
                 type: 'territory_overdue',
                 notifId: notifId
               });
