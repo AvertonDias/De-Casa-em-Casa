@@ -3,10 +3,12 @@
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js");
 
-const CACHE_NAME = 'de-casa-em-casa-cache-v5';
+const CACHE_NAME = 'de-casa-em-casa-cache-v6';
 const STATIC_ASSETS = [
   '/',
   '/dashboard',
+  '/dashboard/meus-territorios',
+  '/dashboard/notificacoes',
   '/manifest.json',
   '/offline.html',
   '/images/Logo_v3.png',
@@ -30,6 +32,9 @@ if (firebase.apps.length === 0) {
 
 const messaging = firebase.messaging();
 
+console.log('✅ [SW] Service Worker principal inicializado com sucesso.');
+console.log('📡 [SW FCM] Conexão ativa com Firebase Cloud Messaging (FCM) para escutar push da Vercel em segundo plano.');
+
 messaging.onBackgroundMessage((payload) => {
   console.log("[SW] Mensagem FCM recebida em segundo plano:", payload);
 
@@ -48,6 +53,40 @@ messaging.onBackgroundMessage((payload) => {
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  try {
+    const payload = event.data.json();
+    console.log('[SW] Push bruto recebido em segundo plano:', payload);
+
+    const title = payload.notification?.title || payload.data?.title || payload.title || "De Casa em Casa";
+    const body = payload.notification?.body || payload.data?.body || payload.body || "";
+    const icon = payload.notification?.icon || payload.data?.icon || "/images/Logo_v3.png";
+    const badge = payload.notification?.badge || payload.data?.badge || "/images/De casa em casa pb.png";
+    const url = payload.data?.link || payload.notification?.click_action || payload.link || "/dashboard/notificacoes";
+    const tag = payload.notification?.tag || payload.data?.tag || ("de-casa-em-casa-" + Date.now() + "-" + Math.floor(Math.random() * 10000));
+
+    const options = {
+      body,
+      icon,
+      badge,
+      tag,
+      renotify: true,
+      data: { url }
+    };
+
+    event.waitUntil(
+      self.registration.getNotifications({ tag }).then((notifications) => {
+        if (!notifications || notifications.length === 0) {
+          return self.registration.showNotification(title, options);
+        }
+      })
+    );
+  } catch (err) {
+    console.warn('[SW] Erro ao processar push handler:', err);
+  }
 });
 
 self.addEventListener('notificationclick', (event) => {
@@ -126,41 +165,81 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Para navegação de páginas (HTML): Estratégia Network First com Fallback para Cache
-  if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
+  // Para assets imutáveis do Next.js (JS/CSS compilados em /_next/static/): Estratégia Cache First
+  if (url.pathname.startsWith('/_next/static/')) {
     event.respondWith(
-      fetch(request)
-        .then((networkResponse) => {
+      caches.match(request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache);
-            });
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
           }
           return networkResponse;
-        })
-        .catch(async () => {
-          console.log('[SW] Falha de rede para navegação. Tentando cache offline...');
-          const cachedResponse = await caches.match(request);
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          const dashboardCache = await caches.match('/dashboard');
-          if (dashboardCache) {
-            return dashboardCache;
-          }
-          const rootCache = await caches.match('/');
-          if (rootCache) {
-            return rootCache;
-          }
-          const offlinePage = await caches.match('/offline.html');
-          return offlinePage || new Response('Offline', { status: 503, statusText: 'Offline' });
-        })
+        });
+      })
     );
     return;
   }
 
-  // Para assets estáticos (JS, CSS, Imagens, Fontes): Estratégia Stale-While-Revalidate
+  // Para navegação de páginas (HTML): Estratégia Network First com Timeout de 3s (Otimizado para redes lentas/instáveis)
+  if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      new Promise((resolve) => {
+        let isResolved = false;
+
+        // Timeout de 3 segundos para conexões muito lentas: entrega do cache imediatamente se a rede demorar
+        const timeoutId = setTimeout(async () => {
+          if (!isResolved) {
+            const cachedResponse = await caches.match(request);
+            if (cachedResponse) {
+              console.log('[SW] Conexão lenta detectada (>3s). Entregando resposta do cache:', url.pathname);
+              isResolved = true;
+              resolve(cachedResponse);
+            }
+          }
+        }, 3000);
+
+        fetch(request)
+          .then((networkResponse) => {
+            clearTimeout(timeoutId);
+            if (networkResponse && networkResponse.status === 200) {
+              const responseToCache = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(request, responseToCache);
+              });
+            }
+            if (!isResolved) {
+              isResolved = true;
+              resolve(networkResponse);
+            }
+          })
+          .catch(async () => {
+            clearTimeout(timeoutId);
+            if (!isResolved) {
+              isResolved = true;
+              console.log('[SW] Falha de rede para navegação. Buscando no cache offline...');
+              const cachedResponse = await caches.match(request);
+              if (cachedResponse) return resolve(cachedResponse);
+
+              const dashboardCache = await caches.match('/dashboard');
+              if (dashboardCache) return resolve(dashboardCache);
+
+              const rootCache = await caches.match('/');
+              if (rootCache) return resolve(rootCache);
+
+              const offlinePage = await caches.match('/offline.html');
+              resolve(offlinePage || new Response('Offline', { status: 503, statusText: 'Offline' }));
+            }
+          });
+      })
+    );
+    return;
+  }
+
+  // Para outros assets estáticos (Imagens, Ícones, Fontes): Estratégia Stale-While-Revalidate
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const fetchPromise = fetch(request)

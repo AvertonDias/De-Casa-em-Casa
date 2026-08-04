@@ -16,6 +16,23 @@ export function FirebaseErrorListener() {
       }
     });
 
+    // Ovinte detalhado para falhas no registro de tokens push (FCM / Web Push)
+    errorEmitter.on('fcm-token-error', (data) => {
+      console.group('🔔 [Push Notifications] Falha no Registro de Token FCM');
+      console.error('Mensagem de Erro:', data?.message || 'Erro desconhecido ao obter/salvar token push');
+      if (data?.userId) console.log('ID do Usuário:', data.userId);
+      if (data?.context) console.log('Etapa/Contexto:', data.context);
+      if (data?.permission) console.log('Permissão do Navegador:', data.permission);
+      if (data?.swStatus) console.log('Status do Service Worker:', data.swStatus);
+      if (data?.error) {
+        console.error('Objeto do Erro Original:', data.error);
+        if (data.error.code) console.log('Código de Erro Firebase/Browser:', data.error.code);
+        if (data.error.stack) console.log('Stack Trace:', data.error.stack);
+      }
+      console.log('💡 Dica de Diagnóstico: Verifique se o Service Worker (sw.js) está ativo no navegador, se a Chave VAPID está válida e se o Push está habilitado nas configurações do navegador.');
+      console.groupEnd();
+    });
+
     const handleWindowError = (e: ErrorEvent) => {
       if (
         e.message &&

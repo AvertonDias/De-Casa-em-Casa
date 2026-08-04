@@ -13,6 +13,7 @@ import { PushNotifications } from '@capacitor/push-notifications';
 export type NotificationPermissionState = 'granted' | 'denied' | 'default' | 'unsupported';
 
 import { sendPushNotification } from '@/lib/sendPushNotification';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 export function useWebNotifications() {
   const { user } = useUser();
@@ -187,6 +188,8 @@ export function useWebNotifications() {
         });
       }
 
+      console.info("[SW FCM Monitor] ✅ Service Worker inicializado e ativo. O servidor da Vercel envia as notificações push diretamente para os servidores do FCM, que repassam para o navegador mesmo com o aplicativo fechado ou em segundo plano.");
+
       const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || "BD_279ckw7U8KPc5KFJX-8V2UFyvJhnWVqa-XgvJnb91RHf0bjBn21hDHMOKxq1Hb2bEFnOdeclWRnKKsbFfhbk";
 
       // 4. Gerar o token com retentativas automáticas
@@ -226,15 +229,33 @@ export function useWebNotifications() {
           });
         }
         return fcmToken;
-      } else if (showToasts) {
-        toast({
-          title: "Não foi possível gerar o token FCM",
-          description: lastError?.message || "O Firebase não retornou o token para este navegador. Verifique se o navegador está permitindo push.",
-          variant: "destructive"
+      } else {
+        errorEmitter.emit('fcm-token-error', {
+          message: lastError?.message || "Não foi possível gerar o token FCM após 3 tentativas.",
+          userId,
+          error: lastError,
+          context: "syncWebFcmToken",
+          permission: typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported'
         });
+
+        if (showToasts) {
+          toast({
+            title: "Não foi possível gerar o token FCM",
+            description: lastError?.message || "O Firebase não retornou o token para este navegador. Verifique se o navegador está permitindo push.",
+            variant: "destructive"
+          });
+        }
       }
     } catch (fcmErr: any) {
       console.warn("[FCM] Erro geral ao obter token do FCM no navegador:", fcmErr);
+      errorEmitter.emit('fcm-token-error', {
+        message: fcmErr?.message || "Exceção ao comunicar com o servidor de mensagens do Firebase.",
+        userId,
+        error: fcmErr,
+        context: "syncWebFcmToken (catch)",
+        permission: typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported'
+      });
+
       if (showToasts) {
         toast({
           title: "Erro ao sincronizar token",

@@ -14,6 +14,9 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
+console.log('✅ [SW] Firebase Messaging Service Worker inicializado.');
+console.log('📡 [SW FCM] Escutando notificações push enviadas pelo servidor da Vercel em segundo plano.');
+
 messaging.onBackgroundMessage((payload) => {
   console.log("Mensagem FCM recebida em segundo plano: ", payload);
 
@@ -32,6 +35,40 @@ messaging.onBackgroundMessage((payload) => {
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  try {
+    const payload = event.data.json();
+    console.log('[SW] Push bruto recebido em segundo plano:', payload);
+
+    const title = payload.notification?.title || payload.data?.title || payload.title || "De Casa em Casa";
+    const body = payload.notification?.body || payload.data?.body || payload.body || "";
+    const icon = payload.notification?.icon || payload.data?.icon || "/images/Logo_v3.png";
+    const badge = payload.notification?.badge || payload.data?.badge || "/images/De casa em casa pb.png";
+    const url = payload.data?.link || payload.notification?.click_action || payload.link || "/dashboard/notificacoes";
+    const tag = payload.notification?.tag || payload.data?.tag || ("de-casa-em-casa-" + Date.now() + "-" + Math.floor(Math.random() * 10000));
+
+    const options = {
+      body,
+      icon,
+      badge,
+      tag,
+      renotify: true,
+      data: { url }
+    };
+
+    event.waitUntil(
+      self.registration.getNotifications({ tag }).then((notifications) => {
+        if (!notifications || notifications.length === 0) {
+          return self.registration.showNotification(title, options);
+        }
+      })
+    );
+  } catch (err) {
+    console.warn('[SW] Erro ao processar push handler:', err);
+  }
 });
 
 self.addEventListener('notificationclick', (event) => {
