@@ -1,7 +1,10 @@
 "use server";
 
 // src/lib/firebaseAdmin.ts
-import * as admin from "firebase-admin";
+import * as adminNamespace from "firebase-admin";
+
+// Resolve interop para garantir que funciona em ESM (como Next.js em produção) e CommonJS
+const admin: any = (adminNamespace as any).default || adminNamespace;
 
 /**
  * Inicializa o SDK Admin do Firebase.
@@ -9,7 +12,13 @@ import * as admin from "firebase-admin";
  * tanto em formato string JSON pura quanto em Base64.
  */
 export async function initializeAdmin() {
-  if (admin.apps.length > 0) {
+  if (!admin) {
+    console.error("Não foi possível carregar o módulo firebase-admin.");
+    return null;
+  }
+
+  const apps = admin.apps || [];
+  if (apps.length > 0) {
     return admin;
   }
 
