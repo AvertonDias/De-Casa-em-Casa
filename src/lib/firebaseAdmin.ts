@@ -3,8 +3,32 @@
 // src/lib/firebaseAdmin.ts
 import * as adminNamespace from "firebase-admin";
 
-// Resolve interop para garantir que funciona em ESM (como Next.js em produção) e CommonJS
-const admin: any = (adminNamespace as any).default || adminNamespace;
+function resolveAdmin() {
+  const namespaceObj: any = adminNamespace;
+  const defaultObj: any = namespaceObj?.default;
+
+  // Diagnóstico completo para depuração em produção
+  console.log("[Firebase Admin Interop] Namespace keys:", namespaceObj ? Object.keys(namespaceObj) : "null");
+  console.log("[Firebase Admin Interop] Default keys:", defaultObj ? Object.keys(defaultObj) : "null");
+
+  // Se o defaultObj contiver as funções principais do Firebase Admin, ele é o objeto correto (comum em ESM/Webpack)
+  if (defaultObj && (defaultObj.credential || defaultObj.initializeApp)) {
+    console.log("[Firebase Admin Interop] Resolvido usando .default");
+    return defaultObj;
+  }
+
+  // Se o namespaceObj contiver as funções principais, usamos ele diretamente
+  if (namespaceObj && (namespaceObj.credential || namespaceObj.initializeApp)) {
+    console.log("[Firebase Admin Interop] Resolvido usando namespaceObj direto");
+    return namespaceObj;
+  }
+
+  // Fallback seguro
+  console.log("[Firebase Admin Interop] Usando fallback .default || namespaceObj");
+  return defaultObj || namespaceObj;
+}
+
+const admin: any = resolveAdmin();
 
 /**
  * Inicializa o SDK Admin do Firebase.
@@ -17,7 +41,7 @@ export async function initializeAdmin() {
     return { admin: null, error: new Error("Módulo firebase-admin é nulo ou indefinido") };
   }
 
-  const apps = admin.apps || [];
+  const apps = admin.apps || (adminNamespace as any).apps || (adminNamespace as any).default?.apps || [];
   if (apps.length > 0) {
     return { admin, error: null };
   }
@@ -30,11 +54,18 @@ export async function initializeAdmin() {
       process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
       process.env.FIREBASE_SERVICE_ACCOUNT;
 
+    const credentialHelper = admin.credential || (adminNamespace as any).credential || (adminNamespace as any).default?.credential;
+    const initializeAppFn = admin.initializeApp || (adminNamespace as any).initializeApp || (adminNamespace as any).default?.initializeApp;
+
     if (!serviceAccountJson) {
       // Se não há variável de ambiente com o JSON, tenta inicializar com a credencial padrão da aplicação (caso exista no ambiente)
       try {
-        admin.initializeApp({
-          credential: admin.credential.applicationDefault(),
+        if (!credentialHelper || !initializeAppFn) {
+          throw new Error("Membros credential ou initializeApp não encontrados no Firebase Admin.");
+        }
+
+        initializeAppFn({
+          credential: credentialHelper.applicationDefault(),
           databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
         });
         console.log("Firebase Admin SDK inicializado usando Application Default Credentials.");
@@ -63,7 +94,10 @@ export async function initializeAdmin() {
         // Nesse caso, se o arquivo existir, podemos deixar o Firebase Admin tentar ler pelo caminho (usando o caminho na inicialização padrão)
         if (trimmedJson.endsWith('.json')) {
           try {
-            admin.initializeApp({
+            if (!initializeAppFn) {
+              throw new Error("Função initializeApp não encontrada no Firebase Admin.");
+            }
+            initializeAppFn({
               databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
             });
             console.log("Firebase Admin SDK inicializado apontando para o arquivo de credenciais padrão em disco.");
@@ -90,8 +124,12 @@ export async function initializeAdmin() {
       serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
     }
 
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+    if (!credentialHelper || !initializeAppFn) {
+      throw new Error("Membros credential ou initializeApp não encontrados no Firebase Admin ao tentar inicializar com cert.");
+    }
+
+    initializeAppFn({
+      credential: credentialHelper.cert(serviceAccount),
       // O databaseURL é necessário para o Realtime Database via Admin SDK
       databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
     });

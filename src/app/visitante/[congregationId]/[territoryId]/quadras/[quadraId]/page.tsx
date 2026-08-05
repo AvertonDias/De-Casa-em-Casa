@@ -6,7 +6,7 @@ import { doc, onSnapshot, collection, query, orderBy, runTransaction, Timestamp,
 import { db, auth } from "@/lib/firebase";
 import { signInAnonymously } from "firebase/auth";
 import { Territory, Quadra, Casa } from "@/types/types";
-import { ArrowLeft, Search, Loader, UserCheck, Edit2, X, Pencil, ArrowUpDown } from "lucide-react";
+import { ArrowLeft, Search, Loader, UserCheck, Edit2, X, Pencil, ArrowUpDown, HelpCircle } from "lucide-react";
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { AddCasaModal } from "@/components/AddCasaModal";
 import { EditCasaModal } from "@/components/EditCasaModal";
 import { ReorderCasasModal } from "@/components/ReorderCasasModal";
+import { ReorderTutorialGuidedTour } from "@/components/ReorderTutorialGuidedTour";
 import { cn } from "@/lib/utils";
 
 export default function VisitorQuadraDetailPage() {
@@ -45,6 +46,21 @@ export default function VisitorQuadraDetailPage() {
   const [selectedCasa, setSelectedCasa] = useState<Casa | null>(null);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [casaToDelete, setCasaToDelete] = useState<Casa | null>(null);
+  const [showReorderTipBalloon, setShowReorderTipBalloon] = useState(false);
+  const [isTutorialModalOpen, setIsTutorialModalOpen] = useState(false);
+
+  const handleCasaAdded = () => {
+    const isDismissedLocal = typeof window !== 'undefined' && localStorage.getItem('has_dismissed_reorder_tip') === 'true';
+    if (!isDismissedLocal) {
+      setShowReorderTipBalloon(true);
+    }
+  };
+
+  const handleDismissReorderTipForever = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('has_dismissed_reorder_tip', 'true');
+    }
+  };
 
   const router = useRouter();
   const { toast } = useToast();
@@ -457,13 +473,22 @@ export default function VisitorQuadraDetailPage() {
               territoryId={territoryId} 
               quadraId={quadraId} 
               congregationId={congregationId} 
-              onCasaAdded={() => {}} 
+              onCasaAdded={handleCasaAdded} 
               territoryNumber={territory?.number}
               quadraName={quadra.name}
             />
             <Button onClick={() => setIsReorderModalOpen(true)} variant="info">
               <ArrowUpDown className="h-4 w-4 mr-2" />
               Reordenar
+            </Button>
+            <Button
+              onClick={() => setIsTutorialModalOpen(true)}
+              variant="outline"
+              size="icon"
+              title="Como reordenar os números?"
+              className="shrink-0 border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
+            >
+              <HelpCircle className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -606,6 +631,15 @@ export default function VisitorQuadraDetailPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ReorderTutorialGuidedTour
+        showTipBalloon={showReorderTipBalloon}
+        onCloseTipBalloon={() => setShowReorderTipBalloon(false)}
+        onDismissForever={handleDismissReorderTipForever}
+        onOpenReorderModal={() => setIsReorderModalOpen(true)}
+        isTutorialOpen={isTutorialModalOpen}
+        onTutorialOpenChange={setIsTutorialModalOpen}
+      />
     </div>
   );
 }

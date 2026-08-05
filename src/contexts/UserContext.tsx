@@ -250,9 +250,5 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const value = { user, congregation, loading, logout, updateUser, forceStopLoading };
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }

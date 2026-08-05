@@ -5,7 +5,7 @@ import { doc, onSnapshot, Timestamp, runTransaction, deleteDoc, updateDoc, getDo
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
 import { RuralTerritory, RuralWorkLog } from '@/types/types';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Calendar, Link as LinkIcon, Loader, Edit, Trash2, FileText } from 'lucide-react';
 import { format } from 'date-fns';
@@ -18,14 +18,13 @@ import withAuth from "@/components/withAuth";
 import { logEvent } from '@/lib/audit';
 
 interface RuralTerritoryDetailPageProps {
-  params: {
-    territoryId: string;
-  };
+  params?: any;
 }
 
-function RuralTerritoryDetailPage({ params }: RuralTerritoryDetailPageProps) {
+function RuralTerritoryDetailPage({ params: paramsProp }: RuralTerritoryDetailPageProps) {
   const { user, loading: userLoading } = useUser();
-  const { territoryId } = params;
+  const routeParams = useParams();
+  const territoryId = (routeParams?.territoryId as string) || paramsProp?.territoryId;
   const router = useRouter();
 
   const [territory, setTerritory] = useState<RuralTerritory | null>(null);

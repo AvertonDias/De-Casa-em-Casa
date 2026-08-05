@@ -4,7 +4,7 @@
 import { doc, onSnapshot, collection, updateDoc, serverTimestamp, query, orderBy, Timestamp, runTransaction, getDocs, writeBatch, getDoc, arrayRemove, deleteField } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useUser } from "@/contexts/UserContext"; 
 import { Territory, Activity, Quadra, AssignmentHistoryLog, Casa } from "@/types/types"; 
 import { ArrowLeft, Edit, Plus, LayoutGrid, Map, FileImage, BarChart, History, Loader, Navigation, Printer, CheckCircle2, Circle, X, QrCode } from "lucide-react";
@@ -51,8 +51,9 @@ const ProgressSection = ({ territory }: { territory: Territory }) => {
     );
 };
 
-function TerritoryDetailPage({ params }: { params: { territoryId: string } }) {
-  const { territoryId } = params;
+function TerritoryDetailPage({ params: paramsProp }: { params?: any }) {
+  const routeParams = useParams();
+  const territoryId = (routeParams?.territoryId as string) || paramsProp?.territoryId;
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [activityHistory, setActivityHistory] = useState<Activity[]>([]);
   const [quadras, setQuadras] = useState<Quadra[]>([]);

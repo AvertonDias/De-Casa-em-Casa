@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { doc, collection, query, orderBy, onSnapshot, runTransaction, serverTimestamp, Timestamp, deleteField } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Search, ArrowLeft, Loader, Pencil, X, ArrowUpDown, AlertCircle } from 'lucide-react';
+import { Search, ArrowLeft, Loader, Pencil, X, ArrowUpDown, AlertCircle, HelpCircle } from 'lucide-react';
 import { AddCasaModal } from '@/components/AddCasaModal';
 import { EditCasaModal } from '@/components/EditCasaModal';
 import { ReorderCasasModal } from '@/components/ReorderCasasModal';
+import { ReorderTutorialGuidedTour } from '@/components/ReorderTutorialGuidedTour';
 import { useUser } from '@/contexts/UserContext';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { type Casa, type Quadra, type Territory } from '@/types/types';
@@ -32,7 +33,7 @@ interface QuadraDetailPageProps {
 }
 
 function QuadraDetailPage({ params }: QuadraDetailPageProps) {
-  const { user, loading: userLoading, congregation } = useUser();
+  const { user, loading: userLoading, congregation, updateUser } = useUser();
   const { territoryId, quadraId } = params;
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [quadra, setQuadra] = useState<Quadra | null>(null);
@@ -53,6 +54,29 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const [statusAction, setStatusAction] = useState<{ casa: Casa; newStatus: boolean; } | null>(null);
   
   const [highlightedHouseId, setHighlightedHouseId] = useState<string | null>(null);
+  const [showReorderTipBalloon, setShowReorderTipBalloon] = useState(false);
+  const [isTutorialModalOpen, setIsTutorialModalOpen] = useState(false);
+
+  const handleCasaAdded = () => {
+    const isDismissedLocal = typeof window !== 'undefined' && localStorage.getItem('has_dismissed_reorder_tip') === 'true';
+    const isDismissedDb = user?.hasDismissedReorderTip;
+    if (!isDismissedLocal && !isDismissedDb) {
+      setShowReorderTipBalloon(true);
+    }
+  };
+
+  const handleDismissReorderTipForever = async () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('has_dismissed_reorder_tip', 'true');
+    }
+    if (user?.uid && updateUser) {
+      try {
+        await updateUser({ hasDismissedReorderTip: true });
+      } catch (err) {
+        console.error("Erro ao salvar no banco de dados:", err);
+      }
+    }
+  };
 
 
   useEffect(() => {
@@ -479,13 +503,22 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
                     territoryId={territoryId} 
                     quadraId={quadraId} 
                     congregationId={user.congregationId} 
-                    onCasaAdded={() => {}} 
+                    onCasaAdded={handleCasaAdded} 
                     territoryNumber={territory?.number}
                     quadraName={quadra.name}
                 />
                 <Button onClick={() => setIsReorderModalOpen(true)} variant="info">
                   <ArrowUpDown className="h-4 w-4 mr-2" />
                   Reordenar
+                </Button>
+                <Button
+                  onClick={() => setIsTutorialModalOpen(true)}
+                  variant="outline"
+                  size="icon"
+                  title="Como reordenar os números?"
+                  className="shrink-0 border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
+                >
+                  <HelpCircle className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -584,6 +617,15 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             variant="default"
         />
       )}
+
+      <ReorderTutorialGuidedTour
+        showTipBalloon={showReorderTipBalloon}
+        onCloseTipBalloon={() => setShowReorderTipBalloon(false)}
+        onDismissForever={handleDismissReorderTipForever}
+        onOpenReorderModal={() => setIsReorderModalOpen(true)}
+        isTutorialOpen={isTutorialModalOpen}
+        onTutorialOpenChange={setIsTutorialModalOpen}
+      />
     </>
   );
 }

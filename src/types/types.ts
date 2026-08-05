@@ -23,6 +23,7 @@ export interface AppUser {
   fcmTokens?: string[];
   pushSubscriptionUpdated?: any;
   notificationPromptHandled?: boolean;
+  hasDismissedReorderTip?: boolean;
 }
 
 export interface Notification {

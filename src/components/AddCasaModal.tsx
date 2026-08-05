@@ -6,6 +6,7 @@ import { Plus } from 'lucide-react';
 import { collection, doc, runTransaction, serverTimestamp, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/UserContext';
+import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,7 @@ interface AddCasaModalProps {
 
 export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationId, territoryNumber, quadraName }: AddCasaModalProps) {
   const { user } = useUser();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [number, setNumber] = useState('');
   const [observations, setObservations] = useState('');
@@ -144,11 +146,20 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
         }
         
         // Limpa os campos após o sucesso
+        const addedNumber = number;
         setNumber('');
         setObservations('');
         setStatus(false);
         setIsOpen(false);
-        onCasaAdded();
+
+        toast({
+          title: "Número adicionado!",
+          description: `Casa ${addedNumber.toUpperCase()} foi salva. Use o botão Reordenar se precisar ajustar a sequência.`,
+        });
+
+        setTimeout(() => {
+          if (onCasaAdded) onCasaAdded();
+        }, 150);
     }).catch(async (error) => {
         const permissionError = new FirestorePermissionError({
             path: quadraRef.path,

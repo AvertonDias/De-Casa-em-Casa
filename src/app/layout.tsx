@@ -17,6 +17,8 @@ const ptSans = PT_Sans({
   variable: '--font-pt-sans', // Definir uma variável CSS
 });
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "De Casa em Casa",
   description: "Painel de Controle de Territórios",

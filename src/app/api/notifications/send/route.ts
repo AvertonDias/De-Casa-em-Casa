@@ -57,13 +57,36 @@ export async function POST(req: NextRequest) {
     }
 
     step = 'initializing_firebase_admin';
-    const { admin, error: initError } = await initializeAdmin();
-    if (!admin) {
-      console.warn('[Push API] Firebase Admin não pôde ser inicializado:', initError?.message);
+    let admin: any = null;
+    let initError: any = null;
+
+    try {
+      // Validações prévias das variáveis de credenciais
+      const serviceAccountJson = 
+        process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || 
+        process.env.GOOGLE_APPLICATION_CREDENTIALS || 
+        process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
+        process.env.FIREBASE_SERVICE_ACCOUNT;
+
+      if (!serviceAccountJson) {
+        console.warn('[Push API] Nenhuma variável de credenciais do Firebase foi detectada no ambiente.');
+      }
+
+      const res = await initializeAdmin();
+      admin = res?.admin;
+      initError = res?.error;
+    } catch (adminException: any) {
+      console.error('[Push API] Exceção crítica ao executar initializeAdmin():', adminException);
+      initError = adminException;
+    }
+
+    if (!admin || initError) {
+      const errorMsg = initError?.message || 'Credenciais de serviço do Firebase Admin ausentes ou inválidas.';
+      console.warn('[Push API] Firebase Admin não pôde ser inicializado:', errorMsg);
       return NextResponse.json({ 
         success: false, 
-        warning: 'Admin SDK não inicializado (verifique as credenciais no painel da Vercel)',
-        error: initError?.message,
+        warning: 'Admin SDK não inicializado. Verifique a variável GOOGLE_APPLICATION_CREDENTIALS_JSON no painel de configurações (Vercel/Ambiente).',
+        error: errorMsg,
         stack: initError?.stack,
         step,
         diagnostics
