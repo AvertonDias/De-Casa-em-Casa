@@ -20,11 +20,11 @@ import { getDatabase, type Database } from "firebase/database";
 // real, sem ninguém perceber).
 const DEV_FALLBACK_CONFIG = {
   projectId: "appterritorios-e5bb5",
-  appId: "1:83629039662:web:42d410f411b2e9b33fffbf",
+  appId: "1:83629039662:web:028e1dc87bdd41f73fffbf",
   apiKey: "AIzaSyBKW1da2xBNH0TCrW0AoSbbGgX8-HI8WSI",
   authDomain: "appterritorios-e5bb5.firebaseapp.com",
   messagingSenderId: "83629039662",
-  storageBucket: "appterritorios-e5bb5.appspot.com",
+  storageBucket: "appterritorios-e5bb5.firebasestorage.app",
   databaseURL: "https://appterritorios-e5bb5-default-rtdb.firebaseio.com",
 };
 

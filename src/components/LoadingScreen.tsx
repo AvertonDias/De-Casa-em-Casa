@@ -13,15 +13,12 @@ export function LoadingScreen() {
                 height={100}
                 className="rounded-2xl mb-6"
                 priority
+                referrerPolicy="no-referrer"
             />
             <div className="w-full max-w-xs space-y-3">
                 <div className="relative w-full h-2 overflow-hidden rounded-full bg-primary/20">
                     <div 
-                        className="absolute top-0 left-0 h-full w-full animate-indeterminate-progress"
-                        style={{
-                            backgroundImage: 'linear-gradient(to right, transparent 0%, hsl(var(--primary)) 50%, transparent 100%)',
-                            backgroundSize: '200% 100%',
-                        }}
+                        className="absolute top-0 left-0 h-full w-full bg-primary animate-pulse"
                     />
                 </div>
                 <p className="text-center text-sm text-muted-foreground">Carregando...</p>
@@ -29,3 +26,4 @@ export function LoadingScreen() {
         </div>
     );
 }
+
