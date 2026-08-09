@@ -5,11 +5,39 @@ import { format } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
 
+// Confere um segredo compartilhado antes de rodar a varredura completa do
+// banco. Sem isso, qualquer pessoa na internet podia chamar essa rota
+// repetidamente e forçar uma varredura pesada em todas as congregações
+// (custo de leitura no Firestore + risco de abuso).
+//
+// Configure a env var CRON_SECRET no ambiente de produção (Vercel: Project
+// Settings > Environment Variables) e, se estiver usando Vercel Cron,
+// adicione o mesmo valor como "Authorization: Bearer <CRON_SECRET>" na
+// configuração do cron job (a Vercel já envia esse header automaticamente
+// para crons definidos em vercel.json quando CRON_SECRET está configurado).
+function isAuthorizedCronRequest(req: NextRequest): boolean {
+  const expected = process.env.CRON_SECRET;
+  if (!expected) {
+    // Sem CRON_SECRET configurado, recusamos por padrão (fail closed) em
+    // vez de deixar a rota aberta silenciosamente.
+    console.error('[Cron Overdue] CRON_SECRET não configurado no ambiente.');
+    return false;
+  }
+  const authHeader = req.headers.get('authorization') || '';
+  return authHeader === `Bearer ${expected}`;
+}
+
 export async function GET(req: NextRequest) {
+  if (!isAuthorizedCronRequest(req)) {
+    return NextResponse.json({ success: false, error: 'Não autorizado.' }, { status: 401 });
+  }
   return handleCheckOverdue();
 }
 
 export async function POST(req: NextRequest) {
+  if (!isAuthorizedCronRequest(req)) {
+    return NextResponse.json({ success: false, error: 'Não autorizado.' }, { status: 401 });
+  }
   return handleCheckOverdue();
 }
 
@@ -17,10 +45,10 @@ async function handleCheckOverdue() {
   try {
     const { admin, error: initError } = await initializeAdmin();
     if (!admin) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Firebase Admin não inicializado', 
-        details: initError?.message 
+      return NextResponse.json({
+        success: false,
+        error: 'Firebase Admin não inicializado',
+        details: initError?.message
       }, { status: 500 });
     }
 

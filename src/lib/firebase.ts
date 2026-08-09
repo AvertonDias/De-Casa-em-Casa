@@ -1,4 +1,3 @@
-
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth, browserLocalPersistence, setPersistence, GoogleAuthProvider } from "firebase/auth";
 import { 
@@ -13,14 +12,54 @@ import { getFunctions, type Functions } from "firebase/functions";
 import { getMessaging, type Messaging } from "firebase/messaging";
 import { getDatabase, type Database } from "firebase/database";
 
+// Valores de fallback SOMENTE para desenvolvimento local, quando o
+// desenvolvedor ainda não configurou o .env.local. Em produção, se alguma
+// variável faltar, preferimos falhar de forma clara a apontar silenciosamente
+// para o projeto Firebase de produção real (o que já aconteceu antes: um
+// ambiente de preview/CI sem env vars configuradas cairia direto no banco
+// real, sem ninguém perceber).
+const DEV_FALLBACK_CONFIG = {
+  projectId: "appterritorios-e5bb5",
+  appId: "1:83629039662:web:42d410f411b2e9b33fffbf",
+  apiKey: "AIzaSyBKW1da2xBNH0TCrW0AoSbbGgX8-HI8WSI",
+  authDomain: "appterritorios-e5bb5.firebaseapp.com",
+  messagingSenderId: "83629039662",
+  storageBucket: "appterritorios-e5bb5.appspot.com",
+  databaseURL: "https://appterritorios-e5bb5-default-rtdb.firebaseio.com",
+};
+
+const REQUIRED_KEYS = [
+  "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+  "NEXT_PUBLIC_FIREBASE_APP_ID",
+  "NEXT_PUBLIC_FIREBASE_API_KEY",
+  "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+  "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+  "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+  "NEXT_PUBLIC_FIREBASE_DATABASE_URL",
+] as const;
+
+const missingKeys = REQUIRED_KEYS.filter((key) => !process.env[key]);
+
+if (missingKeys.length > 0 && process.env.NODE_ENV === "production") {
+  throw new Error(
+    `Configuração do Firebase incompleta em produção. Defina as variáveis de ambiente: ${missingKeys.join(", ")}.`
+  );
+}
+
+if (missingKeys.length > 0) {
+  console.warn(
+    `[firebase.ts] Usando configuração de fallback de DESENVOLVIMENTO porque as variáveis a seguir não estão definidas: ${missingKeys.join(", ")}. Configure um .env.local antes de ir para produção.`
+  );
+}
+
 const firebaseConfig = {
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "appterritorios-e5bb5",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:83629039662:web:42d410f411b2e9b33fffbf",
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyBKW1da2xBNH0TCrW0AoSbbGgX8-HI8WSI",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "appterritorios-e5bb5.firebaseapp.com",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "83629039662",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "appterritorios-e5bb5.appspot.com",
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || "https://appterritorios-e5bb5-default-rtdb.firebaseio.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || DEV_FALLBACK_CONFIG.projectId,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || DEV_FALLBACK_CONFIG.appId,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || DEV_FALLBACK_CONFIG.apiKey,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || DEV_FALLBACK_CONFIG.authDomain,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || DEV_FALLBACK_CONFIG.messagingSenderId,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || DEV_FALLBACK_CONFIG.storageBucket,
+  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || DEV_FALLBACK_CONFIG.databaseURL,
 };
 
 const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();

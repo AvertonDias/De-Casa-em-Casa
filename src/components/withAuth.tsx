@@ -1,18 +1,26 @@
-
 "use client";
 
 import { useUser } from '@/contexts/UserContext';
-import { useRouter, usePathname } from 'next/navigation';
 import { ComponentType } from 'react';
 import { Loader } from 'lucide-react';
+import { RestrictedContent } from '@/components/RestrictedContent';
+import type { AppUser } from '@/types/types';
 
-const withAuth = <P extends object>(WrappedComponent: ComponentType<P>) => {
-  
+/**
+ * @param allowedRoles Lista opcional de papéis que podem ver a página. Se
+ * omitido, qualquer usuário autenticado passa (comportamento antigo).
+ * IMPORTANTE: isto é só uma camada de UX — a proteção de verdade tem que
+ * estar nas firestore.rules e nas API routes, já que este código roda no
+ * navegador do usuário e pode ser contornado.
+ */
+const withAuth = <P extends object>(
+  WrappedComponent: ComponentType<P>,
+  allowedRoles?: AppUser['role'][]
+) => {
+
   const AuthComponent = (props: P) => {
     const { user, loading } = useUser();
-    const pathname = usePathname();
 
-    // Enquanto o UserContext estiver decidindo o destino, mostramos o loader.
     if (loading) {
         return (
             <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -20,9 +28,9 @@ const withAuth = <P extends object>(WrappedComponent: ComponentType<P>) => {
             </div>
         );
     }
-    
-    // Se não há usuário ou a página de destino não condiz com o status,
-    // o UserContext redirecionará. Retornamos o loader para evitar flicker.
+
+    // Se não há usuário, o UserContext cuida do redirecionamento.
+    // Retornamos o loader para evitar flicker.
     if (!user) {
       return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -31,13 +39,22 @@ const withAuth = <P extends object>(WrappedComponent: ComponentType<P>) => {
       );
     }
 
-    // Se o usuário existe e o carregamento terminou, renderizamos a página.
-    // O switch de rotas no UserContext garantirá que ele esteja no lugar certo.
+    if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+      return (
+        <div className="p-4">
+          <RestrictedContent
+            title="Acesso Restrito"
+            message="Você não tem permissão para acessar esta página."
+          />
+        </div>
+      );
+    }
+
     return <WrappedComponent {...props} />;
   };
-  
+
   AuthComponent.displayName = `withAuth(${WrappedComponent.displayName || 'Component'})`;
-  
+
   return AuthComponent;
 };
 

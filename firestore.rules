@@ -1,15 +1,14 @@
-
 rules_version = '2';
 
 service cloud.firestore {
     match /databases/{database}/documents {
 
         // --- FUNÇÕES AUXILIARES ---
-        
-        function isAuth() { 
-            return request.auth != null; 
+
+        function isAuth() {
+            return request.auth != null;
         }
-        
+
         function userExists() {
             return isAuth() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
         }
@@ -17,7 +16,7 @@ service cloud.firestore {
         function getUserData() {
             return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
         }
-        
+
         function isOfCongregation(congId) {
             return userExists() && getUserData().congregationId == congId;
         }
@@ -26,63 +25,133 @@ service cloud.firestore {
             return userExists() && getUserData().role == 'Administrador';
         }
 
+        // Papéis com poderes de gestão (aprovar usuários, designar territórios, etc.)
         function isManager() {
-            return userExists() && getUserData().role in ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'];
+            return userExists() && getUserData().role in
+                ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'];
         }
 
         function isActive() {
             return userExists() && getUserData().status == 'ativo';
         }
 
+        // Membro ativo de uma congregação específica: requisito mínimo para
+        // criar/editar dados de território daquela congregação.
+        function isActiveMemberOf(congId) {
+            return isActive() && isOfCongregation(congId);
+        }
+
+        // Só permite a troca de papel (role) de um usuário se:
+        // - o papel não estiver mudando, OU
+        // - quem está editando é Administrador, OU
+        // - quem está editando é gestor (não-Admin) e nem o papel antigo nem o
+        //   novo são 'Administrador' (evita promover ou mexer em um Admin).
+        function isRoleChangeAllowed(oldRole, newRole) {
+            return oldRole == newRole
+                || isAdmin()
+                || (isManager() && oldRole != 'Administrador' && newRole != 'Administrador');
+        }
+
         // --- REGRAS POR COLEÇÃO ---
 
         match /congregations/{congId} {
-            allow read: if true; 
-            allow create, update: if isAuth();
-            allow delete: if isAuth();
+            // Leitura pública: necessária para as páginas de visitante (QR code)
+            // e para checagem de número de congregação duplicado no cadastro.
+            allow read: if true;
 
-            // Histórico de Auditoria
+            // Qualquer pessoa autenticada pode criar uma nova congregação
+            // (fluxo de "Nova Congregação" no cadastro).
+            allow create: if isAuth();
+
+            // Só o Administrador daquela própria congregação pode alterar seus dados.
+            allow update: if isAdmin() && isOfCongregation(congId);
+
+            // Exclusão de congregação é destrutiva demais para o cliente decidir
+            // sozinho: deve passar por uma Cloud Function que audite e limpe
+            // todas as subcoleções corretamente.
+            allow delete: if false;
+
+            // Histórico de Auditoria: só quem gerencia a congregação pode ler;
+            // criação é permitida (para registrar a própria ação de um membro
+            // ativo), mas nunca alteração/remoção, para preservar a integridade do log.
             match /auditLogs/{logId} {
-                allow read, write: if isAuth();
+                allow read: if isManager() && isOfCongregation(congId);
+                allow create: if isActiveMemberOf(congId);
+                allow update, delete: if false;
             }
 
             match /territories/{terrId} {
-                allow read: if true;
-                allow create, update, delete: if isAuth();
+                allow read: if true; // necessário para páginas públicas de visitante
+                allow create, update, delete: if isActiveMemberOf(congId);
 
                 match /quadras/{quadraId} {
-                    allow read, write: if true;
-                    
-                    match /casas/{casaId} { 
-                        allow read, write: if true;
+                    allow read: if true;
+                    allow write: if isActiveMemberOf(congId);
+
+                    match /casas/{casaId} {
+                        allow read: if true;
+                        allow write: if isActiveMemberOf(congId);
                     }
                 }
-                match /activityHistory/{activityId} { 
-                    allow read, write: if true;
+
+                match /activityHistory/{activityId} {
+                    allow read: if true;
+                    allow write: if isActiveMemberOf(congId);
                 }
             }
         }
 
         match /users/{userId} {
-            allow read, write: if isAuth();
-            allow get: if true;
+            // Leitura: qualquer pessoa autenticada pode ver perfis (usado para
+            // exibir nomes/atribuições). Para restringir mais, troque por
+            // isOfCongregation(resource.data.congregationId).
+            allow read: if isAuth();
+
+            // Criação do próprio documento de perfil (etapa de cadastro).
+            allow create: if isAuth() && request.auth.uid == userId;
+
+            // Autoatualização: o próprio usuário pode editar seu perfil,
+            // MAS nunca o próprio papel, status ou congregação — isso fecha a
+            // brecha de escalonamento de privilégio.
+            allow update: if isAuth() && request.auth.uid == userId
+                && request.resource.data.role == resource.data.role
+                && request.resource.data.status == resource.data.status
+                && request.resource.data.congregationId == resource.data.congregationId;
+
+            // Gestores podem editar membros da MESMA congregação, sem poder
+            // mudar a congregação do usuário e respeitando isRoleChangeAllowed
+            // (só Admin promove/edita um Admin).
+            allow update: if isManager()
+                && isOfCongregation(resource.data.congregationId)
+                && request.resource.data.congregationId == resource.data.congregationId
+                && isRoleChangeAllowed(resource.data.role, request.resource.data.role);
+
+            allow delete: if isAdmin() && isOfCongregation(resource.data.congregationId);
 
             match /notifications/{notifId} {
-                allow read, write: if isAuth();
+                // Notificações só são criadas pelo backend (Admin SDK, que
+                // ignora estas regras). O cliente só lê/atualiza/apaga as suas.
+                allow read, update, delete: if isAuth() && request.auth.uid == userId;
+                allow create: if false;
             }
         }
 
+        // Tokens de redefinição de senha: extremamente sensíveis. Só as Cloud
+        // Functions (via Admin SDK, que ignora as regras) podem lê-los/escrevê-los.
         match /resetTokens/{tokenId} {
-            allow read, write: if true;
+            allow read, write: if false;
         }
 
+        // Contador de tentativas de login: também deve ser gerido só pelo
+        // backend, para não permitir que um atacante zere seu próprio bloqueio.
         match /loginAttempts/{email} {
-            allow read, write: if true;
+            allow read, write: if false;
         }
 
-        match /feedbacks/{feedbackId} { 
-            allow read, write: if isAuth(); 
+        match /feedbacks/{feedbackId} {
+            allow read: if isAdmin();
+            allow create: if isAuth();
+            allow update, delete: if false;
         }
     }
 }
-

@@ -378,4 +378,9 @@ function S13ReportPage() {
   );
 }
 
-export default withAuth(S13ReportPage);
+export default withAuth(S13ReportPage, [
+  'Administrador',
+  'Dirigente',
+  'Servo de Territórios',
+  'Ajudante de Servo de Territórios',
+]);

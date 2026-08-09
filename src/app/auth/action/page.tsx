@@ -11,8 +11,7 @@ import { Loader, KeyRound, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucid
 import { useToast } from '@/hooks/use-toast';
 import { Footer } from '@/components/Footer';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app, db } from '@/lib/firebase';
-import { doc, getDoc, deleteDoc } from 'firebase/firestore';
+import { app } from '@/lib/firebase';
 
 const functions = getFunctions(app, 'southamerica-east1');
 
@@ -58,29 +57,19 @@ function PasswordResetAction() {
     setStage('verifying');
 
     try {
-      // Obter o e-mail antes de invalidar/usar o token para podermos desbloquear
-      let assocEmail: string | null = null;
-      try {
-        const tokenDocRef = doc(db, 'resetTokens', token);
-        const tokenSnap = await getDoc(tokenDocRef);
-        if (tokenSnap.exists()) {
-          assocEmail = tokenSnap.data().email;
-        }
-      } catch (tokenErr) {
-        console.warn("Não foi possível pré-consultar o token de redefinição:", tokenErr);
-      }
-
+      // A leitura do token e a limpeza do bloqueio de login (loginAttempts)
+      // agora acontecem inteiramente dentro da Cloud Function
+      // `resetPasswordWithTokenV2`, usando o Admin SDK no servidor.
+      // O cliente não tem (e não deve ter) acesso direto às coleções
+      // `resetTokens` e `loginAttempts` — ambas são bloqueadas nas
+      // firestore.rules por serem sensíveis (tokens de acesso / contadores
+      // de força bruta). Garanta que a função em `functions/src` já faça:
+      //   1. validar o token e sua expiração;
+      //   2. redefinir a senha do usuário correspondente;
+      //   3. apagar o próprio doc em `resetTokens/{token}`;
+      //   4. apagar/zerar `loginAttempts/{email}` do usuário.
       const resetPwd = httpsCallable(functions, 'resetPasswordWithTokenV2');
       await resetPwd({ token, newPassword });
-
-      // Se a redefinição funcionou e temos o e-mail, limpamos o bloqueio de login
-      if (assocEmail) {
-        try {
-          await deleteDoc(doc(db, 'loginAttempts', assocEmail.toLowerCase().trim()));
-        } catch (delErr) {
-          console.warn("Não foi possível excluir o bloqueio de loginAttempts após a redefinição:", delErr);
-        }
-      }
 
       setStage('success');
       

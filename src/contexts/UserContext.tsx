@@ -7,7 +7,6 @@ import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { AppUser, Congregation } from '@/types/types';
 import { usePathname, useRouter } from 'next/navigation';
-import { LoadingScreen } from '@/components/LoadingScreen';
 import { usePresence } from '@/hooks/usePresence';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -56,16 +55,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const updateUser = async (data: Partial<AppUser>) => {
     if (!user) throw new Error("Usuário não logado.");
     const userRef = doc(db, 'users', user.uid);
-    updateDoc(userRef, data).catch(async (error) => {
-        if (error.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({
-                path: userRef.path,
-                operation: 'update',
-                requestResourceData: data,
-            } satisfies SecurityRuleContext);
-            errorEmitter.emit('permission-error', permissionError);
-        }
-    });
+    try {
+      await updateDoc(userRef, data);
+    } catch (error: any) {
+      if (error.code === 'permission-denied') {
+        const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'update',
+          requestResourceData: data,
+        } satisfies SecurityRuleContext);
+        errorEmitter.emit('permission-error', permissionError);
+      }
+      throw error;
+    }
   };
 
   const forceStopLoading = () => {
@@ -95,10 +97,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Seguro contra travamentos: Se nada acontecer em 8 segundos, libera o loading
     initTimeoutRef.current = setTimeout(() => {
-        if (loading) {
-            console.warn("Timeout de inicialização atingido. Liberando tela.");
-            setLoading(false);
-        }
+      console.warn("Timeout de inicialização atingido. Liberando tela.");
+      setLoading(false);
     }, 8000);
 
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: User | null) => {

@@ -3,10 +3,9 @@
 
 import Image from 'next/image';
 
-// Simplificamos o componente para não precisar mais da prop 'isSyncing'
 export function LoadingScreen() {
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground" suppressHydrationWarning>
             <Image
                 src="/images/Logo_v3.png"
                 alt="Logo De Casa em Casa"
