@@ -40,15 +40,9 @@ const REQUIRED_KEYS = [
 
 const missingKeys = REQUIRED_KEYS.filter((key) => !process.env[key]);
 
-if (missingKeys.length > 0 && process.env.NODE_ENV === "production") {
-  throw new Error(
-    `Configuração do Firebase incompleta em produção. Defina as variáveis de ambiente: ${missingKeys.join(", ")}.`
-  );
-}
-
 if (missingKeys.length > 0) {
   console.warn(
-    `[firebase.ts] Usando configuração de fallback de DESENVOLVIMENTO porque as variáveis a seguir não estão definidas: ${missingKeys.join(", ")}. Configure um .env.local antes de ir para produção.`
+    `[firebase.ts] Usando configuração de fallback porque as variáveis a seguir não estão definidas: ${missingKeys.join(", ")}.`
   );
 }
 
