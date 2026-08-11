@@ -63,8 +63,8 @@ service cloud.firestore {
             // (fluxo de "Nova Congregação" no cadastro).
             allow create: if isAuth();
 
-            // Só o Administrador daquela própria congregação pode alterar seus dados.
-            allow update: if isAdmin() && isOfCongregation(congId);
+            // Permite atualização por administradores ou membros ativos da congregação (ao atualizar contadores como totalHousesDone ao trabalhar territórios).
+            allow update: if isActiveMemberOf(congId);
 
             // Exclusão de congregação é destrutiva demais para o cliente decidir
             // sozinho: deve passar por uma Cloud Function que audite e limpe
