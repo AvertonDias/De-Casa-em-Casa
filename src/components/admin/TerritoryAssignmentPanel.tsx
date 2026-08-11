@@ -172,18 +172,7 @@ export default function TerritoryAssignmentPanel() {
                 const notifTitle = isReassignment ? "Você recebeu uma transferência!" : "Você recebeu um novo território!";
                 const notifBody = `O território "${currentTerritory?.number} - ${currentTerritory?.name}" foi designado para você.`;
 
-                // 1. Salvar notificação no Firestore do usuário (garante exibição em Suas Notificações no app)
-                const notificationRef = collection(db, `users/${assignedUserId}/notifications`);
-                await addDoc(notificationRef, {
-                    title: notifTitle,
-                    body: notifBody,
-                    link: territoryLink,
-                    type: 'territory_assigned',
-                    isRead: false,
-                    createdAt: serverTimestamp()
-                });
-
-                // 2. Disparar notificação Push para FCM/Dispositivo
+                // Disparar notificação Push para FCM/Dispositivo (a rota /api/notifications/send cria o documento no Firestore via Admin SDK)
                 sendPushNotification({
                     userId: assignedUserId,
                     title: notifTitle,

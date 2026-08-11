@@ -369,13 +369,10 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     if (!user?.congregationId || !user?.uid || user.status !== 'ativo') return;
     if (!auth.currentUser || auth.currentUser.isAnonymous || auth.currentUser.uid !== user.uid) return;
 
-    const isAdminOrServo = ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'].includes(user.role);
     const territoriesRef = collection(db, 'congregations', user.congregationId, 'territories');
     
-    // Admins e Servos verificam todos os territórios designados da congregação; Publicadores apenas os seus
-    const q = isAdminOrServo
-      ? query(territoriesRef, where("status", "==", "designado"))
-      : query(territoriesRef, where("assignment.uid", "==", user.uid));
+    // Lista apenas os territórios designados ao usuário logado para verificar atrasos próprios
+    const q = query(territoriesRef, where("status", "==", "designado"), where("assignment.uid", "==", user.uid));
 
     const unsub = onSnapshot(q, async (snapshot) => {
       const territories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Territory));
@@ -386,18 +383,18 @@ function DashboardLayout({ children }: { children: ReactNode }) {
         const dueDate = t.assignment?.dueDate;
         if (!dueDate || !targetUserId || targetUserId.startsWith('custom_')) continue;
 
-        if (!isAdminOrServo && targetUserId !== user.uid) continue;
+        if (targetUserId !== user.uid) continue;
         
         const dateObj = dueDate instanceof Timestamp ? dueDate.toDate() : new Date(dueDate as any);
         if (isNaN(dateObj.getTime())) continue;
         
         const isOverdue = isTerritoryOverdue(dueDate);
-        if (isOverdue && targetUserId === user.uid) {
+        if (isOverdue) {
           overdueList.push({ id: t.id, number: t.number, name: t.name });
         }
 
         const notifId = `overdue_${t.id}`;
-        const notifDocRef = doc(db, `users/${targetUserId}/notifications`, notifId);
+        const notifDocRef = doc(db, `users/${user.uid}/notifications`, notifId);
 
         if (isOverdue) {
           try {
@@ -407,19 +404,9 @@ function DashboardLayout({ children }: { children: ReactNode }) {
               const notifBody = `O prazo de devolução do território "${t.number} - ${t.name}" venceu em ${format(dateObj, 'dd/MM/yyyy')}. Por favor, faça a devolução.`;
               const notifLink = `/dashboard/meus-territorios`;
 
-              // 1. Salva notificação no Firestore do usuário imediatamente
-              await setDoc(notifDocRef, {
-                title: notifTitle,
-                body: notifBody,
-                link: notifLink,
-                type: 'territory_overdue',
-                isRead: false,
-                createdAt: serverTimestamp()
-              });
-
-              // 2. Dispara notificação push
+              // 1. Dispara notificação push (a API também vai salvar o documento no Firestore via Admin SDK)
               sendPushNotification({
-                userId: targetUserId,
+                userId: user.uid,
                 title: notifTitle,
                 body: notifBody,
                 link: notifLink,
@@ -428,7 +415,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
               });
             }
           } catch (error) {
-            console.warn("Erro ao gerenciar notificação de atraso para o usuário:", targetUserId, error);
+            console.warn("Erro ao gerenciar notificação de atraso para o usuário:", user.uid, error);
           }
         } else {
           try {
@@ -654,41 +641,6 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 
         if (batchCount > 0) {
           await batch.commit();
-        }
-
-        // 2. Se for Administrador, varre e limpa as notificações antigas dos demais membros da congregação
-        if (user.role === 'Administrador' && user.congregationId) {
-          const usersQuery = query(collection(db, 'users'), where('congregationId', '==', user.congregationId));
-          const usersSnap = await getDocs(usersQuery);
-
-          for (const uDoc of usersSnap.docs) {
-            if (uDoc.id === user.uid) continue;
-
-            const memberNotifRef = collection(db, `users/${uDoc.id}/notifications`);
-            const memberNotifSnap = await getDocs(memberNotifRef);
-
-            let mBatch = writeBatch(db);
-            let mCount = 0;
-
-            for (const mNotifDoc of memberNotifSnap.docs) {
-              const data = mNotifDoc.data();
-              const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : null;
-              if (!createdAt || createdAt < cutoffDate) {
-                mBatch.delete(mNotifDoc.ref);
-                mCount++;
-
-                if (mCount >= 400) {
-                  await mBatch.commit();
-                  mBatch = writeBatch(db);
-                  mCount = 0;
-                }
-              }
-            }
-
-            if (mCount > 0) {
-              await mBatch.commit();
-            }
-          }
         }
       } catch (err) {
         console.warn("Erro ao executar limpeza automática de notificações antigas:", err);
