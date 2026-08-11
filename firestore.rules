@@ -27,7 +27,7 @@ service cloud.firestore {
 
         // Papéis com poderes de gestão (aprovar usuários, designar territórios, etc.)
         function isManager() {
-            return userExists() && getUserData().role in
+            return userExists() && ('role' in getUserData()) && getUserData().role in
                 ['Administrador', 'Dirigente', 'Servo de Territórios', 'Ajudante de Servo de Territórios'];
         }
 
@@ -129,8 +129,7 @@ service cloud.firestore {
             allow delete: if isAdmin() && isOfCongregation(resource.data.congregationId);
 
             match /notifications/{notifId} {
-                allow read, update, delete: if isAuth() && request.auth.uid == userId;
-                allow create: if isAuth() && (request.auth.uid == userId || isManager());
+                allow read, write: if isAuth() && (request.auth.uid == userId || isManager());
             }
         }
 
