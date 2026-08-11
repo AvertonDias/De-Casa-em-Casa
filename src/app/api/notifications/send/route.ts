@@ -16,8 +16,12 @@ export async function POST(req: NextRequest) {
 
     const { admin, error: initError } = await initializeAdmin();
     if (!admin) {
-      console.error('[Push API] Firebase Admin não inicializado:', initError?.message);
-      return NextResponse.json({ error: 'Erro interno do servidor.' }, { status: 500 });
+      console.warn('[Push API] Firebase Admin não inicializado:', initError?.message);
+      return NextResponse.json({ 
+        success: false, 
+        disabled: true, 
+        message: 'Serviço de notificações não configurado no servidor (variável GOOGLE_APPLICATION_CREDENTIALS_JSON ausente na Vercel).' 
+      }, { status: 200 });
     }
 
     let callerUid: string;
@@ -163,7 +167,10 @@ export async function POST(req: NextRequest) {
     // via logs do servidor, nunca devolvendo isso no JSON de resposta.
     return NextResponse.json({ success: true, results });
   } catch (error: any) {
-    console.error('[Push API] Erro fatal geral no endpoint:', error);
-    return NextResponse.json({ error: 'Erro interno no servidor.' }, { status: 500 });
+    console.warn('[Push API] Erro ao processar endpoint de notificação:', error?.message || error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error?.message || 'Erro ao processar notificação.' 
+    }, { status: 200 });
   }
 }

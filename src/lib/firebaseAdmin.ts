@@ -58,7 +58,16 @@ export async function initializeAdmin() {
     const initializeAppFn = admin.initializeApp || (adminNamespace as any).initializeApp || (adminNamespace as any).default?.initializeApp;
 
     if (!serviceAccountJson) {
-      // Se não há variável de ambiente com o JSON, tenta inicializar com a credencial padrão da aplicação (caso exista no ambiente)
+      // Se não há variável de ambiente com o JSON e estamos na Vercel / ambiente sem ADC nativo
+      if (process.env.VERCEL || !process.env.K_SERVICE) {
+        console.warn("[FirebaseAdmin] Variável GOOGLE_APPLICATION_CREDENTIALS_JSON não está definida no ambiente da Vercel.");
+        return { 
+          admin: null, 
+          error: new Error("A variável de ambiente GOOGLE_APPLICATION_CREDENTIALS_JSON não foi configurada na Vercel.") 
+        };
+      }
+
+      // Tenta inicializar com a credencial padrão da aplicação (ADC) se estiver rodando no GCP / Cloud Run
       try {
         if (!credentialHelper || !initializeAppFn) {
           throw new Error("Membros credential ou initializeApp não encontrados no Firebase Admin.");
@@ -71,10 +80,13 @@ export async function initializeAdmin() {
         console.log("Firebase Admin SDK inicializado usando Application Default Credentials.");
         return { admin, error: null };
       } catch (defaultErr: any) {
-        throw new Error(
-          "Nenhuma variável de credenciais do Firebase foi encontrada (GOOGLE_APPLICATION_CREDENTIALS_JSON) " +
-          "e falhou ao tentar carregar a credencial padrão: " + defaultErr.message
-        );
+        return {
+          admin: null,
+          error: new Error(
+            "Nenhuma variável de credenciais do Firebase foi encontrada (GOOGLE_APPLICATION_CREDENTIALS_JSON) " +
+            "e falhou ao tentar carregar a credencial padrão: " + defaultErr.message
+          )
+        };
       }
     }
 
