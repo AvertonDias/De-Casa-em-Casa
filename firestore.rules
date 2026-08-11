@@ -129,10 +129,8 @@ service cloud.firestore {
             allow delete: if isAdmin() && isOfCongregation(resource.data.congregationId);
 
             match /notifications/{notifId} {
-                // Notificações só são criadas pelo backend (Admin SDK, que
-                // ignora estas regras). O cliente só lê/atualiza/apaga as suas.
                 allow read, update, delete: if isAuth() && request.auth.uid == userId;
-                allow create: if false;
+                allow create: if isAuth() && (request.auth.uid == userId || isManager());
             }
         }
 
