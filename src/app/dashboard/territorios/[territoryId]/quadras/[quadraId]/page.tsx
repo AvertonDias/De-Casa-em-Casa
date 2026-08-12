@@ -373,6 +373,19 @@ function QuadraDetailPage({ params }: QuadraDetailPageProps) {
             totalHouses: congTotalHouses - 1,
             totalHousesDone: wasDone ? congTotalHousesDone - 1 : congTotalHousesDone
         });
+
+        const rawName = user?.name || 'Publicador';
+        const activityHistoryRef = collection(territoryRef, 'activityHistory');
+        const newActivityRef = doc(activityHistoryRef);
+
+        transaction.set(newActivityRef, {
+          type: "delete",
+          activityDate: Timestamp.now(),
+          description: `Excluiu a casa ${casaToDelete.number} (da ${quadraDoc.data().name || 'quadra'}).`,
+          userName: rawName,
+          user: rawName,
+          createdAt: serverTimestamp(),
+        });
     }).then(() => {
         logEvent(congregationId, user.uid, user.name, 'HOUSE_DELETED', `Excluiu a casa ${casaToDelete.number} da ${quadra?.name} do território ${territory?.number}.`, { 
             territoryId, 

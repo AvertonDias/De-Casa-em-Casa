@@ -214,17 +214,22 @@ export default function VisitorQuadraDetailPage() {
 
         if (newStatus) {
           const newActivityRef = doc(activityHistoryRef);
+          const rawVis = visitorName || 'Visitante';
+          const visitorDisplayName = rawVis.includes('(Visitante)') ? rawVis : `${rawVis} (Visitante)`;
+
           transaction.set(newActivityRef, {
             type: "work",
             activityDate: Timestamp.now(),
-            description: `Casa ${casa.number} (da ${quadraDoc.data().name}) foi feita por ${visitorName} (Visitante).`,
-            visitorName: visitorName,
+            description: `Casa ${casa.number} (da ${quadraDoc.data().name}) foi feita.`,
+            userName: visitorDisplayName,
+            user: visitorDisplayName,
+            visitorName: rawVis,
             createdAt: serverTimestamp(),
           });
 
           transaction.update(casaRef, {
             status: true,
-            lastWorkedBy: { uid: "visitor", name: `${visitorName} (Visitante)` },
+            lastWorkedBy: { uid: "visitor", name: visitorDisplayName },
             activityLogId: newActivityRef.id
           });
         } else {
@@ -322,6 +327,21 @@ export default function VisitorQuadraDetailPage() {
         transaction.update(congRef, {
           totalHouses: Math.max(0, congTotalHouses - 1),
           totalHousesDone: wasDone ? Math.max(0, congTotalHousesDone - 1) : congTotalHousesDone
+        });
+
+        const rawVis = visitorName || 'Visitante';
+        const visitorDisplayName = rawVis.includes('(Visitante)') ? rawVis : `${rawVis} (Visitante)`;
+        const activityHistoryRef = collection(territoryRef, 'activityHistory');
+        const newActivityRef = doc(activityHistoryRef);
+
+        transaction.set(newActivityRef, {
+          type: "delete",
+          activityDate: Timestamp.now(),
+          description: `Excluiu a casa ${casaToDelete.number} (da ${quadraDoc.data().name || 'quadra'}).`,
+          userName: visitorDisplayName,
+          user: visitorDisplayName,
+          visitorName: rawVis,
+          createdAt: serverTimestamp(),
         });
       });
 

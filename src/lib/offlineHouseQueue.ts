@@ -197,11 +197,16 @@ export async function processOfflineHouseQueue(): Promise<{ syncedCount: number;
 
             if (newStatus) {
               const newActivityRef = doc(activityHistoryRef);
+              const rawName = userName || "Publicador";
+              const cNum = action.casaNumber || casaDoc.data().number || '';
+              const qName = quadraDoc.data().name || quadraId;
               transaction.set(newActivityRef, {
                 type: "work",
                 activityDate: Timestamp.now(),
-                user: userName || "Publicador",
-                notes: `Trabalhou na quadra ${quadraDoc.data().name || quadraId} (casa ${action.casaNumber || casaDoc.data().number || ''})`,
+                description: `Casa ${cNum} (da ${qName}) foi feita.`,
+                userName: rawName,
+                user: rawName,
+                notes: `Trabalhou na quadra ${qName} (casa ${cNum})`,
                 houseId: casaId,
                 quadraId: quadraId
               });

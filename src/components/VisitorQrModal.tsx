@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { QRCodeSVG } from 'qrcode.react';
-import { Copy, Check, Download, QrCode } from 'lucide-react';
+import { Copy, Check, Download, QrCode, Share2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 interface VisitorQrModalProps {
@@ -36,6 +36,22 @@ export default function VisitorQrModal({
     setCopied(true);
     toast({ title: "Link copiado!", description: "Link de acesso para visitante copiado para a área de transferência." });
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Território ${territoryNumber} - ${territoryName}`,
+          text: `Acesse o Território ${territoryNumber} como visitante:`,
+          url: visitorUrl,
+        });
+      } catch (err) {
+        // Compartilhamento cancelado pelo usuário
+      }
+    } else {
+      handleCopy();
+    }
   };
 
   const handleDownloadQr = () => {
@@ -86,10 +102,22 @@ export default function VisitorQrModal({
             Visitantes podem escanear este QR Code para acessar o território informando apenas o nome, sem precisar de cadastro, para marcar as casas trabalhadas.
           </p>
 
-          <div className="w-full flex items-start space-x-2 bg-muted p-3 rounded-lg text-xs">
-            <span className="flex-1 font-mono text-muted-foreground break-all select-all">{visitorUrl}</span>
-            <Button size="sm" variant="ghost" onClick={handleCopy} className="shrink-0 h-8 w-8 p-0">
+          <div className="w-full flex gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={handleCopy}
+              className="flex-1 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2"
+            >
               {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+              {copied ? "Copiado!" : "Copiar Link"}
+            </Button>
+
+            <Button
+              onClick={handleShare}
+              className="flex-1 text-xs sm:text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
+            >
+              <Share2 className="h-4 w-4" />
+              Compartilhar Link
             </Button>
           </div>
         </div>

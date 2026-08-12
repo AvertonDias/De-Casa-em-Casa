@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { doc, writeBatch } from 'firebase/firestore';
+import { doc, writeBatch, collection, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { type Casa } from '@/types/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -68,6 +68,23 @@ export function ReorderCasasModal({ isOpen, onClose, casas: initialCasas, territ
     localCasas.forEach((casa, index) => {
       const casaRef = doc(db, 'congregations', congregationId, 'territories', territoryId, 'quadras', quadraId, 'casas', casa.id);
       batch.update(casaRef, { order: index });
+    });
+
+    const rawName = user?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem(`visitor_name_${congregationId}_${territoryId}`) || 'Visitante' : 'Visitante');
+    const isVis = !user;
+    const actorDisplayName = isVis ? (rawName.includes('(Visitante)') ? rawName : `${rawName} (Visitante)`) : rawName;
+
+    const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
+    const activityHistoryRef = collection(territoryRef, 'activityHistory');
+    const newActivityRef = doc(activityHistoryRef);
+
+    batch.set(newActivityRef, {
+      type: 'reorder',
+      activityDate: Timestamp.now(),
+      description: `Reordenou a sequência de casas na ${quadraName || 'quadra'}.`,
+      userName: actorDisplayName,
+      user: actorDisplayName,
+      createdAt: serverTimestamp(),
     });
 
     try {

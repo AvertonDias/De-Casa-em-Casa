@@ -166,7 +166,7 @@ export default function ActivityHistory({ territoryId, history = [] }: ActivityH
                                         )}
                                       </div>
                                       <p className="text-[10px] text-muted-foreground/80 mt-1 uppercase font-bold">
-                                        Registrado por: {activity.userName || 'Sistema'}
+                                        Registrado por: {activity.userName || activity.user || (activity.visitorName ? (activity.visitorName.includes('(Visitante)') ? activity.visitorName : `${activity.visitorName} (Visitante)`) : 'Sistema')}
                                       </p>
                                     </div>
                                   ))}

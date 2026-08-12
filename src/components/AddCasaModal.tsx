@@ -65,7 +65,9 @@ export function AddCasaModal({ territoryId, quadraId, onCasaAdded, congregationI
     }
 
     const visitorUid = user?.uid || 'visitor';
-    const visitorName = user?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem(`visitor_name_${congregationId}_${territoryId}`) || 'Visitante' : 'Visitante');
+    const isVis = !user;
+    const rawVisName = user?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem(`visitor_name_${congregationId}_${territoryId}`) || 'Visitante' : 'Visitante');
+    const visitorName = isVis ? (rawVisName.includes('(Visitante)') ? rawVisName : `${rawVisName} (Visitante)`) : rawVisName;
 
     const congRef = doc(db, 'congregations', congregationId);
     const territoryRef = doc(congRef, 'territories', territoryId);

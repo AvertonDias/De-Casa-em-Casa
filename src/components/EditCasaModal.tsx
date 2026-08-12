@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { doc, updateDoc, runTransaction } from 'firebase/firestore';
+import { doc, updateDoc, runTransaction, collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Casa } from '@/types/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -74,10 +74,30 @@ export function EditCasaModal({ isOpen, onClose, casa, territoryId, quadraId, on
 
     const detailText = `Editou a casa ${casa.number} na ${quadraName || 'quadra'} do território ${territoryNumber || territoryId}.${changes.length > 0 ? ` [${changes.join(' | ')}]` : ''}`;
 
+    const rawName = user?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem(`visitor_name_${congregationId}_${territoryId}`) || 'Visitante' : 'Visitante');
+    const isVis = !user;
+    const actorDisplayName = isVis ? (rawName.includes('(Visitante)') ? rawName : `${rawName} (Visitante)`) : rawName;
+
+    const territoryRef = doc(db, 'congregations', congregationId, 'territories', territoryId);
+    const activityHistoryRef = collection(territoryRef, 'activityHistory');
+
     updateDoc(casaRef, {
       number: formData.number.toUpperCase(),
       observations: formData.observations,
-    }).then(() => {
+    }).then(async () => {
+      try {
+        await addDoc(activityHistoryRef, {
+          type: 'edit',
+          activityDate: Timestamp.now(),
+          description: `Editou a casa ${casa.number} (da ${quadraName || 'quadra'})${changes.length > 0 ? ` [${changes.join(' | ')}]` : ''}.`,
+          userName: actorDisplayName,
+          user: actorDisplayName,
+          createdAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.warn("Erro ao salvar no historico:", err);
+      }
+
       if (user) {
         logEvent(congregationId, user.uid, user.name, 'HOUSE_EDITED', detailText, { 
             territoryId, 
