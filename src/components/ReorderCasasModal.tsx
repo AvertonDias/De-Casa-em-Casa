@@ -104,18 +104,18 @@ export function ReorderCasasModal({ isOpen, onClose, casas: initialCasas, territ
       }}
     >
       <DialogContent 
-        className="sm:max-w-md p-0 overflow-hidden border-none shadow-2xl"
+        className="sm:max-w-md p-0 overflow-hidden border-none shadow-2xl max-h-[85vh] flex flex-col"
         onPointerDownOutside={(e) => { if (hasChanges) e.preventDefault(); }}
         onEscapeKeyDown={(e) => { if (hasChanges) e.preventDefault(); }}
       >
-        <DialogHeader className="p-6 pb-2 bg-background/95 backdrop-blur-md sticky top-0 z-10 border-b border-border/50">
+        <DialogHeader className="p-6 pb-2 bg-background/95 backdrop-blur-md shrink-0 border-b border-border/50">
           <DialogTitle className="text-xl font-bold">Reordenar Casas</DialogTitle>
           <DialogDescription>
             Clique na casa que deseja mover e use as setas para ajustar o percurso.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 space-y-3 py-6 bg-muted/20">
+        <div className="px-6 space-y-3 py-4 bg-muted/20 overflow-y-auto max-h-[55vh] flex-1 scrollbar-thin">
           {localCasas.map((casa, index) => {
             const isSelected = selectedId === casa.id;
             const hasMoved = casa.id !== initialOrderIds[index];
@@ -191,7 +191,7 @@ export function ReorderCasasModal({ isOpen, onClose, casas: initialCasas, territ
           })}
         </div>
 
-        <DialogFooter className="p-6 pt-4 border-t bg-background/95 backdrop-blur-md sticky bottom-0 z-10 flex flex-col sm:flex-row gap-2">
+        <DialogFooter className="p-6 pt-4 border-t border-border/50 bg-background/95 backdrop-blur-md shrink-0 flex flex-col sm:flex-row gap-2">
           <Button variant="outline" onClick={onClose} disabled={isLoading} className="flex-1">
             {hasChanges ? "Descartar Mudanças" : "Cancelar"}
           </Button>
