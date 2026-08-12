@@ -144,10 +144,12 @@ export interface Activity {
   activityDate: Timestamp;
   notes?: string;
   description?: string;
-  userName: string;
-  userId: string;
-  createdAt: Timestamp; 
-  type?: 'work' | 'manual';
+  userName?: string;
+  user?: string;
+  visitorName?: string;
+  userId?: string;
+  createdAt?: Timestamp; 
+  type?: 'work' | 'manual' | 'edit' | 'reorder' | 'delete' | string;
 }
 
 export interface RecentTerritory {
