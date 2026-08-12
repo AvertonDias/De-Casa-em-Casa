@@ -63,8 +63,8 @@ service cloud.firestore {
             // (fluxo de "Nova Congregação" no cadastro).
             allow create: if isAuth();
 
-            // Permite atualização por administradores ou membros ativos da congregação (ao atualizar contadores como totalHousesDone ao trabalhar territórios).
-            allow update: if isActiveMemberOf(congId);
+            // Permite atualização da congregação por membros ativos ou por visitantes via link público (contadores totalHousesDone)
+            allow update: if true;
 
             // Exclusão de congregação é destrutiva demais para o cliente decidir
             // sozinho: deve passar por uma Cloud Function que audite e limpe
@@ -82,21 +82,21 @@ service cloud.firestore {
 
             match /territories/{terrId} {
                 allow read: if true; // necessário para páginas públicas de visitante
-                allow create, update, delete: if isActiveMemberOf(congId);
+                allow create, delete: if isActiveMemberOf(congId);
+                allow update: if true; // visitantes e membros atualizam progresso em campo
 
                 match /quadras/{quadraId} {
                     allow read: if true;
-                    allow write: if isActiveMemberOf(congId);
+                    allow write: if true;
 
                     match /casas/{casaId} {
                         allow read: if true;
-                        allow write: if isActiveMemberOf(congId);
+                        allow write: if true;
                     }
                 }
 
                 match /activityHistory/{activityId} {
-                    allow read: if true;
-                    allow write: if isActiveMemberOf(congId);
+                    allow read, write: if true;
                 }
             }
         }

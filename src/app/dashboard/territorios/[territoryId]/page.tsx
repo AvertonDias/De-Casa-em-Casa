@@ -455,6 +455,7 @@ function TerritoryDetailPage({ params: paramsProp }: { params?: any }) {
             image: { type: "jpeg", quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
             jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+            pagebreak: { mode: ['css', 'legacy'] },
         });
 
         if (Capacitor.isNativePlatform()) {
@@ -519,7 +520,7 @@ function TerritoryDetailPage({ params: paramsProp }: { params?: any }) {
     return (
         <div id="mapping-pdf-area" className="text-black bg-white">
             {chunks.map((chunk, pageIdx) => (
-                <div key={pageIdx} className="w-[210mm] h-[297mm] grid grid-cols-2 grid-rows-2 overflow-hidden" style={{ pageBreakAfter: pageIdx < chunks.length - 1 ? 'always' : 'auto', border: 'none' }}>
+                <div key={pageIdx} className="w-[210mm] h-[295mm] grid grid-cols-2 grid-rows-2 overflow-hidden" style={{ pageBreakAfter: pageIdx < chunks.length - 1 ? 'always' : 'auto', border: 'none' }}>
                     {chunk.map((q) => {
                         const existingHouses = quadrasWithHouses[q.id] || [];
                         const shouldShowNumbers = includeExistingNumbers && existingHouses.length > 0;
@@ -529,31 +530,31 @@ function TerritoryDetailPage({ params: paramsProp }: { params?: any }) {
                         const rightColumnItems = shouldShowNumbers ? existingHouses.slice(totalRowsPerColumn, totalRowsPerColumn * 2) : [];
 
                         return (
-                          <div key={q.id} className="border border-gray-400 pl-[12px] pr-[12px] pt-[18px] pb-[10px] flex flex-col h-[148.5mm] w-[105mm] overflow-hidden">
-                              <div className="border-b-2 border-black pb-2 mb-3 shrink-0 pt-1">
-                                  <p className="text-[11px] font-bold uppercase tracking-wide truncate text-center mb-1">
+                          <div key={q.id} className="border border-gray-900 pl-[10px] pr-[10px] pt-[14px] pb-[8px] flex flex-col h-[147mm] w-[105mm] overflow-hidden bg-white text-black">
+                              <div className="border-b-2 border-black pb-1.5 mb-2 shrink-0 pt-0.5">
+                                  <p className="text-[11px] font-extrabold uppercase tracking-wide truncate text-center mb-0.5 text-black">
                                     Território {territory.number} - {territory.name}
                                   </p>
-                                  <div className="text-[12px] font-extrabold text-center bg-gray-100 py-1 border border-gray-300 rounded uppercase">
+                                  <div className="text-[12px] font-black text-center bg-gray-200 py-1 border border-gray-900 rounded uppercase text-black">
                                       {q.name}
                                   </div>
                               </div>
                               
                               <div className="flex-1 flex flex-col min-h-0">
-                                  <p className="text-[9px] font-bold text-gray-500 mb-2 uppercase flex items-center gap-1.5 shrink-0">
+                                  <p className="text-[9.5px] font-black text-black mb-1.5 uppercase flex items-center gap-1.5 shrink-0">
                                       <span className="w-1.5 h-1.5 rounded-full bg-black"></span>
                                       {shouldShowNumbers ? "Lista de Números Cadastrados" : "Anotar números das casas abaixo:"}
                                   </p>
                                   
-                                  <div className="flex-1 grid grid-cols-2 gap-x-2.5 border-2 border-dashed border-gray-200 rounded-lg p-1.5 bg-gray-50/20 overflow-hidden">
+                                  <div className="flex-1 grid grid-cols-2 gap-x-2 border border-solid border-gray-400 rounded-lg p-1 bg-white overflow-hidden">
                                       <div className="flex flex-col">
                                           {Array(totalRowsPerColumn).fill(0).map((_, i) => {
                                               const house = leftColumnItems[i];
                                               return (
-                                                  <div key={`L-${i}`} className="border-b border-gray-200 h-[5.5mm] flex items-center px-0.5">
-                                                      <span className="text-[8px] text-gray-300 font-mono w-4 shrink-0 text-right pr-1 leading-none">{i + 1}.</span>
-                                                      <span className="text-[11px] font-bold shrink-0 ml-0.5 leading-none">{house?.number || ""}</span>
-                                                      {house?.observations && <span className="text-[7px] text-gray-400 italic ml-1 truncate flex-1 min-w-0 leading-none">({house.observations})</span>}
+                                                  <div key={`L-${i}`} className="border-b border-gray-300 h-[5.5mm] flex items-center px-0.5">
+                                                      <span className="text-[9px] text-black font-extrabold font-mono w-4 shrink-0 text-right pr-1 leading-none">{i + 1}.</span>
+                                                      <span className="text-[11px] font-black text-black shrink-0 ml-0.5 leading-none">{house?.number || ""}</span>
+                                                      {house?.observations && <span className="text-[7.5px] text-gray-800 font-semibold ml-1 truncate flex-1 min-w-0 leading-none">({house.observations})</span>}
                                                   </div>
                                               );
                                           })}
@@ -562,10 +563,10 @@ function TerritoryDetailPage({ params: paramsProp }: { params?: any }) {
                                           {Array(totalRowsPerColumn).fill(0).map((_, i) => {
                                               const house = rightColumnItems[i];
                                               return (
-                                                  <div key={`R-${i}`} className="border-b border-gray-200 h-[5.5mm] flex items-center px-0.5">
-                                                      <span className="text-[8px] text-gray-300 font-mono w-4 shrink-0 text-right pr-1 leading-none">{i + 1 + totalRowsPerColumn}.</span>
-                                                      <span className="text-[11px] font-bold shrink-0 ml-0.5 leading-none">{house?.number || ""}</span>
-                                                      {house?.observations && <span className="text-[7px] text-gray-400 italic ml-1 truncate flex-1 min-w-0 leading-none">({house.observations})</span>}
+                                                  <div key={`R-${i}`} className="border-b border-gray-300 h-[5.5mm] flex items-center px-0.5">
+                                                      <span className="text-[9px] text-black font-extrabold font-mono w-4 shrink-0 text-right pr-1 leading-none">{i + 1 + totalRowsPerColumn}.</span>
+                                                      <span className="text-[11px] font-black text-black shrink-0 ml-0.5 leading-none">{house?.number || ""}</span>
+                                                      {house?.observations && <span className="text-[7.5px] text-gray-800 font-semibold ml-1 truncate flex-1 min-w-0 leading-none">({house.observations})</span>}
                                                   </div>
                                               );
                                           })}
@@ -573,16 +574,16 @@ function TerritoryDetailPage({ params: paramsProp }: { params?: any }) {
                                   </div>
                               </div>
                               
-                              <div className="mt-3 pt-1.5 border-t border-gray-100 flex justify-between items-end shrink-0 pb-1">
+                              <div className="mt-2 pt-1 border-t border-gray-400 flex justify-between items-end shrink-0 pb-0.5">
                                   <div className="space-y-0.5">
-                                      <p className="text-[7px] text-gray-400 uppercase font-bold">Instruções:</p>
-                                      <p className="text-[6.5px] text-gray-500 leading-tight">
+                                      <p className="text-[7px] text-black uppercase font-black">Instruções:</p>
+                                      <p className="text-[7px] text-gray-800 font-semibold leading-tight">
                                         {shouldShowNumbers 
                                           ? "Use para conferência em campo. Risque casas demolidas ou adicione novas observações."
                                           : "Anote o número de cada casa e observações (esquina, cachorro). Entregue ao responsável."}
                                       </p>
                                   </div>
-                                  <div className="text-[7px] text-gray-400 font-bold whitespace-nowrap ml-2 italic">
+                                  <div className="text-[7.5px] text-black font-black whitespace-nowrap ml-2">
                                       DE CASA EM CASA
                                   </div>
                               </div>
@@ -590,7 +591,7 @@ function TerritoryDetailPage({ params: paramsProp }: { params?: any }) {
                         );
                     })}
                     {chunk.length < 4 && Array(4 - chunk.length).fill(0).map((_, i) => (
-                         <div key={`empty-${i}`} className="border border-gray-100 bg-gray-50/10 h-[148.5mm] w-[105mm]"></div>
+                         <div key={`empty-${i}`} className="border border-gray-200 bg-white h-[147mm] w-[105mm]"></div>
                     ))}
                 </div>
             ))}
