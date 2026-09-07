@@ -5,13 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Download, Share } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
-import Image from 'next/image';
 
 const SESSION_DISMISSED_KEY = 'pwa-install-dismissed-session';
 
 export function InstallPwaModal() {
   const { showInstallPrompt, canPrompt, onInstall, deviceInfo } = usePWAInstall();
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const sessionDismissed = sessionStorage.getItem(SESSION_DISMISSED_KEY);
@@ -37,7 +41,7 @@ export function InstallPwaModal() {
     return instructions.other;
   };
   
-  if (!isOpen) {
+  if (!mounted || !isOpen) {
     return null;
   }
   
@@ -50,14 +54,16 @@ export function InstallPwaModal() {
       >
         <DialogHeader>
           <div className="flex justify-center">
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
                 src="/images/Logo_v3.png"
                 alt="Logo De Casa em Casa"
                 width={80}
                 height={80}
-                className="rounded-2xl"
+                className="rounded-2xl object-contain"
             />
           </div>
+
           <DialogTitle className="text-center text-2xl font-bold mt-4">Instale o App na Tela de Início</DialogTitle>
           <DialogDescription className="text-center text-base pt-2">
             Para uma experiência mais rápida, com acesso offline e notificações, adicione o 'De Casa em Casa' à sua tela inicial. É leve e não ocupa espaço como um app tradicional.

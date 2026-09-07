@@ -105,7 +105,7 @@ export function OfflineHouseSyncBanner() {
     }
   };
 
-  if (pendingCount === 0 && isOnline) {
+  if (pendingCount === 0) {
     return null;
   }
 

@@ -25,6 +25,7 @@ function MyTerritoriesPage() {
   
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [territoryToReturn, setTerritoryToReturn] = useState<Territory | null>(null);
+  const [isReturning, setIsReturning] = useState(false);
 
   const [sortBy, setSortBy] = useState<'dueDate' | 'number'>('dueDate');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -83,6 +84,7 @@ function MyTerritoriesPage() {
       historyLog.campaignName = territoryToReturn.assignment.campaignName;
     }
 
+    setIsReturning(true);
     try {
       await updateDoc(territoryRef, {
         status: 'disponivel',
@@ -113,6 +115,7 @@ function MyTerritoriesPage() {
           variant: "destructive"
       });
     } finally {
+      setIsReturning(false);
       setIsConfirmModalOpen(false);
       setTerritoryToReturn(null);
     }
@@ -189,12 +192,37 @@ function MyTerritoriesPage() {
 
       <ConfirmationModal
         isOpen={isConfirmModalOpen}
-        onClose={() => setIsConfirmModalOpen(false)}
+        onClose={() => {
+          if (!isReturning) {
+            setIsConfirmModalOpen(false);
+            setTerritoryToReturn(null);
+          }
+        }}
         onConfirm={handleReturnTerritory}
+        isLoading={isReturning}
         title="Confirmar Devolução"
-        message={`Você tem certeza que deseja devolver o território "${territoryToReturn?.name}"?`}
-        confirmText="Sim, Devolver"
-        cancelText="Cancelar"
+        message={
+          <div className="space-y-4 pt-1 pb-1">
+            <p className="text-sm text-muted-foreground leading-relaxed text-center sm:text-left">
+              Devolva o território apenas se ele já estiver concluído!
+            </p>
+            <div className="p-3.5 rounded-lg bg-muted/70 border border-border text-center">
+              <p className="text-base sm:text-lg font-bold text-foreground">
+                Este território está concluído?
+              </p>
+            </div>
+            {territoryToReturn && (
+              <p className="text-xs text-muted-foreground text-center">
+                Território: <span className="font-semibold text-foreground">{territoryToReturn.number} - {territoryToReturn.name}</span>
+              </p>
+            )}
+          </div>
+        }
+        confirmText="Sim"
+        cancelText="Não"
+        variant="destructive"
+        buttonsLayout="row"
+        buttonsOrder="actionFirst"
       />
     </>
   );

@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState, useMemo, type ReactNode, useCallback } from "react";
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from "next/navigation";
 import { auth, db, functions } from "@/lib/firebase"; 
@@ -10,6 +9,7 @@ import { httpsCallable } from 'firebase/functions';
 import { logEvent } from "@/lib/audit";
 import { sendPushNotification } from "@/lib/sendPushNotification";
 
+import { LoadingScreen } from "@/components/LoadingScreen";
 import { Home, Map, Users, LogOut, Trees, Download, Share2, Loader, Info, Shield, UserCheck, Bell, Youtube, History, LayoutGrid, MoreHorizontal, FileText, AlertTriangle } from 'lucide-react';
 import { cn, getInitials, isTerritoryOverdue } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -161,13 +161,13 @@ function Sidebar({
         <div className="flex flex-col items-center mb-8">
             <div className="w-full flex justify-between items-start mb-4">
                 <div className="w-8" />
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                     src="/images/Logo_v3.png"
                     alt="Logo"
                     width={80}
                     height={80}
-                    className="rounded-lg"
-                    priority
+                    className="rounded-lg object-contain"
                 />
                 <div className="flex flex-col items-end gap-2">
                     <div className="hidden md:block">
@@ -724,7 +724,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
   }, [activeColors.length]);
 
   if (loading || !user) {
-    return null;
+    return <LoadingScreen />;
   }
 
   const currentColor = activeColors[currentColorIndex % activeColors.length] || '#ef4444';

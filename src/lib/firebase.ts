@@ -59,18 +59,52 @@ const firebaseConfig = {
 
 const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-const db: Firestore = typeof window !== 'undefined' 
-  ? initializeFirestore(app, {
+let db: Firestore;
+try {
+  if (typeof window !== 'undefined') {
+    db = initializeFirestore(app, {
       localCache: persistentLocalCache({
         tabManager: persistentMultipleTabManager()
       })
-    })
-  : getFirestoreInstance(app);
+    });
+  } else {
+    db = getFirestoreInstance(app);
+  }
+} catch {
+  db = getFirestoreInstance(app);
+}
 
-const auth: Auth = getAuth(app);
-const storage: FirebaseStorage = getStorage(app);
-const functions: Functions = getFunctions(app, 'southamerica-east1');
-const rtdb: Database = getDatabase(app);
+let auth: Auth;
+try {
+  auth = getAuth(app);
+} catch {
+  auth = getAuth();
+}
+
+let storage: FirebaseStorage;
+try {
+  storage = getStorage(app);
+} catch {
+  storage = getStorage();
+}
+
+let functions: Functions;
+try {
+  functions = getFunctions(app, 'southamerica-east1');
+} catch {
+  try {
+    functions = getFunctions(app);
+  } catch {
+    functions = getFunctions();
+  }
+}
+
+let rtdb: Database;
+try {
+  rtdb = getDatabase(app);
+} catch {
+  rtdb = getDatabase();
+}
 
 // Força a persistência local para manter o usuário logado
 if (typeof window !== 'undefined') {

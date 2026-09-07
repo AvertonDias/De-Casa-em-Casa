@@ -34,7 +34,7 @@ const ReportContent = ({ territories, congregationName, type }: { territories: A
           </thead>
           <tbody>
             {territories.map((t) => (
-              <tr key={t.id} className="border-b border-gray-300 text-sm">
+              <tr key={t.id} className="border-b border-gray-300 text-sm print-avoid-break" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <td className="p-2 align-top">
                     <span className="font-semibold">{t.number}</span> - {t.name}
                 </td>
@@ -103,7 +103,8 @@ export default function AvailableTerritoriesReport() {
             filename: filename,
             image: { type: "jpeg", quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['avoid-all', 'css', 'legacy'], avoid: ['.print-avoid-break', 'tr'] },
         });
 
         if (Capacitor.isNativePlatform()) {

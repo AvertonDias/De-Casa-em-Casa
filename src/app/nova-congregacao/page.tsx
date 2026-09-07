@@ -6,7 +6,6 @@ import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } f
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useUser } from '@/contexts/UserContext';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Eye, EyeOff, Loader, Building2, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -344,7 +343,8 @@ export default function NewCongregationSignUpPage() {
               <ArrowLeft size={14} className="mr-1" /> Voltar ao Login
             </Link>
             <div className="flex flex-col items-center justify-center">
-              <Image src="/images/Logo_v3.png" alt="Logo" width={60} height={60} className="rounded-lg mb-2" priority />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/images/Logo_v3.png" alt="Logo" width={60} height={60} className="rounded-lg mb-2 object-contain" />
               <h1 className="text-2xl font-bold text-center tracking-tight">Criar Congregação</h1>
               <p className="text-xs text-muted-foreground text-center">Informe os dados para cadastrar a congregação e sua conta de administrador</p>
             </div>

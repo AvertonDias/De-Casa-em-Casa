@@ -45,7 +45,7 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
 
   return (
     <div className="bg-card p-4 rounded-lg shadow-md h-full group-hover:border-primary/50 border border-transparent transition-all flex flex-col space-y-4">
-      <Link href={`/dashboard/territorios/${territory.id}`} className="block group flex-grow">
+      <Link href={`/dashboard/territorios/${territory.id}`} prefetch={false} className="block group flex-grow">
         <div className="flex justify-between items-start">
           <h3 className="font-bold text-xl flex-1 pr-2">{territory.number} - {territory.name}</h3>
           <span className={`px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${statusInfo.color}`}>
@@ -90,12 +90,12 @@ const TerritoryRowManager = ({ territory }: { territory: Territory }) => {
 
 const TerritoryRowPublicador = ({ territory }: { territory: Territory }) => (
     <div className="flex items-center justify-between py-3 px-4 -mx-4 hover:bg-white/5 transition-colors cursor-pointer">
-      <Link href={`/dashboard/territorios/${territory.id}`} className="flex-grow flex items-center space-x-4 min-w-0">
+      <Link href={`/dashboard/territorios/${territory.id}`} prefetch={false} className="flex-grow flex items-center space-x-4 min-w-0">
         <span className="font-bold text-lg text-muted-foreground w-8 text-center">{territory.number}</span>
         <h3 className="font-semibold text-lg truncate">{territory.name}</h3>
       </Link>
       <div className="flex items-center">
-        <Link href={`/dashboard/territorios/${territory.id}`} className="p-2">
+        <Link href={`/dashboard/territorios/${territory.id}`} prefetch={false} className="p-2">
           <ChevronRight className="text-muted-foreground h-5 w-5" />
         </Link>
       </div>
@@ -251,11 +251,6 @@ function TerritoriosPage() {
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               Territórios
-              {isOffline && (
-                <span className="text-xs bg-yellow-600/20 text-yellow-500 px-2 py-1 rounded-md flex items-center gap-1 border border-yellow-500/20">
-                  <AlertTriangle size={12} /> Offline
-                </span>
-              )}
             </h1>
             <p className="text-muted-foreground">{congregation?.name || user.congregationName || 'Sua Congregação'}</p>
           </div>

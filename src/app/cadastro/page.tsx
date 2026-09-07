@@ -7,7 +7,6 @@ import { auth, db, functions } from '@/lib/firebase';
 import { doc, setDoc, getDoc, deleteDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { useUser } from '@/contexts/UserContext';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Eye, EyeOff, Loader, CheckCircle2, ArrowLeft, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -332,7 +331,8 @@ export default function SignUpPage() {
               <ArrowLeft size={14} className="mr-1" /> Voltar ao Login
             </Link>
             <div className="flex flex-col items-center justify-center">
-              <Image src="/images/Logo_v3.png" alt="Logo" width={60} height={60} className="rounded-lg mb-2" priority />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/images/Logo_v3.png" alt="Logo" width={60} height={60} className="rounded-lg mb-2 object-contain" />
               <h1 className="text-2xl font-bold text-center tracking-tight">Solicitar Acesso</h1>
               <p className="text-xs text-muted-foreground text-center">Informe seus dados e o número da sua congregação</p>
             </div>

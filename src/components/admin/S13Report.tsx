@@ -91,6 +91,7 @@ export default function S13ReportPage() {
             image: { type: "jpeg", quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
             jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+            pagebreak: { mode: ['avoid-all', 'css', 'legacy'], avoid: ['.print-avoid-break', 'tbody', 'tr'] },
         });
 
         if (Capacitor.isNativePlatform()) {
@@ -258,8 +259,8 @@ export default function S13ReportPage() {
               };
 
               return (
-                <tbody key={t.id} className="print-avoid-break">
-                  <tr>
+                <tbody key={t.id} className="print-avoid-break" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                  <tr className="print-avoid-break" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     <td rowSpan={2} className="border border-black py-2" style={cellStyle}>{t.number}</td>
                     {display.map((a, i) => (
                       <td key={i} colSpan={2} className="border border-black py-2 px-1" style={cellStyle}>
@@ -274,7 +275,7 @@ export default function S13ReportPage() {
                       </td>
                     ))}
                   </tr>
-                  <tr>
+                  <tr className="print-avoid-break" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                     {display.map((a, i) => (
                       <React.Fragment key={i}>
                         <td className="border border-black py-2" style={cellStyle}>

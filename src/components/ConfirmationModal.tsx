@@ -23,6 +23,8 @@ interface ConfirmationModalProps {
   showCancelButton?: boolean;
   variant?: 'default' | 'destructive' | 'info';
   confirmDisabled?: boolean;
+  buttonsLayout?: 'default' | 'row';
+  buttonsOrder?: 'cancelFirst' | 'actionFirst';
 }
 
 export function ConfirmationModal({
@@ -38,6 +40,8 @@ export function ConfirmationModal({
   showCancelButton = true,
   variant = 'destructive',
   confirmDisabled = false,
+  buttonsLayout = 'default',
+  buttonsOrder = 'cancelFirst',
 }: ConfirmationModalProps) {
   const { registerModal, unregisterModal } = useModal();
   const modalId = `confirmationModal-${title.replace(/\s+/g, '-')}`;
@@ -74,15 +78,46 @@ export function ConfirmationModal({
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
-          {showCancelButton && <AlertDialogCancel onClick={handleClose} disabled={isLoading}>{cancelText}</AlertDialogCancel>}
-          <AlertDialogAction
-            onClick={onConfirm}
-            disabled={isLoading || confirmDisabled}
-            className={cn(buttonVariants({ variant }))}
-          >
-            {isLoading ? <><Loader className="mr-2 h-4 w-4 animate-spin" /> Processando...</> : confirmText}
-          </AlertDialogAction>
+        <AlertDialogFooter className={cn(buttonsLayout === 'row' && "flex-row items-center justify-between gap-3 sm:space-x-0")}>
+          {buttonsOrder === 'actionFirst' ? (
+            <>
+              <AlertDialogAction
+                onClick={onConfirm}
+                disabled={isLoading || confirmDisabled}
+                className={cn(buttonVariants({ variant }), buttonsLayout === 'row' && "flex-1 !mt-0")}
+              >
+                {isLoading ? <><Loader className="mr-2 h-4 w-4 animate-spin" /> Processando...</> : confirmText}
+              </AlertDialogAction>
+              {showCancelButton && (
+                <AlertDialogCancel
+                  onClick={handleClose}
+                  disabled={isLoading}
+                  className={cn(buttonsLayout === 'row' && "flex-1 !mt-0")}
+                >
+                  {cancelText}
+                </AlertDialogCancel>
+              )}
+            </>
+          ) : (
+            <>
+              {showCancelButton && (
+                <AlertDialogCancel
+                  onClick={handleClose}
+                  disabled={isLoading}
+                  className={cn(buttonsLayout === 'row' && "flex-1 !mt-0")}
+                >
+                  {cancelText}
+                </AlertDialogCancel>
+              )}
+              <AlertDialogAction
+                onClick={onConfirm}
+                disabled={isLoading || confirmDisabled}
+                className={cn(buttonVariants({ variant }), buttonsLayout === 'row' && "flex-1 !mt-0")}
+              >
+                {isLoading ? <><Loader className="mr-2 h-4 w-4 animate-spin" /> Processando...</> : confirmText}
+              </AlertDialogAction>
+            </>
+          )}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

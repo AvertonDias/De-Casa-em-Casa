@@ -23,7 +23,7 @@ export default function RecentTerritoryCard({ territory }: RecentTerritoryCardPr
 
   return (
     // O card inteiro agora é um link clicável
-    <Link href={territory.type === 'rural' ? `/dashboard/rural/${territory.id}` : `/dashboard/territorios/${territory.id}`} className="block group">
+    <Link href={territory.type === 'rural' ? `/dashboard/rural/${territory.id}` : `/dashboard/territorios/${territory.id}`} prefetch={false} className="block group">
       <div className="bg-card p-4 rounded-lg space-y-3 h-full flex flex-col justify-between hover:border-primary/50 border border-transparent transition-all">
         {/* Parte Superior: Nome, Data e Progresso */}
         <div>

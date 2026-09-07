@@ -13,7 +13,7 @@ import { useUser } from '@/contexts/UserContext';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { type Casa, type Quadra, type Territory } from '@/types/types';
 import withAuth from '@/components/withAuth';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -26,15 +26,14 @@ import { OfflineHouseSyncBanner } from '@/components/OfflineHouseSyncBanner';
 
 
 interface QuadraDetailPageProps {
-  params: {
-    territoryId: string;
-    quadraId: string;
-  };
+  params?: any;
 }
 
 function QuadraDetailPage({ params }: QuadraDetailPageProps) {
   const { user, loading: userLoading, congregation, updateUser } = useUser();
-  const { territoryId, quadraId } = params;
+  const routeParams = useParams();
+  const territoryId = (routeParams?.territoryId as string) || params?.territoryId;
+  const quadraId = (routeParams?.quadraId as string) || params?.quadraId;
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [quadra, setQuadra] = useState<Quadra | null>(null);
   const [allQuadras, setAllQuadras] = useState<Quadra[]>([]);

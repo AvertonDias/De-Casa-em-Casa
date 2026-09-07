@@ -3,7 +3,7 @@
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js");
 
-const CACHE_NAME = 'de-casa-em-casa-cache-v6';
+const CACHE_NAME = 'de-casa-em-casa-cache-v9';
 const STATIC_ASSETS = [
   '/',
   '/dashboard',

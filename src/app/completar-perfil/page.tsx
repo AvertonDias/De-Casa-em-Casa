@@ -6,7 +6,6 @@ import { useUser } from '@/contexts/UserContext';
 import { db, functions } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast";
 import { maskPhone } from '@/lib/utils';
-import Image from 'next/image';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import withAuth from '@/components/withAuth';
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
@@ -177,7 +176,8 @@ function CompleteProfileContent() {
             <div className="flex-grow flex items-center justify-center p-4">
                 <div className="w-full max-w-md p-8 space-y-6 bg-card text-card-foreground rounded-xl shadow-lg border border-border/50">
                     <div className="text-center space-y-1">
-                        <Image src="/images/Logo_v3.png" alt="Logo" width={60} height={60} className="rounded-lg mb-4 mx-auto" priority />
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/images/Logo_v3.png" alt="Logo" width={60} height={60} className="rounded-lg mb-4 mx-auto object-contain" />
                         <h1 className="text-2xl font-bold tracking-tight">
                             {mode === 'CREATE' ? 'Cadastrar Nova Congregação' : 'Solicitar Acesso à Congregação'}
                         </h1>

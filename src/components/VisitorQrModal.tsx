@@ -59,54 +59,88 @@ export default function VisitorQrModal({
     if (!svg) return;
     const svgData = new XMLSerializer().serializeToString(svg);
     const canvas = document.createElement("canvas");
+    const size = 600;
+    canvas.width = size;
+    canvas.height = size;
     const ctx = canvas.getContext("2d");
-    const img = new Image();
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx?.drawImage(img, 0, 0);
-      const pngFile = canvas.toDataURL("image/png");
-      const downloadLink = document.createElement("a");
-      downloadLink.download = `qrcode-territorio-${territoryNumber}.png`;
-      downloadLink.href = pngFile;
-      downloadLink.click();
-      toast({ title: "Download iniciado", description: "QR Code salvo como imagem PNG." });
+    if (!ctx) return;
+
+    const qrImg = new Image();
+    const logoImg = new Image();
+
+    qrImg.onload = () => {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(qrImg, 0, 0, size, size);
+
+      logoImg.onload = () => {
+        const logoSize = size * (56 / 240);
+        const logoPos = (size - logoSize) / 2;
+        ctx.drawImage(logoImg, logoPos, logoPos, logoSize, logoSize);
+
+        const pngFile = canvas.toDataURL("image/png");
+        const downloadLink = document.createElement("a");
+        downloadLink.download = `qrcode-territorio-${territoryNumber}.png`;
+        downloadLink.href = pngFile;
+        downloadLink.click();
+        toast({ title: "Download concluído", description: "QR Code com logotipo salvo como imagem PNG." });
+      };
+
+      logoImg.onerror = () => {
+        const pngFile = canvas.toDataURL("image/png");
+        const downloadLink = document.createElement("a");
+        downloadLink.download = `qrcode-territorio-${territoryNumber}.png`;
+        downloadLink.href = pngFile;
+        downloadLink.click();
+        toast({ title: "Download concluído", description: "QR Code salvo como imagem PNG." });
+      };
+
+      logoImg.src = "/images/De%20casa%20em%20casa%20ico%20sem%20nome.png";
     };
-    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+
+    qrImg.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <QrCode className="text-primary h-6 w-6" />
+      <DialogContent className="w-[95vw] max-w-md p-5 sm:p-6 rounded-2xl mx-auto">
+        <DialogHeader className="text-center sm:text-left">
+          <DialogTitle className="flex items-center justify-center sm:justify-start gap-2 text-lg sm:text-xl font-bold">
+            <QrCode className="text-primary h-5 w-5 sm:h-6 sm:w-6 shrink-0" />
             QR Code para Visitantes
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs sm:text-sm">
             Território {territoryNumber} - {territoryName}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col items-center justify-center py-6 space-y-4">
-          <div className="bg-white p-4 rounded-xl shadow-md border border-border">
+        <div className="flex flex-col items-center justify-center py-4 sm:py-6 space-y-4">
+          <div className="bg-white p-3 sm:p-4 rounded-2xl shadow-md border border-border flex items-center justify-center">
             <QRCodeSVG
               id="visitor-qr-svg"
               value={visitorUrl}
-              size={220}
+              size={240}
               level={"H"}
               includeMargin={true}
+              imageSettings={{
+                src: "/images/De%20casa%20em%20casa%20ico%20sem%20nome.png",
+                x: undefined,
+                y: undefined,
+                height: 56,
+                width: 56,
+                excavate: true,
+              }}
             />
           </div>
-          <p className="text-xs text-muted-foreground text-center max-w-xs">
+          <p className="text-xs text-muted-foreground text-center max-w-xs leading-relaxed">
             Visitantes podem escanear este QR Code para acessar o território informando apenas o nome, sem precisar de cadastro, para marcar as casas trabalhadas.
           </p>
 
-          <div className="w-full flex gap-2 pt-2">
+          <div className="w-full flex flex-col sm:flex-row gap-2 pt-2">
             <Button
               variant="outline"
               onClick={handleCopy}
-              className="flex-1 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2"
+              className="flex-1 h-10 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2"
             >
               {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
               {copied ? "Copiado!" : "Copiar Link"}
@@ -114,7 +148,7 @@ export default function VisitorQrModal({
 
             <Button
               onClick={handleShare}
-              className="flex-1 text-xs sm:text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
+              className="flex-1 h-10 text-xs sm:text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 shadow-sm"
             >
               <Share2 className="h-4 w-4" />
               Compartilhar Link
@@ -122,11 +156,11 @@ export default function VisitorQrModal({
           </div>
         </div>
 
-        <DialogFooter className="flex sm:justify-between gap-2">
-          <Button variant="outline" onClick={handleDownloadQr} className="w-full sm:w-auto">
+        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2">
+          <Button variant="outline" onClick={handleDownloadQr} className="w-full sm:w-auto h-10 text-xs sm:text-sm font-medium">
             <Download className="mr-2 h-4 w-4" /> Baixar Imagem
           </Button>
-          <Button onClick={onClose} className="w-full sm:w-auto">
+          <Button onClick={onClose} className="w-full sm:w-auto h-10 text-xs sm:text-sm font-medium">
             Fechar
           </Button>
         </DialogFooter>

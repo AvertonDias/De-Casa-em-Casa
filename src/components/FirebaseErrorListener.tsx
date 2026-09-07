@@ -16,7 +16,7 @@ export function FirebaseErrorListener() {
       }
     });
 
-    // Ovinte detalhado para falhas no registro de tokens push (FCM / Web Push)
+    // Ouvinte detalhado para falhas no registro de tokens push (FCM / Web Push)
     errorEmitter.on('fcm-token-error', (data) => {
       console.group('🔔 [Push Notifications] Falha no Registro de Token FCM');
       console.error('Mensagem de Erro:', data?.message || 'Erro desconhecido ao obter/salvar token push');
@@ -33,11 +33,14 @@ export function FirebaseErrorListener() {
       console.groupEnd();
     });
 
+
     const handleWindowError = (e: ErrorEvent) => {
       if (
         e.message &&
         (e.message.includes('ResizeObserver loop completed with undelivered notifications') ||
-         e.message.includes('ResizeObserver loop limit exceeded'))
+         e.message.includes('ResizeObserver loop limit exceeded') ||
+         e.message.includes('Failed to fetch RSC payload') ||
+         e.message.includes('Falling back to browser navigation'))
       ) {
         e.stopImmediatePropagation();
         e.stopPropagation();
@@ -45,10 +48,24 @@ export function FirebaseErrorListener() {
       }
     };
 
+    const handleUnhandledRejection = (e: PromiseRejectionEvent) => {
+      const msg = e.reason?.message || (typeof e.reason === 'string' ? e.reason : '');
+      if (
+        msg.includes('Failed to fetch RSC payload') ||
+        msg.includes('Falling back to browser navigation') ||
+        msg.includes('Failed to fetch')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
     window.addEventListener('error', handleWindowError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
     return () => {
       window.removeEventListener('error', handleWindowError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
   }, []);
 
