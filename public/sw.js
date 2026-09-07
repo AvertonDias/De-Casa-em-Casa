@@ -3,7 +3,7 @@
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js");
 
-const CACHE_NAME = 'de-casa-em-casa-cache-v9';
+const CACHE_NAME = 'de-casa-em-casa-cache-v11';
 const STATIC_ASSETS = [
   '/',
   '/dashboard',
@@ -13,6 +13,7 @@ const STATIC_ASSETS = [
   '/offline.html',
   '/images/Logo_v3.png',
   '/images/De casa em casa pb.png',
+  '/images/De%20casa%20em%20casa%20ico%20sem%20nome.png',
   '/favicon.ico'
 ];
 
@@ -153,33 +154,33 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Ignorar requisições para o Firebase / Google API / Chrome Extensions
+  // Ignorar requisições para o Firebase / Google API / Chrome Extensions e runtime de desenvolvimento do webpack
   if (
     url.hostname.includes('firestore.googleapis.com') ||
     url.hostname.includes('identitytoolkit.googleapis.com') ||
     url.hostname.includes('firebaseinstallations.googleapis.com') ||
     url.hostname.includes('fcmregistrations.googleapis.com') ||
     url.hostname.includes('firebaseio.com') ||
-    url.protocol.startsWith('chrome-extension')
+    url.protocol.startsWith('chrome-extension') ||
+    url.pathname.includes('webpack.js') ||
+    url.pathname.includes('_next/webpack-hmr') ||
+    url.pathname.includes('react-refresh')
   ) {
     return;
   }
 
-  // Para assets imutáveis do Next.js (JS/CSS compilados em /_next/static/): Estratégia Cache First
+  // Para assets do Next.js (JS/CSS em /_next/static/): Estratégia Network First com fallback para cache
   if (url.pathname.startsWith('/_next/static/')) {
     event.respondWith(
-      caches.match(request).then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        return fetch(request).then((networkResponse) => {
+      fetch(request)
+        .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
           }
           return networkResponse;
-        });
-      })
+        })
+        .catch(() => caches.match(request))
     );
     return;
   }

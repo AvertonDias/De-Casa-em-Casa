@@ -59,11 +59,13 @@ export default function VisitorQrModal({
     if (!svg) return;
     const svgData = new XMLSerializer().serializeToString(svg);
     const canvas = document.createElement("canvas");
-    const size = 600;
+    const size = 1024;
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
     const qrImg = new Image();
     const logoImg = new Image();
@@ -74,16 +76,33 @@ export default function VisitorQrModal({
       ctx.drawImage(qrImg, 0, 0, size, size);
 
       logoImg.onload = () => {
-        const logoSize = size * (56 / 240);
-        const logoPos = (size - logoSize) / 2;
-        ctx.drawImage(logoImg, logoPos, logoPos, logoSize, logoSize);
+        // Proporção real da imagem original (586 x 557)
+        const aspectRatio = 586 / 557;
+        const logoHeight = Math.round(size * 0.22); // ~225px no canvas de 1024
+        const logoWidth = Math.round(logoHeight * aspectRatio);
+        const logoX = Math.round((size - logoWidth) / 2);
+        const logoY = Math.round((size - logoHeight) / 2);
+
+        // Fundo branco com cantos arredondados sob o logo para garantir contraste e leitura do QR Code
+        const padding = Math.round(size * 0.012);
+        const radius = Math.round(size * 0.018);
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(logoX - padding, logoY - padding, logoWidth + padding * 2, logoHeight + padding * 2, radius);
+        } else {
+          ctx.rect(logoX - padding, logoY - padding, logoWidth + padding * 2, logoHeight + padding * 2);
+        }
+        ctx.fill();
+
+        ctx.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight);
 
         const pngFile = canvas.toDataURL("image/png");
         const downloadLink = document.createElement("a");
         downloadLink.download = `qrcode-territorio-${territoryNumber}.png`;
         downloadLink.href = pngFile;
         downloadLink.click();
-        toast({ title: "Download concluído", description: "QR Code com logotipo salvo como imagem PNG." });
+        toast({ title: "Download concluído", description: "QR Code em alta resolução com logotipo salvo como imagem PNG." });
       };
 
       logoImg.onerror = () => {
@@ -115,11 +134,11 @@ export default function VisitorQrModal({
         </DialogHeader>
 
         <div className="flex flex-col items-center justify-center py-4 sm:py-6 space-y-4">
-          <div className="bg-white p-3 sm:p-4 rounded-2xl shadow-md border border-border flex items-center justify-center">
+          <div className="visitor-qr-code-container relative bg-white p-4 sm:p-5 rounded-2xl shadow-md border border-border flex items-center justify-center select-none">
             <QRCodeSVG
               id="visitor-qr-svg"
               value={visitorUrl}
-              size={240}
+              size={256}
               level={"H"}
               includeMargin={true}
               imageSettings={{
@@ -127,10 +146,32 @@ export default function VisitorQrModal({
                 x: undefined,
                 y: undefined,
                 height: 56,
-                width: 56,
+                width: 59,
                 excavate: true,
               }}
             />
+            {/* Camada nítida em alta definição com anti-aliasing otimizado centralizada sobre o QR Code */}
+            <div 
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center bg-white p-1 rounded-xl shadow-xs"
+              style={{
+                width: '64px',
+                height: '61px',
+              }}
+              aria-hidden="true"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/De%20casa%20em%20casa%20ico%20sem%20nome.png"
+                alt="Logotipo De casa em casa"
+                width={59}
+                height={56}
+                className="w-full h-full object-contain"
+                style={{
+                  imageRendering: 'auto',
+                  WebkitFontSmoothing: 'antialiased',
+                }}
+              />
+            </div>
           </div>
           <p className="text-xs text-muted-foreground text-center max-w-xs leading-relaxed">
             Visitantes podem escanear este QR Code para acessar o território informando apenas o nome, sem precisar de cadastro, para marcar as casas trabalhadas.
